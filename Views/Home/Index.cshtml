@@ -1,0 +1,140 @@
+﻿@{
+    ViewData["Title"] = "Home page";
+}
+@using UrgentHub.Controllers
+
+<script>
+     @{
+         var clientId = ViewBag.ClientID;
+         var clientInternal = ViewBag.ClientInternal;
+         var clientName = ViewBag.ClientName;
+
+         var contactId = ViewBag.ContactID;
+         var contactName = ViewBag.ContactName;
+         var greetingString = ViewBag.GreetingString;
+     }
+    var ClientID = '@clientId';
+    var ClientInternal = '@clientInternal';
+    var ClientName = '@clientName';
+
+    var ContactID = '@contactId';
+    var ContactName = '@contactName';
+    var GreetingString = '@greetingString';
+</script>
+
+<div class="text-center">
+    <h1 class="display-4">UrgentHub</h1>
+    <h4>@greetingString @contactName</h4>
+</div>
+<div id="urgent-hub">
+    <div class="dash-boxes container-fluid">
+        @{
+            if (clientInternal == true)
+            {
+                <div class="row">
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://adminmanager.urgent.co.nz')">
+                            <i class="fas fa-cogs"></i>
+                            <div class="text">Admin Manager</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                            <i class="fas fa-file-import"></i>
+                            <div class="text">Bulk Import</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://clientmanager.urgent.co.nz')">
+                            <i class="fas fa-user-plus"></i>
+                            <div class="text">Client Manager</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://couriermanager.urgent.co.nz')">
+                            <i class="fas fa-dolly"></i>
+                            <div class="text">Courier Manager</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://courierportal.urgent.co.nz')">
+                            <i class="fas fa-hamsa"></i>
+                            <div class="text">Courier Portal</div> <!--Courier login (not do-able imo)-->
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('http://despatch/')">
+                            <i class="fas fa-mail-bulk"></i>
+                            <div class="text">Despatch</div> <!--Need to work out how to access-->
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('http://despatchweb.urgent.co.nz/#/')">
+                            <i class="fas fa-window-maximize"></i>
+                            <div class="text">Despatch Web</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
+                            <i class="fas fa-calendar-plus"></i>
+                            <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                            <i class="fas fa-street-view"></i>
+                            <div class="text">Run Viewer</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="dash-box icon" onclick="window.open('http://urgent.co.nz/Job/Entry_multi.aspx')">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <div class="text">Urgent Site</div> <!--Probs have to add encrypted string once moved to new site-->
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                            <i class="fas fa-file-import"></i>
+                            <div class="text">Bulk Import</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('https://courierportal.urgent.co.nz')">
+                            <i class="fas fa-hamsa"></i>
+                            <div class="text">Courier Portal</div> <!--Courier login (not doable atm)-->
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
+                            <i class="fas fa-calendar-plus"></i>
+                            <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                            <i class="fas fa-street-view"></i>
+                            <div class="text">Run Viewer</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('http://urgent.co.nz/Job/Entry_multi.aspx')">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <div class="text">Urgent Site</div> <!--Probs have to add encrypted string once moved to new site-->
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
