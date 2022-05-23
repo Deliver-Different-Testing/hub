@@ -82,6 +82,9 @@ namespace UrgentHub.Controllers
 
                 ViewBag.ContactID = int.Parse(contactId);
                 ViewBag.ContactName = contactDetail.FirstName;
+                ViewBag.ContactFullName = contactDetail.FirstName + " " + contactDetail.SurName;
+                ViewBag.ContactEmail = contactDetail.UserName;
+                ViewBag.ContactCreated = contactDetail.Created;
                 ViewBag.GreetingString = GetGreetingString();
 
                 ViewBag.ClientName = clientDetail.Name;
