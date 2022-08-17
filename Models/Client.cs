@@ -12,6 +12,5 @@ namespace UrgentHub.Models
         public bool Internal { get; set; }
         public string Code { get; set; }
         public string WebServicePassword { get; set; }
-        
     }
 }

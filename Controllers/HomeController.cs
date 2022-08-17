@@ -10,6 +10,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using UrgentHub.Repositories;
+using UrgentHub.Models;
 
 namespace UrgentHub.Controllers
 {
@@ -69,6 +70,7 @@ namespace UrgentHub.Controllers
 
                 var contactDetail = _repo.GetContact(int.Parse(contactId));
                 var clientDetail = _repo.GetClient(contactDetail.ClientId);
+                var internetPermissions = _repo.GetDespatchWebInternetPermissions(int.Parse(contactId));
 
                 //if (!string.IsNullOrEmpty(jobNumber))
                 //{
@@ -86,6 +88,7 @@ namespace UrgentHub.Controllers
                 ViewBag.ContactEmail = contactDetail.UserName;
                 ViewBag.ContactCreated = contactDetail.Created;
                 ViewBag.GreetingString = GetGreetingString();
+                ViewBag.DespatchWebPermission = GetDespatchPermission(internetPermissions);
 
                 ViewBag.ClientName = clientDetail.Name;
                 ViewBag.ClientInternal = clientDetail.Internal;
@@ -105,6 +108,19 @@ namespace UrgentHub.Controllers
             "The world is yours,", "Hi", "Hello", "Hey", "All the best,", "Enjoy,", "Seize the day,", "Kia ora" };
             Random random = new Random();
             return greetings[random.Next(greetings.Length)];
+        }
+
+        public bool GetDespatchPermission(List<InternetPermission> internetPermissions)
+        {
+            foreach (InternetPermission i in internetPermissions)
+            {
+                if (i.InternetPermissionId == 12)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         protected string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte[] IV)

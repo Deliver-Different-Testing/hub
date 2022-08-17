@@ -11,6 +11,6 @@ namespace UrgentHub.Models
         public string FirstName { get; set; }
         public string SurName { get; set; }
         public string? UserName { get; set; }
-        public DateTime Created { get; set; }      
+        public DateTime Created { get; set; } 
     }
 }

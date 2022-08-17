@@ -35,5 +35,15 @@ namespace UrgentHub.Repositories
 
             return contact;
         } 
+
+        public List<InternetPermission> GetDespatchWebInternetPermissions(int contactId) 
+        {
+            var internetPermissions = new List<InternetPermission>();
+            _context.LoadStoredProc("RVW_stpValidateInternetPermissions")
+                .WithSqlParam("@ContactID", contactId)
+                .ExecuteStoredProc(handle => { internetPermissions = (List<InternetPermission>)handle.ReadToList<InternetPermission>(); });
+
+            return internetPermissions;
+        }
     }
 }
