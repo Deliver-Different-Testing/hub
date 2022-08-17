@@ -190,3 +190,8 @@ body {
     color: #282932;
     font-weight: 500;
 }
+
+.image-icon {
+    width: 110px;
+    padding-top:18px;
+}
