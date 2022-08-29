@@ -57,7 +57,15 @@ namespace UrgentHubMVC
                 app.UseHsts();
             }
             app.UseHttpsRedirection();
-            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions()
+            {
+                OnPrepareResponse = x =>
+                {
+                    x.Context.Response.Headers.Add("Cache-Control", "no-cache, no-store");
+                    x.Context.Response.Headers.Add("Pragma", "no-cache");
+                    x.Context.Response.Headers.Add("Expires", "0");
+                }
+            });
 
             app.UseRouting();
 
