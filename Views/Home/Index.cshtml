@@ -16,6 +16,7 @@
          var contactCreated = ViewBag.ContactCreated;
          var greetingString = ViewBag.GreetingString;
          var despatchWebPermission = ViewBag.DespatchWebPermission;
+         var bookJobPermission = ViewBag.BookJobPermission;
      }
     var ClientID = '@clientId';
     var ClientInternal = '@clientInternal';
@@ -28,6 +29,7 @@
     var ContactCreated = '@contactCreated';
     var GreetingString = '@greetingString';
     var DespatchWebPermission = '@despatchWebPermission';
+    var BookJobPermission = '@bookJobPermission';
 </script>
 
 <!-- Intercome live chat widget -->
@@ -159,71 +161,131 @@
             {
                 if (despatchWebPermission == true)
                 {
-                    <div class="row">
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
-                                <img class="image-icon" src="/images/download.png">
-                                <div class="text">Job Booking Page</div>
+                    if (bookJobPermission == true)
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <img class="image-icon" src="/images/download.png">
+                                    <div class="text">Job Booking Page</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-file-import"></i>
+                                    <div class="text">Bulk Import</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('http://despatchweb.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-window-maximize"></i>
+                                    <div class="text">Despatch Web</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                                </div>
                             </div>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
-                                <i class="fas fa-file-import"></i>
-                                <div class="text">Bulk Import</div>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('http://despatchweb.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
-                                <i class="fas fa-window-maximize"></i>
-                                <div class="text">Despatch Web</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                    } 
+                    else
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-file-import"></i>
+                                    <div class="text">Bulk Import</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('http://despatchweb.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-window-maximize"></i>
+                                    <div class="text">Despatch Web</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
-                                <i class="fas fa-calendar-plus"></i>
-                                <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
-                                <i class="fas fa-street-view"></i>
-                                <div class="text">Run Viewer</div>
-                            </div>
-                        </div>
-                    </div>
+                    }
                 }
                 else
                 {
-                    <div class="row">
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
-                                <img class="image-icon" src="/images/download.png">
-                                <div class="text">Job Booking Page</div>
+                    if (bookJobPermission == true)
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <img class="image-icon" src="/images/download.png">
+                                    <div class="text">Job Booking Page</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-file-import"></i>
+                                    <div class="text">Bulk Import</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                                </div>
                             </div>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
-                                <i class="fas fa-file-import"></i>
-                                <div class="text">Bulk Import</div>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
-                                <i class="fas fa-calendar-plus"></i>
-                                <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-file-import"></i>
+                                    <div class="text">Bulk Import</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runbuilder.urgent.co.nz/#/login/')">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-4">
-                            <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
-                                <i class="fas fa-street-view"></i>
-                                <div class="text">Run Viewer</div>
-                            </div>
-                        </div>
-                    </div>
+                    }
                 }
             }
         }

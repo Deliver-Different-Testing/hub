@@ -88,7 +88,8 @@ namespace UrgentHub.Controllers
                 ViewBag.ContactEmail = contactDetail.UserName;
                 ViewBag.ContactCreated = contactDetail.Created;
                 ViewBag.GreetingString = GetGreetingString();
-                ViewBag.DespatchWebPermission = GetDespatchPermission(internetPermissions);
+                ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
+                ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
 
                 ViewBag.ClientName = clientDetail.Name;
                 ViewBag.ClientInternal = clientDetail.Internal;
@@ -110,11 +111,11 @@ namespace UrgentHub.Controllers
             return greetings[random.Next(greetings.Length)];
         }
 
-        public bool GetDespatchPermission(List<InternetPermission> internetPermissions)
+        public bool GetPermission(List<InternetPermission> internetPermissions, int internetPermissionId)
         {
             foreach (InternetPermission i in internetPermissions)
             {
-                if (i.InternetPermissionId == 12)
+                if (i.InternetPermissionId == internetPermissionId)
                 {
                     return true;
                 }
