@@ -86,7 +86,7 @@ namespace UrgentHub.Controllers
                 ViewBag.ContactName = contactDetail.FirstName;
                 ViewBag.ContactFullName = contactDetail.FirstName + " " + contactDetail.SurName;
                 ViewBag.ContactEmail = contactDetail.UserName;
-                ViewBag.ContactCreated = contactDetail.Created;
+                ViewBag.ContactCreated = (Int32)(contactDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
                 ViewBag.GreetingString = GetGreetingString();
                 ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
                 ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
@@ -94,6 +94,7 @@ namespace UrgentHub.Controllers
                 ViewBag.ClientName = clientDetail.Name;
                 ViewBag.ClientInternal = clientDetail.Internal;
                 ViewBag.ClientID = contactDetail.ClientId;
+                ViewBag.ClientCreated = (Int32) (clientDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
 
                 return View();
             }

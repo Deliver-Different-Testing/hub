@@ -8,6 +8,7 @@
          var clientId = ViewBag.ClientID;
          var clientInternal = ViewBag.ClientInternal;
          var clientName = ViewBag.ClientName;
+         var clientCreated = ViewBag.ClientCreated;
 
          var contactId = ViewBag.ContactID;
          var contactName = ViewBag.ContactName;
@@ -21,6 +22,7 @@
     var ClientID = '@clientId';
     var ClientInternal = '@clientInternal';
     var ClientName = '@clientName';
+    var ClientCreated = '@clientCreated';
 
     var ContactID = '@contactId';
     var ContactName = '@contactName';
@@ -39,7 +41,12 @@
         app_id: "yso4cj22",
         name: '@contactFullName', // Full name
         email: '@contactEmail', // Email address
-        created_at: '@contactCreated' // Signup date as a Unix timestamp
+        created_at: '@contactCreated', // Signup date as a Unix timestamp
+        company: {
+            id: @clientId,
+            name: '@clientName',
+            created_at: '@clientCreated'
+        }
     };
 </script>
 
