@@ -133,19 +133,19 @@
                     <div class="col-sm-3">
                         <div class="dash-box icon" onclick="window.open('https://courierportal.urgent.co.nz')">
                             <i class="fas fa-hamsa"></i>
-                            <div class="text">Courier Portal</div> <!--Courier login (not do-able imo)-->
+                            <div class="text">Courier Portal</div> <!--Courier login (not doable imo)-->
                         </div>
                     </div>
                     <div class="col-sm-3">
                         <div class="dash-box icon" onclick="window.open('http://despatch/')">
                             <i class="fas fa-mail-bulk"></i>
-                            <div class="text">Despatch</div> <!--Need to work out how to access-->
+                            <div class="text">Despatch</div>
                         </div>
                     </div>
                     <div class="col-sm-3">
-                        <div class="dash-box icon" onclick="window.open('http://despatchweb.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                        <div class="dash-box icon" onclick="window.open('http://despatchweb.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, null)')">
                             <i class="fas fa-window-maximize"></i>
-                            <div class="text">Despatch Web</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                            <div class="text">Despatch Web</div> 
                         </div>
                     </div>
                 </div>
