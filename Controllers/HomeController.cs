@@ -68,9 +68,9 @@ namespace UrgentHub.Controllers
 
                 if (string.IsNullOrEmpty(contactId)) return View();
 
-                var contactDetail = _repo.GetContact(int.Parse(contactId));
-                var clientDetail = _repo.GetClient(contactDetail.ClientId);
-                var internetPermissions = _repo.GetDespatchWebInternetPermissions(int.Parse(contactId));
+                Contact contactDetail = _repo.GetContact(int.Parse(contactId));
+                Client clientDetail = _repo.GetClient(contactDetail.ClientId);
+                List<InternetPermission> internetPermissions = _repo.GetDespatchWebInternetPermissions(int.Parse(contactId));
 
                 //if (!string.IsNullOrEmpty(jobNumber))
                 //{
@@ -95,6 +95,7 @@ namespace UrgentHub.Controllers
                 ViewBag.ClientInternal = clientDetail.Internal;
                 ViewBag.ClientID = contactDetail.ClientId;
                 ViewBag.ClientCreated = (Int32) (clientDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+                ViewBag.ClientStripe = clientDetail.StripeClient;
 
                 return View();
             }

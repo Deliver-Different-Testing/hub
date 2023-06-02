@@ -13,5 +13,6 @@ namespace UrgentHub.Models
         public string Code { get; set; }
         public string WebServicePassword { get; set; }
         public DateTime Created { get; set; }
+        public bool StripeClient { get; set; }
     }
 }
