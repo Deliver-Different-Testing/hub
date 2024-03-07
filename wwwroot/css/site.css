@@ -1,0 +1,205 @@
+﻿/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+for details on configuring this project to bundle and minify static web assets. */
+
+a.navbar-brand {
+  white-space: normal;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Provide sufficient contrast against white background */
+a {
+  color: #0366d6;
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: #1b6ec2;
+  border-color: #1861ac;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+  color: #fff;
+  background-color: #1b6ec2;
+  border-color: #1861ac;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+  font-size: 14px;
+}
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.border-top {
+  border-top: 1px solid #e5e5e5;
+}
+.border-bottom {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.box-shadow {
+  box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+}
+
+button.accept-policy {
+  font-size: 1rem;
+  line-height: inherit;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 60px; /* Vertically center the text there */
+}
+
+/* Dash box sytles
+------------------------------------------------- */
+.dash-boxes {
+    padding-bottom: 60px;
+    padding-top: 40px;
+    font-family: 'Poppins', sans-serif;
+}
+
+    .dash-boxes .dash-box-inactive {
+        background-color: #d6d6d6;
+        height: 150px;
+        width: 100%;
+        margin-bottom: 14px;
+    }
+
+        .dash-boxes .dash-box-inactive.data .number {
+            font-size: 60px;
+            color: #fddd00;
+            text-align: center;
+            font-weight: 600;
+            padding-top: 21px;
+        }
+
+        .dash-boxes .dash-box-inactive.data .text {
+            text-align: center;
+            position: relative;
+            top: -9px;
+            color: #ffffff;
+        }
+
+        .dash-boxes .dash-box-inactive.icon {
+            text-align: center;
+            cursor: pointer;
+        }
+
+            .dash-boxes .dash-box-inactive.icon .fa,
+            .dash-boxes .dash-box-inactive.icon .fas {
+                font-size: 66px;
+                color: #fddd00;
+                text-align: center;
+                font-weight: 600;
+                padding-top: 29px;
+            }
+
+            .dash-boxes .dash-box-inactive.icon .text {
+                text-align: center;
+                position: relative;
+                top: 10px;
+                color: #ffffff;
+            }
+
+.dash-boxes {
+    padding-bottom: 60px;
+    padding-top: 40px;
+    font-family: 'Poppins', sans-serif;
+}
+
+    .dash-boxes .dash-box {
+        background-color: #FAF9F6;
+        box-shadow: -1px 0px 10px 0px rgba(0,0,0,0.5);
+        border-style: solid;
+        border-width: 0px 0px 0px 0px;
+        border-color: #f5f5f5;
+        border-radius: 0px 0px 0px 0px;
+        height: 150px;
+        width: 100%;
+        margin-bottom: 14px;
+    }
+
+        .dash-boxes .dash-box.data .number {
+            font-size: 60px;
+            color: #ffffff;
+            text-align: center;
+            font-weight: 600;
+            padding-top: 21px;
+        }
+
+        .dash-boxes .dash-box.data .text {
+            text-align: center;
+            position: relative;
+            top: -9px;
+            color: #373A39;
+        }
+
+        .dash-boxes .dash-box.icon {
+            text-align: center;
+            cursor: pointer;
+        }
+
+            .dash-boxes .dash-box.icon .fa,
+            .dash-boxes .dash-box.icon .fas {
+                font-size: 66px;
+                color: #3EAFC2;
+                text-align: center;
+                font-weight: 600;
+                padding-top: 29px;
+            }
+
+            .dash-boxes .dash-box.icon .text {
+                text-align: center;
+                position: relative;
+                top: 10px;
+                color: #373A39;
+                font-weight: 600;
+            }
+
+.row {
+    padding-bottom: 20px;
+}
+
+.bg-black {
+    background-color: white;
+    border-color: white;
+}
+
+.navbar-black {
+    background-color: #282932;
+    border-color: #282932;
+}
+
+.text {
+    color: #ffffff;
+}
+
+.display-4 {
+    color: #373A39;
+    font-weight: 800;
+    font-family: 'Poppins', sans-serif;
+}
+
+.image-icon {
+    padding-top:10px;
+}

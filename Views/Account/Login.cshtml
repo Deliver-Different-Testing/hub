@@ -1,0 +1,89 @@
+﻿@{
+    ViewBag.PageTitle = "Login";
+    ViewBag.PageId = "login";
+    ViewBag.MenuClass = "solid";
+    ViewBag.PageDescription = "";
+}
+
+@using UrgentMVC.Models
+@model LoginViewModel
+@{
+    ViewBag.Title = "Log in";
+}
+
+
+@using (Html.BeginForm("Login", "Account", new { ReturnUrl = ViewBag.ReturnUrl }, FormMethod.Post, true, new { @class = "form-horizontal", role = "form" }))
+{
+    @* @Html.AntiForgeryToken() *@
+    <div class="login container">
+        <h2>Login</h2>
+        <div class="box">
+            <div class="icon">
+                <i class="fa fa-map-marker-alt"></i>
+            </div>
+            Login to our customer area
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="login-input">
+                    <div class="label">
+                        Email
+                    </div>
+                    <div class="input">
+                        <div class="input-group">
+                            @*<input type="text" class="form-control" placeholder="Recipient's username" aria-describedby="basic-addon2">*@
+                            @Html.TextBoxFor(m => m.Email, new { @class = "form-control"})
+                            @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="login-input">
+                    <div class="label">
+                        Password
+                    </div>
+                    <div class="input">
+                        <div class="input-group">
+                            @Html.PasswordFor(m => m.Password, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="checkbox" style="padding-left:22px">
+                    <label> @Html.EditorFor(m => m.RememberMe, new {@class = "form-control"}) Remember me?</label>
+                </div>
+
+            </div>
+
+        </div>
+        <input class="btnDD" type="submit" value="Logon" />
+        <div class="links">
+            <a href="Account/ForgotPassword">Forgot your password?</a>
+            @*<a href="#">Register</a>*@
+        </div>
+    </div>
+}
+
+@section Scripts {
+    
+
+    <script type="text/javascript">
+
+        $(document).ready(function() {
+        @if (!ViewBag.IsValid)
+        {
+            <text>
+                        toastr.error("Invalid Username or Password......please try again");
+            </text>
+        };
+        });
+    </script>
+
+}

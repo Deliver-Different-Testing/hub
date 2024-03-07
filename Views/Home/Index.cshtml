@@ -1,0 +1,270 @@
+﻿@{
+    ViewData["Title"] = "Home page";
+}
+@using UrgentHub.Controllers
+
+<script>
+     @{
+         var clientId = ViewBag.ClientID;
+         var clientInternal = ViewBag.ClientInternal;
+         var clientName = ViewBag.ClientName;
+         var clientCreated = ViewBag.ClientCreated;
+         var clientStripe = ViewBag.ClientStripe;
+
+         var contactId = ViewBag.ContactID;
+         var contactName = ViewBag.ContactName;
+         var contactFullName = ViewBag.ContactFullName;
+         var contactEmail = ViewBag.ContactEmail;
+         var contactCreated = ViewBag.ContactCreated;
+         var greetingString = ViewBag.GreetingString;
+         var despatchWebPermission = ViewBag.DespatchWebPermission;
+         var bookJobPermission = ViewBag.BookJobPermission;
+     }
+    var ClientID = '@clientId';
+    var ClientInternal = '@clientInternal';
+    var ClientName = '@clientName';
+    var ClientCreated = '@clientCreated';
+    var ClientStripe = '@clientStripe';
+
+    var ContactID = '@contactId';
+    var ContactName = '@contactName';
+    var ContactFullName = '@contactFullName';
+    var ContactEmail = '@contactEmail';
+    var ContactCreated = '@contactCreated';
+    var GreetingString = '@greetingString';
+    var DespatchWebPermission = '@despatchWebPermission';
+    var BookJobPermission = '@bookJobPermission';
+</script>
+
+<!-- Intercome live chat widget -->
+@* <script>
+    window.intercomSettings = {
+        api_base: "https://api-iam.intercom.io",
+        app_id: "yso4cj22",
+        name: '@contactFullName', // Full name
+        email: '@contactEmail', // Email address
+        created_at: '@contactCreated', // Signup date as a Unix timestamp
+        company: {
+            id: @clientId,
+            name: '@clientName',
+            created_at: '@clientCreated'
+        }
+    };
+</script>
+
+<script>
+    // We pre-filled your app ID in the widget URL: 'https://widget.intercom.io/widget/yso4cj22'
+    (function () {
+        var w = window;
+        var ic = w.Intercom;
+        if (typeof ic === "function") {
+            ic('reattach_activator');
+            ic('update', w.intercomSettings);
+        } else {
+            var d = document;
+            var i = function () {
+                i.c(arguments);
+            };
+            i.q = [];
+            i.c = function (args) {
+                i.q.push(args);
+            };
+            w.Intercom = i;
+            var l = function () {
+                var s = d.createElement('script');
+                s.type = 'text/javascript';
+                s.async = true;
+                s.src = 'https://widget.intercom.io/widget/yso4cj22';
+                var x = d.getElementsByTagName('script')[0];
+                x.parentNode.insertBefore(s, x);
+            };
+            if (document.readyState === 'complete') {
+                l();
+            } else if (w.attachEvent) {
+                w.attachEvent('onload', l);
+            } else {
+                w.addEventListener('load', l, false);
+            }
+        }
+    })();
+</script> *@
+
+<div class="text-center">
+    <!--<h1 class="display-4">Deliver Different</h1>--> <img style="padding-bottom:8px;" class="logo" src="~/images/deliverDifferentLogo.png" width="541" height="120" />
+    <h4 style="color: #283DB8; ">App Hub</h4>
+</div>
+
+<div id="urgent-hub">
+    <div class="dash-boxes container-fluid">
+        @{
+            if (clientInternal == true)
+            {
+                <div class="row">
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                            <i class="fas fa-street-view"></i>
+                            <div class="text">Run Viewer</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "adminmanager")')">
+                            <i class="fas fa-cogs"></i>
+                            <div class="text">Admin Manager</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                            <i class="fas fa-file-import"></i>
+                            <div class="text">Bulk Import</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
+                            <i class="fas fa-dolly"></i>
+                            <div class="text">Courier Manager</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "book")' +/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                            <i class="fas fa-atlas"></i>
+                            <div class="text">Job Booking Page</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '@HomeController.EncryptOutgoingToString(clientId, null)' + '#/print')">
+                            <i class="fas fa-print"></i>
+                            <div class="text">Print Manager</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+                            <i class="fas fa-calendar-plus"></i>
+                            <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                if (despatchWebPermission == true)
+                {
+                    if (clientStripe == true)
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                 <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                     <i class="fas fa-street-view"></i>
+                                     <div class="text">Run Viewer</div>
+                                 </div>
+                             </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <img class="image-icon" src="/images/download.png">
+                                    <div class="text">Job Booking Page</div>
+                                </div>
+                            </div>
+                             <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)' + '#/print')">
+                                    <i class="fas fa-print"></i>
+                                    <div class="text">Print Manager</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-file-import"></i>
+                                    <div class="text">Bulk Import</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <img class="image-icon" src="/images/download.png">
+                                    <div class="text">Job Booking Page</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">                      
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)' + '#/print')">
+                                    <i class="fas fa-print"></i>
+                                    <div class="text">Print Manager</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    if (clientStripe == true)
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <img class="image-icon" src="/images/download.png">
+                                    <div class="text">Job Booking Page</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)' + '#/print')">
+                                    <i class="fas fa-print"></i>
+                                    <div class="text">Print Manager</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)')">
+                                    <i class="fas fa-street-view"></i>
+                                    <div class="text">Run Viewer</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://bulkimport.urgent.co.nz/#/login/' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <i class="fas fa-file-import"></i>
+                                    <div class="text">Bulk Import</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://book.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(contactId, "bulkImport")')">
+                                    <img class="image-icon" src="/images/download.png">
+                                    <div class="text">Job Booking Page</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="dash-box icon" onclick="window.open('https://runviewer.urgent.co.nz/home?login=' + '@HomeController.EncryptOutgoingToString(clientId, null)' + '#/print')">
+                                    <i class="fas fa-print"></i>
+                                    <div class="text">Print Manager</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        }
+    </div>
+</div>

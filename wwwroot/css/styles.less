@@ -1,0 +1,227 @@
+@ddBlue: #76EAFE;
+@orange: #ea891c;
+@green: #7ac141;
+
+@bg-grey: #f5f5f5;
+@border-grey: #ebebeb;
+
+@tinyscreen: ~"(max-width: 450px)";
+@smallscreen: ~"(min-width: 450px) and (max-width: 768px)";
+@whatscreen: ~"(min-width: 991px) and (max-width: 1080px)";
+@whatdscreen: ~"(min-width: 768px) and (max-width: 1080px)";
+@mediumscreen: ~"(min-width: 768px) and (max-width: 1080px)";
+
+@media (min-width: 768px) {
+    .vertical-align {
+        display: flex;
+        align-items: center;
+    }
+}
+
+.btnDD {
+    border: 3px solid @ddBlue;
+    color: #000;
+    padding: 4px 14px;
+    font-size: 17px;
+    transition: all 0.3s ease;
+    width: 100px;
+    position:relative;
+    left:43%;
+
+    &:hover {
+        text-decoration: none;
+        color: #000;
+        border: 3px solid lighten(@ddBlue, 20%);
+        box-shadow: inset 0 0 0 2px lighten(@ddBlue, 20%);
+    }
+
+    &:active {
+        text-decoration: none;
+        color: #000;
+    }
+
+    &.btnyellow-small {
+        font-size: 14px;
+        border: 2px solid @ddBlue;
+
+        &:hover {
+            border: 2px solid lighten(@ddBlue, 20%);
+            box-shadow: inset 0 0 0 1px lighten(@ddBlue, 20%);
+        }
+    }
+}
+
+////////////////////////////////////
+//////						////////
+//////       LOGIN			////////
+//////						////////
+////////////////////////////////////
+#login {
+    .login {
+        max-width: 600px;
+        padding-top: 150px;
+        padding-bottom: 150px;
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 56px;
+            font-weight: 200;
+            font-size: 49px;
+            position: relative;
+
+            &:after {
+                content: '';
+                width: 90px;
+                height: 3px;
+                background: @ddBlue;
+                position: absolute;
+                bottom: -17px;
+                left: 50%;
+                margin-left: -45px;
+            }
+        }
+
+        p.sub-heading {
+            padding: 0 20px;
+        }
+    }
+
+    .btnyellow {
+        position: relative;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        margin-bottom: 60px;
+        top: 25px;
+        background-color: transparent;
+    }
+
+    .alert {
+        width: 497px;
+        margin: auto;
+        margin-bottom: 20px;
+        padding: 7px 12px;
+
+        .fa {
+            margin-right: 7px;
+        }
+    }
+
+    .box {
+        border: 1px solid #ebebeb;
+        background: #f5f5f5;
+        padding: 16px;
+        position: relative;
+        font-size: 18px;
+        padding-left: 50px;
+        margin: 20px;
+
+        .icon {
+            background: #000;
+            color: @ddBlue;
+            border-radius: 50%;
+            font-size: 14px;
+            height: 20px;
+            width: 20px;
+            position: absolute;
+            top: 19px;
+            left: 16px;
+            padding-left: 5.5px;
+            
+        }
+    }
+
+    .login-input {
+        margin-bottom: 15px;
+        display: inline-block;
+        vertical-align: top;
+        padding: 0 20px;
+        width: 100%;
+
+        input {
+            width: 100%;
+        }
+
+        .label {
+            color: #515151;
+            font-size: 16px;
+            font-weight: 400;
+            margin-left: 0;
+            padding-left: 0;
+        }
+
+        .input-icon {
+            .form-control {
+                border-right: 0;
+                border-radius: 0;
+            }
+
+            .input-group-addon {
+                background-color: @ddBlue;
+                color: #000;
+                border: 0;
+                border-radius: 0;
+            }
+        }
+
+        .input-group {
+            width: 100%;
+        }
+
+        .input-link {
+            text-decoration: underline;
+            font-size: 12px;
+        }
+
+        .input-radio {
+            padding: 4px;
+
+            label {
+                font-weight: 400;
+                margin-right: 10px;
+                font-size: 14px;
+
+                input {
+                    margin-right: 5px;
+                }
+            }
+        }
+
+        .input-boxes {
+            .box {
+                display: inline-block;
+                vertical-align: top;
+
+                input {
+                    display: block;
+                    width: 50px;
+                }
+
+                .label {
+                    font-size: 9px;
+                    text-align: center;
+                    width: 50px;
+                    display: block;
+                    padding-right: 0;
+                }
+            }
+
+            .sep {
+                display: inline-block;
+                vertical-align: top;
+                padding: 5px;
+            }
+        }
+    }
+
+    .links {
+        text-align: center;
+        position: relative;
+        top: 58px;
+
+        a {
+            display: block;
+        }
+    }
+}
