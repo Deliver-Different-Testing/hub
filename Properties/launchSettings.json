@@ -6,7 +6,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "TenantURL": "https://staging.app_name.deliverdifferent.com",
-        "SQLConnection": "server=tcp:::1,1442;uid=Garry;pwd=LaNtoQHb9Q7*N_cf._KfBdbArm;database=Despatch;"
+        "SQLConnection": "server=tcp:::1,1442;uid=Garry;pwd=LaNtoQHb9Q7*N_cf._KfBdbArm;database=Despatch;TrustServerCertificate=True"
       }
     },
     "UrgentHubMVC": {
@@ -15,7 +15,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "TenantURL": "https://staging.app_name.deliverdifferent.com",
-        "SQLConnection": "server=tcp:::1,1442;uid=Garry;pwd=LaNtoQHb9Q7*N_cf._KfBdbArm;database=Despatch;"
+        "SQLConnection": "server=tcp:::1,1442;uid=Garry;pwd=LaNtoQHb9Q7*N_cf._KfBdbArm;database=Despatch;TrustServerCertificate=True"
       },
       "dotnetRunMessages": "true",
       "applicationUrl": "https://localhost:5001;http://localhost:5000"
