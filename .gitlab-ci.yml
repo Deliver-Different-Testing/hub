@@ -16,8 +16,7 @@ cache:
     - "$NUGET_PACKAGES_DIRECTORY"
 
   policy: pull-push
-before_script:
-  - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
+
 stages:
   - build
   - test
@@ -26,10 +25,11 @@ stages:
 build-dotnet:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: build
-
+  before_script:
+    - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
   script:
-    - dotnet build -o /app --no-restore
-    - dotnet publish -o /publish --no-restore
+    - dotnet build --property:OutputPath=/app --no-restore
+    - dotnet publish --property:PublishDir=/publish --no-restore
   artifacts:
     paths:
       - app
@@ -38,6 +38,8 @@ unit-test-dotnet:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: test
   # ### Run the tests
+  before_script:
+    - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
   script:
     - "dotnet test --no-restore"
 
@@ -46,6 +48,7 @@ deploy-staging:
   stage: staging
   script:
     - echo "Deploying to production"
+    - cd publish
     - dotnet UrgentHub.dll
   needs:
     - build-dotnet
