@@ -29,6 +29,32 @@ namespace UrgentHub.Controllers
 
         public IActionResult Index([FromQuery] string login)
         {
+            var cookie = Request.Cookies["ContactID"];
+            if (cookie != null)
+            {
+                var contactDetail = _repo.GetContact(int.Parse(cookie));
+                var clientDetail = _repo.GetClient(contactDetail.ClientId);
+
+                var internetPermissions = _repo.GetDespatchWebInternetPermissions(int.Parse(cookie));
+
+                ViewBag.ContactID = int.Parse(cookie);
+                ViewBag.ContactName = contactDetail.FirstName;
+                ViewBag.ContactFullName = contactDetail.FirstName + " " + contactDetail.SurName;
+                ViewBag.ContactEmail = contactDetail.UserName;
+                ViewBag.ContactCreated = (Int32)(contactDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+                ViewBag.GreetingString = GetGreetingString();
+                ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
+                ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
+
+                ViewBag.ClientName = clientDetail.Name;
+                ViewBag.ClientInternal = clientDetail.Internal;
+                ViewBag.ClientID = contactDetail.ClientId;
+                ViewBag.ClientCreated = (Int32)(clientDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+                ViewBag.ClientStripe = clientDetail.StripeClient;
+
+                return View();
+            }
+
             if (!string.IsNullOrEmpty(login))
             {
                 var key = Convert.FromBase64String("8wzkFlOvNB8+7UgmX0bSyFPHxjLNjmaGhlUoSKkJ2Kc=");

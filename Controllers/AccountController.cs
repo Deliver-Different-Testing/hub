@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System;
 using System.Web;
+using Microsoft.AspNetCore.Http;
 using UrgentHub.Shared;
 using UrgentMVC.Models;
 using UrgentHub.Repositories;
@@ -70,6 +71,19 @@ namespace UrgentHub.Controllers
             if (!found)
             {
                 return View(model);
+            }
+            else
+            {
+                if (model.RememberMe) { 
+                    var myCookie = new  CookieOptions()
+                    {
+                        Expires = DateTime.Now.AddYears(1),
+                        //Domain = "*.DeliverDifferent.com"
+                        Path = "/"
+                    };
+                    HttpContext.Response.Cookies.Append("ContactID", contactId, myCookie);
+                }
+                
             }
 
             ViewBag.IsValid = true;
