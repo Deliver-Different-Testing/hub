@@ -33,6 +33,7 @@ build-dotnet:
     paths:
       - /app
 unit-test-dotnet:
+  image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: test
   # ### Run the tests
   script:
