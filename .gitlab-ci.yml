@@ -29,8 +29,8 @@ build-dotnet:
     - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
     - echo $CI_BUILDS_DIR
   script:
-    - dotnet build -c Release --property:OutputPath=$CI_BUILDS_DIR/app --no-restore
-    - dotnet publish -c Release --property:PublishDir=CI_BUILDS_DIR/publish --no-restore
+    - dotnet build -c Release --property:OutputPath=app --no-restore
+    - dotnet publish -c Release --property:PublishDir=publish --no-restore
   artifacts:
     paths:
       - app
