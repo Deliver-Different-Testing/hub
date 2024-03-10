@@ -1,20 +1,43 @@
-include:
-  - template: Auto-DevOps.gitlab-ci.yml
-# build-dotnet:
-#   image: mcr.microsoft.com/dotnet/sdk:8.0
-#   stage: build
-#   before_script:
-#     - dotnet restore
-#   script:
-#     - dotnet build -o /app
-#     - dotnet publish -o /publish
-#   artifacts:
-#     paths:
-#       - /publish
-#       - /app
-# deploy-dotnet:
-#   image: mcr.microsoft.com/dotnet/aspnet:8.0
-#   stage: deploy
-#   script:
-#     - echo "Deploying to production"
-#     - dotnet UrgentHub.dll
+# include:
+#   - template: Auto-DevOps.gitlab-ci.yml
+variables:
+  # 1) Name of directory where restore and build objects are stored.
+  OBJECTS_DIRECTORY: "obj"
+  # 2) Name of directory used for keeping restored dependencies.
+  NUGET_PACKAGES_DIRECTORY: ".nuget"
+  # 3) A relative path to the source code from project repository root.
+  SOURCE_CODE_PATH: "./"
+cache:
+  # Per-stage and per-branch caching.
+  key: "$CI_JOB_STAGE-$CI_COMMIT_REF_SLUG"
+  paths:
+    - "$SOURCE_CODE_PATH$OBJECTS_DIRECTORY/project.assets.json"
+    - "$SOURCE_CODE_PATH$OBJECTS_DIRECTORY/*.csproj.nuget.*"
+    - "$NUGET_PACKAGES_DIRECTORY"
+
+  policy: pull-push
+before_script:
+  - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
+
+build-dotnet:
+  image: mcr.microsoft.com/dotnet/sdk:8.0
+  stage: build
+
+  script:
+    - dotnet build -o /app
+  artifacts:
+    paths:
+      - /app
+unit-test-dotnet:
+  stage: test
+  # ### Run the tests
+  script:
+    - "dotnet test --no-restore"
+
+deploy-staging:
+  image: mcr.microsoft.com/dotnet/aspnet:8.0
+  stage: staging
+  script:
+    - dotnet publish -o /publish
+    - echo "Deploying to production"
+    - dotnet UrgentHub.dll
