@@ -18,7 +18,11 @@ cache:
   policy: pull-push
 before_script:
   - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
-
+stages:
+  - build
+  - test
+  - staging
+  - production
 build-dotnet:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: build
