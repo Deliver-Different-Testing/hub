@@ -10,6 +10,6 @@ RUN dotnet publish -c Release --property:PublishDir=/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 as base
 COPY --from=build-env /publish /app
-WORKDIR /publish
+WORKDIR /app
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "UrgentHub.dll"]
