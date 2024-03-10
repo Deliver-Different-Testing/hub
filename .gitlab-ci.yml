@@ -28,12 +28,12 @@ build-dotnet:
   before_script:
     - dotnet restore --packages $NUGET_PACKAGES_DIRECTORY
   script:
-    - dotnet build --property:OutputPath=/app --no-restore
-    - dotnet publish --property:PublishDir=/publish --no-restore
+    - dotnet build -c Release --property:OutputPath=/app --no-restore
+    - dotnet publish -c Release --property:PublishDir=/publish --no-restore
   artifacts:
     paths:
-      - app
-      - publish
+      - /app
+      - /publish
 unit-test-dotnet:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: test
