@@ -28,10 +28,12 @@ build-dotnet:
   stage: build
 
   script:
-    - dotnet build -o /app
+    - dotnet build -o /app --no-restore
+    - dotnet publish -o /publish --no-restore
   artifacts:
     paths:
-      - /app
+      - app
+      - publish
 unit-test-dotnet:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: test
@@ -43,6 +45,7 @@ deploy-staging:
   image: mcr.microsoft.com/dotnet/aspnet:8.0
   stage: staging
   script:
-    - dotnet publish -o /publish
     - echo "Deploying to production"
     - dotnet UrgentHub.dll
+  needs:
+    - build-dotnet
