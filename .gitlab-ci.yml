@@ -32,8 +32,8 @@ build-dotnet:
     - dotnet publish -c Release --property:PublishDir=/publish --no-restore
   artifacts:
     paths:
-      - /app
-      - /publish
+      - app
+      - publish
 unit-test-dotnet:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   stage: test
