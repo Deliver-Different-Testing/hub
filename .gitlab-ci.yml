@@ -1,9 +1,20 @@
 include:
   - template: Auto-DevOps.gitlab-ci.yml
-variables:
-  TEST_DISABLED: "true"
-  STAGING_ENABLED: "true"
-  SAST_DISABLED: "false"
-  STAGING_ADDITIONAL_HOSTS: "staging.hub.deliverdifferent.com"
-  STAGING_REPLICAS: 1
-  KUBE_INGRESS_BASE_DOMAIN: "deliverdifferent.com"
+# build-dotnet:
+#   image: mcr.microsoft.com/dotnet/sdk:8.0
+#   stage: build
+#   before_script:
+#     - dotnet restore
+#   script:
+#     - dotnet build -o /app
+#     - dotnet publish -o /publish
+#   artifacts:
+#     paths:
+#       - /publish
+#       - /app
+# deploy-dotnet:
+#   image: mcr.microsoft.com/dotnet/aspnet:8.0
+#   stage: deploy
+#   script:
+#     - echo "Deploying to production"
+#     - dotnet UrgentHub.dll

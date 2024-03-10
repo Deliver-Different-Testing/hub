@@ -25,7 +25,7 @@ ingress:
     secRuleEngine: "DetectionOnly"
 service:
   externalPort: 5000
-  internalPort: 80
+  internalPort: 8080
 
 livenessProbe:
   path: "/"
