@@ -1,5 +1,7 @@
 include:
   - template: Auto-DevOps.gitlab-ci.yml
+variables:
+  AUTO_DEVOPS_BUILD_IMAGE_FORWARDED_CI_VARIABLES: "TenantURL,SQLConnection,ASPNETCORE_ENVIRONMENT"
 #############################################
 # This is a basic .gitlab-ci.yml file for a .NET Core project.
 # variables:
