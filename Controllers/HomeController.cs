@@ -92,20 +92,11 @@ namespace UrgentHub.Controllers
 
                 if (string.IsNullOrEmpty(contactId)) return View();
 
-                Contact contactDetail = _repo.GetContact(int.Parse(contactId));
-                Client clientDetail = _repo.GetClient(contactDetail.ClientId);
+                var contactDetail = _repo.GetContact(int.Parse(contactId));
+                var clientDetail = _repo.GetClient(contactDetail.ClientId);
 
-                List<InternetPermission> internetPermissions = _repo.GetDespatchWebInternetPermissions(int.Parse(contactId));
+                var internetPermissions = _repo.GetDespatchWebInternetPermissions(int.Parse(contactId));
 
-                //if (!string.IsNullOrEmpty(jobNumber))
-                //{
-                //    var bj = _repo.BulkJobByJobNumber(jobNumber);
-                //    ViewBag.JobNumber = jobNumber;
-                //    ViewBag.BookDate = bj.BookDate.ToString("yyyy-MM-dd");
-                //    ViewBag.BulkRegionID = bj.BulkRegionID;
-                //    ViewBag.BulkJobID = bj.BulkJobID;
-                //    ViewBag.RunID = bj.RunID;
-                //}
 
                 ViewBag.ContactID = int.Parse(contactId);
                 ViewBag.ContactName = contactDetail.FirstName;

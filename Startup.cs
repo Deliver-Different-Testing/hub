@@ -32,6 +32,8 @@ namespace UrgentHubMVC
                 c.UseSqlServer(Environment.GetEnvironmentVariable("SQLConnection") ?? "");
             });
 
+            services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection");
+
             services.AddScoped<Repository, Repository>();
             services.AddMvc(options =>
             {
