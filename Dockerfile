@@ -14,4 +14,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 as base
 COPY --from=build-env /publish /app
 WORKDIR /app
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "UrgentHub.dll"]
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
