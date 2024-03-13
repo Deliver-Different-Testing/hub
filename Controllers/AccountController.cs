@@ -3,7 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Configuration;
 using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using System.Web;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using UrgentHub.Shared;
 using UrgentMVC.Models;
@@ -29,12 +33,14 @@ namespace UrgentHub.Controllers
             return View();
         }
 
+        
+
         //
         // POST: /Account/Login
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public ActionResult Login(LoginViewModel model, string returnUrl)
+        public async Task<ActionResult> Login(LoginViewModel model, string returnUrl)
         {
             ViewBag.IsValid = false;
             if (!ModelState.IsValid)
@@ -74,27 +80,51 @@ namespace UrgentHub.Controllers
             }
             else
             {
-                if (model.RememberMe) { 
-                    var myCookie = new  CookieOptions()
-                    {
-                        Expires = DateTime.Now.AddYears(1),
-                        //Domain = "*.DeliverDifferent.com"
-                        Path = "/"
-                    };
-                    HttpContext.Response.Cookies.Append("ContactID", contactId, myCookie);
-                }
+                ViewBag.IsValid = true;
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, model.Email),
+                    new Claim("ContactID", contactId)
+                };
+
+                var claimsIdentity = new ClaimsIdentity(
+                    claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+                var authProperties = new AuthenticationProperties
+                {
+                    AllowRefresh = true,
+
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7),
+                    // The time at which the authentication ticket expires. A 
+                    // value set here overrides the ExpireTimeSpan option of 
+                    // CookieAuthenticationOptions set with AddCookie.
+
+                    IsPersistent = model.RememberMe,
+                    // Whether the authentication session is persisted across 
+                    // multiple requests. When used with cookies, controls
+                    // whether the cookie's lifetime is absolute (matching the
+                    // lifetime of the authentication ticket) or session-based.
+
+                    //IssuedUtc = <DateTimeOffset>,
+                    // The time at which the authentication ticket was issued.
+
+                    //RedirectUri = <string>
+                    // The full path or absolute URI to be used as an http 
+                    // redirect response value.
+                };
+
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity),
+                    authProperties);
+
                 
+                return RedirectToAction("Index", "Home");
+                
+
             }
 
-            ViewBag.IsValid = true;
-
-
             
-            var redirectData = Encrypt(contactId + "|" + DateTime.Now);
-            redirectData = HttpUtility.UrlEncode(redirectData);
-            var ret = redirectData;
-
-            return RedirectToAction("Index", "Home",  new { login = ret });
 
         }
 
@@ -139,6 +169,14 @@ namespace UrgentHub.Controllers
             }
 
             return decryptedString;
+        }
+
+        public async Task<IActionResult> Logout()
+        {
+            // Clear the existing external cookie
+            await HttpContext.SignOutAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("login");
         }
     }
 }

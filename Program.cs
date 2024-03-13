@@ -1,26 +1,75 @@
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using UrgentHub.Models;
+using UrgentHub.Repositories;
 
-namespace UrgentHubMVC
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+builder.Services.AddControllersWithViews();
+// Add services to the container.
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<Repository, Repository>();
+
+
+
+var connectionString = Environment.GetEnvironmentVariable("SQLConnection") ?? "";
+builder.Services.AddDbContext<DespatchContext>(x =>
 {
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+    x.UseSqlServer(connectionString);
+#if DEBUG
+    x.UseLoggerFactory(LoggerFactory.Create(c => c.AddDebug()));
+#endif
+});
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
+builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection");
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+        options.SlidingExpiration = true;
+        options.AccessDeniedPath = "/Forbidden/";
+        options.LoginPath = "/Account/Login";
+        options.Cookie.HttpOnly = true;
+
+    });
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+var provider = new FileExtensionContentTypeProvider { Mappings = { [".tpl"] = "text/plain" } };
+
+app.UseStaticFiles(new StaticFileOptions
+{
+
+    ContentTypeProvider = provider,
+    OnPrepareResponse = x =>
+    {
+        x.Context.Response.Headers.Add("Cache-Control", "no-cache, no-store");
+        x.Context.Response.Headers.Add("Pragma", "no-cache");
+        x.Context.Response.Headers.Add("Expires", "0");
     }
-}
+});
+
+
+app.UseAuthentication();
+app.UseHttpsRedirection();
+app.UseCookiePolicy();
+app.UseRouting();
+app.UseAuthorization();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+
+app.Run();
