@@ -12,7 +12,7 @@ using UrgentHub.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+builder.Services.AddHealthChecks();
 builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 builder.Services.AddControllersWithViews();
 // Add services to the container.
@@ -22,6 +22,12 @@ builder.Services.AddScoped<Repository, Repository>();
 
 
 var connectionString = Environment.GetEnvironmentVariable("SQLConnection") ?? "";
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException(
+        "Could not find a connection string named 'SQLConnection'.");
+}
+builder.Services.AddHealthChecks().AddSqlServer(connectionString);
 builder.Services.AddDbContext<DespatchContext>(x =>
 {
     x.UseSqlServer(connectionString);
@@ -44,7 +50,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 var app = builder.Build();
-
+app.MapHealthChecks("/healthz");
 // Configure the HTTP request pipeline.
 var provider = new FileExtensionContentTypeProvider { Mappings = { [".tpl"] = "text/plain" } };
 
