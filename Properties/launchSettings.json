@@ -5,7 +5,7 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "TenantURL": "https://staging.app_name.deliverdifferent.com",
+        "TenantURL": "https://app_name.staging.deliverdifferent.com",
         "SQLConnection": "server=tcp:::1,1442;uid=Garry;pwd=LaNtoQHb9Q7*N_cf._KfBdbArm;database=Despatch;TrustServerCertificate=True"
       }
     },
@@ -14,7 +14,7 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "TenantURL": "https://staging.app_name.deliverdifferent.com",
+        "TenantURL": "https://app_name.staging.deliverdifferent.com",
         "SQLConnection": "server=tcp:::1,1442;uid=Garry;pwd=LaNtoQHb9Q7*N_cf._KfBdbArm;database=Despatch;TrustServerCertificate=True"
       },
       "dotnetRunMessages": "true",

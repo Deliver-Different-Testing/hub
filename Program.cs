@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 using System;
 using UrgentHub.Models;
 using UrgentHub.Repositories;
@@ -46,8 +47,22 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Forbidden/";
         options.LoginPath = "/Account/Login";
         options.Cookie.HttpOnly = true;
+        options.Cookie.Domain = "*.deliverdifferent.com";
 
     });
+
+// Configure Redis Based Distributed Session
+var redisConfigurationOptions = ConfigurationOptions.Parse("tcp:::1:6379");
+
+builder.Services.AddStackExchangeRedisCache(redisCacheConfig =>
+{
+    redisCacheConfig.ConfigurationOptions = redisConfigurationOptions;
+});
+
+builder.Services.AddSession(options => {
+    options.Cookie.Name = "hub_session";
+    options.IdleTimeout = TimeSpan.FromMinutes(60 * 24);
+});
 
 var app = builder.Build();
 app.MapHealthChecks("/healthz");
@@ -66,7 +81,7 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-
+app.UseSession();
 app.UseAuthentication();
 app.UseHttpsRedirection();
 app.UseCookiePolicy();
