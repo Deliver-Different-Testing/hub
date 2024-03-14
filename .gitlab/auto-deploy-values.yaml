@@ -28,13 +28,13 @@ service:
   internalPort: 8080
 
 livenessProbe:
-  path: "/"
+  path: "/healthz"
   initialDelaySeconds: 15
   timeoutSeconds: 15
   scheme: "HTTP"
   probeType: "httpGet"
 readinessProbe:
-  path: "/"
+  path: "/healthz"
   initialDelaySeconds: 5
   timeoutSeconds: 3
   scheme: "HTTP"
