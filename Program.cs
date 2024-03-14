@@ -52,7 +52,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 // Configure Redis Based Distributed Session
-var redisConfigurationOptions = ConfigurationOptions.Parse("tcp:::1:6379");
+var redisConfig = Environment.GetEnvironmentVariable("RedisConfig");
+if (string.IsNullOrEmpty(redisConfig))
+{
+    throw new InvalidOperationException(
+        "Could not find a Redis Env Var named 'RedisConfig'.");
+}
+var redisConfigurationOptions = ConfigurationOptions.Parse(redisConfig);
 
 builder.Services.AddStackExchangeRedisCache(redisCacheConfig =>
 {
