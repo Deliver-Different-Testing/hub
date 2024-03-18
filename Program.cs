@@ -10,6 +10,7 @@ using System;
 using Microsoft.AspNetCore.DataProtection;
 using UrgentHub.Models;
 using UrgentHub.Repositories;
+using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,20 +45,6 @@ if (string.IsNullOrEmpty(domain))
     throw new InvalidOperationException(
         "Could not find a env var string named 'Domain'.");
 }
-builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection").SetApplicationName("DeliverDifferent");
-
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
-        options.SlidingExpiration = true;
-        options.AccessDeniedPath = "/Forbidden/";
-        options.LoginPath = "/Account/Login";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.Domain = domain;
-        options.Cookie.Name = "DDHub";
-
-    });
 
 // Configure Redis Based Distributed Session
 var redisConfig = Environment.GetEnvironmentVariable("RedisConfig");
@@ -72,6 +59,24 @@ builder.Services.AddStackExchangeRedisCache(redisCacheConfig =>
 {
     redisCacheConfig.ConfigurationOptions = redisConfigurationOptions;
 });
+
+builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection").SetApplicationName("DeliverDifferent");
+
+
+builder.Services.AddAuthentication("Identity.Application")
+    .AddCookie("Identity.Application", options =>
+    {
+        options.Cookie.Name = ".AspNet.SharedCookie";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+        options.SlidingExpiration = true;
+        options.AccessDeniedPath = "/Forbidden/";
+        options.LoginPath = "/Account/Login";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.Domain = domain;
+
+
+    });
+
 
 builder.Services.AddSession(options => {
     options.Cookie.Name = "hub_session";

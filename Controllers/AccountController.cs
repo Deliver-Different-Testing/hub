@@ -117,7 +117,7 @@ namespace UrgentHub.Controllers
                 };
 
                 await HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    "Identity.Application",
                     new ClaimsPrincipal(claimsIdentity),
                     authProperties);
 
