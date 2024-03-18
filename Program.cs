@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;
+using Microsoft.AspNetCore.DataProtection;
 using UrgentHub.Models;
 using UrgentHub.Repositories;
 
@@ -37,7 +38,13 @@ builder.Services.AddDbContext<DespatchContext>(x =>
 #endif
 });
 
-builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection");
+var domain = Environment.GetEnvironmentVariable("Domain") ?? "";
+if (string.IsNullOrEmpty(domain))
+{
+    throw new InvalidOperationException(
+        "Could not find a env var string named 'Domain'.");
+}
+builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection").SetApplicationName("DeliverDifferent");
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -47,7 +54,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Forbidden/";
         options.LoginPath = "/Account/Login";
         options.Cookie.HttpOnly = true;
-        options.Cookie.Domain = "*.deliverdifferent.com";
+        options.Cookie.Domain = domain;
+        options.Cookie.Name = "DDHub";
 
     });
 
@@ -88,10 +96,11 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseSession();
-app.UseAuthentication();
-app.UseHttpsRedirection();
+
+//app.UseHttpsRedirection();
 app.UseCookiePolicy();
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(
