@@ -33,7 +33,8 @@ if (string.IsNullOrEmpty(connectionString))
 builder.Services.AddHealthChecks().AddSqlServer(connectionString);
 builder.Services.AddDbContext<DespatchContext>(x =>
 {
-    x.UseSqlServer(connectionString);
+    //x.UseSqlServer(connectionString);
+    x.UseSqlServer(connectionString, o => o.UseCompatibilityLevel(120));
 #if DEBUG
     x.UseLoggerFactory(LoggerFactory.Create(c => c.AddDebug()));
 #endif
