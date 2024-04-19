@@ -52,6 +52,7 @@ namespace UrgentHub.Controllers
             var found = false;
             var contactId = "";
             var clientId = "";
+            var staffId = "";
 
             foreach (var user in users)
             {
@@ -69,7 +70,8 @@ namespace UrgentHub.Controllers
                 {
                     found = true;
                     contactId = user.UcctId.ToString();
-                    clientId = clientId = user.UcctClientId.ToString(); 
+                    clientId = clientId = user.UcctClientId.ToString();
+                    staffId = user.StaffId?.ToString();
                     _repo.UpdateUserAccessed(user.UcctId, model.RememberMe);
                 }
                 break;
@@ -87,7 +89,8 @@ namespace UrgentHub.Controllers
                 {
                     new Claim(ClaimTypes.Name, model.Email),
                     new Claim("ContactID", contactId),
-                    new Claim("ClientID", clientId)
+                    new Claim("ClientID", clientId),
+                    new Claim("StaffID", staffId)
                 };
 
                 var claimsIdentity = new ClaimsIdentity(
