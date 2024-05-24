@@ -34,7 +34,7 @@ builder.Services.AddHealthChecks().AddSqlServer(connectionString);
 builder.Services.AddDbContext<DespatchContext>(x =>
 {
     //x.UseSqlServer(connectionString);
-    x.UseSqlServer(connectionString, o => o.UseCompatibilityLevel(120));
+    //x.UseSqlServer(connectionString, o => o.UseCompatibilityLevel(120));
 #if DEBUG
     x.UseLoggerFactory(LoggerFactory.Create(c => c.AddDebug()));
 #endif
