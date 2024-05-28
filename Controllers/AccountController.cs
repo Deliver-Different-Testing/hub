@@ -1,29 +1,20 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Configuration;
 using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using System.Web;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Http;
+using UrgentHub.Repositories;
 using UrgentHub.Shared;
 using UrgentMVC.Models;
-using UrgentHub.Repositories;
 
 namespace UrgentHub.Controllers
 {
-    public class AccountController : Controller
+    public class AccountController(Repository repo) : Controller
     {
-        private readonly Repository _repo;
-
-        public AccountController(Repository repo)
-        {
-            _repo = repo;
-        }
-
         // GET: /Account/Login
         [AllowAnonymous]
         public ActionResult Login(string returnUrl)
@@ -48,7 +39,7 @@ namespace UrgentHub.Controllers
                 return View(model);
             }
 
-            var users = _repo.FetchUsersByUsername(model.Email);
+            var users = repo.FetchUsersByUsername(model.Email);
             var found = false;
             var contactId = "";
             var clientId = "";
@@ -70,9 +61,9 @@ namespace UrgentHub.Controllers
                 {
                     found = true;
                     contactId = user.UcctId.ToString();
-                    clientId = clientId = user.UcctClientId.ToString();
+                    clientId =  user.UcctClientId.ToString();
                     staffId = user.StaffId?.ToString();
-                    _repo.UpdateUserAccessed(user.UcctId, model.RememberMe);
+                    repo.UpdateUserAccessed(user.UcctId, model.RememberMe);
                 }
                 break;
 
