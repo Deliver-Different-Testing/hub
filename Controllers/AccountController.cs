@@ -81,7 +81,7 @@ namespace UrgentHub.Controllers
                     new Claim(ClaimTypes.Name, model.Email),
                     new Claim("ContactID", contactId),
                     new Claim("ClientID", clientId),
-                    new Claim("StaffID", staffId)
+                    new Claim("StaffID", staffId ?? "")
                 };
 
                 var claimsIdentity = new ClaimsIdentity(
