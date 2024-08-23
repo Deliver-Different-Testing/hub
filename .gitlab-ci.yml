@@ -83,6 +83,8 @@ stages:
 sandbox:
   extends: staging
   stage: sandbox
+  before_script:
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/sandbox-auto-deploy-values.yaml"
   cache: []
   environment:
     name: sandbox
