@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Serilog;
 using UrgentHub.Models;
 using UrgentHub.Repositories;
 using UrgentHub.Services;
@@ -18,6 +19,7 @@ namespace UrgentHub.Controllers
             var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
             if (cid != null && connectionString!= null)
             {
+                Log.Debug($"Found Identity for ContactID:{cid}");
                 connectionStringManager.SetConnectionString(connectionString);
                 var contactDetail = await despatchRepository.GetContact(int.Parse(cid));
                 var clientDetail = await despatchRepository.GetClient((int)contactDetail.ClientID);
