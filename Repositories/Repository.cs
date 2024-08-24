@@ -14,13 +14,14 @@ namespace UrgentHub.Repositories
         
         public async Task<RVW_stpValidateClientResult> GetClient(int clientId)
         {
+            LogConnectionDetails();
             var data = await context.Procedures.RVW_stpValidateClientAsync(clientId);
             return data.FirstOrDefault();
         }
 
         public async Task<RVW_stpValidateContactResult> GetContact(int contactId)
         {
-
+            LogConnectionDetails();
             var data = await context.Procedures.RVW_stpValidateContactAsync(contactId);
 
 
