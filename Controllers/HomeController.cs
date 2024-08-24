@@ -15,10 +15,9 @@ namespace UrgentHub.Controllers
         public async Task<IActionResult> Index()
         {
             var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
-            
-            if (cid != null)
+            var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
+            if (cid != null && connectionString!= null)
             {
-                var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
                 connectionStringManager.SetConnectionString(connectionString);
                 var contactDetail = await despatchRepository.GetContact(int.Parse(cid));
                 var clientDetail = await despatchRepository.GetClient((int)contactDetail.ClientID);
