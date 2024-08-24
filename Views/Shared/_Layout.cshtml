@@ -56,7 +56,7 @@
                         @if (tenants != null && tenants.Any())
                         {
                             <li class="nav-item tenant-selector">
-                                <span class="tenant-label mr-2">Companies:</span>
+                                <span class="tenant-label mr-2">Organization:</span>
                                 <div class="dropdown">
                                     <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         @(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")
