@@ -58,3 +58,42 @@ variables:
 #     - dotnet UrgentHub.dll
 #   needs:
 #     - build-dotnet
+
+
+stages:
+  - .pre
+  - build
+  - test
+  - deploy
+  - review
+  - dast
+  - staging
+  - sandbox
+  - canary
+  - production
+  - incremental rollout 10%
+  - incremental rollout 25%
+  - incremental rollout 50%
+  - incremental rollout 100%
+  - release
+  - performance
+  - cleanup
+  - .post
+
+sandbox:
+  extends: staging
+  stage: sandbox
+  before_script:
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/sandbox-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: sandbox
+    url: $SANDBOX_ADDITIONAL_HOSTS
+  rules:
+    - if: $SANDBOX_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: "$SANDBOX_ENABLED"
