@@ -7,13 +7,16 @@ using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Serilog;
 using UrgentHub.Repositories;
 using UrgentHub.Shared;
 using UrgentMVC.Models;
+using Microsoft.Extensions.DependencyInjection;
+using UrgentHub.ViewModels;
 
 namespace UrgentHub.Controllers
 {
-    public class AccountController(Repository repo) : Controller
+    public class AccountController(IConnectionStringManager connectionStringManager, Repository despatchRepository, AuthenticationRepository authenticationRepository, IServiceProvider serviceProvider) : Controller
     {
         // GET: /Account/Login
         [AllowAnonymous]
@@ -24,7 +27,7 @@ namespace UrgentHub.Controllers
             return View();
         }
 
-        
+
 
         //
         // POST: /Account/Login
@@ -39,141 +42,154 @@ namespace UrgentHub.Controllers
                 return View(model);
             }
 
-            var users = repo.FetchUsersByUsername(model.Email);
-            var found = false;
-            var contactId = "";
-            var clientId = "";
-            var staffId = "";
+            var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
 
-            foreach (var user in users)
+            if (masterUser == null)
             {
-                var salted = user?.Salt;
-                var dbpw = user?.Password2;
-
-                if (user == null)
-                {
-                    return View(model);
-                }
-
-                var hashedpw = PasswordHelper.HashPassword(model.Password, salted);
-
-                if (hashedpw == dbpw)
-                {
-                    found = true;
-                    contactId = user.UcctId.ToString();
-                    clientId =  user.UcctClientId.ToString();
-                    staffId = user.StaffId?.ToString();
-                    repo.UpdateUserAccessed(user.UcctId, model.RememberMe);
-                }
-                break;
-
-            }
-
-            if (!found)
-            {
+                Log.Debug($"Failed to find user {model.Email}");
                 return View(model);
             }
-            else
+
+            if (masterUser.CurrentTenant == null)
             {
-                ViewBag.IsValid = true;
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, model.Email),
-                    new Claim("ContactID", contactId),
-                    new Claim("ClientID", clientId),
-                    new Claim("StaffID", staffId ?? "")
-                };
-
-                var claimsIdentity = new ClaimsIdentity(
-                    claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-                var authProperties = new AuthenticationProperties
-                {
-                    AllowRefresh = true,
-
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7),
-                    // The time at which the authentication ticket expires. A 
-                    // value set here overrides the ExpireTimeSpan option of 
-                    // CookieAuthenticationOptions set with AddCookie.
-
-                    IsPersistent = model.RememberMe,
-                    // Whether the authentication session is persisted across 
-                    // multiple requests. When used with cookies, controls
-                    // whether the cookie's lifetime is absolute (matching the
-                    // lifetime of the authentication ticket) or session-based.
-
-                    //IssuedUtc = <DateTimeOffset>,
-                    // The time at which the authentication ticket was issued.
-
-                    //RedirectUri = <string>
-                    // The full path or absolute URI to be used as an http 
-                    // redirect response value.
-                };
-
-                await HttpContext.SignInAsync(
-                    "Identity.Application",
-                    new ClaimsPrincipal(claimsIdentity),
-                    authProperties);
-
-                
-                return RedirectToAction("Index", "Home");
-                
-
+                Log.Debug($"Current Tenant Not Set for user {model.Email}");
+                return View(model);
             }
 
+            var salted = masterUser.Salt;
+            var userPassword = masterUser.Password;
+
+
+            var hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
+
+            if (hashedPassword != userPassword)
+            {
+                Log.Debug($"Failed to authenticate user {model.Email}. Invalid password.");
+                return View(model);
+            }
+
+            var connectionString = masterUser.CurrentTenant.Dbconnection;
+            connectionStringManager.SetConnectionString(connectionString);
+            
+
+            var user = await despatchRepository.FetchUserByUsername(model.Email);
+
+            if (user == null || !VerifyPassword(model.Password, user.Salt, user.Password2))
+            {
+                Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
+                return View(model);
+            }
+
+            despatchRepository.UpdateUserAccessed(user.UcctId, model.RememberMe);
+
+            
+            var claims = GenerateClaims(
+                model.Email,
+                masterUser.UserId,
+                masterUser.CurrentTenant.TenantId,
+                user.UcctId.ToString(),
+                user.UcctClientId.ToString(),
+                user.StaffId?.ToString() ?? "",
+                masterUser.CurrentTenant.Dbconnection
+            );
+
+            await SignInUserAsync(claims, model.RememberMe);
+
+            return RedirectToAction("Index", "Home");
             
 
         }
 
-        public static string Encrypt(string decryptedString)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection)
         {
-
-            var key = Convert.FromBase64String("8wzkFlOvNB8+7UgmX0bSyFPHxjLNjmaGhlUoSKkJ2Kc=");
-            var iv = Convert.FromBase64String("iE1+VfQbXWBkCalh+iV85Q==");
-
-
-
-
-            var encryptedString = "";
-            try
+            return new List<Claim>
             {
-
-                var encData = PasswordHelper.EncryptStringToBytes_Aes(decryptedString, key, iv);
-                encryptedString = Convert.ToBase64String(encData);
-
-
-            }
-            catch (Exception)
-            {
-            }
-
-            return encryptedString;
+                new Claim(ClaimTypes.Name, email),
+                new Claim("UserID", userId.ToString()),
+                new Claim("CurrentTenantID", currentTenantId.ToString()),
+                new Claim("ContactID", contactId),
+                new Claim("ClientID", clientId),
+                new Claim("StaffID", staffId ?? ""),
+                new Claim("Connection", connection)
+            };
+        }
+        
+        private bool VerifyPassword(string inputPassword, string salt, string storedHash)
+        {
+            var inputHash = PasswordHelper.HashPassword(inputPassword, salt);
+            return inputHash == storedHash;
         }
 
-        public static string Decrypt(string encryptedString)
+        private async Task SignInUserAsync(List<Claim> claims, bool isPersistent)
         {
-            var key = Convert.FromBase64String("8wzkFlOvNB8+7UgmX0bSyFPHxjLNjmaGhlUoSKkJ2Kc=");
-            var iv = Convert.FromBase64String("iE1+VfQbXWBkCalh+iV85Q==");
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
-            var decryptedString = "";
-            try
+            var authProperties = new AuthenticationProperties
             {
-                decryptedString = PasswordHelper.DecryptStringFromBytes_Aes(Convert.FromBase64String(encryptedString), key, iv);
-            }
-            catch (Exception)
-            {
+                AllowRefresh = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7),
+                IsPersistent = isPersistent
+            };
 
-            }
-
-            return decryptedString;
+            await HttpContext.SignInAsync(
+                "Identity.Application",
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties);
         }
-
+        
         public async Task<IActionResult> Logout()
         {
             // Clear the existing external cookie
             await HttpContext.SignOutAsync(
                 "Identity.Application");
             return RedirectToAction("login");
+        }
+        
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel model)
+        {
+            var userId = User.FindFirst("UserID")?.Value;
+            if (userId == null)
+            {
+                return Json(new { success = false, message = "User not found" });
+            }
+
+            if (model == null || model.TenantId == 0)
+            {
+                return Json(new { success = false, message = "Invalid tenant ID" });
+            }
+            var success = await authenticationRepository.UpdateCurrentTenantIdAsync(int.Parse(userId), model.TenantId);
+
+            if (!success) return Json(new { success = false, message="Update database failed" });
+            
+            var masterUser = await authenticationRepository.GetUserById(int.Parse(userId));
+
+            if (masterUser == null)
+            {
+                Log.Debug($"Failed to find master user {userId}");
+                return Json(new { success = false, message = "User not found" });
+            }
+
+            if (masterUser.CurrentTenant == null)
+            {
+                Log.Debug($"Current Tenant Not Set for user {userId}");
+                return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}"});
+            }
+            var claims = GenerateClaims(
+                User.FindFirst(ClaimTypes.Name)?.Value ?? "",
+                masterUser.UserId,
+                model.TenantId,
+                User.FindFirst("ContactID")?.Value ?? "",
+                User.FindFirst("ClientID")?.Value ?? "",
+                User.FindFirst("StaffID")?.Value ?? "",
+                masterUser.CurrentTenant.Dbconnection
+            );
+
+            await SignInUserAsync(claims, User.Identity.IsAuthenticated);
+
+            return Json(new { success = true });
+
         }
     }
 }

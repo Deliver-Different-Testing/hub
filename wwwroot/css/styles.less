@@ -1,4 +1,4 @@
-@ddBlue: #76EAFE;
+@ddBlue: #283DB8;
 @orange: #ea891c;
 @green: #7ac141;
 
@@ -223,5 +223,44 @@
         a {
             display: block;
         }
+    }
+}
+
+.tenant-selector {
+    display: flex;
+    align-items: center;
+}
+
+.tenant-label {
+    color: @ddBlue;
+    font-weight: 600;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+.dropdown-toggle::after {
+    margin-left: 0.5em;
+}
+
+.dropdown-menu {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Adjustments for smaller screens */
+@media (max-width: 576px) {
+    .tenant-selector {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .tenant-label {
+        margin-bottom: 0.5rem;
     }
 }

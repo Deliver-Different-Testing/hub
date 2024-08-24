@@ -11,34 +11,57 @@ using Microsoft.AspNetCore.DataProtection;
 using UrgentHub.Models;
 using UrgentHub.Repositories;
 using System.Threading.Tasks;
+using UrgentHub.Models.Master;
+using UrgentHub;
+using Serilog;
+using UrgentHub.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddHealthChecks();
 builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+Log.Logger =  new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).WriteTo.Console().CreateLogger();
+
+builder.Services.AddSingleton<IConnectionStringManager, ConnectionStringManager>();
 builder.Services.AddControllersWithViews();
 // Add services to the container.
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<Repository, Repository>();
 
-
-
-var connectionString = Environment.GetEnvironmentVariable("SQLConnection") ?? "";
+var connectionString = Environment.GetEnvironmentVariable("MasterSQLConnection") ?? "";
 if (string.IsNullOrEmpty(connectionString))
 {
     throw new InvalidOperationException(
-        "Could not find a connection string named 'SQLConnection'.");
+        "Could not find a connection string named 'MasterSQLConnection'.");
 }
 builder.Services.AddHealthChecks().AddSqlServer(connectionString);
-builder.Services.AddDbContext<DespatchContext>(x =>
+builder.Services.AddDbContext<MasterContext>(x =>
 {
     x.UseSqlServer(connectionString);
-    //x.UseSqlServer(connectionString, o => o.UseCompatibilityLevel(120));
 #if DEBUG
     x.UseLoggerFactory(LoggerFactory.Create(c => c.AddDebug()));
 #endif
 });
+
+// Register DespatchContext with a dummy connection string
+builder.Services.AddDbContext<DespatchContext>((serviceProvider, options) =>
+{
+    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=dummy;Trusted_Connection=True;");
+});
+// Register DynamicDespatchDbContext
+builder.Services.AddScoped<DynamicDespatchDbContext>((serviceProvider) =>
+{
+    var optionsBuilder = new DbContextOptionsBuilder<DespatchContext>();
+    var connectionStringManager = serviceProvider.GetRequiredService<IConnectionStringManager>();
+    
+    // We're not setting the connection string here, it will be set in OnConfiguring
+    return new DynamicDespatchDbContext(optionsBuilder.Options, connectionStringManager);
+});
+
+
+builder.Services.AddScoped<Repository, Repository>();
+builder.Services.AddScoped<AuthenticationRepository, AuthenticationRepository>();
+builder.Services.AddScoped<ITenantService, TenantService>();
 
 var domain = Environment.GetEnvironmentVariable("Domain") ?? "";
 if (string.IsNullOrEmpty(domain))

@@ -1,29 +1,29 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Web;
 using UrgentHub.Models;
 using UrgentHub.Repositories;
-using UrgentHub.Shared;
+using UrgentHub.Services;
 
 namespace UrgentHub.Controllers
 {
-    public class HomeController(Repository repo) : Controller
+    public class HomeController(IConnectionStringManager connectionStringManager, Repository despatchRepository, ITenantService tenantService) : Controller
     {
 
-        public async Task<IActionResult> Index([FromQuery] string login)
+        public async Task<IActionResult> Index()
         {
             var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
             
             if (cid != null)
             {
-                var contactDetail = await repo.GetContact(int.Parse(cid));
-                var clientDetail = await repo.GetClient((int)contactDetail.ClientID);
+                var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
+                connectionStringManager.SetConnectionString(connectionString);
+                var contactDetail = await despatchRepository.GetContact(int.Parse(cid));
+                var clientDetail = await despatchRepository.GetClient((int)contactDetail.ClientID);
 
-                var internetPermissions = await repo.GetDespatchWebInternetPermissions(int.Parse(cid));
+                var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissions(int.Parse(cid));
 
                 ViewBag.ContactID = int.Parse(cid);
                 ViewBag.ContactName = contactDetail.FirstName;
@@ -50,6 +50,8 @@ namespace UrgentHub.Controllers
             }
         }
 
+      
+        
         public string GetGreetingString()
         {
             string[] greetings = new string[] { "Hi", "Hello", "Welcome", "Greetings", "G'day", "Hey", "Good to see you,", "How are you", "Hope it's swell,", "How's it going", "What's good", "Howdy", "Kia ora", "Tēnā koe",
@@ -71,31 +73,7 @@ namespace UrgentHub.Controllers
             return false;
         }
 
-        
-
-        public static string EncryptOutgoingToString(int userID, string page)
-        {
-            if (!string.IsNullOrEmpty(userID.ToString()))
-            {
-                var key = Convert.FromBase64String("8wzkFlOvNB8+7UgmX0bSyFPHxjLNjmaGhlUoSKkJ2Kc=");
-                var iv = Convert.FromBase64String("iE1+VfQbXWBkCalh+iV85Q==");
-
-                var id = userID.ToString();
-                var data = id + "|" + DateTime.Now;
-
-                var encData = PasswordHelper.EncryptStringToBytes_Aes(data, key, iv);
-
-                var encryptedString = HttpUtility.UrlEncode(Convert.ToBase64String(encData));
-
-                if (page == "bulkImport")
-                    encryptedString = encryptedString.Replace("%2f", "%252f");
-
-                return encryptedString;
-            } else {
-                return "";
-            }
-        }
-
+      
         
     }
 }

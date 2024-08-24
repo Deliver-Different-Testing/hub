@@ -1,15 +1,17 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using UrgentHub.Models;
 
 namespace UrgentHub.Repositories
 {
-    public class Repository(DespatchContext context)
+    public class Repository(DynamicDespatchDbContext context)
     {
+        
         public async Task<RVW_stpValidateClientResult> GetClient(int clientId)
         {
             var data = await context.Procedures.RVW_stpValidateClientAsync(clientId);
@@ -24,6 +26,58 @@ namespace UrgentHub.Repositories
 
             return data.FirstOrDefault();
         } 
+        
+        public void LogConnectionDetails()
+        {
+            try
+            {
+                var connection = context.Database.GetDbConnection();
+                var maskedConnectionString = MaskSensitiveInfo(connection.ConnectionString);
+            
+                Log.Information($"Current Connection Details:");
+                Log.Information($"Data Source: {connection.DataSource}");
+                Log.Information($"Database: {connection.Database}");
+                Log.Information($"Masked Connection String: {maskedConnectionString}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error logging connection details");
+            }
+        }
+
+        private string MaskSensitiveInfo(string connectionString)
+        {
+            // Mask password
+            var maskedString = Regex.Replace(connectionString, 
+                @"(Password|Pwd)=[^;]*", "$1=********", 
+                RegexOptions.IgnoreCase);
+
+            // Mask user id if present
+            maskedString = Regex.Replace(maskedString, 
+                @"(User ID|Uid)=[^;]*", "$1=********", 
+                RegexOptions.IgnoreCase);
+
+            return maskedString;
+        }
+        public async Task<TucClientContact> FetchUserByUsername(string email)
+        {
+            LogConnectionDetails();
+            try
+            {
+                
+                
+                Log.Information($"Attempting to fetch user with email: {email}"); 
+                
+                return await context.TucClientContacts.Where(x => x.Active && x.UserName == email).Include("UcctClient").FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Error fetching user with email: {email}");
+                throw;
+            }
+            
+        }
+
 
         public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissions(int contactId)
         {
@@ -32,7 +86,6 @@ namespace UrgentHub.Repositories
             return data;
         }
 
-        public List<TucClientContact> FetchUsersByUsername(string email) => context.TucClientContacts.Where(x => x.Active && x.UserName == email).Include("UcctClient").ToList();
 
         public void UpdateUserAccessed(int id, bool rememberMe)
         {
