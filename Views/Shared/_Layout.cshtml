@@ -53,15 +53,18 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
-                        @if (tenants != null && tenants.Any())
+                        <!-- Your other nav items here -->
+                    </ul>
+                    <ul class="navbar-nav align-items-center">
+                        @if (tenants.Any())
                         {
-                            <li class="nav-item tenant-selector">
-                                <span class="tenant-label mr-2">Organization:</span>
+                            <li class="nav-item tenant-selector mr-3">
+                                <span class="tenant-label mr-2">Tenants</span>
                                 <div class="dropdown">
                                     <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         @(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")
                                     </button>
-                                    <div class="dropdown-menu" aria-labelledby="tenantDropdown">
+                                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="tenantDropdown">
                                         @foreach (var tenant in tenants)
                                         {
                                             <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : "")" href="#" data-tenant-id="@tenant.Id">@tenant.Name</a>
@@ -70,8 +73,11 @@
                                 </div>
                             </li>
                         }
-                    </ul>
-                    <ul class="navbar-nav">
+                        <li class="nav-item mr-3">
+                            <div class="profile-icon" title="@User.Identity?.Name">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                        </li>
                         <li class="nav-item">
                             @Html.ActionLink("Logout", "Logout", "Account", null, new { @class = "nav-link", @style = "color:#283DB8;" })
                         </li>

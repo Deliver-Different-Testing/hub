@@ -226,6 +226,10 @@
     }
 }
 
+.navbar-nav.align-items-center {
+    align-items: center;
+}
+
 .tenant-selector {
     display: flex;
     align-items: center;
@@ -255,12 +259,44 @@
 
 /* Adjustments for smaller screens */
 @media (max-width: 576px) {
-    .tenant-selector {
+    .navbar-nav.align-items-center {
         flex-direction: column;
         align-items: flex-start;
     }
 
+    .tenant-selector {
+        margin-bottom: 0.5rem;
+    }
+
     .tenant-label {
+        margin-bottom: 0.5rem;
+    }
+}
+
+.profile-icon {
+    font-size: 24px;
+    color: #283DB8;
+    cursor: pointer;
+    position: relative;
+}
+
+.profile-icon:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* Add this to your existing media query for smaller screens */
+@media (max-width: 576px) {
+    .profile-icon {
         margin-bottom: 0.5rem;
     }
 }
