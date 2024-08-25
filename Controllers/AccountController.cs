@@ -69,7 +69,13 @@ namespace UrgentHub.Controllers
             }
 
             var connectionString = masterUser.CurrentTenant.Dbconnection;
-            connectionStringManager.SetConnectionString(connectionString);
+            var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
+            if (string.IsNullOrEmpty(credentials))
+            {
+                throw new InvalidOperationException(
+                    "Could not find a environment variable string named 'SQLCredentials'.");
+            }
+            connectionStringManager.SetConnectionString(connectionString+credentials);
             
 
             var user = await despatchRepository.FetchUserByUsername(model.Email);

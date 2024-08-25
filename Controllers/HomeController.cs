@@ -20,7 +20,13 @@ namespace UrgentHub.Controllers
             if (cid != null && connectionString!= null)
             {
                 Log.Debug($"Found Identity for ContactID:{cid}");
-                connectionStringManager.SetConnectionString(connectionString);
+                var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
+                if (string.IsNullOrEmpty(credentials))
+                {
+                    throw new InvalidOperationException(
+                        "Could not find a environment variable string named 'SQLCredentials'.");
+                }
+                connectionStringManager.SetConnectionString(connectionString+credentials);
                 //var contactDetail = await despatchRepository.GetContact(int.Parse(cid));
                 //var clientDetail = await despatchRepository.GetClient((int)contactDetail.ClientID);
 
