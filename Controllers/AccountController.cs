@@ -96,7 +96,8 @@ namespace UrgentHub.Controllers
                 user.UcctId.ToString(),
                 user.UcctClientId.ToString(),
                 user.StaffId?.ToString() ?? "",
-                masterUser.CurrentTenant.Dbconnection
+                masterUser.CurrentTenant.Dbconnection,
+                model.RememberMe
             );
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -106,7 +107,7 @@ namespace UrgentHub.Controllers
 
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe)
         {
             return new List<Claim>
             {
@@ -116,7 +117,8 @@ namespace UrgentHub.Controllers
                 new Claim("ContactID", contactId),
                 new Claim("ClientID", clientId),
                 new Claim("StaffID", staffId ?? ""),
-                new Claim("Connection", connection)
+                new Claim("Connection", connection),
+                new Claim("RememberMe", rememberMe.ToString())
             };
         }
         
@@ -182,17 +184,29 @@ namespace UrgentHub.Controllers
                 Log.Debug($"Current Tenant Not Set for user {userId}");
                 return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}"});
             }
+            var user = await despatchRepository.FetchUserByUsername(User.Identity?.Name);
+
+            if (user == null)
+            {
+                Log.Debug($"Failed to authenticate Despatch User {User.Identity?.Name}. Invalid username.");
+                return Json(new { success = false, message = "Despatch User not found" });
+            }
+            
+            var rememberMe =bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
+            despatchRepository.UpdateUserAccessed(user.UcctId, rememberMe);
+            
             var claims = GenerateClaims(
                 User.FindFirst(ClaimTypes.Name)?.Value ?? "",
                 masterUser.UserId,
                 model.TenantId,
-                User.FindFirst("ContactID")?.Value ?? "",
-                User.FindFirst("ClientID")?.Value ?? "",
-                User.FindFirst("StaffID")?.Value ?? "",
-                masterUser.CurrentTenant.Dbconnection
+                user.UcctId.ToString(),
+                user.UcctClientId.ToString(),
+                user.StaffId?.ToString() ?? "",
+                masterUser.CurrentTenant.Dbconnection,
+                rememberMe
             );
 
-            await SignInUserAsync(claims, User.Identity.IsAuthenticated);
+            await SignInUserAsync(claims, rememberMe);
 
             return Json(new { success = true });
 
