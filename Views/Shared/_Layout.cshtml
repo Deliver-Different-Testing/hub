@@ -56,7 +56,7 @@
                         <!-- Your other nav items here -->
                     </ul>
                     <ul class="navbar-nav align-items-center">
-                        @if (tenants.Any())
+                        @if (tenants != null && tenants.Any())
                         {
                             <li class="nav-item tenant-selector mr-3">
                                 <span class="tenant-label mr-2">Organizations:</span>
