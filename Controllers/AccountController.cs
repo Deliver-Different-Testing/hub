@@ -194,6 +194,8 @@ namespace UrgentHub.Controllers
             
             var rememberMe =bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
             despatchRepository.UpdateUserAccessed(user.UcctId, rememberMe);
+            Log.Debug($"About to write Claim details. ContactID: {user.UcctId.ToString()}");
+            Log.Debug($"About to write Claim details. Connection: {masterUser.CurrentTenant.Dbconnection}");
             
             var claims = GenerateClaims(
                 User.FindFirst(ClaimTypes.Name)?.Value ?? "",
