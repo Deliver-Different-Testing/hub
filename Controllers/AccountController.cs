@@ -184,6 +184,18 @@ namespace UrgentHub.Controllers
                 Log.Debug($"Current Tenant Not Set for user {userId}");
                 return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}"});
             }
+            
+            //Changed Tenant - switch connection
+            var connectionString = masterUser.CurrentTenant.Dbconnection;
+            Log.Debug($"Changed Current Tenant. Setting new connection: {connectionString}");
+            var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
+            if (string.IsNullOrEmpty(credentials))
+            {
+                throw new InvalidOperationException(
+                    "Could not find a environment variable string named 'SQLCredentials'.");
+            }
+            connectionStringManager.SetConnectionString(connectionString+credentials);
+            
             var user = await despatchRepository.FetchUserByUsername(User.Identity?.Name);
 
             if (user == null)
