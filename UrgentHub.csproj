@@ -3,9 +3,6 @@
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Folder Include="Views\Account\" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="efpt.Despatch.config.json.user" />
     <None Include="efpt.Master.config.json.user" />
   </ItemGroup>

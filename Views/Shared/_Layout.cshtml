@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @using UrgentHub.ViewModels
 @using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Mvc.TagHelpers
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +47,9 @@
         }
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-white border-bottom box-shadow mb-3">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index"><img class="logo" src="~/images/deliverDifferentLogo.png" width="272" height="60" /></a>
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                    <img class="logo" src="~/images/deliverDifferentLogo.png" width="272" height="60" alt="Deliver Different Logo" />
+                </a>
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -74,12 +77,23 @@
                             </li>
                         }
                         <li class="nav-item mr-3">
-                            <div class="profile-icon" title="@User.Identity?.Name">
-                                <i class="fas fa-user-circle"></i>
+                            <div class="profile-dropdown">
+                                <div class="profile-icon-username">
+                                    <i class="fas fa-user-circle profile-icon"></i>
+                                    <span class="username">@User.Identity?.Name</span>
+                                    <i class="fas fa-chevron-down dropdown-arrow"></i>
+                                </div>
+                                <div class="profile-menu">
+                                    <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
+                                        <i class="fas fa-cog menu-icon"></i>
+                                        Settings
+                                    </a>
+                                    <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
+                                        <i class="fas fa-sign-out-alt menu-icon"></i>
+                                        Logout
+                                    </a>
+                                </div>
                             </div>
-                        </li>
-                        <li class="nav-item">
-                            @Html.ActionLink("Logout", "Logout", "Account", null, new { @class = "nav-link", @style = "color:#283DB8;" })
                         </li>
                     </ul>
                 </div>
@@ -131,6 +145,24 @@
                         }
                     });
             };
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            const profileDropdown = document.querySelector('.profile-dropdown');
+            const profileIconUsername = document.querySelector('.profile-icon-username');
+            const profileMenu = document.querySelector('.profile-menu');
+
+            profileIconUsername.addEventListener('click', function (e) {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('active');
+                profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!profileDropdown.contains(e.target)) {
+                    profileDropdown.classList.remove('active');
+                    profileMenu.style.display = 'none';
+                }
+            });
         });
     </script>
 

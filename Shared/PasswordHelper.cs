@@ -27,7 +27,7 @@ namespace UrgentHub.Shared
         /// <returns></returns>
         public static SaltHashed SaltHashNewPassword(string password)
         {
-            var random = new Random();
+            var random = new Random();  
             var salt = random.Next(10000, 99999);
             var salted = salt.ToString();
             var result = new SaltHashed

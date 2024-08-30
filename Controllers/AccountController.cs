@@ -5,13 +5,19 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.IO;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Serilog;
 using UrgentHub.Repositories;
 using UrgentHub.Shared;
 using UrgentMVC.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using UrgentHub.ViewModels;
 
 namespace UrgentHub.Controllers
@@ -75,8 +81,8 @@ namespace UrgentHub.Controllers
                 throw new InvalidOperationException(
                     "Could not find a environment variable string named 'SQLCredentials'.");
             }
-            connectionStringManager.SetConnectionString(connectionString+credentials);
-            
+            connectionStringManager.SetConnectionString(connectionString + credentials);
+
 
             var user = await despatchRepository.FetchUserByUsername(model.Email);
 
@@ -88,7 +94,7 @@ namespace UrgentHub.Controllers
 
             despatchRepository.UpdateUserAccessed(user.UcctId, model.RememberMe);
 
-            
+
             var claims = GenerateClaims(
                 model.Email,
                 masterUser.UserId,
@@ -103,7 +109,7 @@ namespace UrgentHub.Controllers
             await SignInUserAsync(claims, model.RememberMe);
 
             return RedirectToAction("Index", "Home");
-            
+
 
         }
 
@@ -121,7 +127,7 @@ namespace UrgentHub.Controllers
                 new Claim("RememberMe", rememberMe.ToString())
             };
         }
-        
+
         private bool VerifyPassword(string inputPassword, string salt, string storedHash)
         {
             var inputHash = PasswordHelper.HashPassword(inputPassword, salt);
@@ -144,7 +150,7 @@ namespace UrgentHub.Controllers
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
         }
-        
+
         public async Task<IActionResult> Logout()
         {
             // Clear the existing external cookie
@@ -152,7 +158,7 @@ namespace UrgentHub.Controllers
                 "Identity.Application");
             return RedirectToAction("login");
         }
-        
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel model)
@@ -169,8 +175,8 @@ namespace UrgentHub.Controllers
             }
             var success = await authenticationRepository.UpdateCurrentTenantIdAsync(int.Parse(userId), model.TenantId);
 
-            if (!success) return Json(new { success = false, message="Update database failed" });
-            
+            if (!success) return Json(new { success = false, message = "Update database failed" });
+
             var masterUser = await authenticationRepository.GetUserById(int.Parse(userId));
 
             if (masterUser == null)
@@ -182,9 +188,9 @@ namespace UrgentHub.Controllers
             if (masterUser.CurrentTenant == null)
             {
                 Log.Debug($"Current Tenant Not Set for user {userId}");
-                return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}"});
+                return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}" });
             }
-            
+
             //Changed Tenant - switch connection
             var connectionString = masterUser.CurrentTenant.Dbconnection;
             Log.Debug($"Changed Current Tenant. Setting new connection: {connectionString}");
@@ -194,8 +200,8 @@ namespace UrgentHub.Controllers
                 throw new InvalidOperationException(
                     "Could not find a environment variable string named 'SQLCredentials'.");
             }
-            connectionStringManager.SetConnectionString(connectionString+credentials);
-            
+            connectionStringManager.SetConnectionString(connectionString + credentials);
+
             var user = await despatchRepository.FetchUserByUsername(User.Identity?.Name);
 
             if (user == null)
@@ -203,12 +209,12 @@ namespace UrgentHub.Controllers
                 Log.Debug($"Failed to authenticate Despatch User {User.Identity?.Name}. Invalid username.");
                 return Json(new { success = false, message = "Despatch User not found" });
             }
-            
-            var rememberMe =bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
+
+            var rememberMe = bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
             despatchRepository.UpdateUserAccessed(user.UcctId, rememberMe);
             Log.Debug($"About to write Claim details. ContactID: {user.UcctId.ToString()}");
             Log.Debug($"About to write Claim details. Connection: {masterUser.CurrentTenant.Dbconnection}");
-            
+
             var claims = GenerateClaims(
                 User.FindFirst(ClaimTypes.Name)?.Value ?? "",
                 masterUser.UserId,
@@ -225,5 +231,99 @@ namespace UrgentHub.Controllers
             return Json(new { success = true });
 
         }
+
+        private static string EncryptClaims(string claims, string key)
+        {
+            using var aesAlg = Aes.Create();
+            var keyBytes = Convert.FromBase64String(key);
+            aesAlg.Key = keyBytes;
+            // Generate a cryptographically secure random IV
+            aesAlg.GenerateIV();
+            var iv = aesAlg.IV;
+
+            using var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+            using var msEncrypt = new MemoryStream();
+            // Write the IV to the beginning of the stream
+            msEncrypt.Write(iv, 0, iv.Length);
+            using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+            using (var swEncrypt = new StreamWriter(csEncrypt))
+            {
+                swEncrypt.Write(claims);
+            }
+            return Convert.ToBase64String(msEncrypt.ToArray());
+        }
+
+        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId)
+        {
+            var symmetricSecurityKey =
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWTSecretKey")));
+
+            var sensitiveClaims = JsonSerializer.Serialize(new
+            {
+                ClientId = clientId.ToString(),
+                SubAccounts = subAccounts,
+                ContactId = contactId.ToString(),
+                TenantId = tenantId.ToString()
+            });
+            var encryptedClaims = EncryptClaims(sensitiveClaims, Environment.GetEnvironmentVariable("ClaimsKey"));
+            var claims = new Claim[]
+            {
+                new Claim(ClaimTypes.Name, name),
+                new Claim("SC", encryptedClaims)
+            };
+
+            return new JwtSecurityToken(
+                issuer: Environment.GetEnvironmentVariable("Issuer"),
+                audience: Environment.GetEnvironmentVariable("Audience"),
+                claims: claims,
+                expires: DateTime.UtcNow.AddDays(7), // expires in 7 days by default, but we don't validate the expiry date
+                signingCredentials: new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256)
+            );
+        }
+
+        private static string DecryptClaims(string encryptedClaims, string key)
+        {
+            var fullCipherText = Convert.FromBase64String(encryptedClaims);
+            using var aesAlg = Aes.Create();
+            var keyBytes = Convert.FromBase64String(key);
+            aesAlg.Key = keyBytes;
+            // Read the IV from the beginning of the ciphertext
+            var iv = new byte[aesAlg.BlockSize / 8];
+            Array.Copy(fullCipherText, 0, iv, 0, iv.Length);
+
+            var cipherTextWithoutIv = new byte[fullCipherText.Length - iv.Length];
+            Array.Copy(fullCipherText, iv.Length, cipherTextWithoutIv, 0, cipherTextWithoutIv.Length);
+
+
+            using var decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+            using var msDecrypt = new MemoryStream(Convert.FromBase64String(encryptedClaims));
+            using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+            using var srDecrypt = new StreamReader(csDecrypt);
+            return srDecrypt.ReadToEnd();
+        }
+
+        public ActionResult Settings()
+        {
+            var userId = User.FindFirstValue("UserID");
+            if (string.IsNullOrEmpty(userId)) return RedirectToAction("Login");
+            var data = new List<TenantUserSettingViewModel>();
+            
+            var apiSetting = new TenantUserSettingViewModel()
+            {
+                Id = 1,
+                Name = "APIKey",
+                Value = "xkseruerklf-35ljsdf=;"
+            };
+            var other1 = new TenantUserSettingViewModel()
+            {
+                Id = 2,
+                Name = "Test Setting",
+                Value = "Testing Settings"
+            };
+            data.Add(apiSetting);
+            data.Add(other1);
+            return View(data);
+        }
     }
+
 }
