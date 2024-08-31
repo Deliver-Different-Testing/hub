@@ -20,12 +20,12 @@
         // var despatchWebPermission = ViewBag.DespatchWebPermission;
         // var bookJobPermission = ViewBag.BookJobPermission;
     }
-        var ClientID = '@clientId';
-    
+            var ClientID = '@clientId';
+
 
     var ContactID = '@contactId';
     var GreetingString = '@greetingString';
-    
+
 </script>
 
 
@@ -38,16 +38,22 @@
     <div class="dash-boxes container-fluid">
         @{
             <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                        <i class="fas fa-street-view"></i>
-                        <div class="text">Run Viewer</div>
-                    </div>
-                </div>
+                @* <div class="col-sm-4">
+            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+            <i class="fas fa-street-view"></i>
+            <div class="text">Run Viewer</div>
+            </div>
+            </div>*@
                 <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "adminmanager")')">
                         <i class="fas fa-cogs"></i>
                         <div class="text">Admin Manager</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking")' + '/#/login/')">
+                        <i class="fas fa-atlas"></i>
+                        <div class="text">Booking Page</div>
                     </div>
                 </div>
                 <div class="col-sm-4">
@@ -56,63 +62,64 @@
                         <div class="text">Bulk Import</div>
                     </div>
                 </div>
-            </div>
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
-                        <i class="fas fa-dolly"></i>
-                        <div class="text">Courier Manager</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                        <i class="fas fa-hamsa"></i>
-                        <div class="text">Courier Portal</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking")' + '/#/login/')">
-                        <i class="fas fa-atlas"></i>
-                        <div class="text">Job Booking Page</div>
-                    </div>
-                </div>
-
-            </div>
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
-                        <i class="fas fa-calendar-plus"></i>
-                        <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
-                        <i class="fas fa-window-maximize"></i>
-                        <div class="text">Despatch</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '#/print')">
-                        <i class="fas fa-print"></i>
-                        <div class="text">Print Manager</div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accountmanager")')">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <div class="text">Account Manager</div>
-                    </div>
-                </div>
                 <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "clientmanager")')">
                         <i class="fas fa-user-plus"></i>
                         <div class="text">Client Manager</div>
                     </div>
                 </div>
+                
+            </div>
+            <div class="row">
+                
+                @*<div class="col-sm-4">
+            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
+            <i class="fas fa-dolly"></i>
+            <div class="text">Courier Manager</div>
+            </div>
+            </div>
+            <div class="col-sm-4">
+            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
+            <i class="fas fa-hamsa"></i>
+            <div class="text">Courier Portal</div>
+            </div>
+            </div>*@
+
+
+            </div>
+            <div class="row">
+                @*
+            <div class="col-sm-4">
+            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
+            <i class="fas fa-calendar-plus"></i>
+            <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
+            </div>
+            </div>
+            <div class="col-sm-4">
+            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
+            <i class="fas fa-window-maximize"></i>
+            <div class="text">Despatch</div>
+            </div>
+            </div>
+            <div class="col-sm-4">
+            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '#/print')">
+            <i class="fas fa-print"></i>
+            <div class="text">Print Manager</div>
+            </div>
+            </div>*@
+            </div>
+            <div class="row">
+            @*
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accountmanager")')">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <div class="text">Account Manager</div>
+                    </div>
+                </div>
+
                 <div class="col-sm-4">
                 </div>
+            *@
             </div>
 
 

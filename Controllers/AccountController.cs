@@ -19,6 +19,7 @@ using UrgentMVC.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using UrgentHub.ViewModels;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace UrgentHub.Controllers
 {
@@ -154,11 +155,12 @@ namespace UrgentHub.Controllers
         public async Task<IActionResult> Logout()
         {
             // Clear the existing external cookie
-            await HttpContext.SignOutAsync(
-                "Identity.Application");
+            await HttpContext.SignOutAsync("Identity.Application");
             return RedirectToAction("login");
         }
 
+
+        
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel model)
@@ -253,7 +255,7 @@ namespace UrgentHub.Controllers
             return Convert.ToBase64String(msEncrypt.ToArray());
         }
 
-        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId)
+        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId, string connection)
         {
             var symmetricSecurityKey =
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWTSecretKey")));
@@ -263,7 +265,8 @@ namespace UrgentHub.Controllers
                 ClientId = clientId.ToString(),
                 SubAccounts = subAccounts,
                 ContactId = contactId.ToString(),
-                TenantId = tenantId.ToString()
+                TenantId = tenantId.ToString(),
+                Connection = connection
             });
             var encryptedClaims = EncryptClaims(sensitiveClaims, Environment.GetEnvironmentVariable("ClaimsKey"));
             var claims = new Claim[]
@@ -304,8 +307,6 @@ namespace UrgentHub.Controllers
 
         public ActionResult Settings()
         {
-            var userId = User.FindFirstValue("UserID");
-            if (string.IsNullOrEmpty(userId)) return RedirectToAction("Login");
             var data = new List<TenantUserSettingViewModel>();
             
             var apiSetting = new TenantUserSettingViewModel()
