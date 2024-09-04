@@ -68,7 +68,7 @@ stages:
   - review
   - dast
   - staging
-  - sandbox
+  - otgcargo
   - canary
   - production
   - incremental rollout 10%
@@ -80,20 +80,20 @@ stages:
   - cleanup
   - .post
 
-sandbox:
+otgcargo:
   extends: staging
   stage: sandbox
   before_script:
-    - export HELM_UPGRADE_VALUES_FILE=".gitlab/sandbox-auto-deploy-values.yaml"
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/otgcargo-auto-deploy-values.yaml"
   cache: []
   environment:
-    name: sandbox
-    url: $SANDBOX_ADDITIONAL_HOSTS
+    name: otgcargo
+    url: $OTGCARGO_ADDITIONAL_HOSTS
   rules:
-    - if: $SANDBOX_ADDITIONAL_HOSTS == null
+    - if: $OTGCARGO_ADDITIONAL_HOSTS == null
       when: never
     - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
-    - if: "$SANDBOX_ENABLED"
+    - if: "$OTGCARGO_ENABLED"
