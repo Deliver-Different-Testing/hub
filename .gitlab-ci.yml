@@ -82,7 +82,7 @@ stages:
 
 otgcargo:
   extends: staging
-  stage: sandbox
+  stage: otgcargo
   before_script:
     - export HELM_UPGRADE_VALUES_FILE=".gitlab/otgcargo-auto-deploy-values.yaml"
   cache: []
