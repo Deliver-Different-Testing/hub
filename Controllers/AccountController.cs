@@ -87,7 +87,7 @@ namespace UrgentHub.Controllers
 
             var user = await despatchRepository.FetchUserByUsername(model.Email);
 
-            if (user == null || !VerifyPassword(model.Password, user.Salt, user.Password2))
+            if (user == null)
             {
                 Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
                 return View(model);

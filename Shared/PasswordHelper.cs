@@ -16,7 +16,8 @@ namespace UrgentHub.Shared
         public static string HashPassword(string password, string salt)
         {
             var k2 = new Rfc2898DeriveBytes(password, System.Text.Encoding.UTF8.GetBytes(salt + salt));
-            var result = System.Text.Encoding.UTF8.GetString(k2.GetBytes(128));
+            byte[] hashBytes = k2.GetBytes(64); // 64 bytes = 512 bits
+            string result = BitConverter.ToString(hashBytes).Replace("-", "");
             return result;
         }
 
