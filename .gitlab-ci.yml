@@ -68,7 +68,8 @@ stages:
   - review
   - dast
   - staging
-  - otgcargo
+  - tenants-staging
+  - tenants-prod
   - canary
   - production
   - incremental rollout 10%
@@ -80,20 +81,156 @@ stages:
   - cleanup
   - .post
 
-otgcargo:
+otgcargo-staging:
   extends: staging
-  stage: otgcargo
+  stage: tenants-staging
   before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$OTGCARGO_STAGING_ENV")
     - export HELM_UPGRADE_VALUES_FILE=".gitlab/otgcargo-auto-deploy-values.yaml"
   cache: []
   environment:
-    name: otgcargo
-    url: $OTGCARGO_ADDITIONAL_HOSTS
+    name: otgcargo-staging
+    url: $OTGCARGO_STAGING_ADDITIONAL_HOSTS
   rules:
-    - if: $OTGCARGO_ADDITIONAL_HOSTS == null
+    - if: $OTGCARGO_STAGING_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$OTGCARGO_STAGING_ENABLED"
+      when: manual
+
+otgcargo-prod:
+  extends: production
+  stage: tenants-prod
+  artifacts: 
+    paths: []
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$OTGCARGO_PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/otgcargo-prod-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: otgcargo-prod
+    url: $OTGCARGO_PROD_ADDITIONAL_HOSTS
+  rules:
+    - if: $OTGCARGO_PROD_ADDITIONAL_HOSTS == null
       when: never
     - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
-    - if: "$OTGCARGO_ENABLED"
+    - if: "$OTGCARGO_PROD_ENABLED"
+      when: manual
+
+crossroadscourier-staging:
+  extends: staging
+  stage: tenants-staging
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$CROSSROADSCOURIER_STAGING_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/crossroadscourier-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: crossroadscourier-staging
+    url: $CROSSROADSCOURIER_STAGING_ADDITIONAL_HOSTS
+  rules:
+    - if: $CROSSROADSCOURIER_STAGING_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: "$CROSSROADSCOURIER_ENABLED"
+      when: manual
+
+crossroadscourier-prod:
+  extends: production
+  stage: tenants-prod
+  artifacts: 
+    paths: []
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$CROSSROADSCOURIER_PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/crossroadscourier-prod-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: crossroadscourier-prod
+    url: $CROSSROADSCOURIER_PROD_ADDITIONAL_HOSTS
+  rules:
+    - if: $CROSSROADSCOURIER_PROD_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: "$CROSSROADSCOURIER_PROD_ENABLED"
+      when: manual
+
+sll-staging:
+  extends: staging
+  stage: tenants-staging
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$SLL_STAGING_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/sll-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: sll-staging
+    url: $SLL_STAGING_ADDITIONAL_HOSTS
+  rules:
+    - if: $SLL_STAGING_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: "$SLL_ENABLED"
+      when: manual
+
+sll-prod:
+  extends: production
+  stage: tenants-prod
+  artifacts: 
+    paths: []
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$SLL_PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/sll-prod-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: sll-prod
+    url: $SLL_PROD_ADDITIONAL_HOSTS
+  rules:
+    - if: $SLL_PROD_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: "$SLL_PROD_ENABLED"
+      when: manual
