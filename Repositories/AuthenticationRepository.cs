@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Serilog;
 using UrgentHub.Models.Master;
+using UrgentHub.Models;
 
 namespace UrgentHub.Repositories
 {
@@ -19,12 +20,26 @@ namespace UrgentHub.Repositories
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
 
         }
+
+        public async Task SaveAsync()
+        {
+            await context.SaveChangesAsync();
+        }
+
         
         public async Task<User?> GetUserById(int id)
         {
             return await context.Users
                 .Include(u => u.CurrentTenant)
                 .FirstOrDefaultAsync(u => u.UserId == id);
+
+        }
+
+        public async Task<User?> GetUserByResetKey(string resetKey)
+        {
+            return await context.Users
+                .Include(u => u.CurrentTenant)
+                .FirstOrDefaultAsync(u => u.ResetKey.ToLower() == resetKey.ToLower());
 
         }
 

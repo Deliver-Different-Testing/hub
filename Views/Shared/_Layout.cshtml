@@ -117,36 +117,42 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     <script>
-        document.querySelector('.dropdown-menu').addEventListener('click', function (e) {
-            if (e.target && e.target.nodeName == 'A') {
-                e.preventDefault();
-                var selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
-                var selectedTenantName = e.target.textContent;
-
-                // Update button text
-                document.querySelector('#tenantDropdown').textContent = selectedTenantName;
-
-                // Make an AJAX call to update the current tenant
-                fetch('/Account/UpdateCurrentTenant', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': '@requestToken'
-                    },
-                    body: JSON.stringify({ tenantId: selectedTenantId })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Optionally reload the page or update other parts of the UI
-                            window.location.reload();
-                        } else {
-                            console.error('Failed to update tenant');
-                        }
-                    });
-            };
-        });
+        
         document.addEventListener('DOMContentLoaded', function () {
+            // Check if the dropdown menu exists
+            var dropdownMenu = document.querySelector('.dropdown-menu');
+
+            if (dropdownMenu) {
+
+
+                document.querySelector('.dropdown-menu').addEventListener('click', function (e) {
+                    if (e.target && e.target.nodeName == 'A') {
+                        e.preventDefault();
+                        var selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
+                        var selectedTenantName = e.target.textContent;
+
+                        document.querySelector('#tenantDropdown').textContent = selectedTenantName;
+
+                        fetch('/Account/UpdateCurrentTenant', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': '@requestToken'
+                            },
+                            body: JSON.stringify({ tenantId: selectedTenantId })
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Optionally reload the page or update other parts of the UI
+                                    window.location.reload();
+                                } else {
+                                    console.error('Failed to update tenant');
+                                }
+                            });
+                    };
+                });
+            }
             const profileDropdown = document.querySelector('.profile-dropdown');
             const profileIconUsername = document.querySelector('.profile-icon-username');
             const profileMenu = document.querySelector('.profile-menu');

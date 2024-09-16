@@ -28,6 +28,11 @@ namespace UrgentHub.Repositories
             return data.FirstOrDefault();
         } 
         
+        public async Task SaveAsync()
+        {
+            await context.SaveChangesAsync();
+        }
+
         public void LogConnectionDetails()
         {
             try

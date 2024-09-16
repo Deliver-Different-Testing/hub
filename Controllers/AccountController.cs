@@ -114,6 +114,93 @@ namespace UrgentHub.Controllers
 
         }
 
+        [AllowAnonymous]
+        public async Task<ActionResult> ResetPassword(string code)
+        {
+            if (string.IsNullOrEmpty(code))
+            {
+                Log.Debug($"Failed to find user via reset key {code}");
+                return RedirectToActionPermanent("Index", "Home");
+            }
+            var masterUser = await authenticationRepository.GetUserByResetKey(code);
+            if (masterUser == null)
+            {
+                return RedirectToActionPermanent("Index", "Home");
+            }
+            var model = new ResetPasswordViewModel
+            {
+                Email = masterUser.Email,
+                Code = code
+
+            };
+
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.ResetFailed = true;
+                return View(model);
+            }
+
+            var masterUser = await authenticationRepository.GetUserByResetKey(model.Code);
+            if (masterUser == null)
+            {
+                Log.Debug($"Failed to find user via reset key {model.Code}");
+                return RedirectToActionPermanent("Index", "Home");
+            }
+            var result = PasswordHelper.SaltHashNewPassword(model.Password);
+
+            masterUser.Password = result.Hashed;
+            masterUser.Salt = result.Salt;
+            masterUser.ResetKey = null;
+            await authenticationRepository.SaveAsync();
+            
+            var connectionString = masterUser.CurrentTenant.Dbconnection;
+            var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
+            if (string.IsNullOrEmpty(credentials))
+            {
+                throw new InvalidOperationException(
+                    "Could not find a environment variable string named 'SQLCredentials'.");
+            }
+            connectionStringManager.SetConnectionString(connectionString + credentials);
+
+
+            var user = await despatchRepository.FetchUserByUsername(model.Email);
+
+            if (user == null)
+            {
+                Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
+                return View(model);
+            }
+
+            despatchRepository.UpdateUserAccessed(user.UcctId, false);
+
+
+            var claims = GenerateClaims(
+                model.Email,
+                masterUser.UserId,
+                masterUser.CurrentTenant.TenantId,
+                user.UcctId.ToString(),
+                user.UcctClientId.ToString(),
+                user.StaffId?.ToString() ?? "",
+                masterUser.CurrentTenant.Dbconnection,
+                false
+            );
+
+            await SignInUserAsync(claims, false);
+
+            return RedirectToAction("Index", "Home");
+
+        }
+
         private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe)
         {
             return new List<Claim>
