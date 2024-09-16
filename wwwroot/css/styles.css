@@ -214,19 +214,6 @@
   cursor: pointer;
   position: relative;
 }
-.profile-icon:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #333;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 14px;
-  white-space: nowrap;
-}
 /* Add this to your existing media query for smaller screens */
 @media (max-width: 576px) {
   .profile-icon {

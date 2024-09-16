@@ -243,7 +243,10 @@ namespace UrgentHub.Controllers
         {
             // Clear the existing external cookie
             await HttpContext.SignOutAsync("Identity.Application");
-            return RedirectToAction("login");
+
+            HttpContext.Session.Clear();
+
+            return RedirectToAction("login", "Account");
         }
 
 
