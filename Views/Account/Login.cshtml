@@ -1,88 +1,132 @@
-﻿@{
+﻿@model UrgentHub.ViewModels.LoginViewModel
+@{
+    ViewBag.Title = "Log in";
     ViewBag.PageTitle = "Login";
     ViewBag.PageId = "login";
     ViewBag.MenuClass = "solid";
     ViewBag.PageDescription = "";
 }
 
-@model UrgentHub.ViewModels.LoginViewModel
-@{
-    ViewBag.Title = "Log in";
-}
-
-
-@using (Html.BeginForm("Login", "Account", new { ReturnUrl = ViewBag.ReturnUrl }, FormMethod.Post, true, new { @class = "form-horizontal", role = "form" }))
-{
-    @* @Html.AntiForgeryToken() *@
-    <div class="login container">
-        <h2>Login</h2>
-        <div class="box">
-            <div class="icon">
-                <i class="fa fa-map-marker-alt"></i>
-            </div>
-            Login to our customer area
+<div class="login container">
+    <h2 class="text-center mb-4">Login</h2>
+    <div class="box mb-4">
+        <div class="icon">
+            <i class="fa fa-map-marker-alt"></i>
         </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="login-input">
-                    <div class="label">
-                        Email
-                    </div>
-                    <div class="input">
-                        <div class="input-group">
-                            @*<input type="text" class="form-control" placeholder="Recipient's username" aria-describedby="basic-addon2">*@
-                            @Html.TextBoxFor(m => m.Email, new { @class = "form-control"})
-                            @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-danger" })
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="login-input">
-                    <div class="label">
-                        Password
-                    </div>
-                    <div class="input">
-                        <div class="input-group">
-                            @Html.PasswordFor(m => m.Password, new { @class = "form-control" })
-                            @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-danger" })
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="checkbox" style="padding-left:22px">
-                    <label> @Html.EditorFor(m => m.RememberMe, new {@class = "form-control"}) Remember me?</label>
-                </div>
-
-            </div>
-
-        </div>
-        <input class="btnDD" type="submit" value="Logon" />
-        <div class="links">
-            <a href="Account/ForgotPassword">Forgot your password?</a>
-            @*<a href="#">Register</a>*@
-        </div>
+        Login to our customer area
     </div>
-}
+
+    <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewBag.ReturnUrl" method="post" class="needs-validation" novalidate id="loginForm">
+        @Html.AntiForgeryToken()
+        @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label">Email</label>
+            <input asp-for="Email" class="form-control" required type="email" />
+            <div class="invalid-feedback">
+                Please enter a valid email address.
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label">Password</label>
+            <input asp-for="Password" class="form-control" type="password" required />
+            <div class="invalid-feedback">
+                Please enter your password.
+            </div>
+        </div>
+
+        <div class="mb-3 form-check">
+            <input asp-for="RememberMe" type="checkbox" class="form-check-input" />
+            <label asp-for="RememberMe" class="form-check-label">Remember me?</label>
+        </div>
+
+        <div class="text-center mb-3">
+            <button type="submit" class="btn btn-primary" id="loginButton">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <span class="button-text">Log in</span>
+            </button>
+        </div>
+
+        <div class="text-center">
+            <a href="Account/ForgotPassword">Forgot your password?</a>
+        </div>
+    </form>
+</div>
 
 @section Scripts {
-    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var form = document.getElementById('loginForm');
+            var button = document.getElementById('loginButton');
+            var spinner = button.querySelector('.spinner-border');
+            var buttonText = button.querySelector('.button-text');
+            var emailInput = document.getElementById('Email');
+            var emailFeedback = emailInput.nextElementSibling;
 
-    <script type="text/javascript">
+            function resetButton() {
+                button.disabled = false;
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Log in';
+            }
 
-        $(document).ready(function() {
-        @if (!ViewBag.IsValid)
-        {
-            <text>
-                        toastr.error("Invalid Username or Password......please try again");
-            </text>
-        };
+            function validateEmail(email) {
+                @Html.Raw("var re = /^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$/;")
+                return re.test(String(email).toLowerCase());
+            }
+
+            function updateEmailValidationUI() {
+                if (emailInput.value) {
+                    if (validateEmail(emailInput.value)) {
+                        emailInput.classList.remove('is-invalid');
+                        emailInput.classList.add('is-valid');
+                        emailFeedback.style.display = 'none';
+                    } else {
+                        emailInput.classList.remove('is-valid');
+                        emailInput.classList.add('is-invalid');
+                        emailFeedback.style.display = 'block';
+                    }
+                } else {
+                    emailInput.classList.remove('is-valid', 'is-invalid');
+                    emailFeedback.style.display = 'none';
+                }
+            }
+
+            @if (ViewBag.LoginFailed == true)
+            {
+                <text>
+                resetButton();
+                </text>
+            }
+
+            form.addEventListener('submit', function(e) {
+                if (form.checkValidity() && validateEmail(emailInput.value)) {
+                    button.disabled = true;
+                    spinner.classList.remove('d-none');
+                    buttonText.textContent = 'Logging in...';
+                } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    updateEmailValidationUI();
+                }
+                form.classList.add('was-validated');
+            });
+
+            emailInput.addEventListener('input', function() {
+                updateEmailValidationUI();
+            });
+
+            emailInput.addEventListener('blur', function() {
+                updateEmailValidationUI();
+            });
+
+            form.querySelectorAll('input').forEach(function(input) {
+                input.addEventListener('input', function() {
+                    if (this !== emailInput && form.classList.contains('was-validated')) {
+                        form.classList.remove('was-validated');
+                    }
+                });
+            });
         });
     </script>
-
 }

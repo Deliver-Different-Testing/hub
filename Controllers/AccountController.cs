@@ -43,9 +43,9 @@ namespace UrgentHub.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Login(LoginViewModel model, string returnUrl)
         {
-            ViewBag.IsValid = false;
             if (!ModelState.IsValid)
             {
+                ViewBag.LoginFailed = true;
                 return View(model);
             }
 
@@ -54,12 +54,16 @@ namespace UrgentHub.Controllers
             if (masterUser == null)
             {
                 Log.Debug($"Failed to find user {model.Email}");
+                ViewBag.LoginFailed = true;
+                ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
 
             if (masterUser.CurrentTenant == null)
             {
                 Log.Debug($"Current Tenant Not Set for user {model.Email}");
+                ViewBag.LoginFailed = true;
+                ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
 
@@ -72,6 +76,8 @@ namespace UrgentHub.Controllers
             if (hashedPassword != userPassword)
             {
                 Log.Debug($"Failed to authenticate user {model.Email}. Invalid password.");
+                ViewBag.LoginFailed = true;
+                ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
 
@@ -90,6 +96,8 @@ namespace UrgentHub.Controllers
             if (user == null)
             {
                 Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
+                ViewBag.LoginFailed = true;
+                ModelState.AddModelError("", "Invalid login attempt.");
                 return View(model);
             }
 
