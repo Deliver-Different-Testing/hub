@@ -36,7 +36,7 @@
             if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
             {
                 var tenantList = await TenantService.GetTenantsForUserAsync(userId);
-                tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name }).ToList();
+                tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code =o.Code }).ToList();
 
                 if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out int orgId))
                 {
@@ -70,7 +70,7 @@
                                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="tenantDropdown">
                                         @foreach (var tenant in tenants)
                                         {
-                                            <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : "")" href="#" data-tenant-id="@tenant.Id">@tenant.Name</a>
+                                            <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : "")" href="#" data-tenant-code="@tenant.Code" data-tenant-id="@tenant.Id">@tenant.Name</a>
                                         }
                                     </div>
                                 </div>
@@ -117,7 +117,30 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     <script>
-        
+        // Function to replace the tenant name in the URL
+        function replaceTenantNameAndRefresh(newTenantName) {
+            // Get the current URL
+            let currentUrl = window.location.href;
+
+            // Create a URL object
+            let url = new URL(currentUrl);
+
+            // Split the hostname into parts
+            let hostnameParts = url.hostname.split('.');
+
+            // Find the index of the tenant name (assumed to be the second part)
+            const tenantIndex = 1;
+
+            // Replace the tenant name
+            hostnameParts[tenantIndex] = newTenantName;
+
+            // Join the hostname parts back together
+            url.hostname = hostnameParts.join('.');
+
+            // Replace the current URL and refresh the page
+            window.location.href = url.href;
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // Check if the dropdown menu exists
             var dropdownMenu = document.querySelector('.dropdown-menu');
@@ -129,6 +152,7 @@
                     if (e.target && e.target.nodeName == 'A') {
                         e.preventDefault();
                         var selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
+                        var selectedTenantCode = e.target.getAttribute('data-tenant-code');
                         var selectedTenantName = e.target.textContent;
 
                         document.querySelector('#tenantDropdown').textContent = selectedTenantName;
@@ -145,7 +169,7 @@
                             .then(data => {
                                 if (data.success) {
                                     // Optionally reload the page or update other parts of the UI
-                                    window.location.reload();
+                                    replaceTenantNameAndRefresh(selectedTenantCode);
                                 } else {
                                     console.error('Failed to update tenant');
                                 }

@@ -27,6 +27,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[NET_stpContact_ResetPassword]",
+         "ObjectType": 1
+      },
+      {
          "Name": "[dbo].[RVW_stpValidateClient]",
          "ObjectType": 1
       },

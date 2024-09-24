@@ -25,6 +25,11 @@ public partial class MasterContext : DbContext
         {
             entity.ToTable("Tenant");
 
+            entity.HasIndex(e => e.Dbconnection, "IX_Tenant_DBConnection");
+
+            entity.HasIndex(e => e.Name, "IX_Tenant_Name").IsUnique();
+
+            entity.Property(e => e.Code).HasMaxLength(500);
             entity.Property(e => e.Dbconnection)
                 .IsRequired()
                 .HasMaxLength(500)
@@ -37,6 +42,10 @@ public partial class MasterContext : DbContext
         modelBuilder.Entity<TenantUser>(entity =>
         {
             entity.ToTable("TenantUser");
+
+            entity.HasIndex(e => new { e.TenantId, e.UserId }, "IX_TenantUser_TenantId_UserId").IsUnique();
+
+            entity.HasIndex(e => e.UserId, "IX_TenantUser_UserId");
 
             entity.HasOne(d => d.Tenant).WithMany(p => p.TenantUsers)
                 .HasForeignKey(d => d.TenantId)
@@ -54,6 +63,12 @@ public partial class MasterContext : DbContext
             entity.ToTable("User");
 
             entity.HasIndex(e => e.Email, "IX_User").IsUnique();
+
+            entity.HasIndex(e => e.CurrentTenantId, "IX_User_CurrentTenantId");
+
+            entity.HasIndex(e => e.Email, "IX_User_Email").IsUnique();
+
+            entity.HasIndex(e => e.ResetKey, "IX_User_ResetKey");
 
             entity.Property(e => e.Email)
                 .IsRequired()

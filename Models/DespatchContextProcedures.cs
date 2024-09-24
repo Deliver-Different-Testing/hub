@@ -43,6 +43,47 @@ namespace UrgentHub.Models
             _context = context;
         }
 
+        public virtual async Task<int> NET_stpContact_ResetPasswordAsync(string RecoveryEmail, string ReplyEmail, string Link, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        {
+            var parameterreturnValue = new SqlParameter
+            {
+                ParameterName = "returnValue",
+                Direction = System.Data.ParameterDirection.Output,
+                SqlDbType = System.Data.SqlDbType.Int,
+            };
+
+            var sqlParameters = new []
+            {
+                new SqlParameter
+                {
+                    ParameterName = "RecoveryEmail",
+                    Size = 300,
+                    Value = RecoveryEmail ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.NVarChar,
+                },
+                new SqlParameter
+                {
+                    ParameterName = "ReplyEmail",
+                    Size = 300,
+                    Value = ReplyEmail ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.NVarChar,
+                },
+                new SqlParameter
+                {
+                    ParameterName = "Link",
+                    Size = 1000,
+                    Value = Link ?? Convert.DBNull,
+                    SqlDbType = System.Data.SqlDbType.NVarChar,
+                },
+                parameterreturnValue,
+            };
+            var _ = await _context.Database.ExecuteSqlRawAsync("EXEC @returnValue = [dbo].[NET_stpContact_ResetPassword] @RecoveryEmail = @RecoveryEmail, @ReplyEmail = @ReplyEmail, @Link = @Link", sqlParameters, cancellationToken);
+
+            returnValue?.SetValue(parameterreturnValue.Value);
+
+            return _;
+        }
+
         public virtual async Task<List<RVW_stpValidateClientResult>> RVW_stpValidateClientAsync(int? ClientID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
         {
             var parameterreturnValue = new SqlParameter

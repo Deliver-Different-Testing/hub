@@ -12,5 +12,6 @@ namespace UrgentHub.Models
         public string SurName { get; set; }
         public string UserName { get; set; }
         public DateTime Created { get; set; }
+        public int? ContactCount { get; set; }
     }
 }

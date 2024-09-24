@@ -13,6 +13,7 @@ namespace UrgentHub.Models
 {
     public partial interface IDespatchContextProcedures
     {
+        Task<int> NET_stpContact_ResetPasswordAsync(string RecoveryEmail, string ReplyEmail, string Link, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<RVW_stpValidateClientResult>> RVW_stpValidateClientAsync(int? ClientID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<RVW_stpValidateContactResult>> RVW_stpValidateContactAsync(int? ContactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
         Task<List<RVW_stpValidateInternetPermissionsResult>> RVW_stpValidateInternetPermissionsAsync(int? ContactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);

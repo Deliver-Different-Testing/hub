@@ -7,10 +7,13 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Serilog;
 using UrgentHub.Repositories;
@@ -23,7 +26,10 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace UrgentHub.Controllers
 {
-    public class AccountController(IConnectionStringManager connectionStringManager, Repository despatchRepository, AuthenticationRepository authenticationRepository, IServiceProvider serviceProvider) : Controller
+    public class AccountController(IConnectionStringManager connectionStringManager, 
+        Repository despatchRepository, 
+        AuthenticationRepository authenticationRepository, 
+        HttpClient httpClient) : Controller
     {
         // GET: /Account/Login
         [AllowAnonymous]
@@ -207,6 +213,94 @@ namespace UrgentHub.Controllers
 
             return RedirectToAction("Index", "Home");
 
+        }
+
+        //
+        // GET: /Account/ForgotPassword
+        [AllowAnonymous]
+        public ActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return Json(new { success = false, message = "Please check your input and try again." });
+            }
+
+
+            var reCaptchaResponse = await VerifyReCaptcha(Request.Form["g-recaptcha-response"]);
+
+            if (!reCaptchaResponse.Success || reCaptchaResponse.Score < 0.5)
+            {
+                return Json(new { success = false, message = "reCAPTCHA validation failed. Please try again." });
+            }
+
+            // Check if email address exists in system
+            var user = await authenticationRepository.GetUserByEmail(model.Email);
+
+            if (user != null)
+            {
+                user.ResetKey = Guid.NewGuid().ToString();
+                await authenticationRepository.SaveAsync();
+                var reply = Environment.GetEnvironmentVariable("ReplyEmail");
+                var baseLink = Environment.GetEnvironmentVariable("ResetBaseLink");
+                var link = $"{baseLink}?code={user.ResetKey}";
+                await despatchRepository.InitiatePasswordReset(model.Email, reply, link);
+                
+
+                return Json(new { success = true, message = "Password reset instructions have been sent to your email." });
+            }
+            else
+            {
+                return Json(new { success = false, message = "Please check your input and try again." });
+            }
+
+
+        }
+
+        private async Task<ReCaptchaResponse> VerifyReCaptcha(string token)
+        {
+            var secretKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey");
+            var content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("secret", secretKey),
+                new KeyValuePair<string, string>("response", token)
+            });
+
+            var response = await httpClient.PostAsync("https://www.google.com/recaptcha/api/siteverify", content);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            return JsonSerializer.Deserialize<ReCaptchaResponse>(responseString, options);
+        }
+
+
+        public class ReCaptchaResponse
+        {
+            [JsonPropertyName("success")]
+            public bool Success { get; set; }
+
+            [JsonPropertyName("score")]
+            public double Score { get; set; }
+
+            [JsonPropertyName("action")]
+            public string Action { get; set; }
+
+            [JsonPropertyName("challenge_ts")]
+            public DateTime ChallengeTs { get; set; }
+
+            [JsonPropertyName("hostname")]
+            public string Hostname { get; set; }
         }
 
         private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe)

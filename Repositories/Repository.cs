@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -92,6 +93,13 @@ namespace UrgentHub.Repositories
             return data;
         }
 
+
+        public async Task<bool> InitiatePasswordReset(string recoveryEmail, string replyEmail, string link)
+        {
+            await context.Procedures.NET_stpContact_ResetPasswordAsync(recoveryEmail, replyEmail, link);
+            return true;
+
+        }
 
         public void UpdateUserAccessed(int id, bool rememberMe)
         {

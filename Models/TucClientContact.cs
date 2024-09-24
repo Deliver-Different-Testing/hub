@@ -83,5 +83,7 @@ public partial class TucClientContact
 
     public int? StaffId { get; set; }
 
+    public string AccessCode { get; set; }
+
     public virtual TucClient UcctClient { get; set; }
 }

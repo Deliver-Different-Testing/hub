@@ -25,7 +25,6 @@ namespace UrgentHub.Repositories
         {
             await context.SaveChangesAsync();
         }
-
         
         public async Task<User?> GetUserById(int id)
         {

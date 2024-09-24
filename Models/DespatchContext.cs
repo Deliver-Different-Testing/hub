@@ -21,7 +21,7 @@ public partial class DespatchContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.UseCollation("SQL_Latin1_General_CP1_CI_AS");
+        modelBuilder.UseCollation("Latin1_General_CI_AS");
 
         modelBuilder.Entity<TblUser>(entity =>
         {
@@ -91,6 +91,14 @@ public partial class DespatchContext : DbContext
             entity.Property(e => e.AccountProfileId).HasColumnName("AccountProfileID");
             entity.Property(e => e.AddonPercentage).HasColumnType("numeric(5, 4)");
             entity.Property(e => e.AddressExtras).HasMaxLength(200);
+            entity.Property(e => e.AddressLine1).HasMaxLength(255);
+            entity.Property(e => e.AddressLine2).HasMaxLength(255);
+            entity.Property(e => e.AddressLine3).HasMaxLength(255);
+            entity.Property(e => e.AddressLine4).HasMaxLength(255);
+            entity.Property(e => e.AddressLine5).HasMaxLength(255);
+            entity.Property(e => e.AddressLine6).HasMaxLength(255);
+            entity.Property(e => e.AddressLine7).HasMaxLength(255);
+            entity.Property(e => e.AddressLine8).HasMaxLength(255);
             entity.Property(e => e.AddressStreetName).HasMaxLength(200);
             entity.Property(e => e.AirNzknownShipper).HasColumnName("AirNZKnownShipper");
             entity.Property(e => e.AirNzmargin)
@@ -455,6 +463,7 @@ public partial class DespatchContext : DbContext
             entity.HasIndex(e => e.UcctClientId, "ucctClientID");
 
             entity.Property(e => e.UcctId).HasColumnName("ucctID");
+            entity.Property(e => e.AccessCode).HasMaxLength(50);
             entity.Property(e => e.ContactRoleId).HasColumnName("ContactRoleID");
             entity.Property(e => e.Created).HasColumnType("datetime");
             entity.Property(e => e.CreatedBy)
