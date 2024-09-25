@@ -66,6 +66,7 @@
                                 <div class="dropdown">
                                     <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                         @(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")
+                                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="tenantDropdown">
                                         @foreach (var tenant in tenants)
@@ -144,10 +145,15 @@
         document.addEventListener('DOMContentLoaded', function () {
             // Check if the dropdown menu exists
             var dropdownMenu = document.querySelector('.dropdown-menu');
+            const tenantDropdown = document.getElementById('tenantDropdown');
+            const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
+
+            function setTenantLoading(isLoading) {
+                tenantDropdown.disabled = isLoading;
+                tenantSpinner.classList.toggle('d-none', !isLoading);
+            }
 
             if (dropdownMenu) {
-
-
                 document.querySelector('.dropdown-menu').addEventListener('click', function (e) {
                     if (e.target && e.target.nodeName == 'A') {
                         e.preventDefault();
@@ -155,7 +161,7 @@
                         var selectedTenantCode = e.target.getAttribute('data-tenant-code');
                         var selectedTenantName = e.target.textContent;
 
-                        document.querySelector('#tenantDropdown').textContent = selectedTenantName;
+                        setTenantLoading(true);
 
                         fetch('/Account/UpdateCurrentTenant', {
                             method: 'POST',
@@ -168,13 +174,19 @@
                             .then(response => response.json())
                             .then(data => {
                                 if (data.success) {
-                                    // Optionally reload the page or update other parts of the UI
+                                    tenantDropdown.textContent = selectedTenantName + ' ';
+                                    tenantDropdown.appendChild(tenantSpinner);
                                     replaceTenantNameAndRefresh(selectedTenantCode);
                                 } else {
                                     console.error('Failed to update tenant');
+                                    setTenantLoading(false);
                                 }
+                            })
+                            .catch(error => {
+                                console.error('Error updating tenant:', error);
+                                setTenantLoading(false);
                             });
-                    };
+                    }
                 });
             }
             const profileDropdown = document.querySelector('.profile-dropdown');
