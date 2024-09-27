@@ -2,7 +2,7 @@
 
 namespace UrgentHub.ViewModels
 {
-    public class ForgotViewModel
+    public class ForgotPasswordViewModel
     {
         [Required]
         [Display(Name = "Email")]

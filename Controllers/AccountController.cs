@@ -18,7 +18,6 @@ using System.Threading.Tasks;
 using Serilog;
 using UrgentHub.Repositories;
 using UrgentHub.Shared;
-using UrgentMVC.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using UrgentHub.ViewModels;
