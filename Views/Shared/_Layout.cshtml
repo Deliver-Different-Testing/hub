@@ -43,7 +43,16 @@
                     currentTenantId = orgId;
                 }
             }
-
+            // Determine if the user has any tenants
+            var hasTenants = tenants != null && tenants.Any();
+    
+            // Get the current tenant name
+            var currentTenantCode = "";
+            if (hasTenants)
+            {
+                var currentTenant = tenants.FirstOrDefault(t => t.Id == currentTenantId.Value);
+                currentTenantCode = currentTenant?.Code ?? "";
+            }
         }
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-white border-bottom box-shadow mb-3">
             <div class="container">
@@ -118,28 +127,36 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     <script>
-        // Function to replace the tenant name in the URL
-        function replaceTenantNameAndRefresh(newTenantName) {
-            // Get the current URL
-            let currentUrl = window.location.href;
-
-            // Create a URL object
-            let url = new URL(currentUrl);
-
-            // Split the hostname into parts
+        
+        function getCurrentTenantNameFromUrl() {
+            let url = new URL(window.location.href);
             let hostnameParts = url.hostname.split('.');
+            return hostnameParts[1]; // Assuming tenant name is always the second part
+        }
 
-            // Find the index of the tenant name (assumed to be the second part)
-            const tenantIndex = 1;
-
-            // Replace the tenant name
-            hostnameParts[tenantIndex] = newTenantName;
-
-            // Join the hostname parts back together
+        function replaceTenantNameAndRefresh(newTenantName) {
+            let url = new URL(window.location.href);
+            let hostnameParts = url.hostname.split('.');
+            hostnameParts[1] = newTenantName; // Replace the tenant name
             url.hostname = hostnameParts.join('.');
-
-            // Replace the current URL and refresh the page
             window.location.href = url.href;
+        }
+
+        function checkAndSyncTenantName(currentTenantName, hasTenants) {
+            if (!hasTenants) return; // Exit if user has no tenants
+
+            let urlTenantName = getCurrentTenantNameFromUrl();
+
+            if (urlTenantName == 'local') return; //Exit if local developer we don't want to change URL
+
+            if (urlTenantName !== currentTenantName) {
+                replaceTenantNameAndRefresh(currentTenantName);
+            }
+        }
+
+        // This function will be called when the page loads
+        function initTenantSync(currentTenantName, hasTenants) {
+            checkAndSyncTenantName(currentTenantName, hasTenants);
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -176,6 +193,12 @@
                                 if (data.success) {
                                     tenantDropdown.textContent = selectedTenantName + ' ';
                                     tenantDropdown.appendChild(tenantSpinner);
+                                    let urlTenantName = getCurrentTenantNameFromUrl();
+
+                                    if (urlTenantName == 'local') {
+                                        setTenantLoading(false);
+                                        return; //Exit if local developer we don't want to change URL
+                                    }
                                     replaceTenantNameAndRefresh(selectedTenantCode);
                                 } else {
                                     console.error('Failed to update tenant');
@@ -205,6 +228,8 @@
                     profileMenu.style.display = 'none';
                 }
             });
+
+            initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
         });
     </script>
 
