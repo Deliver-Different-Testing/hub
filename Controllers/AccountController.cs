@@ -118,7 +118,8 @@ namespace UrgentHub.Controllers
                 user.UcctClientId.ToString(),
                 user.StaffId?.ToString() ?? "",
                 masterUser.CurrentTenant.Dbconnection,
-                model.RememberMe
+                model.RememberMe,
+                masterUser.CurrentTenant.CountryCode
             );
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -206,7 +207,8 @@ namespace UrgentHub.Controllers
                 user.UcctClientId.ToString(),
                 user.StaffId?.ToString() ?? "",
                 masterUser.CurrentTenant.Dbconnection,
-                false
+                false,
+                masterUser.CurrentTenant.CountryCode
             );
 
             await SignInUserAsync(claims, false);
@@ -303,7 +305,7 @@ namespace UrgentHub.Controllers
             public string Hostname { get; set; }
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode)
         {
             return new List<Claim>
             {
@@ -314,6 +316,7 @@ namespace UrgentHub.Controllers
                 new Claim("ClientID", clientId),
                 new Claim("StaffID", staffId ?? ""),
                 new Claim("Connection", connection),
+                new Claim("CountryCode", countryCode),
                 new Claim("RememberMe", rememberMe.ToString())
             };
         }
@@ -417,7 +420,8 @@ namespace UrgentHub.Controllers
                 user.UcctClientId.ToString(),
                 user.StaffId?.ToString() ?? "",
                 masterUser.CurrentTenant.Dbconnection,
-                rememberMe
+                rememberMe,
+                masterUser.CurrentTenant.CountryCode
             );
 
             await SignInUserAsync(claims, rememberMe);

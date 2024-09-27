@@ -15,6 +15,8 @@ public partial class Tenant
 
     public string Code { get; set; }
 
+    public string CountryCode { get; set; }
+
     public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();

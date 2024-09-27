@@ -30,6 +30,7 @@ public partial class MasterContext : DbContext
             entity.HasIndex(e => e.Name, "IX_Tenant_Name").IsUnique();
 
             entity.Property(e => e.Code).HasMaxLength(500);
+            entity.Property(e => e.CountryCode).HasMaxLength(2);
             entity.Property(e => e.Dbconnection)
                 .IsRequired()
                 .HasMaxLength(500)
