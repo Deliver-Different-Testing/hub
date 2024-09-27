@@ -147,7 +147,10 @@
 
             let urlTenantName = getCurrentTenantNameFromUrl();
 
-            if (urlTenantName == 'local') return; //Exit if local developer we don't want to change URL
+            if (urlTenantName == 'local' || urlTenantName == 'staging') {
+                setTenantLoading(false);
+                return; //Exit if local developer or dfrnt staging we don't want to change URL
+            }
 
             if (urlTenantName !== currentTenantName) {
                 replaceTenantNameAndRefresh(currentTenantName);
@@ -195,9 +198,9 @@
                                     tenantDropdown.appendChild(tenantSpinner);
                                     let urlTenantName = getCurrentTenantNameFromUrl();
 
-                                    if (urlTenantName == 'local') {
+                                    if (urlTenantName == 'local' || urlTenantName == 'staging') {
                                         setTenantLoading(false);
-                                        return; //Exit if local developer we don't want to change URL
+                                        return; //Exit if local developer or dfrnt staging we don't want to change URL
                                     }
                                     replaceTenantNameAndRefresh(selectedTenantCode);
                                 } else {
