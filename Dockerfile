@@ -12,4 +12,4 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 as base
 COPY --from=build-env /publish /app
 WORKDIR /app
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "UrgentHub.dll"]
+ENTRYPOINT ["dotnet", "Hub.dll"]
