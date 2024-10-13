@@ -137,7 +137,15 @@
         function replaceTenantNameAndRefresh(newTenantName) {
             let url = new URL(window.location.href);
             let hostnameParts = url.hostname.split('.');
-            hostnameParts[1] = newTenantName; // Replace the tenant name
+
+            if (newTenantName === "DFRNT") {
+                // Remove the tenant part completely
+                hostnameParts.splice(1, 1);
+            } else {
+                // Replace the tenant name as before
+                hostnameParts[1] = newTenantName;
+            }
+
             url.hostname = hostnameParts.join('.');
             window.location.href = url.href;
         }
