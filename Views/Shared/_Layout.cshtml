@@ -146,6 +146,9 @@
                 hostnameParts[1] = newTenantName;
             }
 
+            // Filter out any empty parts to avoid double dots
+            hostnameParts = hostnameParts.filter(part => part !== '');
+
             url.hostname = hostnameParts.join('.');
             window.location.href = url.href;
         }
