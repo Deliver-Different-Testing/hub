@@ -127,6 +127,18 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     <script>
+        // Use sessionStorage to track if we've just changed the URL
+        function setUrlJustChanged() {
+            sessionStorage.setItem('urlJustChanged', 'true');
+        }
+
+        function clearUrlJustChanged() {
+            sessionStorage.removeItem('urlJustChanged');
+        }
+
+        function wasUrlJustChanged() {
+            return sessionStorage.getItem('urlJustChanged') === 'true';
+        }
         
         function getCurrentTenantNameFromUrl() {
             let url = new URL(window.location.href);
@@ -150,6 +162,9 @@
             hostnameParts = hostnameParts.filter(part => part !== '');
 
             url.hostname = hostnameParts.join('.');
+            
+            setUrlJustChanged();
+
             window.location.href = url.href;
         }
 
@@ -170,6 +185,10 @@
 
         // This function will be called when the page loads
         function initTenantSync(currentTenantName, hasTenants) {
+            if (wasUrlJustChanged()) {
+                clearUrlJustChanged(); // Clear the flag
+                return; // Exit without checking if we just changed the URL
+            }
             checkAndSyncTenantName(currentTenantName, hasTenants);
         }
 
