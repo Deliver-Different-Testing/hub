@@ -5,6 +5,8 @@
 @using UrgentHub.ViewModels
 @using Microsoft.AspNetCore.Antiforgery
 @using Microsoft.AspNetCore.Mvc.TagHelpers
+@using Microsoft.Extensions.Logging
+@using Serilog
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,29 +31,52 @@
 
         @inject ITenantService TenantService
         @{
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+            Log.Information($"[{timestamp}] Page rendering started");
+
             var userIdClaim = User.FindFirst("UserID");
             var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
+            Log.Information($"[{timestamp}] UserID claim: {userIdClaim?.Value}");
+            Log.Information($"[{timestamp}] CurrentTenantID claim: {currentTenantIdClaim?.Value}");
+
             List<TenantViewModel> tenants = null;
             int? currentTenantId = 0;
             if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
             {
                 var tenantList = await TenantService.GetTenantsForUserAsync(userId);
-                tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code =o.Code }).ToList();
+                tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code = o.Code }).ToList();
+                Log.Information($"[{timestamp}] Fetched {tenants.Count} tenants for user {userId}");
 
                 if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out int orgId))
                 {
                     currentTenantId = orgId;
+                    Log.Information($"[{timestamp}] Current tenant ID set to {currentTenantId}");
+
                 }
+                else
+                {
+                    Log.Warning($"[{timestamp}] Failed to parse current tenant ID from claim");
+                }
+            }
+
+            else
+            {
+                Log.Warning($"[{timestamp}] UserID claim is null or invalid");
             }
             // Determine if the user has any tenants
             var hasTenants = tenants != null && tenants.Any();
-    
+
             // Get the current tenant name
             var currentTenantCode = "";
-            if (hasTenants)
+            if (hasTenants && currentTenantId.HasValue)
             {
                 var currentTenant = tenants.FirstOrDefault(t => t.Id == currentTenantId.Value);
                 currentTenantCode = currentTenant?.Code ?? "";
+                Log.Information($"[{timestamp}] Current tenant code set to '{currentTenantCode}'");
+            }
+            else
+            {
+                Log.Warning($"[{timestamp}] Unable to determine current tenant code. HasTenants: {hasTenants}, CurrentTenantId: {currentTenantId}");
             }
         }
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-white border-bottom box-shadow mb-3">
@@ -139,7 +164,7 @@
         function wasUrlJustChanged() {
             return sessionStorage.getItem('urlJustChanged') === 'true';
         }
-        
+
         function getCurrentTenantNameFromUrl() {
             let url = new URL(window.location.href);
             let hostnameParts = url.hostname.split('.');
@@ -162,7 +187,7 @@
             hostnameParts = hostnameParts.filter(part => part !== '');
 
             url.hostname = hostnameParts.join('.');
-            
+
             setUrlJustChanged();
 
             window.location.href = url.href;
@@ -261,7 +286,7 @@
                     profileMenu.style.display = 'none';
                 }
             });
-
+            console.log('Current URL at DOMContentLoaded:', window.location.href);
             initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
         });
     </script>
