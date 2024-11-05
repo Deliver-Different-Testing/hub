@@ -1,3 +1,4 @@
+using Hub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.StaticFiles;
@@ -62,6 +63,7 @@ builder.Services.AddScoped<DynamicDespatchDbContext>((serviceProvider) =>
 builder.Services.AddScoped<Repository, Repository>();
 builder.Services.AddScoped<AuthenticationRepository, AuthenticationRepository>();
 builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddSingleton<AuthDiagnostics>();
 
 var domain = Environment.GetEnvironmentVariable("Domain") ?? "";
 if (string.IsNullOrEmpty(domain))
@@ -78,6 +80,10 @@ if (string.IsNullOrEmpty(redisConfig))
         "Could not find a Redis Env Var named 'RedisConfig'.");
 }
 var redisConfigurationOptions = ConfigurationOptions.Parse(redisConfig);
+// Add Redis Connection Multiplexer
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+    ConnectionMultiplexer.Connect(redisConfigurationOptions));
+
 
 builder.Services.AddStackExchangeRedisCache(redisCacheConfig =>
 {
@@ -156,6 +162,9 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 app.MapHealthChecks("/healthz");
+app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) => 
+    await diagnostics.RunDiagnosticsAsync());
+
 // Configure the HTTP request pipeline.
 var provider = new FileExtensionContentTypeProvider { Mappings = { [".tpl"] = "text/plain" } };
 
