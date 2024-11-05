@@ -66,7 +66,7 @@ namespace Hub.Services
                 results.DataProtectionWorking = false;
                 results.DataProtectionError = ex.Message;
                 Log.Error(ex, "Data protection test failed");
-                Log.Debug("Hello from Kerran's feature branch");
+                Log.Debug("Hello from Master branch");
             }
 
             return results;
