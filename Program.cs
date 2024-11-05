@@ -1,19 +1,19 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using StackExchange.Redis;
 using System;
-using Microsoft.AspNetCore.DataProtection;
-using UrgentHub.Models;
-using UrgentHub.Repositories;
-using System.Threading.Tasks;
-using UrgentHub.Models.Master;
+using System.IO;
 using UrgentHub;
-using Serilog;
+using UrgentHub.Models;
+using UrgentHub.Models.Master;
+using UrgentHub.Repositories;
 using UrgentHub.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,7 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddHealthChecks();
 builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-Log.Logger =  new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).WriteTo.Console().CreateLogger();
+Log.Logger = new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).WriteTo.Console().CreateLogger();
 
 builder.Services.AddSingleton<IConnectionStringManager, ConnectionStringManager>();
 builder.Services.AddControllersWithViews();
@@ -53,7 +53,7 @@ builder.Services.AddScoped<DynamicDespatchDbContext>((serviceProvider) =>
 {
     var optionsBuilder = new DbContextOptionsBuilder<DespatchContext>();
     var connectionStringManager = serviceProvider.GetRequiredService<IConnectionStringManager>();
-    
+
     // We're not setting the connection string here, it will be set in OnConfiguring
     return new DynamicDespatchDbContext(optionsBuilder.Options, connectionStringManager);
 });
@@ -84,7 +84,53 @@ builder.Services.AddStackExchangeRedisCache(redisCacheConfig =>
     redisCacheConfig.ConfigurationOptions = redisConfigurationOptions;
 });
 
-builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection").SetApplicationName("DeliverDifferent");
+if (builder.Environment.IsDevelopment())
+{
+    var keyDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "DeliverDifferent", "DataProtection-Keys");
+
+
+    // Ensure directory exists with proper permissions
+    if (!Directory.Exists(keyDirectory))
+    {
+        var dirInfo = Directory.CreateDirectory(keyDirectory);
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Get current user's identity
+            var currentUser = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var fileSystemRights = System.Security.AccessControl.FileSystemRights.FullControl;
+            var inheritanceFlags = System.Security.AccessControl.InheritanceFlags.ContainerInherit |
+                                   System.Security.AccessControl.InheritanceFlags.ObjectInherit;
+            var propagationFlags = System.Security.AccessControl.PropagationFlags.None;
+            var accessControlType = System.Security.AccessControl.AccessControlType.Allow;
+
+            var accessRule = new System.Security.AccessControl.FileSystemAccessRule(
+                currentUser.Name,
+                fileSystemRights,
+                inheritanceFlags,
+                propagationFlags,
+                accessControlType);
+
+            var security = dirInfo.GetAccessControl();
+            security.AddAccessRule(accessRule);
+            dirInfo.SetAccessControl(security);
+        }
+    }
+
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory))
+        .SetApplicationName("DeliverDifferent")
+        .ProtectKeysWithDpapi();
+
+    Log.Information($"DataProtection configured to use directory: {keyDirectory}");
+
+}
+else
+{
+    builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection").SetApplicationName("DeliverDifferent");
+}
+
 
 
 builder.Services.AddAuthentication("Identity.Application")
@@ -102,7 +148,8 @@ builder.Services.AddAuthentication("Identity.Application")
     });
 
 
-builder.Services.AddSession(options => {
+builder.Services.AddSession(options =>
+{
     options.Cookie.Name = "hub_session";
     options.IdleTimeout = TimeSpan.FromMinutes(60 * 24);
 });
