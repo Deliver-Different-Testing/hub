@@ -118,7 +118,8 @@ namespace UrgentHub.Controllers
                 user.StaffId?.ToString() ?? "",
                 masterUser.CurrentTenant.Dbconnection,
                 model.RememberMe,
-                masterUser.CurrentTenant.CountryCode
+                masterUser.CurrentTenant.CountryCode,
+                masterUser.CurrentTenant.TimeZone
             );
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -207,7 +208,8 @@ namespace UrgentHub.Controllers
                 user.StaffId?.ToString() ?? "",
                 masterUser.CurrentTenant.Dbconnection,
                 false,
-                masterUser.CurrentTenant.CountryCode
+                masterUser.CurrentTenant.CountryCode,
+                masterUser.CurrentTenant.TimeZone
             );
 
             await SignInUserAsync(claims, false);
@@ -304,7 +306,7 @@ namespace UrgentHub.Controllers
             public string Hostname { get; set; }
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone)
         {
             return new List<Claim>
             {
@@ -316,6 +318,7 @@ namespace UrgentHub.Controllers
                 new Claim("StaffID", staffId ?? ""),
                 new Claim("Connection", connection),
                 new Claim("CountryCode", countryCode),
+                new Claim("TimeZone", countryCode),
                 new Claim("RememberMe", rememberMe.ToString())
             };
         }
@@ -420,7 +423,8 @@ namespace UrgentHub.Controllers
                 user.StaffId?.ToString() ?? "",
                 masterUser.CurrentTenant.Dbconnection,
                 rememberMe,
-                masterUser.CurrentTenant.CountryCode
+                masterUser.CurrentTenant.CountryCode,
+                masterUser.CurrentTenant.TimeZone
             );
 
             await SignInUserAsync(claims, rememberMe);

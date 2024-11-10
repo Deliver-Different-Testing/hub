@@ -38,6 +38,7 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Name)
                 .IsRequired()
                 .HasMaxLength(500);
+            entity.Property(e => e.TimeZone).HasMaxLength(50);
         });
 
         modelBuilder.Entity<TenantUser>(entity =>

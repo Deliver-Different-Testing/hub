@@ -17,6 +17,8 @@ public partial class Tenant
 
     public string CountryCode { get; set; }
 
+    public string TimeZone { get; set; }
+
     public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();
