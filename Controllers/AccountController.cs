@@ -318,7 +318,7 @@ namespace UrgentHub.Controllers
                 new Claim("StaffID", staffId ?? ""),
                 new Claim("Connection", connection),
                 new Claim("CountryCode", countryCode),
-                new Claim("TimeZone", countryCode),
+                new Claim("TimeZone", timeZone),
                 new Claim("RememberMe", rememberMe.ToString())
             };
         }
