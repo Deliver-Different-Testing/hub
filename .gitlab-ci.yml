@@ -146,7 +146,7 @@ crossroadscourier-staging:
     - export HELM_UPGRADE_VALUES_FILE=".gitlab/crossroadscourier-auto-deploy-values.yaml"
   cache: []
   environment:
-    name: crossroadscourier-staging
+    name: crossroads-staging
     url: $CROSSROADSCOURIER_STAGING_ADDITIONAL_HOSTS
   rules:
     - if: $CROSSROADSCOURIER_STAGING_ADDITIONAL_HOSTS == null
