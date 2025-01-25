@@ -86,11 +86,7 @@
             <div class="text">Courier Manager</div>
             </div>
             </div>
-            <div class="col-sm-4">
-            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-            <i class="fas fa-hamsa"></i>
-            <div class="text">Courier Portal</div>
-            </div>
+
             </div>*@
 
 
@@ -102,15 +98,20 @@
                         <div class="text">Courier Manager</div>
                     </div>
                 </div>
-                
-                    <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                            <i class="fas fa-route"></i>
-                            <div class="text">Tracker</div>
-                        </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
+                        <i class="fas fa-hamsa"></i>
+                        <div class="text">Courier Portal</div>
                     </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
+                        <i class="fas fa-route"></i>
+                        <div class="text">Tracker</div>
+                    </div>
+                </div>
 
-                    @*
+                @*
             <div class="col-sm-4">
             <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
             <i class="fas fa-calendar-plus"></i>
@@ -129,9 +130,9 @@
             <div class="text">Print Manager</div>
             </div>
             </div>*@
-                </div>
-                <div class="row">
-                    @*
+            </div>
+            <div class="row">
+                @*
             <div class="col-sm-4">
             <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accountmanager")')">
             <i class="fas fa-file-invoice-dollar"></i>
@@ -142,9 +143,9 @@
             <div class="col-sm-4">
             </div>
             *@
-                </div>
-
-
-                }
             </div>
-        </div>
+
+
+        }
+    </div>
+</div>
