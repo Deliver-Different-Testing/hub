@@ -9,7 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace UrgentHub.Models
+namespace Hub.Models
 {
     public static class DbContextExtensions
     {

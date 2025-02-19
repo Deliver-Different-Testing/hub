@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UrgentHub.Models.Master;
+namespace Hub.Models.Master;
 
 public partial class User
 {
@@ -20,6 +20,8 @@ public partial class User
     public int? CurrentTenantId { get; set; }
 
     public virtual Tenant CurrentTenant { get; set; }
+
+    public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();
 
     public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();
 }

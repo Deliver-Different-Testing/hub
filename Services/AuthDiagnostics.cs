@@ -1,14 +1,13 @@
-﻿using System;
-using Microsoft.AspNetCore.DataProtection;
+﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Distributed;
-using StackExchange.Redis;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Serilog;
+using StackExchange.Redis;
+using System;
+using System.Threading.Tasks;
 
 namespace Hub.Services
 {
-    
+
     public class AuthDiagnostics(
         IConnectionMultiplexer redis,
         IDistributedCache cache,

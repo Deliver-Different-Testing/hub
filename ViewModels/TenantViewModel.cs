@@ -1,4 +1,4 @@
-﻿namespace UrgentHub.ViewModels
+﻿namespace Hub.ViewModels
 {
     public class TenantViewModel
     {

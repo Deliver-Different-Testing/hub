@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UrgentHub.Models;
+namespace Hub.Models;
 
 public partial class TucClient
 {
@@ -558,6 +558,8 @@ public partial class TucClient
     public bool? IsTenantClient { get; set; }
 
     public int? PreferRatingMethod { get; set; }
+
+    public int? InvoiceTemplateId { get; set; }
 
     public virtual ICollection<TucClientContact> TucClientContacts { get; set; } = new List<TucClientContact>();
 }

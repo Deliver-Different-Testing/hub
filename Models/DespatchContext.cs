@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace UrgentHub.Models;
+namespace Hub.Models;
 
 public partial class DespatchContext : DbContext
 {
@@ -21,8 +21,6 @@ public partial class DespatchContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.UseCollation("Latin1_General_CI_AS");
-
         modelBuilder.Entity<TblUser>(entity =>
         {
             entity.HasKey(e => e.UserName);
@@ -70,6 +68,8 @@ public partial class DespatchContext : DbContext
                 });
 
             entity.HasIndex(e => e.UcclCode, "IDX_tucClient_ucclCode").IsUnique();
+
+            entity.HasIndex(e => e.InvoiceTemplateId, "IX_InvoiceTemplateId");
 
             entity.HasIndex(e => e.XeroId, "IX_XeroId");
 

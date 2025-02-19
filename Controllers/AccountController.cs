@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -15,19 +15,16 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Serilog;
-using UrgentHub.Repositories;
-using UrgentHub.Shared;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
-using UrgentHub.ViewModels;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Hub.Repositories;
+using System.Linq;
+using Hub.Shared;
+using Hub.ViewModels;
 
-namespace UrgentHub.Controllers
+namespace Hub.Controllers
 {
-    public class AccountController(IConnectionStringManager connectionStringManager, 
-        Repository despatchRepository, 
-        AuthenticationRepository authenticationRepository, 
+    public class AccountController(IConnectionStringManager connectionStringManager,
+        Repository despatchRepository,
+        AuthenticationRepository authenticationRepository,
         HttpClient httpClient) : Controller
     {
         // GET: /Account/Login
@@ -177,7 +174,7 @@ namespace UrgentHub.Controllers
             masterUser.Salt = result.Salt;
             masterUser.ResetKey = null;
             await authenticationRepository.SaveAsync();
-            
+
             var connectionString = masterUser.CurrentTenant.Dbconnection;
             var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
             if (string.IsNullOrEmpty(credentials))
@@ -254,8 +251,14 @@ namespace UrgentHub.Controllers
                 var reply = Environment.GetEnvironmentVariable("ReplyEmail");
                 var baseLink = Environment.GetEnvironmentVariable("ResetBaseLink");
                 var link = $"{baseLink}?code={user.ResetKey}";
-                await despatchRepository.InitiatePasswordReset(model.Email, reply, link);
-                
+                var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
+                if (cid == null)
+                {
+                    Log.Debug("ContactID is not found");
+                    return Json(new { success = false, message = "Reset failed due to contact validation failure" });
+                }
+                await despatchRepository.InitiatePasswordReset(int.Parse(cid), model.Email, reply, link);
+
 
                 return Json(new { success = true, message = "Password reset instructions have been sent to your email." });
             }
@@ -357,7 +360,7 @@ namespace UrgentHub.Controllers
         }
 
 
-        
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel model)
@@ -454,7 +457,88 @@ namespace UrgentHub.Controllers
             return Convert.ToBase64String(msEncrypt.ToArray());
         }
 
-        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId, string connection)
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateApiKey()
+        {
+            try
+            {
+                var email =  HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+                if (email == null)
+                {
+                    Log.Debug("Failed to generate API key: email is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var uid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserID")?.Value;
+                if (uid == null)
+                {
+                    Log.Debug("Failed to generate API key: UserID is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var clientId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
+                if (clientId == null)
+                {
+                    Log.Debug("Failed to generate API key: ClientID is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var tenantId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CurrentTenantID")?.Value;
+                if (tenantId == null)
+                {
+                    Log.Debug("Failed to generate API key: CurrentTenantID is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var connection = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
+                if (connection == null)
+                {
+                    Log.Debug("Failed to generate API key: Connection is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var timeZone = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TimeZone")?.Value;
+                if (timeZone == null)
+                {
+                    Log.Debug("Failed to generate API key: TimeZone is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var contactId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
+                if (contactId == null)
+                {
+                    Log.Debug("Failed to generate API key: ContactID is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+                
+                var userId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserID")?.Value;
+                if (userId == null)
+                {
+                    Log.Debug("Failed to generate API key: UserID is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
+
+                var token = CreateApiToken(email, int.Parse(clientId), int.Parse(contactId), "", int.Parse(tenantId), connection, timeZone);
+                var respToken = new JwtSecurityTokenHandler().WriteToken(token);
+                var viewModel = new TenantUserSettingViewModel
+                {
+                    Name = "APIKey",
+                    Value = respToken
+                };
+
+                await authenticationRepository.SaveUserSetting(viewModel, int.Parse(tenantId), int.Parse(userId));
+                return Json(new { success = true, message = "Successfully generated API key", apiKey=respToken });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to generate API Key: {ex.Message}");
+                return Json(new { success = false, message = "Failed to generate API key" });
+            }
+        }
+        
+        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId, string connection, string tenantTimeZone)
         {
             var symmetricSecurityKey =
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWTSecretKey")));
@@ -465,7 +549,8 @@ namespace UrgentHub.Controllers
                 SubAccounts = subAccounts,
                 ContactId = contactId.ToString(),
                 TenantId = tenantId.ToString(),
-                Connection = connection
+                Connection = connection,
+                TimeZone = tenantTimeZone
             });
             var encryptedClaims = EncryptClaims(sensitiveClaims, Environment.GetEnvironmentVariable("ClaimsKey"));
             var claims = new Claim[]
@@ -504,23 +589,36 @@ namespace UrgentHub.Controllers
             return srDecrypt.ReadToEnd();
         }
 
-        public ActionResult Settings()
+        public async Task<ActionResult> Settings()
         {
             var data = new List<TenantUserSettingViewModel>();
-            
-            var apiSetting = new TenantUserSettingViewModel()
+            var email =  HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+
+            if (email == null)
             {
-                Id = 1,
-                Name = "APIKey",
-                Value = "xkseruerklf-35ljsdf=;"
-            };
+                Log.Debug("Could not find user Email");
+                return View(data);
+            }
+            
+            var masterUser = await authenticationRepository.GetUserByEmail(email);
+
+            if (masterUser == null)
+            {
+                Log.Debug($"Failed to find user {email}");
+                return View(data);
+            }
+
+            var us = await authenticationRepository.GetUserSettings(masterUser.CurrentTenant.TenantId, masterUser.UserId);
+            data = us.ToList();
+            
+            
             var other1 = new TenantUserSettingViewModel()
             {
                 Id = 2,
                 Name = "Test Setting",
                 Value = "Testing Settings"
             };
-            data.Add(apiSetting);
+
             data.Add(other1);
             return View(data);
         }

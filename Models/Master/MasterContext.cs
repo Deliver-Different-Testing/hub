@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace UrgentHub.Models.Master;
+namespace Hub.Models.Master;
 
 public partial class MasterContext : DbContext
 {
@@ -16,6 +16,8 @@ public partial class MasterContext : DbContext
     public virtual DbSet<Tenant> Tenants { get; set; }
 
     public virtual DbSet<TenantUser> TenantUsers { get; set; }
+
+    public virtual DbSet<TenantUserSetting> TenantUserSettings { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -58,6 +60,30 @@ public partial class MasterContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_TenantUser_User");
+        });
+
+        modelBuilder.Entity<TenantUserSetting>(entity =>
+        {
+            entity.ToTable("TenantUserSetting");
+
+            entity.HasIndex(e => new { e.TenantId, e.UserId }, "IX_TenantUserSetting_TenantId_UserId");
+
+            entity.Property(e => e.SettingName)
+                .IsRequired()
+                .HasMaxLength(150);
+            entity.Property(e => e.SettingValue)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasOne(d => d.Tenant).WithMany(p => p.TenantUserSettings)
+                .HasForeignKey(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TenantUserSetting_Tenant");
+
+            entity.HasOne(d => d.User).WithMany(p => p.TenantUserSettings)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TenantUserSetting_User");
         });
 
         modelBuilder.Entity<User>(entity =>

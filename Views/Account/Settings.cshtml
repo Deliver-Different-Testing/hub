@@ -1,10 +1,9 @@
-﻿@using UrgentHub.ViewModels
-@model List<TenantUserSettingViewModel>
-
+﻿@model List<TenantUserSettingViewModel>
 
 <h2>User Settings</h2>
 
 <form method="post">
+    @Html.AntiForgeryToken()
     <div class="card mb-4">
         <div class="card-header">
             <h3>API Key</h3>
@@ -12,7 +11,24 @@
         <div class="card-body">
             <div class="form-group">
                 <label for="ApiKey">API Key</label>
-                <input type="text" class="form-control" id="ApiKey" name="ApiKey" value="@Model.FirstOrDefault(x=>x.Name == "APIKey")?.Value" />
+                <div class="input-group">
+                    <input type="text" class="form-control" id="ApiKey" name="ApiKey" value="@Model.FirstOrDefault(x=>x.Name == "APIKey")?.Value" readonly />
+                    <div class="input-group-append">
+                        @if (string.IsNullOrEmpty(Model.FirstOrDefault(x => x.Name == "APIKey")?.Value))
+                        {
+                            <button type="button" class="btn btn-outline-secondary" id="generateApiKey">
+                                Generate Key
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-outline-secondary" id="copyApiKey" title="Copy to clipboard">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="invalid-feedback" id="apiKeyError"></div>
             </div>
         </div>
     </div>
@@ -24,21 +40,21 @@
         <div class="card-body">
             <table class="table">
                 <thead>
-                <tr>
-                    <th>Setting</th>
-                    <th>Value</th>
-                </tr>
+                    <tr>
+                        <th>Setting</th>
+                        <th>Value</th>
+                    </tr>
                 </thead>
                 <tbody>
-                @foreach (var setting in Model.Where(x=>x.Name != "APIKey"))
-                {
-                    <tr>
-                        <td>@setting.Name</td>
-                        <td>
-                            <input type="text" class="form-control" name="OtherSettings[@setting.Name]" value="@setting.Value" />
-                        </td>
-                    </tr>
-                }
+                    @foreach (var setting in Model.Where(x => x.Name != "APIKey"))
+                    {
+                        <tr>
+                            <td>@setting.Name</td>
+                            <td>
+                                <input type="text" class="form-control" name="OtherSettings[@setting.Name]" value="@setting.Value" />
+                            </td>
+                        </tr>
+                    }
                 </tbody>
             </table>
         </div>
@@ -46,3 +62,93 @@
 
     <button type="submit" class="btn btn-primary">Save Settings</button>
 </form>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+@section Scripts {
+    <script>
+    const generateButton = document.getElementById('generateApiKey');
+    if (generateButton) {
+        generateButton.addEventListener('click', async function () {
+            try {
+                const response = await fetch('/Account/GenerateAPIKey', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to generate API key');
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('ApiKey').value = result.apiKey;
+                    // Replace generate button with copy button
+                    const generateButton = document.getElementById('generateApiKey');
+                    const copyButton = document.createElement('button');
+                    copyButton.type = 'button';
+                    copyButton.className = 'btn btn-outline-secondary';
+                    copyButton.id = 'copyApiKey';
+                    copyButton.title = 'Copy to clipboard';
+                    copyButton.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                    copyButton.addEventListener('click', copyApiKeyToClipboard);
+                    generateButton.parentNode.replaceChild(copyButton, generateButton);
+                } else {
+                    document.getElementById('apiKeyError').textContent = result.message || 'Failed to generate API key';
+                    document.getElementById('ApiKey').classList.add('is-invalid');
+                }
+            } catch (error) {
+                document.getElementById('apiKeyError').textContent = 'An error occurred while generating the API key';
+                document.getElementById('ApiKey').classList.add('is-invalid');
+                console.error('Error:', error);
+            }
+
+        })
+    }
+
+    // Copy API Key functionality
+    if (document.getElementById('copyApiKey')) {
+        document.getElementById('copyApiKey').addEventListener('click', copyApiKeyToClipboard)
+    }
+
+    function copyApiKeyToClipboard() {
+        const apiKeyInput = document.getElementById('ApiKey');
+
+        // Create temporary textarea
+        const textarea = document.createElement('textarea');
+        textarea.value = apiKeyInput.value;
+        textarea.style.position = 'fixed';  // Prevent scrolling to bottom
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+
+        try {
+            // Select and copy
+            textarea.select();
+            document.execCommand('copy');
+
+            // Visual feedback
+            const copyButton = document.getElementById('copyApiKey');
+            const originalContent = copyButton.innerHTML;
+            copyButton.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            copyButton.classList.remove('btn-outline-secondary');
+            copyButton.classList.add('btn-success');
+
+            // Reset button after 2 seconds
+            setTimeout(() => {
+                copyButton.innerHTML = originalContent;
+                copyButton.classList.remove('btn-success');
+                copyButton.classList.add('btn-outline-secondary')
+            }, 2000)
+        } catch (err) {
+            console.error('Failed to copy text: ', err)
+        } finally {
+            // Clean up
+            document.body.removeChild(textarea)
+        }
+    }
+
+    </script>
+}

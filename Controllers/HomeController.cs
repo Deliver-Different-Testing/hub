@@ -1,14 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Hub.Repositories;
+using Hub.Services;
+using Microsoft.AspNetCore.Mvc;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Serilog;
-using UrgentHub.Models;
-using UrgentHub.Repositories;
-using UrgentHub.Services;
+using Hub.Models;
 
-namespace UrgentHub.Controllers
+namespace Hub.Controllers
 {
     public class HomeController(IConnectionStringManager connectionStringManager, Repository despatchRepository, ITenantService tenantService) : Controller
     {

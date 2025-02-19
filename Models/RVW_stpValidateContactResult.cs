@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace UrgentHub.Models
+namespace Hub.Models
 {
     public partial class RVW_stpValidateContactResult
     {

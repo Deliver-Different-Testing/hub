@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
-namespace UrgentHub.ViewModels
+namespace Hub.ViewModels
 {
     public class StrongPasswordAttribute : ValidationAttribute
     {

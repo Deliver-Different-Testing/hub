@@ -1,11 +1,5 @@
-﻿@using System.Runtime.InteropServices
-@using UrgentHub.Models.Master
-@using UrgentHub.Services
-@using System.Security.Claims
-@using UrgentHub.ViewModels
-@using Microsoft.AspNetCore.Antiforgery
+﻿@using Hub.Services
 @using Microsoft.AspNetCore.Mvc.TagHelpers
-@using Microsoft.Extensions.Logging
 @using Serilog
 <!DOCTYPE html>
 <html lang="en">
@@ -199,9 +193,11 @@
             let urlTenantName = getCurrentTenantNameFromUrl();
 
             if (urlTenantName == 'local' || urlTenantName == 'staging') {
-                setTenantLoading(false);
-                return; //Exit if local developer or dfrnt staging we don't want to change URL
-            }
+                if (typeof setTenantLoading === 'function') {
+                    setTenantLoading(false);
+                }
+            return; //Exit if local developer or dfrnt staging we don't want to change URL
+        }
 
             if (urlTenantName !== currentTenantName) {
                 replaceTenantNameAndRefresh(currentTenantName);

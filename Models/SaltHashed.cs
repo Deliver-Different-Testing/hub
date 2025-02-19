@@ -1,4 +1,4 @@
-﻿namespace UrgentHub.Models
+﻿namespace Hub.Models
 {
     public class SaltHashed
     {

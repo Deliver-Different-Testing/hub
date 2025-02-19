@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using UrgentHub.Models.Master;
-using UrgentHub.Repositories;
+using Hub.Models.Master;
+using Hub.Repositories;
 
-namespace UrgentHub.Services
+namespace Hub.Services
 {
     public interface ITenantService
     {

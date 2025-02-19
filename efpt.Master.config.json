@@ -8,7 +8,7 @@
    "OutputContextPath": null,
    "OutputPath": "Models\\Master",
    "PreserveCasingWithRegex": true,
-   "ProjectRootNamespace": "UrgentHub",
+   "ProjectRootNamespace": "Hub",
    "Schemas": null,
    "SelectedHandlebarsLanguage": 2,
    "SelectedToBeGenerated": 0,
@@ -20,6 +20,10 @@
       },
       {
          "Name": "[dbo].[TenantUser]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[TenantUserSetting]",
          "ObjectType": 0
       },
       {

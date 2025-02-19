@@ -1,9 +1,9 @@
-﻿using System.Security.Cryptography;
-using System;
-using UrgentHub.Models;
+﻿using System;
 using System.IO;
+using System.Security.Cryptography;
+using Hub.Models;
 
-namespace UrgentHub.Shared
+namespace Hub.Shared
 {
     public static class PasswordHelper
     {

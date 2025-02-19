@@ -1,4 +1,4 @@
-﻿namespace UrgentHub
+﻿namespace Hub
 {
     public interface IConnectionStringManager
     {

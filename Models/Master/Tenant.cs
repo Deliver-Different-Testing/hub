@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UrgentHub.Models.Master;
+namespace Hub.Models.Master;
 
 public partial class Tenant
 {
@@ -18,6 +18,8 @@ public partial class Tenant
     public string CountryCode { get; set; }
 
     public string TimeZone { get; set; }
+
+    public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();
 
     public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();
 

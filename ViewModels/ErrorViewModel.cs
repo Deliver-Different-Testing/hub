@@ -1,6 +1,4 @@
-using System;
-
-namespace UrgentHub.ViewModels
+namespace Hub.ViewModels
 {
     public class ErrorViewModel
     {

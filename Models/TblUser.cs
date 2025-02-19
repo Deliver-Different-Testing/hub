@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UrgentHub.Models;
+namespace Hub.Models;
 
 public partial class TblUser
 {

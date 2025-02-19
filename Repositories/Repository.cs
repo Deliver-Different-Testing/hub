@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices.Marshalling;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Hub.Models;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using UrgentHub.Models;
 
-namespace UrgentHub.Repositories
+namespace Hub.Repositories
 {
     public class Repository(DynamicDespatchDbContext context)
     {
@@ -94,9 +93,9 @@ namespace UrgentHub.Repositories
         }
 
 
-        public async Task<bool> InitiatePasswordReset(string recoveryEmail, string replyEmail, string link)
+        public async Task<bool> InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link)
         {
-            await context.Procedures.NET_stpContact_ResetPasswordAsync(recoveryEmail, replyEmail, link);
+            await context.Procedures.NET_stpContact_ResetPasswordAsync(contactId, recoveryEmail, replyEmail, link);
             return true;
 
         }

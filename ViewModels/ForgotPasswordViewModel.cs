@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace UrgentHub.ViewModels
+namespace Hub.ViewModels
 {
     public class ForgotPasswordViewModel
     {

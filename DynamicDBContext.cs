@@ -1,8 +1,8 @@
 ﻿using System;
+using Hub.Models;
 using Microsoft.EntityFrameworkCore;
-using UrgentHub.Models;
 
-namespace UrgentHub
+namespace Hub
 {
     public class DynamicDespatchDbContext(DbContextOptions<DespatchContext> options, IConnectionStringManager connectionStringManager) : DespatchContext(options)
     {

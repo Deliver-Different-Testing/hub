@@ -5,13 +5,17 @@ using System.Collections.Generic;
 
 namespace Hub.Models.Master;
 
-public partial class TenantUser
+public partial class TenantUserSetting
 {
-    public int TenantUserId { get; set; }
+    public int TenantUserSettingId { get; set; }
 
     public int TenantId { get; set; }
 
     public int UserId { get; set; }
+
+    public string SettingName { get; set; }
+
+    public string SettingValue { get; set; }
 
     public virtual Tenant Tenant { get; set; }
 

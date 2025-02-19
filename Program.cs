@@ -1,3 +1,6 @@
+using Hub;
+using Hub.Models;
+using Hub.Repositories;
 using Hub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -11,11 +14,7 @@ using Serilog;
 using StackExchange.Redis;
 using System;
 using System.IO;
-using UrgentHub;
-using UrgentHub.Models;
-using UrgentHub.Models.Master;
-using UrgentHub.Repositories;
-using UrgentHub.Services;
+using Hub.Models.Master;
 
 var builder = WebApplication.CreateBuilder(args);
 
