@@ -116,7 +116,8 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.Dbconnection,
                 model.RememberMe,
                 masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone
+                masterUser.CurrentTenant.TimeZone, 
+                masterUser.CurrentTenant.Code
             );
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -206,7 +207,8 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.Dbconnection,
                 false,
                 masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone
+                masterUser.CurrentTenant.TimeZone,
+                masterUser.CurrentTenant.Code
             );
 
             await SignInUserAsync(claims, false);
@@ -309,7 +311,7 @@ namespace Hub.Controllers
             public string Hostname { get; set; }
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode)
         {
             return new List<Claim>
             {
@@ -322,6 +324,8 @@ namespace Hub.Controllers
                 new Claim("Connection", connection),
                 new Claim("CountryCode", countryCode),
                 new Claim("TimeZone", timeZone),
+                new Claim("TenantCode", timeZone),
+                new Claim("TenantCode", tenantCode),
                 new Claim("RememberMe", rememberMe.ToString())
             };
         }
@@ -427,7 +431,8 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.Dbconnection,
                 rememberMe,
                 masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone
+                masterUser.CurrentTenant.TimeZone,
+                masterUser.CurrentTenant.Code
             );
 
             await SignInUserAsync(claims, rememberMe);
@@ -519,8 +524,15 @@ namespace Hub.Controllers
                     Log.Debug("Failed to generate API key: UserID is not found");
                     return Json(new { success = false, message = "Failed to generate API key" });
                 }
+                
+                var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
+                if (tenantCode == null)
+                {
+                    Log.Debug("Failed to generate API key: tenantCode is not found");
+                    return Json(new { success = false, message = "Failed to generate API key" });
+                }
 
-                var token = CreateApiToken(email, int.Parse(clientId), int.Parse(contactId), "", int.Parse(tenantId), connection, timeZone);
+                var token = CreateApiToken(email, int.Parse(clientId), int.Parse(contactId), "", int.Parse(tenantId), connection, timeZone, tenantCode);
                 var respToken = new JwtSecurityTokenHandler().WriteToken(token);
                 var viewModel = new TenantUserSettingViewModel
                 {
@@ -538,7 +550,7 @@ namespace Hub.Controllers
             }
         }
         
-        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId, string connection, string tenantTimeZone)
+        private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId, string connection, string tenantTimeZone, string tenantCode)
         {
             var symmetricSecurityKey =
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWTSecretKey")));
@@ -550,7 +562,8 @@ namespace Hub.Controllers
                 ContactId = contactId.ToString(),
                 TenantId = tenantId.ToString(),
                 Connection = connection,
-                TimeZone = tenantTimeZone
+                TimeZone = tenantTimeZone,
+                TenantCode = tenantCode
             });
             var encryptedClaims = EncryptClaims(sensitiveClaims, Environment.GetEnvironmentVariable("ClaimsKey"));
             var claims = new Claim[]
