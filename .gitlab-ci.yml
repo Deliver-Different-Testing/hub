@@ -133,6 +133,58 @@ otgcargo-prod:
     - if: "$OTGCARGO_PROD_ENABLED"
       when: manual
 
+crisiscourier-staging:
+  extends: staging
+  stage: tenants-staging
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$CRISISCOURIER_STAGING_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/crisiscourier-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: crisis-staging
+    url: $CRISISCOURIER_STAGING_ADDITIONAL_HOSTS
+  rules:
+    - if: $CRISISCOURIER_STAGING_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - if: "$CRISISCOURIER_STAGING_ENABLED"
+      when: manual
+
+crisiscourier-prod:
+  extends: production
+  stage: tenants-prod
+  artifacts: 
+    paths: []
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$CRISISCOURIER_PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/crisiscourier-prod-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: crisis-prod
+    url: $CRISISCOURIER_PROD_ADDITIONAL_HOSTS
+  rules:
+    - if: $CRISISCOURIER_PROD_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - if: "$CRISISCOURIER_PROD_ENABLED"
+      when: manual
+
 crossroadscourier-staging:
   extends: staging
   stage: tenants-staging
