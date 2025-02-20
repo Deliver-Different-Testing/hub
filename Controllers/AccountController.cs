@@ -432,7 +432,7 @@ namespace Hub.Controllers
                 rememberMe,
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code
+                masterUser.CurrentTenant.Code ?? ""
             );
 
             await SignInUserAsync(claims, rememberMe);
