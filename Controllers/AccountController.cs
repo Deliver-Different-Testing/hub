@@ -117,7 +117,7 @@ namespace Hub.Controllers
                 model.RememberMe,
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone, 
-                masterUser.CurrentTenant.Code
+                masterUser.CurrentTenant.Code ?? ""
             );
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -208,7 +208,7 @@ namespace Hub.Controllers
                 false,
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code
+                masterUser.CurrentTenant.Code ?? ""
             );
 
             await SignInUserAsync(claims, false);
