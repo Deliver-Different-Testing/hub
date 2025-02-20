@@ -324,7 +324,6 @@ namespace Hub.Controllers
                 new Claim("Connection", connection),
                 new Claim("CountryCode", countryCode),
                 new Claim("TimeZone", timeZone),
-                new Claim("TenantCode", timeZone),
                 new Claim("TenantCode", tenantCode),
                 new Claim("RememberMe", rememberMe.ToString())
             };
