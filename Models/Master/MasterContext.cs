@@ -101,6 +101,7 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Email)
                 .IsRequired()
                 .HasMaxLength(250);
+            entity.Property(e => e.IsLegacyHash).HasDefaultValue(true);
             entity.Property(e => e.Password)
                 .IsRequired()
                 .HasMaxLength(200);

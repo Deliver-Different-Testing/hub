@@ -19,6 +19,8 @@ public partial class User
 
     public int? CurrentTenantId { get; set; }
 
+    public bool IsLegacyHash { get; set; }
+
     public virtual Tenant CurrentTenant { get; set; }
 
     public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();

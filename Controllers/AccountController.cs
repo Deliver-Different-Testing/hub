@@ -72,16 +72,38 @@ namespace Hub.Controllers
             var salted = masterUser.Salt;
             var userPassword = masterUser.Password;
 
-
-            var hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
-
-            if (hashedPassword != userPassword)
+            if (masterUser.IsLegacyHash)
             {
-                Log.Debug($"Failed to authenticate user {model.Email}. Invalid password.");
-                ViewBag.LoginFailed = true;
-                ModelState.AddModelError("", "Invalid login attempt.");
-                return View(model);
+                var hashedPassword = PasswordHelper.HashPasswordLegacy(model.Password, salted);
+
+                if (hashedPassword != userPassword)
+                {
+                    Log.Debug($"Failed to authenticate user {model.Email}. Invalid password.");
+                    ViewBag.LoginFailed = true;
+                    ModelState.AddModelError("", "Invalid login attempt.");
+                    return View(model);
+                }
+            
+                // Generate new hash with the improved method
+                var newHash = PasswordHelper.HashPassword(model.Password, salted);
+                
+                masterUser.Password = newHash;
+                masterUser.IsLegacyHash = false;
+                await authenticationRepository.SaveAsync();              
             }
+            else
+            {
+                var hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
+
+                if (hashedPassword != userPassword)
+                {
+                    Log.Debug($"Failed to authenticate user {model.Email}. Invalid password.");
+                    ViewBag.LoginFailed = true;
+                    ModelState.AddModelError("", "Invalid login attempt.");
+                    return View(model);
+                }   
+            }
+
 
             var connectionString = masterUser.CurrentTenant.Dbconnection;
             var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
@@ -169,6 +191,7 @@ namespace Hub.Controllers
                 Log.Debug($"Failed to find user via reset key {model.Code}");
                 return RedirectToActionPermanent("Index", "Home");
             }
+            
             var result = PasswordHelper.SaltHashNewPassword(model.Password);
 
             masterUser.Password = result.Hashed;

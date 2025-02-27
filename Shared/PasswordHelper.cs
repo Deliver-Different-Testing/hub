@@ -13,7 +13,7 @@ namespace Hub.Shared
         /// <param name="password"></param>
         /// <param name="salt"></param>
         /// <returns></returns>
-        public static string HashPassword(string password, string salt)
+        public static string HashPasswordLegacy(string password, string salt)
         {
             var k2 = new Rfc2898DeriveBytes(password, System.Text.Encoding.UTF8.GetBytes(salt + salt));
             byte[] hashBytes = k2.GetBytes(64); // 64 bytes = 512 bits
@@ -26,9 +26,22 @@ namespace Hub.Shared
         /// </summary>
         /// <param name="password"></param>
         /// <returns></returns>
-        public static SaltHashed SaltHashNewPassword(string password)
+        public static SaltHashed SaltHashNewPasswordLegacy(string password)
         {
             var random = new Random();  
+            var salt = random.Next(10000, 99999);
+            var salted = salt.ToString();
+            var result = new SaltHashed
+            {
+                Salt = salted,
+                Hashed = HashPasswordLegacy(password, salted)
+            };
+            return result;
+        }
+        
+        public static SaltHashed SaltHashNewPassword(string password)
+        {
+            var random = new Random();
             var salt = random.Next(10000, 99999);
             var salted = salt.ToString();
             var result = new SaltHashed
@@ -38,6 +51,21 @@ namespace Hub.Shared
             };
             return result;
         }
+
+        public static string HashPassword(string password, string salt)
+        {
+            // Using the recommended constructor with explicit iteration count parameter (default is 1000)
+            var k2 = new Rfc2898DeriveBytes(
+                password, 
+                System.Text.Encoding.UTF8.GetBytes(salt + salt),
+                10000,
+                HashAlgorithmName.SHA256);
+        
+            var hashBytes = k2.GetBytes(64); // 64 bytes = 512 bits
+            var result = BitConverter.ToString(hashBytes).Replace("-", "");
+            return result;
+        }
+
 
         public static string DecryptStringFromBytes_Aes(byte[] cipherText, byte[] Key, byte[] IV)
         {
