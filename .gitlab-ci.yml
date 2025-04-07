@@ -109,10 +109,11 @@ otgcargo-staging:
 otgcargo-prod:
   extends: production
   stage: tenants-prod
+  needs:
+    - job: build
+    - job: otgcargo-staging
   artifacts: 
     paths: []
-  needs:
-    - otgcargo-staging
   before_script:
     - |
       while IFS= read -r line || [ -n "$line" ]; do
