@@ -164,6 +164,9 @@ crisiscourier-staging:
 crisiscourier-prod:
   extends: production
   stage: tenants-prod
+  needs:
+    - job: build
+    - job: crisiscourier-staging
   artifacts: 
     paths: []
   before_script:
@@ -216,6 +219,9 @@ crossroadscourier-staging:
 crossroadscourier-prod:
   extends: production
   stage: tenants-prod
+  needs:
+    - job: build
+    - job: crossroadscourier-staging
   artifacts: 
     paths: []
   before_script:
@@ -268,6 +274,9 @@ sll-staging:
 sll-prod:
   extends: production
   stage: tenants-prod
+  needs:
+    - job: build
+    - job: sll-staging
   artifacts: 
     paths: []
   before_script:
