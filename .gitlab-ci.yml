@@ -85,7 +85,14 @@ production_manual:
   needs:
     - job: build
     - job: staging
-
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/prod-auto-deploy-values.yaml"
 otgcargo-staging:
   extends: staging
   stage: tenants-staging
@@ -304,4 +311,115 @@ sll-prod:
     - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
       when: never
     - if: "$SLL_PROD_ENABLED"
+      when: manual
+
+
+urgent-staging:
+  extends: staging
+  stage: tenants-staging
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$URGENT_STAGING_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/urgent-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: urgent-staging
+    url: $URGENT_STAGING_ADDITIONAL_HOSTS
+  rules:
+    - if: $URGENT_STAGING_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - if: "$URGENT_STAGING_ENABLED"
+      when: manual
+
+urgent-prod:
+  extends: production
+  stage: tenants-prod
+  needs:
+    - job: build
+    - job: urgent-staging
+  artifacts: 
+    paths: []
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$URGENT_PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/urgent-prod-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: urgent-prod
+    url: $URGENT_PROD_ADDITIONAL_HOSTS
+  rules:
+    - if: $URGENT_PROD_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - if: "$URGENT_PROD_ENABLED"
+      when: manual
+
+gold-and-black-staging:
+  extends: staging
+  stage: tenants-staging
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$GOLD_BLACK_STAGING_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/gold-and-black-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: gold-black-staging
+    url: $GOLD_BLACK_STAGING_ADDITIONAL_HOSTS
+  rules:
+    - if: $GOLD_BLACK_STAGING_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - if: "$GOLD_BLACK_STAGING_ENABLED"
+      when: manual
+
+gold-and-black-prod:
+  extends: production
+  stage: tenants-prod
+  needs:
+    - job: build
+    - job: gold-and-black-staging
+  artifacts: 
+    paths: []
+  before_script:
+    - |
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$GOLD_BLACK_PROD_ENV")
+    - export HELM_UPGRADE_VALUES_FILE=".gitlab/gold-and-black-prod-auto-deploy-values.yaml"
+  cache: []
+  environment:
+    name: gold-black-prod
+    url: $GOLD_BLACK_PROD_ADDITIONAL_HOSTS
+  rules:
+    - if: $GOLD_BLACK_PROD_ADDITIONAL_HOSTS == null
+      when: never
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
+      when: never
+    - if: "$GOLD_BLACK_PROD_ENABLED"
       when: manual
