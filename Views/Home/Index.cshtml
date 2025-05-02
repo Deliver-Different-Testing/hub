@@ -5,7 +5,20 @@
 <script>
     @{
         var clientId = ViewBag.ClientID;
-        // var clientInternal = ViewBag.ClientInternal;
+
+        bool clientInternal = false;
+        if (ViewBag.ClientInternal != null)
+        {
+            if (ViewBag.ClientInternal is bool)
+            {
+                clientInternal = (bool)ViewBag.ClientInternal;
+            }
+            else
+            {
+                bool.TryParse(ViewBag.ClientInternal.ToString(), out clientInternal);
+            }
+        }
+
         // var clientName = ViewBag.ClientName;
         // var clientCreated = ViewBag.ClientCreated;
         //var clientStripe = ViewBag.ClientStripe;
@@ -17,16 +30,37 @@
         // var contactCreated = ViewBag.ContactCreated;
         var greetingString = ViewBag.GreetingString;
         // var despatchWebPermission = ViewBag.DespatchWebPermission;
-        // var bookJobPermission = ViewBag.BookJobPermission;
+
+        bool bookJobPermission = false;
+        if (ViewBag.BookJobPermission != null)
+        {
+            if (ViewBag.BookJobPermission is bool)
+            {
+                bookJobPermission = (bool)ViewBag.BookJobPermission;
+            }
+            else
+            {
+                bool.TryParse(ViewBag.BookJobPermission.ToString(), out bookJobPermission);
+            }
+        }
+
+        bool bulkUploadPermission = false;
+        if (ViewBag.BulkUploadPermission != null)
+        {
+            if (ViewBag.BulkUploadPermission is bool)
+            {
+                bulkUploadPermission = (bool)ViewBag.BulkUploadPermission;
+            }
+            else
+            {
+                bool.TryParse(ViewBag.BulkUploadPermission.ToString(), out bulkUploadPermission);
+            }
+        }
     }
-                        var ClientID = '@clientId';
-
-
+    var ClientID = '@clientId';
     var ContactID = '@contactId';
     var GreetingString = '@greetingString';
-
 </script>
-
 
 <div class="text-center">
     <img style="padding-bottom:8px;" class="logo" src="~/images/deliverDifferentLogo.png" width="541" height="120" />
@@ -35,7 +69,40 @@
 
 <div id="urgent-hub">
     <div class="dash-boxes container-fluid">
-        @{
+        @if (!clientInternal)
+        {
+            <!-- External-only apps (clientInternal = false) -->
+            <div class="row">
+                @if (bookJobPermission)
+                {
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking")' + '/#/login/')">
+                            <i class="fas fa-atlas"></i>
+                            <div class="text">Booking Page</div>
+                        </div>
+                    </div>
+                }
+                @if (bulkUploadPermission)
+                {
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
+                            <i class="fas fa-file-import"></i>
+                            <div class="text">Bulk Import</div>
+                        </div>
+                    </div>
+                }
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
+                        <i class="fas fa-route"></i>
+                        <div class="text">Tracker</div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- All apps for internal users (clientInternal = true) in original order -->
+            <!-- First row -->
             <div class="row">
                 <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accounts")')">
@@ -55,10 +122,9 @@
                         <div class="text">Booking Page</div>
                     </div>
                 </div>
-
-
-
             </div>
+
+            <!-- Second row -->
             <div class="row">
                 <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
@@ -78,18 +144,9 @@
                         <div class="text">Dispatch</div>
                     </div>
                 </div>
-
-                @*<div class="col-sm-4">
-            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
-            <i class="fas fa-dolly"></i>
-            <div class="text">Courier Manager</div>
-            </div>
             </div>
 
-            </div>*@
-
-
-            </div>
+            <!-- Third row -->
             <div class="row">
                 <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
@@ -109,42 +166,7 @@
                         <div class="text">Tracker</div>
                     </div>
                 </div>
-
-                @*
-            <div class="col-sm-4">
-            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
-            <i class="fas fa-calendar-plus"></i>
-            <div class="text">Run Builder</div> <!--Concat encrypted string (contactID), probs needs decryption route added-->
             </div>
-            </div>
-            <div class="col-sm-4">
-            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
-            <i class="fas fa-window-maximize"></i>
-            <div class="text">Despatch</div>
-            </div>
-            </div>
-            <div class="col-sm-4">
-            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '#/print')">
-            <i class="fas fa-print"></i>
-            <div class="text">Print Manager</div>
-            </div>
-            </div>*@
-            </div>
-            <div class="row">
-                @*
-            <div class="col-sm-4">
-            <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accountmanager")')">
-            <i class="fas fa-file-invoice-dollar"></i>
-            <div class="text">Account Manager</div>
-            </div>
-            </div>
-
-            <div class="col-sm-4">
-            </div>
-            *@
-            </div>
-
-
         }
     </div>
 </div>

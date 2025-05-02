@@ -17,6 +17,7 @@ namespace Hub.Controllers
         {
             var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
             var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
+            var internalTenantUser = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Internal")?.Value;
             if (cid != null && connectionString!= null)
             {
                 Log.Debug($"Found Identity for ContactID:{cid}");
@@ -30,7 +31,7 @@ namespace Hub.Controllers
                 //var contactDetail = await despatchRepository.GetContact(int.Parse(cid));
                 //var clientDetail = await despatchRepository.GetClient((int)contactDetail.ClientID);
 
-                //var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissions(int.Parse(cid));
+                var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissions(int.Parse(cid));
 
                 ViewBag.ContactID = int.Parse(cid);
                 //ViewBag.ContactName = contactDetail.FirstName;
@@ -38,11 +39,12 @@ namespace Hub.Controllers
                 //ViewBag.ContactEmail = contactDetail.UserName;
                 //ViewBag.ContactCreated = (int)(contactDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
                 ViewBag.GreetingString = GetGreetingString();
-                //ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
-                //ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
+                ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
+                ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
+                ViewBag.BulkUploadPermission = GetPermission(internetPermissions, 11);
 
                 //ViewBag.ClientName = clientDetail.Name;
-                //ViewBag.ClientInternal = clientDetail.Internal;
+                ViewBag.ClientInternal = internalTenantUser;
                 //ViewBag.ClientID = contactDetail.ClientID;
                 //ViewBag.ClientCreated = (Int32)(clientDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
                 //ViewBag.ClientStripe = clientDetail.StripeClient;

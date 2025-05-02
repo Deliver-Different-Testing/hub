@@ -139,7 +139,8 @@ namespace Hub.Controllers
                 model.RememberMe,
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone, 
-                masterUser.CurrentTenant.Code ?? ""
+                masterUser.CurrentTenant.Code ?? "",
+                user.UcctClient.UcclInternal
             );
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -231,7 +232,8 @@ namespace Hub.Controllers
                 false,
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code ?? ""
+                masterUser.CurrentTenant.Code ?? "",
+                user.UcctClient.UcclInternal
             );
 
             await SignInUserAsync(claims, false);
@@ -334,7 +336,7 @@ namespace Hub.Controllers
             public string Hostname { get; set; }
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode, bool internalTenantUser)
         {
             return new List<Claim>
             {
@@ -348,7 +350,8 @@ namespace Hub.Controllers
                 new Claim("CountryCode", countryCode),
                 new Claim("TimeZone", timeZone),
                 new Claim("TenantCode", tenantCode),
-                new Claim("RememberMe", rememberMe.ToString())
+                new Claim("RememberMe", rememberMe.ToString()),
+                new Claim("Internal", internalTenantUser.ToString())
             };
         }
 
@@ -454,7 +457,8 @@ namespace Hub.Controllers
                 rememberMe,
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code ?? ""
+                masterUser.CurrentTenant.Code ?? "",
+                user.UcctClient.UcclInternal
             );
 
             await SignInUserAsync(claims, rememberMe);

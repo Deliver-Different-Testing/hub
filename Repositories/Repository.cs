@@ -65,6 +65,7 @@ namespace Hub.Repositories
 
             return maskedString;
         }
+        
         public async Task<TucClientContact> FetchUserByUsername(string email)
         {
             LogConnectionDetails();
