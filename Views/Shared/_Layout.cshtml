@@ -213,19 +213,26 @@
             checkAndSyncTenantName(currentTenantName, hasTenants);
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
+                document.addEventListener('DOMContentLoaded', function () {
             // Check if the dropdown menu exists
             var dropdownMenu = document.querySelector('.dropdown-menu');
             const tenantDropdown = document.getElementById('tenantDropdown');
-            const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
 
+            // Create a safe tenant loading function that checks if elements exist
             function setTenantLoading(isLoading) {
+                if (!tenantDropdown) return; // Exit if element doesn't exist
+
                 tenantDropdown.disabled = isLoading;
-                tenantSpinner.classList.toggle('d-none', !isLoading);
+
+                const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
+                if (tenantSpinner) {
+                    tenantSpinner.classList.toggle('d-none', !isLoading);
+                }
             }
 
+            // Only add event listener if dropdown exists
             if (dropdownMenu) {
-                document.querySelector('.dropdown-menu').addEventListener('click', function (e) {
+                dropdownMenu.addEventListener('click', function (e) {
                     if (e.target && e.target.nodeName == 'A') {
                         e.preventDefault();
                         var selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
@@ -245,8 +252,14 @@
                             .then(response => response.json())
                             .then(data => {
                                 if (data.success) {
-                                    tenantDropdown.textContent = selectedTenantName + ' ';
-                                    tenantDropdown.appendChild(tenantSpinner);
+                                    if (tenantDropdown) {
+                                        tenantDropdown.textContent = selectedTenantName + ' ';
+                                        const spinner = tenantDropdown.querySelector('.spinner-border');
+                                        if (spinner) {
+                                            tenantDropdown.appendChild(spinner);
+                                        }
+                                    }
+
                                     let urlTenantName = getCurrentTenantNameFromUrl();
 
                                     if (urlTenantName == 'local' || urlTenantName == 'staging') {
@@ -266,24 +279,34 @@
                     }
                 });
             }
+
+            // Handle profile dropdown - add null checks
             const profileDropdown = document.querySelector('.profile-dropdown');
             const profileIconUsername = document.querySelector('.profile-icon-username');
             const profileMenu = document.querySelector('.profile-menu');
 
-            profileIconUsername.addEventListener('click', function (e) {
-                e.stopPropagation();
-                profileDropdown.classList.toggle('active');
-                profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
-            });
+            // Only set up profile dropdown if all elements exist
+            if (profileDropdown && profileIconUsername && profileMenu) {
+                profileIconUsername.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    profileDropdown.classList.toggle('active');
+                    profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
+                });
 
-            document.addEventListener('click', function (e) {
-                if (!profileDropdown.contains(e.target)) {
-                    profileDropdown.classList.remove('active');
-                    profileMenu.style.display = 'none';
-                }
-            });
+                document.addEventListener('click', function (e) {
+                    if (!profileDropdown.contains(e.target)) {
+                        profileDropdown.classList.remove('active');
+                        profileMenu.style.display = 'none';
+                    }
+                });
+            }
+
             console.log('Current URL at DOMContentLoaded:', window.location.href);
-            initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
+
+            // Make sure initTenantSync is defined before calling it
+            if (typeof initTenantSync === 'function') {
+                initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
+            }
         });
     </script>
 
