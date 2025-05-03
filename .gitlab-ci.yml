@@ -8,6 +8,9 @@ workflow:
     - if: "$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH"
       when: never
 
+variables:
+  CI_DEFAULT_BRANCH: backstage
+
 stages:
   - .pre
   - build
