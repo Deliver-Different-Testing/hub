@@ -1,0 +1,34 @@
+[
+    {
+      "name": "otgcargo",
+      "environments": [
+        {
+          "env": "staging",
+          "ci_environment_name": "otgcargo-staging",
+          "enabled_var": "OTGCARGO_STAGING_ENABLED",
+          "host_var": "OTGCARGO_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "OTGCARGO_STAGING_ENV"
+        },
+        {
+          "env": "production",
+          "ci_environment_name": "otgcargo-prod",
+          "enabled_var": "OTGCARGO_PROD_ENABLED",
+          "host_var": "OTGCARGO_PROD_ADDITIONAL_HOSTS",
+          "env_file": "OTGCARGO_PROD_ENV",
+          "auto_deploy_values": {
+            "resources": {
+              "requests": {
+                "memory": "256Mi",
+                "cpu": "100m"
+              },
+              "limits": {
+                "memory": "512Mi",
+                "cpu": "500m"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+  
