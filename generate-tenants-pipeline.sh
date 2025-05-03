@@ -7,6 +7,13 @@ OUTPUT_FILE="generated-tenants-pipeline.yml"
 echo "# Auto-generated tenant pipeline configuration" > "$OUTPUT_FILE"
 echo "# Generated on: $(date)" >> "$OUTPUT_FILE"
 
+# Include the environment loader file in the generated pipeline
+cat >> "$OUTPUT_FILE" <<'EOL'
+include:
+  - local: .gitlab/ci-includes/env-loader.yml
+
+EOL
+
 echo "stages:" >> "$OUTPUT_FILE"
 echo "  - deploy" >> "$OUTPUT_FILE"
 
