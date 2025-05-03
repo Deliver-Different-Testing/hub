@@ -64,6 +64,8 @@ generate-tenant-pipelines:
 
 deploy-tenants:
   stage: deploy
+  script:
+    - ./generate-values-files.sh
   trigger:
     include:
       - artifact: generated-tenant-pipelines.yml
