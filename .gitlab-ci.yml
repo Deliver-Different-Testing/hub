@@ -12,6 +12,7 @@ stages:
   - .pre
   - build
   - test
+  - templating
   - deploy
   - review
   - dast
@@ -59,9 +60,8 @@ generate-tenant-pipelines:
       - generated-tenant-pipelines.yml
 
 deploy-tenants:
-  stage: deployment
+  stage: deploy
   trigger:
     include:
       - artifact: generated-tenant-pipelines.yml
         job: generate-tenant-pipelines
-        strategy: depend
