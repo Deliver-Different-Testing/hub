@@ -57,15 +57,18 @@ production_manual:
 generate-tenant-pipelines:
   stage: templating
   script:
+    - ./generate-values-files.sh
     - ./generate-tenants-pipeline.sh
   artifacts:
     paths:
       - generated-tenant-pipelines.yml
+      - .gitlab/*.yaml  # Include the generated values files
 
 deploy-tenants:
   stage: deploy
-  script:
-    - ./generate-values-files.sh
+  needs:
+    - job: generate-tenant-pipelines
+      artifacts: true  # This explicitly indicates we need the artifacts
   trigger:
     include:
       - artifact: generated-tenant-pipelines.yml
