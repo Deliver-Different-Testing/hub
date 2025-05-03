@@ -8,7 +8,7 @@ workflow:
   rules:
     - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
       when: never
-    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+    - if: "$CI_COMMIT_BRANCH == 'backstage'"
       when: always
 
 stages:
@@ -57,6 +57,7 @@ production_manual:
 generate-tenant-pipelines:
   stage: templating
   script:
+    - ls -la
     - chmod +x ./generate-tenant-pipelines.sh
     - chmod +x ./generate-values-files.sh
     - ./generate-values-files.sh
