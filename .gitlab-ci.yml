@@ -1,13 +1,9 @@
 include:
   - template: Auto-DevOps.gitlab-ci.yml
 
-workflow:
-  rules:
-    - if: $CI_DEFAULT_BRANCH == 'backstage'
-      when: always
-
 variables:
   CODE_QUALITY_DISABLED: "true"
+  CI_DEFAULT_BRANCH: "backstage"
   AUTO_DEVOPS_BUILD_IMAGE_FORWARDED_CI_VARIABLES: "K8S_SECRET_TenantURL,K8S_SECRET_SQLConnection,K8S_SECRET_ASPNETCORE_ENVIRONMENT"
 
 stages:
