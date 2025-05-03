@@ -58,7 +58,7 @@ generate-tenant-pipelines:
   stage: templating
   script:
     - ls -la
-    - chmod +x generate-tenant-pipelines.sh
+    - chmod +x generate-tenants-pipelines.sh
     - chmod +x generate-values-files.sh
     - source generate-values-files.sh
     - source generate-tenants-pipeline.sh
