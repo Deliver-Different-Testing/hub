@@ -56,6 +56,8 @@ production_manual:
 
 generate-tenants-pipeline:
   stage: templating
+  before_script:
+    - apt update && apt install -y jq
   script:
     - ls -la
     - chmod +x generate-tenants-pipeline.sh
