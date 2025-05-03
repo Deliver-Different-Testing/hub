@@ -15,11 +15,11 @@ stages:
   - .pre
   - build
   - test
-  - templating
-  - deploy
   - review
   - dast
   - staging
+  - templating
+  - deploy
   - tenants-staging
   - tenants-prod
   - canary
