@@ -54,25 +54,25 @@ production_manual:
     - *load-env-file
     - export HELM_UPGRADE_VALUES_FILE=".gitlab/prod-auto-deploy-values.yaml"
 
-generate-tenant-pipelines:
+generate-tenants-pipeline:
   stage: templating
   script:
     - ls -la
-    - chmod +x generate-tenants-pipelines.sh
+    - chmod +x generate-tenants-pipeline.sh
     - chmod +x generate-values-files.sh
     - source generate-values-files.sh
     - source generate-tenants-pipeline.sh
   artifacts:
     paths:
-      - generated-tenant-pipelines.yml
+      - generated-tenants-pipeline.yml
       - .gitlab/*.yaml  # Include the generated values files
 
 deploy-tenants:
   stage: deploy
   needs:
-    - job: generate-tenant-pipelines
+    - job: generate-tenants-pipeline
       artifacts: true  # This explicitly indicates we need the artifacts
   trigger:
     include:
-      - artifact: generated-tenant-pipelines.yml
-        job: generate-tenant-pipelines
+      - artifact: generated-tenants-pipeline.yml
+        job: generate-tenants-pipeline
