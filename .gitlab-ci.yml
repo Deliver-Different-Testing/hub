@@ -13,12 +13,12 @@ workflow:
 
 stages:
   - .pre
+  - templating
   - build
   - test
   - review
   - dast
   - staging
-  - templating
   - deploy
   - tenants-staging
   - tenants-prod
