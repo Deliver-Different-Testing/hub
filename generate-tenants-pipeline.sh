@@ -1,9 +1,14 @@
 #!/bin/bash
 
 TENANTS_JSON="tenants.json"
+OUTPUT_FILE="generated-tenants-pipeline.yml"
 
-echo "stages:"
-echo "  - deploy"
+# Create/clear the output file
+echo "# Auto-generated tenant pipeline configuration" > "$OUTPUT_FILE"
+echo "# Generated on: $(date)" >> "$OUTPUT_FILE"
+
+echo "stages:" >> "$OUTPUT_FILE"
+echo "  - deploy" >> "$OUTPUT_FILE"
 
 jq -c '.[]' "$TENANTS_JSON" | while read -r tenant; do
   TENANT_NAME=$(echo "$tenant" | jq -r '.name')
@@ -36,7 +41,7 @@ NEEDS
 )
     fi
 
-    cat <<EOF
+    cat >> "$OUTPUT_FILE" <<EOF
 
 $JOB_NAME:
   extends: $ENV_NAME
@@ -59,3 +64,11 @@ EOF
 
   done
 done
+
+# Verify file was created successfully
+if [ -s "$OUTPUT_FILE" ]; then
+  echo "Successfully generated pipeline configuration in $OUTPUT_FILE"
+else
+  echo "Error: Failed to generate pipeline configuration"
+  exit 1
+fi
