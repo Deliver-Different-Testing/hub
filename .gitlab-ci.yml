@@ -58,10 +58,10 @@ generate-tenant-pipelines:
   stage: templating
   script:
     - ls -la
-    - chmod +x ./generate-tenant-pipelines.sh
-    - chmod +x ./generate-values-files.sh
-    - ./generate-values-files.sh
-    - ./generate-tenants-pipeline.sh
+    - chmod +x generate-tenant-pipelines.sh
+    - chmod +x generate-values-files.sh
+    - source generate-values-files.sh
+    - source generate-tenants-pipeline.sh
   artifacts:
     paths:
       - generated-tenant-pipelines.yml
