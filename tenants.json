@@ -15,18 +15,7 @@
           "enabled_var": "SLL_PROD_ENABLED",
           "host_var": "SLL_PROD_ADDITIONAL_HOSTS",
           "env_file": "SLL_PROD_ENV",
-          "auto_deploy_values": {
-            "resources": {
-              "requests": {
-                "memory": "256Mi",
-                "cpu": "100m"
-              },
-              "limits": {
-                "memory": "512Mi",
-                "cpu": "500m"
-              }
-            }
-          }
+          "auto_deploy_values_file": "sll-prod-auto-deploy-values.yaml"
         }
       ]
     }
