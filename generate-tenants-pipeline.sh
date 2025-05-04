@@ -11,19 +11,19 @@ echo "include:" >> "$OUTPUT_FILE"
 echo "  - local: .gitlab/ci-includes/base.yml" >> "$OUTPUT_FILE"
 
 # Define the load-env-file anchor directly in the generated file
-cat >> "$OUTPUT_FILE" <<'EOL'
-# Define environment loading snippet inline
-.load-env-file: &load-env-file
-  - |
-    if [ -n "$ENV_FILE" ]; then
-      while IFS= read -r line || [ -n "$line" ]; do
-        if [[ ! $line =~ ^# && $line =~ = ]]; then
-          eval "export $line"
-        fi
-      done < <(cat "$ENV_FILE")
-    fi
+# cat >> "$OUTPUT_FILE" <<'EOL'
+# # Define environment loading snippet inline
+# .load-env-file: &load-env-file
+#   - |
+#     if [ -n "$ENV_FILE" ]; then
+#       while IFS= read -r line || [ -n "$line" ]; do
+#         if [[ ! $line =~ ^# && $line =~ = ]]; then
+#           eval "export $line"
+#         fi
+#       done < <(cat "$ENV_FILE")
+#     fi
 
-EOL
+# EOL
 
 jq -c '.[]' "$TENANTS_JSON" | while read -r tenant; do
   TENANT_NAME=$(echo "$tenant" | jq -r '.name')
