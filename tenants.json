@@ -1,20 +1,20 @@
 [
     {
-      "name": "otgcargo",
+      "name": "sll",
       "environments": [
         {
           "env": "staging",
-          "ci_environment_name": "otgcargo-staging",
-          "enabled_var": "OTGCARGO_STAGING_ENABLED",
-          "host_var": "OTGCARGO_STAGING_ADDITIONAL_HOSTS",
-          "env_file": "OTGCARGO_STAGING_ENV"
+          "ci_environment_name": "sll-staging",
+          "enabled_var": "SLL_STAGING_ENABLED",
+          "host_var": "SLL_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "SLL_STAGING_ENV"
         },
         {
           "env": "production",
-          "ci_environment_name": "otgcargo-prod",
-          "enabled_var": "OTGCARGO_PROD_ENABLED",
-          "host_var": "OTGCARGO_PROD_ADDITIONAL_HOSTS",
-          "env_file": "OTGCARGO_PROD_ENV",
+          "ci_environment_name": "sll-prod",
+          "enabled_var": "SLL_PROD_ENABLED",
+          "host_var": "SLL_PROD_ADDITIONAL_HOSTS",
+          "env_file": "SLL_PROD_ENV",
           "auto_deploy_values": {
             "resources": {
               "requests": {
