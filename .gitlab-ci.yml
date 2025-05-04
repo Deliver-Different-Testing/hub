@@ -1,29 +1,4 @@
-stages:
-  - templating
-  - deploy
-
-generate-tenants-pipeline:
-  stage: templating
-  before_script:
-    - apt update && apt install -y jq
-    # - apk add --no-cache bash curl jq
-  script:
-    - ls -la
-    - chmod +x generate-tenants-pipeline.sh generate-values-files.sh
-    - source generate-values-files.sh
-    - source generate-tenants-pipeline.sh
-  artifacts:
-    paths:
-      - generated-tenants-pipeline.yml
-      - .gitlab/*.yaml  # Include the generated values files
-      - .gitlab/ci-includes/*.yml  # Include the shared CI includes
-
-deploy-tenants:
-  stage: deploy
-  needs:
-    - job: generate-tenants-pipeline
-      artifacts: true
-  trigger:
-    include:
-      - artifact: generated-tenants-pipeline.yml
-        job: generate-tenants-pipeline
+include:
+  - project: 'urgent-couriers/ci-templates'
+    file: '.gitlab-ci.yml'
+    ref: 'main'
