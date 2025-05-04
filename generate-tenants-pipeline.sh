@@ -8,7 +8,7 @@ echo "# Auto-generated tenant pipeline configuration" > "$OUTPUT_FILE"
 echo "# Generated on: $(date)" >> "$OUTPUT_FILE"
 
 echo "include:" >> "$OUTPUT_FILE"
-echo "  - .local: .gitlab/ci-includes/base.yml" >> "$OUTPUT_FILE"
+echo "  - local: .gitlab/ci-includes/base.yml" >> "$OUTPUT_FILE"
 
 # Define the load-env-file anchor directly in the generated file
 cat >> "$OUTPUT_FILE" <<'EOL'
