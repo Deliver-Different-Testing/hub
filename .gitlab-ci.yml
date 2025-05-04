@@ -1,6 +1,7 @@
 include:
   - template: Auto-DevOps.gitlab-ci.yml
-  - local: .gitlab/ci-includes/env-loader.yml
+  # Remove this line until the file is properly created
+  # - local: .gitlab/ci-includes/env-loader.yml
 
 variables:
   CI_DEFAULT_BRANCH: backstage
@@ -34,6 +35,17 @@ stages:
   - cleanup
   - .post
 
+# Define the load-env-file anchor directly in this file
+.load-env-file: &load-env-file
+  - |
+    if [ -n "$ENV_FILE" ]; then
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$ENV_FILE")
+    fi
+
 production_manual:
   needs:
     - job: build
@@ -51,20 +63,20 @@ generate-tenants-pipeline:
     - apk add --no-cache bash curl jq
   script:
     - ls -la
-    - chmod +x generate-tenants-pipeline.sh
-    - chmod +x generate-values-files.sh
+    - chmod +x generate-tenants-pipeline.sh generate-values-files.sh
     - source generate-values-files.sh
     - source generate-tenants-pipeline.sh
   artifacts:
     paths:
       - generated-tenants-pipeline.yml
       - .gitlab/*.yaml  # Include the generated values files
+      - .gitlab/ci-includes/*.yml  # Include the shared CI includes
 
 deploy-tenants:
   stage: deploy
   needs:
     - job: generate-tenants-pipeline
-      artifacts: true  # This explicitly indicates we need the artifacts
+      artifacts: true
   trigger:
     include:
       - artifact: generated-tenants-pipeline.yml

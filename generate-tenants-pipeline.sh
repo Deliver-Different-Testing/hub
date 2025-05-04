@@ -7,10 +7,18 @@ OUTPUT_FILE="generated-tenants-pipeline.yml"
 echo "# Auto-generated tenant pipeline configuration" > "$OUTPUT_FILE"
 echo "# Generated on: $(date)" >> "$OUTPUT_FILE"
 
-# Include the environment loader file in the generated pipeline
+# Define the load-env-file anchor directly in the generated file
 cat >> "$OUTPUT_FILE" <<'EOL'
-include:
-  - local: .gitlab/ci-includes/env-loader.yml
+# Define environment loading snippet inline
+.load-env-file: &load-env-file
+  - |
+    if [ -n "$ENV_FILE" ]; then
+      while IFS= read -r line || [ -n "$line" ]; do
+        if [[ ! $line =~ ^# && $line =~ = ]]; then
+          eval "export $line"
+        fi
+      done < <(cat "$ENV_FILE")
+    fi
 
 EOL
 
