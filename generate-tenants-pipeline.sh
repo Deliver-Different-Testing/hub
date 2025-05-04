@@ -36,7 +36,7 @@ jq -c '.[]' "$TENANTS_JSON" | while read -r tenant; do
     ENV_FILE=$(echo "$env" | jq -r '.env_file')
 
     JOB_NAME="${TENANT_NAME}-${ENV_NAME}"
-    STAGE_NAME="tenant-${ENV_NAME}"
+    STAGE_NAME="tenants-${ENV_NAME}"
     # Check if auto_deploy_values is present for the environment
     AUTO_DEPLOY_VALUES=$(echo "$env" | jq -c '.auto_deploy_values // empty')
     if [[ -z "$AUTO_DEPLOY_VALUES" ]]; then
