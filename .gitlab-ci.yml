@@ -5,7 +5,8 @@ stages:
 generate-tenants-pipeline:
   stage: templating
   before_script:
-    - apk add --no-cache bash curl jq
+    - apt update && apt install -y jq
+    # - apk add --no-cache bash curl jq
   script:
     - ls -la
     - chmod +x generate-tenants-pipeline.sh generate-values-files.sh
