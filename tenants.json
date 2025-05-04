@@ -7,7 +7,8 @@
           "ci_environment_name": "sll-staging",
           "enabled_var": "SLL_STAGING_ENABLED",
           "host_var": "SLL_STAGING_ADDITIONAL_HOSTS",
-          "env_file": "SLL_STAGING_ENV"
+          "env_file": "SLL_STAGING_ENV",
+          "auto_deploy_values_file": ""
         },
         {
           "env": "production",
