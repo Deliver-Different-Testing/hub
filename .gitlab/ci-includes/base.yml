@@ -1,0 +1,34 @@
+include:
+  - template: Auto-DevOps.gitlab-ci.yml
+
+variables:
+  CI_DEFAULT_BRANCH: backstage
+
+workflow:
+  rules:
+    - if: ($CI_KUBERNETES_ACTIVE == null || $CI_KUBERNETES_ACTIVE == "") && ($KUBECONFIG == null || $KUBECONFIG == "")
+      when: never
+    - if: "$CI_COMMIT_BRANCH == 'backstage'"
+      when: always
+
+stages:
+  - .pre
+  - templating
+  - build
+  - test
+  - review
+  - dast
+  - staging
+  - deploy
+  - tenants-staging
+  - tenants-prod
+  - canary
+  - production
+  - incremental rollout 10%
+  - incremental rollout 25%
+  - incremental rollout 50%
+  - incremental rollout 100%
+  - release
+  - performance
+  - cleanup
+  - .post

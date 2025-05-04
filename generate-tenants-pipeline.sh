@@ -7,6 +7,9 @@ OUTPUT_FILE="generated-tenants-pipeline.yml"
 echo "# Auto-generated tenant pipeline configuration" > "$OUTPUT_FILE"
 echo "# Generated on: $(date)" >> "$OUTPUT_FILE"
 
+echo "include:" >> "$OUTPUT_FILE"
+echo "  - .local: .gitlab/ci-includes/base.yml" >> "$OUTPUT_FILE"
+
 # Define the load-env-file anchor directly in the generated file
 cat >> "$OUTPUT_FILE" <<'EOL'
 # Define environment loading snippet inline
@@ -21,9 +24,6 @@ cat >> "$OUTPUT_FILE" <<'EOL'
     fi
 
 EOL
-
-echo "stages:" >> "$OUTPUT_FILE"
-echo "  - deploy" >> "$OUTPUT_FILE"
 
 jq -c '.[]' "$TENANTS_JSON" | while read -r tenant; do
   TENANT_NAME=$(echo "$tenant" | jq -r '.name')
