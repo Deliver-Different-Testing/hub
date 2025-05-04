@@ -21,7 +21,7 @@ stages:
   - staging
   - deploy
   - tenants-staging
-  - tenants-prod
+  - tenants-production
   - canary
   - production
   - incremental rollout 10%
