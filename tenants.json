@@ -19,6 +19,111 @@
           "auto_deploy_values_file": "sll-prod-auto-deploy-values.yaml"
         }
       ]
+    },
+    {
+      "name": "otgcargo",
+      "environments": [
+        {
+          "env": "staging",
+          "ci_environment_name": "otgcargo-staging",
+          "enabled_var": "OTGCARGO_STAGING_ENABLED",
+          "host_var": "OTGCARGO_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "OTGCARGO_STAGING_ENV",
+          "auto_deploy_values_file": ""
+        },
+        {
+          "env": "production",
+          "ci_environment_name": "otgcargo-prod",
+          "enabled_var": "OTGCARGO_PROD_ENABLED",
+          "host_var": "OTGCARGO_PROD_ADDITIONAL_HOSTS",
+          "env_file": "OTGCARGO_PROD_ENV",
+          "auto_deploy_values_file": ""
+        }
+      ]
+    },
+    {
+      "name": "crisiscourier",
+      "environments": [
+        {
+          "env": "staging",
+          "ci_environment_name": "crisis-staging",
+          "enabled_var": "CRISISCOURIER_STAGING_ENABLED",
+          "host_var": "CRISISCOURIER_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "CRISISCOURIER_STAGING_ENV",
+          "auto_deploy_values_file": ""
+        },
+        {
+          "env": "production",
+          "ci_environment_name": "crisis-prod",
+          "enabled_var": "CRISISCOURIER_PROD_ENABLED",
+          "host_var": "CRISISCOURIER_PROD_ADDITIONAL_HOSTS",
+          "env_file": "CRISISCOURIER_PROD_ENV",
+          "auto_deploy_values_file": ""
+        }
+      ]
+    },
+    {
+      "name": "crossroadscourier",
+      "environments": [
+        {
+          "env": "staging",
+          "ci_environment_name": "crossroads-staging",
+          "enabled_var": "CROSSROADSCOURIER_STAGING_ENABLED",
+          "host_var": "CROSSROADSCOURIER_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "CROSSROADSCOURIER_STAGING_ENV",
+          "auto_deploy_values_file": ""
+        },
+        {
+          "env": "production",
+          "ci_environment_name": "crossroadscourier-prod",
+          "enabled_var": "CROSSROADSCOURIER_PROD_ENABLED",
+          "host_var": "CROSSROADSCOURIER_PROD_ADDITIONAL_HOSTS",
+          "env_file": "CROSSROADSCOURIER_PROD_ENV",
+          "auto_deploy_values_file": ""
+        }
+      ]
+    },
+    {
+      "name": "urgent",
+      "environments": [
+        {
+          "env": "staging",
+          "ci_environment_name": "urgent-staging",
+          "enabled_var": "URGENT_STAGING_ENABLED",
+          "host_var": "URGENT_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "URGENT_STAGING_ENV",
+          "auto_deploy_values_file": ""
+        },
+        {
+          "env": "production",
+          "ci_environment_name": "urgent-prod",
+          "enabled_var": "URGENT_PROD_ENABLED",
+          "host_var": "URGENT_PROD_ADDITIONAL_HOSTS",
+          "env_file": "URGENT_PROD_ENV",
+          "auto_deploy_values_file": ""
+        }
+      ]
+    },
+    {
+      "name": "gold-black",
+      "environments": [
+        {
+          "env": "staging",
+          "ci_environment_name": "gold-black-staging",
+          "enabled_var": "GOLD_BLACK_STAGING_ENABLED",
+          "host_var": "GOLD_BLACK_STAGING_ADDITIONAL_HOSTS",
+          "env_file": "GOLD_BLACK_STAGING_ENV",
+          "auto_deploy_values_file": ""
+        },
+        {
+          "env": "production",
+          "ci_environment_name": "gold-black-prod",
+          "enabled_var": "GOLD_BLACK_PROD_ENABLED",
+          "host_var": "GOLD_BLACK_PROD_ADDITIONAL_HOSTS",
+          "env_file": "GOLD_BLACK_PROD_ENV",
+          "auto_deploy_values_file": ""
+        }
+      ]
     }
   ]
   
