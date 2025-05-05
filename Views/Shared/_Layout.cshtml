@@ -35,9 +35,34 @@
             Log.Information($"[{timestamp}] UserID claim: {userIdClaim?.Value}");
             Log.Information($"[{timestamp}] CurrentTenantID claim: {currentTenantIdClaim?.Value}");
 
+            // First try to get tenant code from claims (for logged-in users)
             var tenantCode = User.FindFirstValue("TenantCode");
+
+            // If tenant code is not found in claims (user not logged in), get it from URL
+            if (string.IsNullOrEmpty(tenantCode))
+            {
+                // Get tenant code from URL
+                var host = Context.Request.Host.Value;
+                var hostParts = host.Split('.');
+
+                if (hostParts.Length >= 2)
+                {
+                    // Get second part of hostname (tenant name)
+                    var urlTenantName = hostParts[1];
+
+                    // Skip local/staging detection as per your JavaScript logic
+                    if (urlTenantName != "local" && urlTenantName != "staging")
+                    {
+                        tenantCode = urlTenantName;
+                        Log.Information($"[{timestamp}] Tenant code from URL: {tenantCode}");
+                    }
+                }
+            }
+
             var logoPath = TenantService.GetTenantLogoPath(tenantCode);
             var resolvedLogoPath = Url.Content(logoPath);
+            Log.Information($"[{timestamp}] Using logo path: {resolvedLogoPath} for tenant: {tenantCode}");
+
 
             List<TenantViewModel> tenants = null;
             int? currentTenantId = 0;
