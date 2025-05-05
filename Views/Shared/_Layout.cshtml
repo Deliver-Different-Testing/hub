@@ -1,4 +1,5 @@
-﻿@using Hub.Services
+﻿@using System.Security.Claims
+@using Hub.Services
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @using Serilog
 <!DOCTYPE html>
@@ -24,6 +25,7 @@
         }
 
         @inject ITenantService TenantService
+        @inject Microsoft.AspNetCore.Mvc.IUrlHelper Url
         @{
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             Log.Information($"[{timestamp}] Page rendering started");
@@ -32,6 +34,10 @@
             var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
             Log.Information($"[{timestamp}] UserID claim: {userIdClaim?.Value}");
             Log.Information($"[{timestamp}] CurrentTenantID claim: {currentTenantIdClaim?.Value}");
+
+            var tenantCode = User.FindFirstValue("TenantCode");
+            var logoPath = TenantService.GetTenantLogoPath(tenantCode);
+            var resolvedLogoPath = Url.Content(logoPath);
 
             List<TenantViewModel> tenants = null;
             int? currentTenantId = 0;
@@ -76,7 +82,7 @@
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-white border-bottom box-shadow mb-3">
             <div class="container">
                 <a class="navbar-brand" asp-controller="Home" asp-action="Index">
-                    <img class="logo" src="~/images/deliverDifferentLogo.png" width="272" height="60" alt="Deliver Different Logo" />
+                    <img class="logo" src="@resolvedLogoPath" width="272" height="60" alt="Tenant Logo" />
                 </a>
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">

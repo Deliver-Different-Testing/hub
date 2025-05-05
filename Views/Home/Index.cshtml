@@ -1,69 +1,78 @@
-﻿@{
+﻿@using System.Security.Claims
+@using Hub.Services
+@{
     ViewData["Title"] = "Home page";
 }
+@inject ITenantService TenantService
+@inject Microsoft.AspNetCore.Mvc.IUrlHelper Url
+@{
+    var tenantCode = User.FindFirstValue("TenantCode"); 
+    var logoPath = TenantService.GetTenantLogoPath(tenantCode);
 
-<script>
-    @{
-        var clientId = ViewBag.ClientID;
+    // Convert virtual path (~/images/...) to application path (/images/...)
+    string resolvedLogoPath = Url.Content(logoPath);
 
-        bool clientInternal = false;
-        if (ViewBag.ClientInternal != null)
+    var clientId = ViewBag.ClientID;
+ 
+    bool clientInternal = false;
+    if (ViewBag.ClientInternal != null)
+    {
+        if (ViewBag.ClientInternal is bool)
         {
-            if (ViewBag.ClientInternal is bool)
-            {
-                clientInternal = (bool)ViewBag.ClientInternal;
-            }
-            else
-            {
-                bool.TryParse(ViewBag.ClientInternal.ToString(), out clientInternal);
-            }
+            clientInternal = (bool)ViewBag.ClientInternal;
         }
-
-        // var clientName = ViewBag.ClientName;
-        // var clientCreated = ViewBag.ClientCreated;
-        //var clientStripe = ViewBag.ClientStripe;
-
-        var contactId = ViewBag.ContactID;
-        // var contactName = ViewBag.ContactName;
-        // var contactFullName = ViewBag.ContactFullName;
-        // var contactEmail = ViewBag.ContactEmail;
-        // var contactCreated = ViewBag.ContactCreated;
-        var greetingString = ViewBag.GreetingString;
-        // var despatchWebPermission = ViewBag.DespatchWebPermission;
-
-        bool bookJobPermission = false;
-        if (ViewBag.BookJobPermission != null)
+        else
         {
-            if (ViewBag.BookJobPermission is bool)
-            {
-                bookJobPermission = (bool)ViewBag.BookJobPermission;
-            }
-            else
-            {
-                bool.TryParse(ViewBag.BookJobPermission.ToString(), out bookJobPermission);
-            }
-        }
-
-        bool bulkUploadPermission = false;
-        if (ViewBag.BulkUploadPermission != null)
-        {
-            if (ViewBag.BulkUploadPermission is bool)
-            {
-                bulkUploadPermission = (bool)ViewBag.BulkUploadPermission;
-            }
-            else
-            {
-                bool.TryParse(ViewBag.BulkUploadPermission.ToString(), out bulkUploadPermission);
-            }
+            bool.TryParse(ViewBag.ClientInternal.ToString(), out clientInternal);
         }
     }
-    var ClientID = '@clientId';
+
+    // var clientName = ViewBag.ClientName;
+    // var clientCreated = ViewBag.ClientCreated;
+    //var clientStripe = ViewBag.ClientStripe;
+
+    var contactId = ViewBag.ContactID;
+    // var contactName = ViewBag.ContactName;
+    // var contactFullName = ViewBag.ContactFullName;
+    // var contactEmail = ViewBag.ContactEmail;
+    // var contactCreated = ViewBag.ContactCreated;
+    var greetingString = ViewBag.GreetingString;
+    // var despatchWebPermission = ViewBag.DespatchWebPermission;
+
+    bool bookJobPermission = false;
+    if (ViewBag.BookJobPermission != null)
+    {
+        if (ViewBag.BookJobPermission is bool)
+        {
+            bookJobPermission = (bool)ViewBag.BookJobPermission;
+        }
+        else
+        {
+            bool.TryParse(ViewBag.BookJobPermission.ToString(), out bookJobPermission);
+        }
+    }
+
+    bool bulkUploadPermission = false;
+    if (ViewBag.BulkUploadPermission != null)
+    {
+        if (ViewBag.BulkUploadPermission is bool)
+        {
+            bulkUploadPermission = (bool)ViewBag.BulkUploadPermission;
+        }
+        else
+        {
+            bool.TryParse(ViewBag.BulkUploadPermission.ToString(), out bulkUploadPermission);
+        }
+    }
+}
+<script>
+var ClientID = '@clientId';
     var ContactID = '@contactId';
     var GreetingString = '@greetingString';
 </script>
 
 <div class="text-center">
-    <img style="padding-bottom:8px;" class="logo" src="~/images/deliverDifferentLogo.png" width="541" height="120" />
+    <img style="padding-bottom:8px;" class="logo" src="@resolvedLogoPath" width="541" height="120" />
     <h4 style="color: #283DB8; ">App Hub</h4>
 </div>
 
