@@ -1,4 +1,4 @@
 include:
   - project: 'urgent-couriers/ci-templates'
-    file: '.gitlab-ci.yml'
+    file: 'ci-template.yml'
     ref: 'main'
