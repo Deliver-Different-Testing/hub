@@ -85,6 +85,12 @@ namespace Hub.Repositories
             
         }
 
+        public async Task<string> FetchSubAccountsAsync(int clientId)
+        {
+            var subAccounts = await context.TucClients.Where(x => x.UcclGroupId == clientId).Select(y => y.UcclId)
+                .ToListAsync();
+            return string.Join(",", subAccounts.Select(n => n.ToString()).ToArray());
+        }
 
         public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissions(int contactId)
         {

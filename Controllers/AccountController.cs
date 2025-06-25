@@ -558,7 +558,9 @@ namespace Hub.Controllers
                     return Json(new { success = false, message = "Failed to generate API key" });
                 }
 
-                var token = CreateApiToken(email, int.Parse(clientId), int.Parse(contactId), "", int.Parse(tenantId), connection, timeZone, tenantCode);
+                var subAccounts = await despatchRepository.FetchSubAccountsAsync(int.Parse(clientId));
+
+                var token = CreateApiToken(email, int.Parse(clientId), int.Parse(contactId), subAccounts, int.Parse(tenantId), connection, timeZone, tenantCode);
                 var respToken = new JwtSecurityTokenHandler().WriteToken(token);
                 var viewModel = new TenantUserSettingViewModel
                 {
@@ -575,6 +577,7 @@ namespace Hub.Controllers
                 return Json(new { success = false, message = "Failed to generate API key" });
             }
         }
+
         
         private JwtSecurityToken CreateApiToken(string name, int clientId, int contactId, string subAccounts, int tenantId, string connection, string tenantTimeZone, string tenantCode)
         {
