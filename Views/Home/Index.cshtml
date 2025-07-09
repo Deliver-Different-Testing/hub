@@ -176,6 +176,25 @@ var ClientID = '@clientId';
                     </div>
                 </div>
             </div>
+
+            <!-- Fourth row -->
+            <div class="row">
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <div class="text">Route Viewer</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
+                        <i class="fas fa-project-diagram"></i>
+                        <div class="text">Route Builder</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <!-- Empty space for potential future expansion -->
+                </div>
+            </div>
         }
     </div>
 </div>
