@@ -3,6 +3,15 @@
 # Declare variables to be passed into your templates.
 replicaCount: 1
 
+nodeSelector:
+  tenant: am
+
+tolerations:
+  - key: tenant
+    operator: Equal
+    value: am
+    effect: NoSchedule
+    
 hpa:
   enabled: true
   minReplicas: 1
@@ -14,7 +23,7 @@ ingress:
     enabled: true
   annotations:
     kubernetes.io/tls-acme: "true"
-    kubernetes.io/ingress.class: "nginx"
+    # kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/proxy-body-size: 32m
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
@@ -23,25 +32,23 @@ ingress:
   modSecurity:
     enabled: false
     secRuleEngine: "DetectionOnly"
+  spec:
+    ingressClassName: "nginx"
 service:
   externalPort: 5000
   internalPort: 8080
 livenessProbe:
-  probeType: exec
-  command:
-    - /bin/sh
-    - -c
-    - "[ $(find /tmp/healthy -mmin -1 | wc -l) -eq 1 ] || false"
-  initialDelaySeconds: 5
-  timeoutSeconds: 10
-readinessProbe:
-  probeType: exec
-  command:
-    - /bin/sh
-    - -c
-    - "[ $(find /tmp/healthy -mmin -1 | wc -l) -eq 1 ] || false"
+  path: "/healthz"
   initialDelaySeconds: 15
-  timeoutSeconds: 10
+  timeoutSeconds: 15
+  scheme: "HTTP"
+  probeType: "httpGet"
+readinessProbe:
+  path: "/healthz"
+  initialDelaySeconds: 5
+  timeoutSeconds: 3
+  scheme: "HTTP"
+  probeType: "httpGet"
 
 resources:
   requests:

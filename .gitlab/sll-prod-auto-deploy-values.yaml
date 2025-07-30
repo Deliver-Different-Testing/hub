@@ -3,6 +3,16 @@
 # Declare variables to be passed into your templates.
 replicaCount: 1
 
+nodeSelector:
+  tenant: sll
+
+tolerations:
+  - key: tenant
+    operator: Equal
+    value: sll
+    effect: NoSchedule
+
+
 hpa:
   enabled: true
   minReplicas: 1
