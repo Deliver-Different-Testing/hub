@@ -269,22 +269,35 @@ namespace Hub.Controllers
             }
 
             // Check if email address exists in system
-            var user = await authenticationRepository.GetUserByEmail(model.Email);
+            var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
 
-            if (user != null)
+            if (masterUser != null)
             {
-                user.ResetKey = Guid.NewGuid().ToString();
+                masterUser.ResetKey = Guid.NewGuid().ToString();
                 await authenticationRepository.SaveAsync();
                 var reply = Environment.GetEnvironmentVariable("ReplyEmail");
                 var baseLink = Environment.GetEnvironmentVariable("ResetBaseLink");
-                var link = $"{baseLink}?code={user.ResetKey}";
-                var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
-                if (cid == null)
+                var link = $"{baseLink}?code={masterUser.ResetKey}";
+
+                var connectionString = masterUser.CurrentTenant.Dbconnection;
+                var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
+                if (string.IsNullOrEmpty(credentials))
                 {
-                    Log.Debug("ContactID is not found");
+                    throw new InvalidOperationException(
+                        "Could not find a environment variable string named 'SQLCredentials'.");
+                }
+                connectionStringManager.SetConnectionString(connectionString + credentials);
+
+
+                var user = await despatchRepository.FetchUserByUsername(model.Email);
+
+                if (user == null)
+                {
+                    Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
                     return Json(new { success = false, message = "Reset failed due to contact validation failure" });
                 }
-                await despatchRepository.InitiatePasswordReset(int.Parse(cid), model.Email, reply, link);
+
+                await despatchRepository.InitiatePasswordReset(user.UcctId, model.Email, reply, link);
 
 
                 return Json(new { success = true, message = "Password reset instructions have been sent to your email." });
