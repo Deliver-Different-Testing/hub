@@ -1,0 +1,58 @@
+replicaCount: 1
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+ingress:
+  tls:
+    enabled: true
+  annotations:
+    kubernetes.io/tls-acme: 'true'
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: '300'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+    nginx.ingress.kubernetes.io/client-body-buffer-size: 32m
+  modSecurity:
+    enabled: false
+    secRuleEngine: DetectionOnly
+service:
+  externalPort: 5000
+  internalPort: 8080
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 15
+  timeoutSeconds: 15
+  scheme: HTTP
+  probeType: httpGet
+readinessProbe:
+  path: /healthz
+  initialDelaySeconds: 15
+  timeoutSeconds: 15
+  scheme: HTTP
+  probeType: httpGet
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+extraLabels:
+  tenant: medical
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: tenant
+              operator: In
+              values:
+                - medical
+tolerations:
+  - key: tenant
+    operator: Equal
+    value: medical
+    effect: NoSchedule
