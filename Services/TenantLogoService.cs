@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Amazon.Runtime.Internal;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Caching.Memory;
@@ -108,6 +109,7 @@ public class TenantLogoService : ITenantLogoService
         {
             if (string.IsNullOrEmpty(_bucketName))
             {
+                Log.Warning("Cannot check S3 logo - bucket name is empty");
                 return false;
             }
 
@@ -122,12 +124,28 @@ public class TenantLogoService : ITenantLogoService
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            Log.Debug("Tenant logo not found in S3");
+            Log.Debug("Tenant logo not found in S3 bucket {BucketName}", _bucketName);
+            return false;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Log.Warning(ex, "Access denied to S3 bucket {BucketName} - check IAM permissions", _bucketName);
+            return false;
+        }
+        catch (AmazonS3Exception ex)
+        {
+            Log.Error(ex, "S3 error checking logo in bucket {BucketName}: {ErrorCode} - {Message}",
+                _bucketName, ex.ErrorCode, ex.Message);
+            return false;
+        }
+        catch (Amazon.Runtime.Internal.HttpErrorResponseException ex)
+        {
+            Log.Error(ex, "HTTP error connecting to S3 for bucket {BucketName} - possible credential or network issue", _bucketName);
             return false;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error checking if tenant logo exists in S3");
+            Log.Error(ex, "Unexpected error checking if tenant logo exists in S3 bucket {BucketName}", _bucketName);
             return false;
         }
     }
