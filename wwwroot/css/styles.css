@@ -287,9 +287,9 @@
   width: auto;
   transition: all 0.3s ease;
 }
-/* Only apply the white filter to local logos */
+/* Local logos display as-is */
 .logo.local-logo {
-  filter: brightness(0) invert(1);
+  filter: none;
 }
 /* S3 logos display as-is */
 .logo.s3-logo {
