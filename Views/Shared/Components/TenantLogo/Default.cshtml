@@ -1,9 +1,17 @@
 @model Hub.ViewComponents.TenantLogoViewComponent.TenantLogoViewModel
+@using Serilog
+
+@{
+    Log.Information("Rendering logo view - LogoUrl: {LogoUrl}, CssClass: {CssClass}, IsS3Logo: {IsS3Logo}",
+        Model.LogoUrl ?? "null", Model.CssClass ?? "null", Model.IsS3Logo);
+}
 
 <img src="@Model.LogoUrl"
      alt="@Model.AltText"
      class="@Model.CssClass @(Model.IsS3Logo ? "s3-logo" : "local-logo")"
-     loading="lazy">
+     loading="lazy"
+     onerror="console.error('Failed to load logo:', this.src); Serilog.Log.Error('Failed to load logo image: {Src}', this.src);"
+     onload="console.log('Logo loaded successfully:', this.src);">
 
 <script>
     // Pre-load next logo URL to avoid expiration issues

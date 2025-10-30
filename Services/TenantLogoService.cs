@@ -46,6 +46,7 @@ public class TenantLogoService : ITenantLogoService
         }
 
         string? logoUrl = _fallbackLogoPath;
+        Log.Information("S3BucketBulk environment variable value: {BucketName}", _bucketName ?? "null");
 
         try
         {
@@ -67,17 +68,22 @@ public class TenantLogoService : ITenantLogoService
                 }
                 else
                 {
-                    Log.Information("Tenant logo not found in S3, using fallback");
+                    Log.Information("Tenant logo not found in S3, using fallback: {FallbackPath}", logoUrl);
                 }
+            }
+            else
+            {
+                Log.Information("S3BucketBulk not configured, using fallback: {FallbackPath}", logoUrl);
             }
 
             // Cache the result
+            Log.Information("Caching logo URL: {LogoUrl}", logoUrl);
             _cache.Set(LogoCacheKey, logoUrl, TimeSpan.FromMinutes(CacheDurationMinutes));
             return logoUrl;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error retrieving tenant logo from S3, using fallback");
+            Log.Error(ex, "Error retrieving tenant logo from S3, using fallback: {FallbackPath}", logoUrl);
 
             // Cache the fallback to avoid repeated failed S3 calls
             _cache.Set(LogoCacheKey, logoUrl, TimeSpan.FromMinutes(5));
