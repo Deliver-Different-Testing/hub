@@ -279,3 +279,22 @@
   width: 16px;
   text-align: center;
 }
+/* Tenant Logo Styles */
+.logo {
+  max-height: 60px;
+  max-width: 272px;
+  height: auto;
+  width: auto;
+  transition: all 0.3s ease;
+}
+/* Only apply the white filter to local logos */
+.logo.local-logo {
+  filter: brightness(0) invert(1);
+}
+/* S3 logos display as-is */
+.logo.s3-logo {
+  filter: none;
+}
+.logo:hover {
+  transform: scale(1.05);
+}

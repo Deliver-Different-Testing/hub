@@ -1,0 +1,23 @@
+@model Hub.ViewComponents.TenantLogoViewComponent.TenantLogoViewModel
+
+<img src="@Model.LogoUrl"
+     alt="@Model.AltText"
+     class="@Model.CssClass @(Model.IsS3Logo ? "s3-logo" : "local-logo")"
+     loading="lazy">
+
+<script>
+    // Pre-load next logo URL to avoid expiration issues
+    setTimeout(async function() {
+        try {
+            const response = await fetch('/api/logo');
+            const data = await response.json();
+            if (data.success && !data.isLocal) {
+                // Pre-cache the next logo URL
+                const img = new Image();
+                img.src = data.logoUrl;
+            }
+        } catch (e) {
+            console.warn('Failed to pre-load logo URL:', e);
+        }
+    }, 30 * 60 * 1000); // Refresh after 30 minutes
+</script>

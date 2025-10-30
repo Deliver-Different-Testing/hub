@@ -1,5 +1,11 @@
+using Amazon;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
+using Amazon.Runtime.CredentialManagement;
+using Amazon.S3;
 using Hub;
 using Hub.Models;
+using Hub.Models.Master;
 using Hub.Repositories;
 using Hub.Services;
 using Microsoft.AspNetCore.Builder;
@@ -14,7 +20,6 @@ using Serilog;
 using StackExchange.Redis;
 using System;
 using System.IO;
-using Hub.Models.Master;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +68,26 @@ builder.Services.AddScoped<Repository, Repository>();
 builder.Services.AddScoped<AuthenticationRepository, AuthenticationRepository>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddSingleton<AuthDiagnostics>();
+
+// Add memory cache for tenant logo service
+builder.Services.AddMemoryCache();
+
+// Add tenant logo service
+builder.Services.AddScoped<ITenantLogoService, TenantLogoService>();
+
+// AWS S3 Configuration
+builder.Services.AddSingleton<IAmazonS3>(serviceProvider =>
+{
+    var awsOptions = builder.Configuration.GetAWSOptions();
+
+    Log.Information("AWS Region from config: {Region}", awsOptions.Region?.SystemName ?? "null");
+
+    var ssoCreds = LoadSsoCredentials("default");
+    return new AmazonS3Client(ssoCreds, new AmazonS3Config
+    {
+        RegionEndpoint = awsOptions.Region ?? RegionEndpoint.APSoutheast2
+    });
+});
 
 var domain = Environment.GetEnvironmentVariable("Domain") ?? "";
 if (string.IsNullOrEmpty(domain))
@@ -193,3 +218,20 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+return;
+
+//
+// Method to get SSO credentials from the information in the shared config file.
+static AWSCredentials LoadSsoCredentials(string profile)
+{
+    var chain = new CredentialProfileStoreChain();
+    if (!chain.TryGetAWSCredentials(profile, out var credentials))
+    {
+        // If the SSO credentials are not found, use FallbackCredentialsFactory to get credentials
+        credentials = FallbackCredentialsFactory.GetCredentials();
+        if (credentials == null)
+            throw new Exception($"Failed to find the {profile} profile or any fallback credentials");
+    }
+    return credentials;
+}
