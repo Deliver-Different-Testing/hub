@@ -145,6 +145,19 @@ namespace Hub.Controllers
 
             await SignInUserAsync(claims, model.RememberMe);
 
+            // Special redirect for asure@urgent.co.nz to booking app with /asure param
+            if (model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
+                && masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+            {
+                var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
+                if (!string.IsNullOrEmpty(tenantUrl))
+                {
+                    var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
+                    Log.Information($"Redirecting user {model.Email} to booking app with asure param: {bookingUrl}");
+                    return Redirect(bookingUrl);
+                }
+            }
+
             return RedirectToAction("Index", "Home");
 
 
@@ -237,6 +250,19 @@ namespace Hub.Controllers
             );
 
             await SignInUserAsync(claims, false);
+
+            // Special redirect for asure@urgent.co.nz to booking app with /asure param
+            if (model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
+                && masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+            {
+                var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
+                if (!string.IsNullOrEmpty(tenantUrl))
+                {
+                    var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
+                    Log.Information($"Redirecting user {model.Email} to booking app with asure param: {bookingUrl}");
+                    return Redirect(bookingUrl);
+                }
+            }
 
             return RedirectToAction("Index", "Home");
 
