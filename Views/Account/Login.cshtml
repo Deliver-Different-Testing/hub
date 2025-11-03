@@ -16,13 +16,21 @@
         Login to our customer area
     </div>
 
+    @if (ViewBag.LoginMessage != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            @ViewBag.LoginMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewBag.ReturnUrl" method="post" class="needs-validation" novalidate id="loginForm">
         @Html.AntiForgeryToken()
         @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
 
         <div class="mb-3">
             <label asp-for="Email" class="form-label">Email</label>
-            <input asp-for="Email" class="form-control" required type="email" />
+            <input asp-for="Email" class="form-control" required type="email" value="@ViewBag.PrefilledEmail" />
             <div class="invalid-feedback">
                 Please enter a valid email address.
             </div>

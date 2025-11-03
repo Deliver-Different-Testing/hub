@@ -33,6 +33,19 @@ namespace Hub.Controllers
         {
             ViewBag.ReturnUrl = returnUrl;
             ViewBag.IsValid = true;
+
+            // Check for message from forced logout
+            if (TempData["LoginMessage"] != null)
+            {
+                ViewBag.LoginMessage = TempData["LoginMessage"];
+            }
+
+            // Pre-fill email if provided from forced logout
+            if (TempData["LoginEmail"] != null)
+            {
+                ViewBag.PrefilledEmail = TempData["LoginEmail"];
+            }
+
             return View();
         }
 
@@ -62,9 +75,10 @@ namespace Hub.Controllers
                     await HttpContext.SignOutAsync("Identity.Application");
                     HttpContext.Session.Clear();
 
-                    // Add a message
-                    ViewBag.Message = "You were logged in as a different user. Please login again.";
-                    return View(model);
+                    // Redirect to login page with message to avoid anti-forgery token issues
+                    TempData["LoginMessage"] = "You were logged in as a different user. Please login again.";
+                    TempData["LoginEmail"] = model.Email; // Pre-fill the email field
+                    return RedirectToAction("Login", "Account");
                 }
             }
             var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
