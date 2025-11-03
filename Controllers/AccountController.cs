@@ -33,19 +33,6 @@ namespace Hub.Controllers
         {
             ViewBag.ReturnUrl = returnUrl;
             ViewBag.IsValid = true;
-
-            // Check for message from forced logout
-            if (TempData["LoginMessage"] != null)
-            {
-                ViewBag.LoginMessage = TempData["LoginMessage"];
-            }
-
-            // Pre-fill email if provided from forced logout
-            if (TempData["LoginEmail"] != null)
-            {
-                ViewBag.PrefilledEmail = TempData["LoginEmail"];
-            }
-
             return View();
         }
 
@@ -64,66 +51,16 @@ namespace Hub.Controllers
                 return View(model);
             }
 
-            // Check if we just performed a forced logout to prevent redirect loop
-            var justForcedLogout = TempData["JustForcedLogout"] as string;
-
-            // NEW: Check if user is already authenticated as someone else
-            // Skip this check if we just forced a logout (to prevent loop)
-            if (User.Identity?.IsAuthenticated == true && justForcedLogout != "true")
+            // Check if user is already authenticated as someone else
+            if (User.Identity?.IsAuthenticated == true)
             {
                 var currentEmail = User.FindFirst(ClaimTypes.Name)?.Value;
                 if (!string.IsNullOrEmpty(currentEmail) && !currentEmail.Equals(model.Email, StringComparison.OrdinalIgnoreCase))
                 {
                     Log.Warning($"User {currentEmail} attempting to login as {model.Email} without logging out first");
-
-                    // Perform comprehensive logout
-                    try
-                    {
-                        // Sign out from authentication first - this should handle cookie deletion
-                        await HttpContext.SignOutAsync("Identity.Application");
-
-                        // Clear session
-                        HttpContext.Session.Clear();
-
-                        // Explicitly delete the authentication cookie with domain matching the configuration
-                        var domain = Environment.GetEnvironmentVariable("Domain");
-                        Response.Cookies.Delete(".AspNet.SharedCookie", new Microsoft.AspNetCore.Http.CookieOptions
-                        {
-                            Domain = domain,
-                            Path = "/",
-                            HttpOnly = true
-                        });
-
-                        // Also try to delete without domain specification as a fallback
-                        Response.Cookies.Delete(".AspNet.SharedCookie", new Microsoft.AspNetCore.Http.CookieOptions
-                        {
-                            Path = "/",
-                            HttpOnly = true
-                        });
-
-                        // Delete the session cookie
-                        Response.Cookies.Delete("hub_session", new Microsoft.AspNetCore.Http.CookieOptions
-                        {
-                            Path = "/"
-                        });
-
-                        Log.Information($"Successfully forced logout of user {currentEmail}. Domain: {domain}. Deleted cookies and cleared session.");
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, $"Error during forced logout of user {currentEmail}: {ex.Message}");
-                    }
-
-                    // Set cache control headers to prevent caching of authentication state
-                    Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-                    Response.Headers["Pragma"] = "no-cache";
-                    Response.Headers["Expires"] = "0";
-
-                    // Redirect to login page with message to avoid anti-forgery token issues
-                    TempData["LoginMessage"] = "You were logged in as a different user. Please login again.";
-                    TempData["LoginEmail"] = model.Email; // Pre-fill the email field
-                    TempData["JustForcedLogout"] = "true"; // Flag to prevent redirect loop on next login attempt
-                    return RedirectToAction("Login", "Account");
+                    ViewBag.LoginFailed = true;
+                    ModelState.AddModelError("", $"You are currently logged in as {currentEmail}. Please logout first before logging in as a different user.");
+                    return View(model);
                 }
             }
             var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
