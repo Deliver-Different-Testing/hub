@@ -50,7 +50,23 @@ namespace Hub.Controllers
                 ViewBag.LoginFailed = true;
                 return View(model);
             }
+            // NEW: Check if user is already authenticated as someone else
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var currentEmail = User.FindFirst(ClaimTypes.Name)?.Value;
+                if (!string.IsNullOrEmpty(currentEmail) && !currentEmail.Equals(model.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Warning($"User {currentEmail} attempting to login as {model.Email} without logging out first");
 
+                    // Force logout first
+                    await HttpContext.SignOutAsync("Identity.Application");
+                    HttpContext.Session.Clear();
+
+                    // Add a message
+                    ViewBag.Message = "You were logged in as a different user. Please login again.";
+                    return View(model);
+                }
+            }
             var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
 
             if (masterUser == null)

@@ -18,6 +18,8 @@ namespace Hub.Controllers
             var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
             var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
             var internalTenantUser = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Internal")?.Value;
+            var userEmail = HttpContext.User.Claims.FirstOrDefault(x => x.Type == System.Security.Claims.ClaimTypes.Name)?.Value;
+            var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
             if (cid != null && connectionString!= null)
             {
                 Log.Debug($"Found Identity for ContactID:{cid}");
@@ -42,6 +44,8 @@ namespace Hub.Controllers
                 ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
                 ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
                 ViewBag.BulkUploadPermission = GetPermission(internetPermissions, 11);
+                ViewBag.UserEmail = userEmail;
+                ViewBag.TenantCode = tenantCode;
 
                 //ViewBag.ClientName = clientDetail.Name;
                 ViewBag.ClientInternal = internalTenantUser;

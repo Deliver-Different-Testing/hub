@@ -362,3 +362,9 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /Properties/launchSettings.json
+
+# Redis debugging tools
+redis-tools/
+*.ps1
+/REDIS-AWS-ACCESS-GUIDE.md
+/REDIS-DEBUG-README.md

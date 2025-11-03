@@ -6,7 +6,7 @@
 @inject ITenantService TenantService
 @{
     var clientId = ViewBag.ClientID;
- 
+
     bool clientInternal = false;
     if (ViewBag.ClientInternal != null)
     {
@@ -31,6 +31,18 @@
     // var contactCreated = ViewBag.ContactCreated;
     var greetingString = ViewBag.GreetingString;
     // var despatchWebPermission = ViewBag.DespatchWebPermission;
+    var userEmail = ViewBag.UserEmail;
+    var tenantCode = ViewBag.TenantCode;
+
+    // Check if this is the special urgent/asure user that needs custom redirect
+    bool isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
+                             !string.IsNullOrEmpty(tenantCode) &&
+                             userEmail.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase) &&
+                             tenantCode.Equals("urgent", StringComparison.OrdinalIgnoreCase);
+
+    var bookingAppUrl = Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking");
+    var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
+    var bookingAppFullUrl = bookingAppUrl + bookingAppPath;
 
     bool bookJobPermission = false;
     if (ViewBag.BookJobPermission != null)
@@ -80,7 +92,7 @@ var ClientID = '@clientId';
                 @if (bookJobPermission)
                 {
                     <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking")' + '/#/login/')">
+                        <div class="dash-box icon" onclick="window.open('@bookingAppFullUrl')">
                             <i class="fas fa-atlas"></i>
                             <div class="text">Booking Page</div>
                         </div>
@@ -121,7 +133,7 @@ var ClientID = '@clientId';
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking")' + '/#/login/')">
+                    <div class="dash-box icon" onclick="window.open('@bookingAppFullUrl')">
                         <i class="fas fa-atlas"></i>
                         <div class="text">Booking Page</div>
                     </div>
