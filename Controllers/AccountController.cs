@@ -115,9 +115,9 @@ namespace Hub.Controllers
                     }
 
                     // Set cache control headers to prevent caching of authentication state
-                    Response.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
-                    Response.Headers.Add("Pragma", "no-cache");
-                    Response.Headers.Add("Expires", "0");
+                    Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+                    Response.Headers["Pragma"] = "no-cache";
+                    Response.Headers["Expires"] = "0";
 
                     // Redirect to login page with message to avoid anti-forgery token issues
                     TempData["LoginMessage"] = "You were logged in as a different user. Please login again.";
