@@ -36,12 +36,23 @@
             </div>
         </div>
 
-        <div class="mb-3 form-check">
+        <div class="mb-4">
+            <label asp-for="IsCourierLogin" class="form-label">Login Type</label>
+            <select asp-for="IsCourierLogin" class="form-select" required>
+                <option value="false" selected>Staff Login</option>
+                <option value="true">Courier Login</option>
+            </select>
+            <div class="valid-feedback">
+                Looks good!
+            </div>
+        </div>
+
+        <div class="mb-4 form-check">
             <input asp-for="RememberMe" type="checkbox" class="form-check-input" />
             <label asp-for="RememberMe" class="form-check-label">Remember me?</label>
         </div>
 
-        <div class="text-center mb-3">
+        <div class="text-center mb-3" style="margin-top: 2rem;">
             <button type="submit" class="btn btn-primary" id="loginButton">
                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 <span class="button-text">Log in</span>
@@ -55,6 +66,45 @@
 </div>
 
 @section Scripts {
+    <style>
+        /* Prevent button validation styling interference */
+        #loginButton {
+            position: relative;
+            z-index: 1;
+        }
+
+        #loginButton:disabled {
+            opacity: 0.9;
+        }
+
+        /* Ensure spinner and text are properly layered */
+        #loginButton .spinner-border,
+        #loginButton .button-text {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Prevent any validation feedback from affecting the button */
+        .was-validated #loginButton,
+        .was-validated #loginButton:disabled {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+        }
+
+        /* Prevent validation feedback from overlapping button area */
+        .valid-feedback,
+        .invalid-feedback {
+            position: relative;
+            z-index: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Ensure form fields contain their feedback */
+        .mb-3 {
+            overflow: visible;
+            position: relative;
+        }
+    </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var form = document.getElementById('loginForm');
@@ -120,8 +170,13 @@
                 updateEmailValidationUI();
             });
 
-            form.querySelectorAll('input').forEach(function(input) {
-                input.addEventListener('input', function() {
+            form.querySelectorAll('input, select').forEach(function(element) {
+                element.addEventListener('input', function() {
+                    if (this !== emailInput && form.classList.contains('was-validated')) {
+                        form.classList.remove('was-validated');
+                    }
+                });
+                element.addEventListener('change', function() {
                     if (this !== emailInput && form.classList.contains('was-validated')) {
                         form.classList.remove('was-validated');
                     }

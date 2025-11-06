@@ -23,6 +23,8 @@ public partial class MasterContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseCollation("Latin1_General_CI_AS");
+
         modelBuilder.Entity<Tenant>(entity =>
         {
             entity.ToTable("Tenant");
@@ -71,9 +73,6 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.SettingName)
                 .IsRequired()
                 .HasMaxLength(150);
-            entity.Property(e => e.SettingValue)
-                .IsRequired()
-                .HasMaxLength(200);
 
             entity.HasOne(d => d.Tenant).WithMany(p => p.TenantUserSettings)
                 .HasForeignKey(d => d.TenantId)
@@ -90,11 +89,9 @@ public partial class MasterContext : DbContext
         {
             entity.ToTable("User");
 
-            entity.HasIndex(e => e.Email, "IX_User").IsUnique();
-
             entity.HasIndex(e => e.CurrentTenantId, "IX_User_CurrentTenantId");
 
-            entity.HasIndex(e => e.Email, "IX_User_Email").IsUnique();
+            entity.HasIndex(e => new { e.Email, e.IsCourier }, "IX_User_Email").IsUnique();
 
             entity.HasIndex(e => e.ResetKey, "IX_User_ResetKey");
 

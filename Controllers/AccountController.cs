@@ -17,6 +17,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Hub.Repositories;
 using System.Linq;
+using Hub.Models;
 using Hub.Shared;
 using Hub.ViewModels;
 
@@ -63,13 +64,16 @@ namespace Hub.Controllers
                     return View(model);
                 }
             }
-            var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
+
+            // Get user by email and login type (IsCourierLogin determines if we look for courier or staff account)
+            var masterUser = await authenticationRepository.GetUserByEmail(model.Email, model.IsCourierLogin);
 
             if (masterUser == null)
             {
-                Log.Debug($"Failed to find user {model.Email}");
+                Log.Debug($"Failed to find user {model.Email} with IsCourier={model.IsCourierLogin}");
                 ViewBag.LoginFailed = true;
-                ModelState.AddModelError("", "Invalid login attempt.");
+                var loginTypeText = model.IsCourierLogin ? "Courier Login" : "Staff Login";
+                ModelState.AddModelError("", $"Invalid login attempt. No {loginTypeText} account found for this email.");
                 return View(model);
             }
 
@@ -113,7 +117,7 @@ namespace Hub.Controllers
                     ViewBag.LoginFailed = true;
                     ModelState.AddModelError("", "Invalid login attempt.");
                     return View(model);
-                }   
+                }
             }
 
 
@@ -126,51 +130,103 @@ namespace Hub.Controllers
             }
             connectionStringManager.SetConnectionString(connectionString + credentials);
 
+            // For courier users, validate that tucCourier record exists in Despatch DB
+            bool isCourier = masterUser.IsCourier ?? false;
+            TucClientContact user = null;
+            int? courierId = null;
 
-            var user = await despatchRepository.FetchUserByUsername(model.Email);
-
-            if (user == null)
+            if (isCourier)
             {
-                Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
-                ViewBag.LoginFailed = true;
-                ModelState.AddModelError("", "Invalid login attempt.");
-                return View(model);
-            }
+                courierId = await despatchRepository.ValidateCourierByEmail(model.Email);
+                if (!courierId.HasValue)
+                {
+                    Log.Warning($"User {model.Email} is marked as courier but no active tucCourier record found in Despatch DB");
+                    ViewBag.LoginFailed = true;
+                    ModelState.AddModelError("", "Invalid login attempt. Courier account not properly configured.");
+                    return View(model);
+                }
 
-            despatchRepository.UpdateUserAccessed(user.UcctId, model.RememberMe);
+                Log.Information($"Courier validated with ID: {courierId.Value}");
 
+                // Courier users don't need staff user validation - skip to claims generation with default values
+                var claims = GenerateClaims(
+                    model.Email,
+                    masterUser.UserId,
+                    masterUser.CurrentTenant.TenantId,
+                    "0", // No ContactID for courier
+                    "0", // No ClientID for courier
+                    "", // No StaffID for courier
+                    masterUser.CurrentTenant.Dbconnection,
+                    model.RememberMe,
+                    masterUser.CurrentTenant.CountryCode,
+                    masterUser.CurrentTenant.TimeZone,
+                    masterUser.CurrentTenant.Code ?? "",
+                    false, // Couriers are not internal tenant users
+                    isCourier,
+                    courierId
+                );
 
-            var claims = GenerateClaims(
-                model.Email,
-                masterUser.UserId,
-                masterUser.CurrentTenant.TenantId,
-                user.UcctId.ToString(),
-                user.UcctClientId.ToString(),
-                user.StaffId?.ToString() ?? "",
-                masterUser.CurrentTenant.Dbconnection,
-                model.RememberMe,
-                masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone, 
-                masterUser.CurrentTenant.Code ?? "",
-                user.UcctClient.UcclInternal
-            );
+                await SignInUserAsync(claims, model.RememberMe);
 
-            await SignInUserAsync(claims, model.RememberMe);
-
-            // Special redirect for asure@urgent.co.nz to booking app with /asure param
-            if (model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
-                && masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
-            {
+                // Automatic redirect to CourierPortal for courier users
                 var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
                 if (!string.IsNullOrEmpty(tenantUrl))
                 {
-                    var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
-                    Log.Information($"Redirecting user {model.Email} to booking app with asure param: {bookingUrl}");
-                    return Redirect(bookingUrl);
+                    var courierPortalUrl = tenantUrl.Replace("app_name", "courierportal");
+                    Log.Information($"Redirecting courier user {model.Email} to CourierPortal: {courierPortalUrl}");
+                    return Redirect(courierPortalUrl);
                 }
-            }
 
-            return RedirectToAction("Index", "Home");
+                return RedirectToAction("Index", "Home");
+            }
+            else
+            {
+                // For non-courier users, validate staff login in Despatch DB
+                user = await despatchRepository.FetchUserByUsername(model.Email);
+
+                if (user == null)
+                {
+                    Log.Debug($"Failed to authenticate Despatch User {model.Email}. Invalid username or password.");
+                    ViewBag.LoginFailed = true;
+                    ModelState.AddModelError("", "Invalid login attempt.");
+                    return View(model);
+                }
+
+                despatchRepository.UpdateUserAccessed(user.UcctId, model.RememberMe);
+
+                var claims = GenerateClaims(
+                    model.Email,
+                    masterUser.UserId,
+                    masterUser.CurrentTenant.TenantId,
+                    user.UcctId.ToString(),
+                    user.UcctClientId.ToString(),
+                    user.StaffId?.ToString() ?? "",
+                    masterUser.CurrentTenant.Dbconnection,
+                    model.RememberMe,
+                    masterUser.CurrentTenant.CountryCode,
+                    masterUser.CurrentTenant.TimeZone,
+                    masterUser.CurrentTenant.Code ?? "",
+                    user.UcctClient.UcclInternal,
+                    isCourier
+                );
+
+                await SignInUserAsync(claims, model.RememberMe);
+
+                // Special redirect for asure@urgent.co.nz to booking app with /asure param
+                if (model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
+                    && masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+                {
+                    var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
+                    if (!string.IsNullOrEmpty(tenantUrl))
+                    {
+                        var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
+                        Log.Information($"Redirecting user {model.Email} to booking app with asure param: {bookingUrl}");
+                        return Redirect(bookingUrl);
+                    }
+                }
+
+                return RedirectToAction("Index", "Home");
+            }
 
 
         }
@@ -258,7 +314,8 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone,
                 masterUser.CurrentTenant.Code ?? "",
-                user.UcctClient.UcclInternal
+                user.UcctClient.UcclInternal,
+                masterUser.IsCourier ?? false
             );
 
             await SignInUserAsync(claims, false);
@@ -387,7 +444,7 @@ namespace Hub.Controllers
             public string Hostname { get; set; }
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode, bool internalTenantUser)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode, bool internalTenantUser, bool isCourier = false, int? courierId = null)
         {
             return new List<Claim>
             {
@@ -402,7 +459,9 @@ namespace Hub.Controllers
                 new Claim("TimeZone", timeZone),
                 new Claim("TenantCode", tenantCode),
                 new Claim("RememberMe", rememberMe.ToString()),
-                new Claim("Internal", internalTenantUser.ToString())
+                new Claim("Internal", internalTenantUser.ToString()),
+                new Claim("IsCourier", isCourier.ToString()),
+                new Claim("CourierID", courierId?.ToString() ?? "")
             };
         }
 
@@ -509,7 +568,8 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.CountryCode,
                 masterUser.CurrentTenant.TimeZone,
                 masterUser.CurrentTenant.Code ?? "",
-                user.UcctClient.UcclInternal
+                user.UcctClient.UcclInternal,
+                masterUser.IsCourier ?? false
             );
 
             await SignInUserAsync(claims, rememberMe);

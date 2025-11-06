@@ -561,5 +561,21 @@ public partial class TucClient
 
     public int? InvoiceTemplateId { get; set; }
 
+    public string InvoiceMemo { get; set; }
+
+    public int? PaymentTermId { get; set; }
+
+    public string PurchaseOrderNumber { get; set; }
+
+    public bool AddressBookOnly { get; set; }
+
+    public int? InvoiceScheduleId { get; set; }
+
+    public string AccountsContact { get; set; }
+
+    public string AccountsPhone { get; set; }
+
+    public string AccountsEmail { get; set; }
+
     public virtual ICollection<TucClientContact> TucClientContacts { get; set; } = new List<TucClientContact>();
 }

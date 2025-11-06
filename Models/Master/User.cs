@@ -21,6 +21,8 @@ public partial class User
 
     public bool IsLegacyHash { get; set; }
 
+    public bool? IsCourier { get; set; }
+
     public virtual Tenant CurrentTenant { get; set; }
 
     public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();

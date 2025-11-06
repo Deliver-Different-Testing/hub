@@ -13,12 +13,28 @@ namespace Hub.Repositories
     public class AuthenticationRepository(MasterContext context)
     {
         
-        public async Task<User?> GetUserByEmail(string email)
+        public async Task<User?> GetUserByEmail(string email, bool? isCourier = null)
         {
-            return await context.Users
+            var query = context.Users
                 .Include(u => u.CurrentTenant)
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+                .Where(u => u.Email.ToLower() == email.ToLower());
 
+            // Filter by IsCourier if specified
+            if (isCourier.HasValue)
+            {
+                if (isCourier.Value)
+                {
+                    // Looking for courier: IsCourier must be true
+                    query = query.Where(u => u.IsCourier == true);
+                }
+                else
+                {
+                    // Looking for staff: IsCourier must be false or null
+                    query = query.Where(u => u.IsCourier == false || u.IsCourier == null);
+                }
+            }
+
+            return await query.FirstOrDefaultAsync();
         }
 
         public async Task<IEnumerable<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId)

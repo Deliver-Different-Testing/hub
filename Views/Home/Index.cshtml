@@ -20,6 +20,14 @@
         }
     }
 
+    // Check if user is a courier
+    bool isCourier = false;
+    var isCourierClaim = User.FindFirst("IsCourier")?.Value;
+    if (!string.IsNullOrEmpty(isCourierClaim))
+    {
+        bool.TryParse(isCourierClaim, out isCourier);
+    }
+
     // var clientName = ViewBag.ClientName;
     // var clientCreated = ViewBag.ClientCreated;
     //var clientStripe = ViewBag.ClientStripe;
@@ -85,7 +93,28 @@ var ClientID = '@clientId';
 
 <div id="urgent-hub">
     <div class="dash-boxes container-fluid">
-        @if (!clientInternal)
+        @if (isCourier)
+        {
+            <!-- Courier users only see CourierPortal and AfterHours -->
+            <div class="row">
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
+                        <i class="fas fa-hamsa"></i>
+                        <div class="text">Courier Portal</div>
+                    </div>
+                </div>
+                @if (ViewBag.ShowAfterHours == true)
+                {
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
+                            <i class="fas fa-moon"></i>
+                            <div class="text">After Hours</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (!clientInternal)
         {
             <!-- External-only apps (clientInternal = false) -->
             <div class="row">

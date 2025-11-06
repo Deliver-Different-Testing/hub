@@ -122,5 +122,52 @@ namespace Hub.Repositories
             contact.AllowCookieLogin = rememberMe;
             context.SaveChangesAsync();
         }
+
+        public async Task<int?> ValidateCourierByEmail(string email)
+        {
+            LogConnectionDetails();
+            try
+            {
+                Log.Information($"Attempting to validate courier with email: {email}");
+
+                // Get the tucCourier record with the given email
+                var courier = await context.TucCouriers
+                    .FirstOrDefaultAsync(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim().ToLower() == email.ToLower().Trim());
+
+                if (courier != null)
+                {
+                    Log.Information($"Found courier with ID: {courier.UccrId}");
+                    return courier.UccrId;
+                }
+
+                Log.Warning($"No active courier found with email: {email}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Error validating courier with email: {email}");
+                return null;
+            }
+        }
+
+        public async Task<bool> IsAfterHoursAuthorized(int courierId, int dayOfWeek)
+        {
+            LogConnectionDetails();
+            try
+            {
+                Log.Information($"Checking after-hours authorization for courier {courierId} on day {dayOfWeek}");
+
+                // Check if a tblAfterHoursCourier record exists for this courier and day of week
+                var isAuthorized = await context.TblAfterhoursCouriers
+                    .AnyAsync(ah => ah.CourierId == courierId && ah.WeekDay == dayOfWeek);
+
+                return isAuthorized;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Error checking after-hours authorization for courier {courierId} on day {dayOfWeek}");
+                return false;
+            }
+        }
     }
 }

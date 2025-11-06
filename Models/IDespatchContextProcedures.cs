@@ -13,9 +13,9 @@ namespace Hub.Models
 {
     public partial interface IDespatchContextProcedures
     {
-        Task<int> NET_stpContact_ResetPasswordAsync(int? ContactID, string RecoveryEmail, string ReplyEmail, string Link, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
-        Task<List<RVW_stpValidateClientResult>> RVW_stpValidateClientAsync(int? ClientID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
-        Task<List<RVW_stpValidateContactResult>> RVW_stpValidateContactAsync(int? ContactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
-        Task<List<RVW_stpValidateInternetPermissionsResult>> RVW_stpValidateInternetPermissionsAsync(int? ContactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
+        Task<int> NET_stpContact_ResetPasswordAsync(int? contactID, string recoveryEmail, string replyEmail, string link, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
+        Task<List<RVW_stpValidateClientResult>> RVW_stpValidateClientAsync(int? clientID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
+        Task<List<RVW_stpValidateContactResult>> RVW_stpValidateContactAsync(int? contactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
+        Task<List<RVW_stpValidateInternetPermissionsResult>> RVW_stpValidateInternetPermissionsAsync(int? contactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default);
     }
 }

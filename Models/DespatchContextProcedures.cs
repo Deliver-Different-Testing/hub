@@ -43,7 +43,7 @@ namespace Hub.Models
             _context = context;
         }
 
-        public virtual async Task<int> NET_stpContact_ResetPasswordAsync(int? ContactID, string RecoveryEmail, string ReplyEmail, string Link, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        public virtual async Task<int> NET_stpContact_ResetPasswordAsync(int? contactID, string recoveryEmail, string replyEmail, string link, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
         {
             var parameterreturnValue = new SqlParameter
             {
@@ -57,28 +57,28 @@ namespace Hub.Models
                 new SqlParameter
                 {
                     ParameterName = "ContactID",
-                    Value = ContactID ?? Convert.DBNull,
+                    Value = contactID ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.Int,
                 },
                 new SqlParameter
                 {
                     ParameterName = "RecoveryEmail",
                     Size = 300,
-                    Value = RecoveryEmail ?? Convert.DBNull,
+                    Value = recoveryEmail ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.NVarChar,
                 },
                 new SqlParameter
                 {
                     ParameterName = "ReplyEmail",
                     Size = 300,
-                    Value = ReplyEmail ?? Convert.DBNull,
+                    Value = replyEmail ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.NVarChar,
                 },
                 new SqlParameter
                 {
                     ParameterName = "Link",
                     Size = 1000,
-                    Value = Link ?? Convert.DBNull,
+                    Value = link ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.NVarChar,
                 },
                 parameterreturnValue,
@@ -90,7 +90,7 @@ namespace Hub.Models
             return _;
         }
 
-        public virtual async Task<List<RVW_stpValidateClientResult>> RVW_stpValidateClientAsync(int? ClientID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        public virtual async Task<List<RVW_stpValidateClientResult>> RVW_stpValidateClientAsync(int? clientID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
         {
             var parameterreturnValue = new SqlParameter
             {
@@ -104,7 +104,7 @@ namespace Hub.Models
                 new SqlParameter
                 {
                     ParameterName = "ClientID",
-                    Value = ClientID ?? Convert.DBNull,
+                    Value = clientID ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.Int,
                 },
                 parameterreturnValue,
@@ -116,7 +116,7 @@ namespace Hub.Models
             return _;
         }
 
-        public virtual async Task<List<RVW_stpValidateContactResult>> RVW_stpValidateContactAsync(int? ContactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        public virtual async Task<List<RVW_stpValidateContactResult>> RVW_stpValidateContactAsync(int? contactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
         {
             var parameterreturnValue = new SqlParameter
             {
@@ -130,7 +130,7 @@ namespace Hub.Models
                 new SqlParameter
                 {
                     ParameterName = "ContactID",
-                    Value = ContactID ?? Convert.DBNull,
+                    Value = contactID ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.Int,
                 },
                 parameterreturnValue,
@@ -142,7 +142,7 @@ namespace Hub.Models
             return _;
         }
 
-        public virtual async Task<List<RVW_stpValidateInternetPermissionsResult>> RVW_stpValidateInternetPermissionsAsync(int? ContactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
+        public virtual async Task<List<RVW_stpValidateInternetPermissionsResult>> RVW_stpValidateInternetPermissionsAsync(int? contactID, OutputParameter<int> returnValue = null, CancellationToken cancellationToken = default)
         {
             var parameterreturnValue = new SqlParameter
             {
@@ -156,7 +156,7 @@ namespace Hub.Models
                 new SqlParameter
                 {
                     ParameterName = "ContactID",
-                    Value = ContactID ?? Convert.DBNull,
+                    Value = contactID ?? Convert.DBNull,
                     SqlDbType = System.Data.SqlDbType.Int,
                 },
                 parameterreturnValue,

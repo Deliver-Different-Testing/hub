@@ -36,4 +36,6 @@ public partial class TblUser
     public string Notes { get; set; }
 
     public bool InternetAccess { get; set; }
+
+    public virtual TucCourier Courier { get; set; }
 }

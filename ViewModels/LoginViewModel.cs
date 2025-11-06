@@ -16,5 +16,8 @@ namespace Hub.ViewModels
 
         [Display(Name = "Remember me?")]
         public bool RememberMe { get; set; }
+
+        [Display(Name = "Login Type")]
+        public bool IsCourierLogin { get; set; } = false; // Default to Staff Login
     }
 }
