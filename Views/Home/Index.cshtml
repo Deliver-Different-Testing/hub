@@ -228,7 +228,10 @@ var ClientID = '@clientId';
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <!-- Empty space for potential future expansion -->
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
+                        <i class="fas fa-print"></i>
+                        <div class="text">Print</div>
+                    </div>
                 </div>
             </div>
         }
