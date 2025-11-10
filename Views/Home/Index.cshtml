@@ -143,6 +143,22 @@ var ClientID = '@clientId';
                     </div>
                 </div>
             </div>
+
+            <!-- Second row - Route Viewer and Print -->
+            <div class="row">
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <div class="text">Route Viewer</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
+                        <i class="fas fa-print"></i>
+                        <div class="text">Print</div>
+                    </div>
+                </div>
+            </div>
         }
         else
         {

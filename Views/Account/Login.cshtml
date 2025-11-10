@@ -52,7 +52,7 @@
             <label asp-for="RememberMe" class="form-check-label">Remember me?</label>
         </div>
 
-        <div class="text-center mb-3" style="margin-top: 2rem;">
+        <div class="text-center mb-3" style="margin-top: 6rem;">
             <button type="submit" class="btn btn-primary" id="loginButton">
                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 <span class="button-text">Log in</span>
@@ -91,6 +91,27 @@
             border-color: #0d6efd !important;
         }
 
+        /* Override all button states to prevent white flash */
+        #loginButton:hover,
+        #loginButton:focus,
+        #loginButton:active,
+        #loginButton:focus-visible {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+            color: white !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Prevent any transitions that might cause flashing */
+        #loginButton {
+            transition: none !important;
+        }
+
+        #loginButton * {
+            transition: none !important;
+        }
+
         /* Prevent validation feedback from overlapping button area */
         .valid-feedback,
         .invalid-feedback {
@@ -103,6 +124,27 @@
         .mb-3 {
             overflow: visible;
             position: relative;
+        }
+
+        /* Hide validation styling on submit to prevent white flash */
+        #loginForm.submitting .valid-feedback,
+        #loginForm.submitting .invalid-feedback {
+            display: none !important;
+        }
+
+        #loginForm.submitting .form-control.is-valid,
+        #loginForm.submitting .form-control.is-invalid,
+        #loginForm.submitting .form-select.is-valid,
+        #loginForm.submitting .form-select.is-invalid {
+            border-color: #ced4da !important;
+            background-image: none !important;
+        }
+
+        /* Ensure spinner has proper color */
+        #loginButton .spinner-border {
+            color: white;
+            border-color: currentColor;
+            border-right-color: transparent;
         }
     </style>
     <script>
@@ -151,6 +193,12 @@
 
             form.addEventListener('submit', function(e) {
                 if (form.checkValidity() && validateEmail(emailInput.value)) {
+                    form.classList.add('submitting');
+                    // Immediately blur any focused element to prevent white flash on Enter key
+                    if (document.activeElement) {
+                        document.activeElement.blur();
+                    }
+                    button.blur();
                     button.disabled = true;
                     spinner.classList.remove('d-none');
                     buttonText.textContent = 'Logging in...';
