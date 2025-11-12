@@ -130,6 +130,9 @@ namespace Hub.Controllers
             }
             connectionStringManager.SetConnectionString(connectionString + credentials);
 
+            // Fetch AccountsMode once for use in all code paths
+            var accountsMode = await despatchRepository.GetAccountsModeAsync();
+
             // For courier users, validate that tucCourier record exists in Despatch DB
             bool isCourier = masterUser.IsCourier ?? false;
             TucClientContact user = null;
@@ -163,7 +166,8 @@ namespace Hub.Controllers
                     masterUser.CurrentTenant.Code ?? "",
                     false, // Couriers are not internal tenant users
                     isCourier,
-                    courierId
+                    courierId,
+                    accountsMode
                 );
 
                 await SignInUserAsync(claims, model.RememberMe);
@@ -207,7 +211,9 @@ namespace Hub.Controllers
                     masterUser.CurrentTenant.TimeZone,
                     masterUser.CurrentTenant.Code ?? "",
                     user.UcctClient.UcclInternal,
-                    isCourier
+                    isCourier,
+                    null,
+                    accountsMode
                 );
 
                 await SignInUserAsync(claims, model.RememberMe);
@@ -290,6 +296,8 @@ namespace Hub.Controllers
             }
             connectionStringManager.SetConnectionString(connectionString + credentials);
 
+            // Fetch AccountsMode once for use in claims generation
+            var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
             var user = await despatchRepository.FetchUserByUsername(model.Email);
 
@@ -300,7 +308,6 @@ namespace Hub.Controllers
             }
 
             despatchRepository.UpdateUserAccessed(user.UcctId, false);
-
 
             var claims = GenerateClaims(
                 model.Email,
@@ -315,7 +322,9 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.TimeZone,
                 masterUser.CurrentTenant.Code ?? "",
                 user.UcctClient.UcclInternal,
-                masterUser.IsCourier ?? false
+                masterUser.IsCourier ?? false,
+                null,
+                accountsMode
             );
 
             await SignInUserAsync(claims, false);
@@ -444,7 +453,7 @@ namespace Hub.Controllers
             public string Hostname { get; set; }
         }
 
-        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode, bool internalTenantUser, bool isCourier = false, int? courierId = null)
+        private List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId, string clientId, string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode, bool internalTenantUser, bool isCourier = false, int? courierId = null, int? accountsMode = null)
         {
             return new List<Claim>
             {
@@ -461,7 +470,8 @@ namespace Hub.Controllers
                 new Claim("RememberMe", rememberMe.ToString()),
                 new Claim("Internal", internalTenantUser.ToString()),
                 new Claim("IsCourier", isCourier.ToString()),
-                new Claim("CourierID", courierId?.ToString() ?? "")
+                new Claim("CourierID", courierId?.ToString() ?? ""),
+                new Claim("AccountsMode", accountsMode?.ToString() ?? "1") // Default to 1 if not set
             };
         }
 
@@ -543,6 +553,9 @@ namespace Hub.Controllers
             }
             connectionStringManager.SetConnectionString(connectionString + credentials);
 
+            // Fetch AccountsMode once for use in claims generation
+            var accountsMode = await despatchRepository.GetAccountsModeAsync();
+
             var user = await despatchRepository.FetchUserByUsername(User.Identity?.Name);
 
             if (user == null)
@@ -569,7 +582,8 @@ namespace Hub.Controllers
                 masterUser.CurrentTenant.TimeZone,
                 masterUser.CurrentTenant.Code ?? "",
                 user.UcctClient.UcclInternal,
-                masterUser.IsCourier ?? false
+                masterUser.IsCourier ?? false,
+                accountsMode
             );
 
             await SignInUserAsync(claims, rememberMe);

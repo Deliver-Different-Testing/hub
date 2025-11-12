@@ -150,6 +150,30 @@ namespace Hub.Repositories
             }
         }
 
+        public async Task<int?> GetAccountsModeAsync()
+        {
+            LogConnectionDetails();
+            try
+            {
+                Log.Information("Fetching AccountsMode from TblSettings");
+
+                var settings = await context.TblSettings.FirstOrDefaultAsync();
+                if (settings == null)
+                {
+                    Log.Warning("TblSettings record not found");
+                    return null;
+                }
+
+                Log.Information($"AccountsMode: {settings.AccountsMode?.ToString() ?? "NULL"}");
+                return settings.AccountsMode;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error fetching AccountsMode from TblSettings");
+                return null;
+            }
+        }
+
         public async Task<bool> IsAfterHoursAuthorized(int courierId, int dayOfWeek)
         {
             LogConnectionDetails();
