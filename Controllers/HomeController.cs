@@ -105,13 +105,36 @@ namespace Hub.Controllers
                     return false;
                 }
 
-                // Get current day of week (0 = Sunday, 6 = Saturday)
-                int currentDayOfWeek = (int)DateTime.Now.DayOfWeek;
+                // Get tenant timezone from claims
+                var timeZoneClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TimeZone")?.Value;
+                DateTime tenantCurrentTime;
+
+                if (!string.IsNullOrEmpty(timeZoneClaim))
+                {
+                    try
+                    {
+                        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneClaim);
+                        tenantCurrentTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
+                    }
+                    catch (TimeZoneNotFoundException)
+                    {
+                        Log.Warning($"TimeZone '{timeZoneClaim}' not found, falling back to server time");
+                        tenantCurrentTime = DateTime.Now;
+                    }
+                }
+                else
+                {
+                    Log.Warning("TimeZone claim not found, falling back to server time");
+                    tenantCurrentTime = DateTime.Now;
+                }
+
+                // Get current day of week in tenant timezone (0 = Sunday, 6 = Saturday)
+                int currentDayOfWeek = (int)tenantCurrentTime.DayOfWeek;
 
                 // Check if courier is scheduled for after-hours on current day
                 var isAuthorized = await despatchRepository.IsAfterHoursAuthorized(courierId, currentDayOfWeek);
 
-                Log.Information($"AfterHours authorization check for courier {courierId} on {DateTime.Now.DayOfWeek}: {isAuthorized}");
+                Log.Information($"AfterHours authorization check for courier {courierId} on {tenantCurrentTime.DayOfWeek} (tenant time: {tenantCurrentTime:yyyy-MM-dd HH:mm:ss}, timezone: {timeZoneClaim ?? "N/A"}): {isAuthorized}");
 
                 return isAuthorized;
             }

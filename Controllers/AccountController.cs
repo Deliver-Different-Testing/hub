@@ -172,15 +172,8 @@ namespace Hub.Controllers
 
                 await SignInUserAsync(claims, model.RememberMe);
 
-                // Automatic redirect to CourierPortal for courier users
-                var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-                if (!string.IsNullOrEmpty(tenantUrl))
-                {
-                    var courierPortalUrl = tenantUrl.Replace("app_name", "courierportal");
-                    Log.Information($"Redirecting courier user {model.Email} to CourierPortal: {courierPortalUrl}");
-                    return Redirect(courierPortalUrl);
-                }
-
+                // Courier users stay on Hub to choose between Courier Portal and AfterHours
+                Log.Information($"Courier user {model.Email} logged in successfully, redirecting to Hub");
                 return RedirectToAction("Index", "Home");
             }
             else
