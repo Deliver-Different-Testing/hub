@@ -230,6 +230,128 @@ namespace Hub.Controllers
 
         }
 
+        //
+        // GET: /Account/CreditCard
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<ActionResult> CreditCard()
+        {
+            // Define the preset credentials
+            const string presetEmail = "creditcard@urgent.co.nz";
+            const string presetPassword = "AiZAy671pL";
+
+            // Create a login model with preset credentials
+            var model = new LoginViewModel
+            {
+                Email = presetEmail,
+                Password = presetPassword,
+                IsCourierLogin = false, // Set to true if this should be a courier login
+                RememberMe = false
+            };
+
+            // Get user by email and login type
+            var masterUser = await authenticationRepository.GetUserByEmail(model.Email, model.IsCourierLogin);
+
+            if (masterUser == null)
+            {
+                Log.Warning($"Credit card auto-login failed: user {model.Email} not found");
+                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+            }
+
+            if (masterUser.CurrentTenant == null)
+            {
+                Log.Warning($"Credit card auto-login failed: Current Tenant Not Set for user {model.Email}");
+                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+            }
+
+            var salted = masterUser.Salt;
+            var userPassword = masterUser.Password;
+
+            // Verify password
+            string hashedPassword;
+            if (masterUser.IsLegacyHash)
+            {
+                hashedPassword = PasswordHelper.HashPasswordLegacy(model.Password, salted);
+
+                if (hashedPassword != userPassword)
+                {
+                    Log.Warning($"Credit card auto-login failed: Invalid password for {model.Email}");
+                    return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+                }
+
+                // Upgrade to new hash
+                var newHash = PasswordHelper.HashPassword(model.Password, salted);
+                masterUser.Password = newHash;
+                masterUser.IsLegacyHash = false;
+                await authenticationRepository.SaveAsync();
+            }
+            else
+            {
+                hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
+
+                if (hashedPassword != userPassword)
+                {
+                    Log.Warning($"Credit card auto-login failed: Invalid password for {model.Email}");
+                    return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+                }
+            }
+
+            // Set connection string
+            var connectionString = masterUser.CurrentTenant.Dbconnection;
+            var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
+            if (string.IsNullOrEmpty(credentials))
+            {
+                throw new InvalidOperationException(
+                    "Could not find a environment variable string named 'SQLCredentials'.");
+            }
+            connectionStringManager.SetConnectionString(connectionString + credentials);
+
+            var accountsMode = await despatchRepository.GetAccountsModeAsync();
+            bool isCourier = masterUser.IsCourier ?? false;
+
+            var user = await despatchRepository.FetchUserByUsername(model.Email);
+
+            if (user == null)
+            {
+                Log.Warning($"Credit card auto-login failed: Despatch user {model.Email} not found");
+                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+            }
+
+            despatchRepository.UpdateUserAccessed(user.UcctId, false);
+
+            var claims = GenerateClaims(
+                model.Email,
+                masterUser.UserId,
+                masterUser.CurrentTenant.TenantId,
+                user.UcctId.ToString(),
+                user.UcctClientId.ToString(),
+                user.StaffId?.ToString() ?? "",
+                masterUser.CurrentTenant.Dbconnection,
+                false,
+                masterUser.CurrentTenant.CountryCode,
+                masterUser.CurrentTenant.TimeZone,
+                masterUser.CurrentTenant.Code ?? "",
+                user.UcctClient.UcclInternal,
+                isCourier,
+                null,
+                accountsMode
+            );
+
+            await SignInUserAsync(claims, false);
+
+            Log.Information($"Credit card user {model.Email} auto-logged in successfully");
+
+            var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
+            if (!string.IsNullOrEmpty(tenantUrl))
+            {
+                var bookingUrl = tenantUrl.Replace("app_name", "booking");
+                Log.Information($"Redirecting user {model.Email} to booking app with creca param: {bookingUrl}");
+                return Redirect(bookingUrl);
+            }
+
+            return RedirectToAction("Index", "Home");
+        }
+
         [AllowAnonymous]
         public async Task<ActionResult> ResetPassword(string code)
         {

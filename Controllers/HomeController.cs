@@ -66,8 +66,6 @@ namespace Hub.Controllers
             }
         }
 
-      
-        
         public string GetGreetingString()
         {
             string[] greetings = new string[] { "Hi", "Hello", "Welcome", "Greetings", "G'day", "Hey", "Good to see you,", "How are you", "Hope it's swell,", "How's it going", "What's good", "Howdy", "Kia ora", "Tēnā koe",
