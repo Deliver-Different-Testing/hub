@@ -181,9 +181,10 @@ namespace Hub.Repositories
             {
                 Log.Information($"Checking after-hours authorization for courier {courierId} on day {dayOfWeek}");
 
-                // Check if a tblAfterHoursCourier record exists for this courier and day of week
+                // Check if a tblAfterHoursCourier record exists for this courier.
+                // 2026-01-20 New logic from George - ignore day/time. Just existence of courier qualifies for auth.
                 var isAuthorized = await context.TblAfterhoursCouriers
-                    .AnyAsync(ah => ah.CourierId == courierId && ah.WeekDay == dayOfWeek);
+                    .AnyAsync(ah => ah.CourierId == courierId);
 
                 return isAuthorized;
             }
