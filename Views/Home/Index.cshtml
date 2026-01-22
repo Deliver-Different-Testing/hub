@@ -96,6 +96,15 @@ var ClientID = '@clientId';
         @if (isCourier)
         {
             <!-- Courier users only see CourierPortal and AfterHours -->
+            @if (ViewBag.ShowAfterHours == true)
+            {
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
+                        <i class="fas fa-moon"></i>
+                        <div class="text">After Hours</div>
+                    </div>
+                </div>
+            }
             <div class="row">
                 <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
@@ -103,30 +112,18 @@ var ClientID = '@clientId';
                         <div class="text">Courier Portal</div>
                     </div>
                 </div>
-                @if (ViewBag.ShowAfterHours == true)
-                {
-                    <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
-                            <i class="fas fa-moon"></i>
-                            <div class="text">After Hours</div>
-                        </div>
-                    </div>
-                }
             </div>
         }
         else if (!clientInternal)
         {
             <!-- External-only apps (clientInternal = false) -->
             <div class="row">
-                @if (bookJobPermission)
-                {
-                    <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@bookingAppFullUrl')">
-                            <i class="fas fa-atlas"></i>
-                            <div class="text">Booking Page</div>
-                        </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@bookingAppFullUrl')">
+                        <i class="fas fa-atlas"></i>
+                        <div class="text">Booking Page</div>
                     </div>
-                }
+                </div>
                 @if (bulkUploadPermission)
                 {
                     <div class="col-sm-4">
@@ -136,26 +133,32 @@ var ClientID = '@clientId';
                         </div>
                     </div>
                 }
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                        <i class="fas fa-route"></i>
-                        <div class="text">Tracker</div>
+                @if (!isUrgentAsureUser)
+                {
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
+                            <i class="fas fa-print"></i>
+                            <div class="text">Print</div>
+                        </div>
                     </div>
-                </div>
+                }
             </div>
 
             <!-- Second row - Route Viewer and Print -->
             <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                        <i class="fas fa-map-marked-alt"></i>
-                        <div class="text">Route Viewer</div>
+                @if (!isUrgentAsureUser)
+                {
+                    <div class="col-sm-4">
+                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <div class="text">Route Viewer</div>
+                        </div>
                     </div>
-                </div>
+                }
                 <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                        <i class="fas fa-print"></i>
-                        <div class="text">Print</div>
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
+                        <i class="fas fa-route"></i>
+                        <div class="text">Tracker</div>
                     </div>
                 </div>
             </div>
@@ -200,9 +203,9 @@ var ClientID = '@clientId';
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
-                        <i class="fas fa-window-maximize"></i>
-                        <div class="text">Dispatch</div>
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
+                        <i class="fas fa-dolly"></i>
+                        <div class="text">Courier Manager</div>
                     </div>
                 </div>
             </div>
@@ -210,21 +213,21 @@ var ClientID = '@clientId';
             <!-- Third row -->
             <div class="row">
                 <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
-                        <i class="fas fa-dolly"></i>
-                        <div class="text">Courier Manager</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
                     <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
                         <i class="fas fa-hamsa"></i>
                         <div class="text">Courier Portal</div>
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                        <i class="fas fa-route"></i>
-                        <div class="text">Tracker</div>
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
+                        <i class="fas fa-window-maximize"></i>
+                        <div class="text">Dispatch</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
+                        <i class="fas fa-print"></i>
+                        <div class="text">Print</div>
                     </div>
                 </div>
             </div>
@@ -244,9 +247,9 @@ var ClientID = '@clientId';
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                        <i class="fas fa-print"></i>
-                        <div class="text">Print</div>
+                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
+                        <i class="fas fa-route"></i>
+                        <div class="text">Tracker</div>
                     </div>
                 </div>
             </div>
