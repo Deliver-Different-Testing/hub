@@ -75,6 +75,9 @@ builder.Services.AddMemoryCache();
 // Add tenant logo service
 builder.Services.AddScoped<ITenantLogoService, TenantLogoService>();
 
+// Add tenant branding config service
+builder.Services.AddScoped<ITenantBrandingConfigService, TenantBrandingConfigService>();
+
 // AWS S3 Configuration
 builder.Services.AddSingleton<IAmazonS3>(serviceProvider =>
 {

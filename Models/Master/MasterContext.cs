@@ -15,6 +15,8 @@ public partial class MasterContext : DbContext
 
     public virtual DbSet<Tenant> Tenants { get; set; }
 
+    public virtual DbSet<TenantBranding> TenantBrandings { get; set; }
+
     public virtual DbSet<TenantUser> TenantUsers { get; set; }
 
     public virtual DbSet<TenantUserSetting> TenantUserSettings { get; set; }
@@ -43,6 +45,39 @@ public partial class MasterContext : DbContext
                 .IsRequired()
                 .HasMaxLength(500);
             entity.Property(e => e.TimeZone).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<TenantBranding>(entity =>
+        {
+            entity.HasKey(e => e.TenantId).HasName("PK__TenantBr__2E9B47E105574485");
+
+            entity.ToTable("TenantBranding");
+
+            entity.Property(e => e.TenantId).ValueGeneratedNever();
+            entity.Property(e => e.AccentColour).HasMaxLength(7);
+            entity.Property(e => e.AddressLine1).HasMaxLength(200);
+            entity.Property(e => e.AddressLine2).HasMaxLength(200);
+            entity.Property(e => e.AddressLine3).HasMaxLength(200);
+            entity.Property(e => e.City).HasMaxLength(100);
+            entity.Property(e => e.CompanyName)
+                .IsRequired()
+                .HasMaxLength(200);
+            entity.Property(e => e.Country).HasMaxLength(100);
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.DisclaimerText).HasMaxLength(2000);
+            entity.Property(e => e.Email).HasMaxLength(200);
+            entity.Property(e => e.FooterText).HasMaxLength(1000);
+            entity.Property(e => e.HeaderTextColour).HasMaxLength(7);
+            entity.Property(e => e.PaperSize)
+                .IsRequired()
+                .HasMaxLength(10)
+                .HasDefaultValue("A4");
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.PostalCode).HasMaxLength(20);
+            entity.Property(e => e.PrimaryColour).HasMaxLength(7);
+            entity.Property(e => e.Region).HasMaxLength(100);
+            entity.Property(e => e.UpdatedAtUtc).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.Website).HasMaxLength(200);
         });
 
         modelBuilder.Entity<TenantUser>(entity =>

@@ -4,18 +4,26 @@
    "ContextNamespace": null,
    "FilterSchemas": false,
    "IncludeConnectionString": false,
+   "IrregularWords": null,
+   "MinimumProductVersion": "2.6.1378",
    "ModelNamespace": null,
    "OutputContextPath": null,
    "OutputPath": "Models\\Master",
+   "PluralRules": null,
    "PreserveCasingWithRegex": true,
    "ProjectRootNamespace": "Hub",
    "Schemas": null,
    "SelectedHandlebarsLanguage": 2,
    "SelectedToBeGenerated": 0,
+   "SingularRules": null,
    "T4TemplatePath": null,
    "Tables": [
       {
          "Name": "[dbo].[Tenant]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[TenantBranding]",
          "ObjectType": 0
       },
       {
@@ -57,5 +65,6 @@
    "UseSchemaNamespaces": false,
    "UseSpatial": false,
    "UseT4": false,
-   "UseT4Split": false
+   "UseT4Split": false,
+   "UseTypedTvpParameters": true
 }

@@ -3,7 +3,16 @@
     "allow": [
       "Bash(dir \"C:\\GitLabRepos\\CourierPortal\" /s /b)",
       "Bash(findstr:*)",
-      "Bash(git -C \"C:/GitLabRepos/integration-manager\" log --oneline -20)"
+      "Bash(git -C \"C:/GitLabRepos/integration-manager\" log --oneline -20)",
+      "Bash(git -C \"C:\\\\GitLabRepos\\\\Hub\" log --oneline -10)",
+      "Bash(git -C \"C:\\\\GitLabRepos\\\\Hub\" status)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet add package:*)",
+      "Bash(dotnet restore:*)",
+      "WebFetch(domain:www.questpdf.com)",
+      "Bash(ls:*)",
+      "Bash(sort:*)",
+      "Bash(CI=true dotnet build:*)"
     ],
     "deny": [],
     "ask": []
