@@ -368,3 +368,5 @@ redis-tools/
 *.ps1
 /REDIS-AWS-ACCESS-GUIDE.md
 /REDIS-DEBUG-README.md
+/Reporting-Framework-Overview.pdf
+/reporting-overview.html
