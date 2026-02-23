@@ -22,8 +22,8 @@ public class TenantLogoService : ITenantLogoService
     private readonly string? _bucketName;
     private const string LogoKey = "tenantLogo.png";
     private readonly string? _fallbackLogoPath = "/images/deliverDifferentLogo.png";
-    private const string LogoCacheKey = "tenant_logo_url";
     private const int CacheDurationMinutes = 30;
+    private string LogoCacheKey => $"tenant_logo_url_{_bucketName}";
 
     public TenantLogoService(IAmazonS3 s3Client, IMemoryCache cache)
     {
