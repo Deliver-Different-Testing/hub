@@ -1,5 +1,4 @@
 using Amazon;
-using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using Amazon.S3;
@@ -10,6 +9,7 @@ using Hub.Repositories;
 using Hub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +20,7 @@ using Serilog;
 using StackExchange.Redis;
 using System;
 using System.IO;
+using System.Security.AccessControl;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,7 @@ if (string.IsNullOrEmpty(connectionString))
     throw new InvalidOperationException(
         "Could not find a connection string named 'MasterSQLConnection'.");
 }
+
 builder.Services.AddHealthChecks().AddSqlServer(connectionString);
 builder.Services.AddDbContext<MasterContext>(x =>
 {
@@ -49,7 +51,7 @@ builder.Services.AddDbContext<MasterContext>(x =>
 });
 
 // Register DespatchContext with a dummy connection string
-builder.Services.AddDbContext<DespatchContext>((serviceProvider, options) =>
+builder.Services.AddDbContext<DespatchContext>((_, options) =>
 {
     options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=dummy;Trusted_Connection=True;");
 });
@@ -79,7 +81,7 @@ builder.Services.AddScoped<ITenantLogoService, TenantLogoService>();
 builder.Services.AddScoped<ITenantBrandingConfigService, TenantBrandingConfigService>();
 
 // AWS S3 Configuration
-builder.Services.AddSingleton<IAmazonS3>(serviceProvider =>
+builder.Services.AddSingleton<IAmazonS3>(_ =>
 {
     var awsOptions = builder.Configuration.GetAWSOptions();
 
@@ -106,9 +108,10 @@ if (string.IsNullOrEmpty(redisConfig))
     throw new InvalidOperationException(
         "Could not find a Redis Env Var named 'RedisConfig'.");
 }
+
 var redisConfigurationOptions = ConfigurationOptions.Parse(redisConfig);
 // Add Redis Connection Multiplexer
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
     ConnectionMultiplexer.Connect(redisConfigurationOptions));
 
 
@@ -132,13 +135,13 @@ if (builder.Environment.IsDevelopment())
         {
             // Get current user's identity
             var currentUser = System.Security.Principal.WindowsIdentity.GetCurrent();
-            var fileSystemRights = System.Security.AccessControl.FileSystemRights.FullControl;
-            var inheritanceFlags = System.Security.AccessControl.InheritanceFlags.ContainerInherit |
-                                   System.Security.AccessControl.InheritanceFlags.ObjectInherit;
-            var propagationFlags = System.Security.AccessControl.PropagationFlags.None;
-            var accessControlType = System.Security.AccessControl.AccessControlType.Allow;
+            const FileSystemRights fileSystemRights = FileSystemRights.FullControl;
+            const InheritanceFlags inheritanceFlags = InheritanceFlags.ContainerInherit |
+                                                      InheritanceFlags.ObjectInherit;
+            const PropagationFlags propagationFlags = PropagationFlags.None;
+            const AccessControlType accessControlType = AccessControlType.Allow;
 
-            var accessRule = new System.Security.AccessControl.FileSystemAccessRule(
+            var accessRule = new FileSystemAccessRule(
                 currentUser.Name,
                 fileSystemRights,
                 inheritanceFlags,
@@ -151,20 +154,21 @@ if (builder.Environment.IsDevelopment())
         }
     }
 
-    builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory))
-        .SetApplicationName("DeliverDifferent")
-        .ProtectKeysWithDpapi();
+    if (OperatingSystem.IsWindows())
+    {
+        builder.Services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory))
+            .SetApplicationName("DeliverDifferent")
+            .ProtectKeysWithDpapi();
+    }
 
-    Log.Information($"DataProtection configured to use directory: {keyDirectory}");
-
+    Log.Information("DataProtection configured to use directory: {KeyDirectory}", keyDirectory);
 }
 else
 {
-    builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection").SetApplicationName("DeliverDifferent");
+    builder.Services.AddDataProtection().PersistKeysToAWSSystemsManager("/Hub/DataProtection")
+        .SetApplicationName("DeliverDifferent");
 }
-
-
 
 builder.Services.AddAuthentication("Identity.Application")
     .AddCookie("Identity.Application", options =>
@@ -176,10 +180,7 @@ builder.Services.AddAuthentication("Identity.Application")
         options.LoginPath = "/Account/Login";
         options.Cookie.HttpOnly = true;
         options.Cookie.Domain = domain;
-
-
     });
-
 
 builder.Services.AddSession(options =>
 {
@@ -189,7 +190,7 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 app.MapHealthChecks("/healthz");
-app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) => 
+app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) =>
     await diagnostics.RunDiagnosticsAsync());
 
 // Configure the HTTP request pipeline.
@@ -197,13 +198,12 @@ var provider = new FileExtensionContentTypeProvider { Mappings = { [".tpl"] = "t
 
 app.UseStaticFiles(new StaticFileOptions
 {
-
     ContentTypeProvider = provider,
     OnPrepareResponse = x =>
     {
-        x.Context.Response.Headers.Add("Cache-Control", "no-cache, no-store");
-        x.Context.Response.Headers.Add("Pragma", "no-cache");
-        x.Context.Response.Headers.Add("Expires", "0");
+        x.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store");
+        x.Context.Response.Headers.Append("Pragma", "no-cache");
+        x.Context.Response.Headers.Append("Expires", "0");
     }
 });
 
@@ -229,12 +229,8 @@ return;
 static AWSCredentials LoadSsoCredentials(string profile)
 {
     var chain = new CredentialProfileStoreChain();
-    if (!chain.TryGetAWSCredentials(profile, out var credentials))
-    {
-        // If the SSO credentials are not found, use FallbackCredentialsFactory to get credentials
-        credentials = FallbackCredentialsFactory.GetCredentials();
-        if (credentials == null)
-            throw new Exception($"Failed to find the {profile} profile or any fallback credentials");
-    }
-    return credentials;
+    if (chain.TryGetAWSCredentials(profile, out var credentials)) return credentials;
+    // If the SSO credentials are not found, use FallbackCredentialsFactory to get credentials
+    credentials = FallbackCredentialsFactory.GetCredentials();
+    return credentials ?? throw new Exception($"Failed to find the {profile} profile or any fallback credentials");
 }

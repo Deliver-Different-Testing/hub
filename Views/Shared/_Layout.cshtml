@@ -1,316 +1,324 @@
-﻿@using System.Security.Claims
-@using Hub.Services
-@using Microsoft.AspNetCore.Mvc.TagHelpers
+﻿@using Hub.Services
 @using Serilog
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - Deliver Different Hub</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" />
-    <link rel="stylesheet" href="~/css/styles.css" />
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="~/lib/mdb/dist/css/mdb.min.css"/>
+    <link rel="stylesheet" href="~/css/site.css"/>
+    <link rel="stylesheet" href="~/css/styles.css"/>
+    <!-- Material Symbols Outlined -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <!-- favicon -->
     <link rel="icon" href="~/images/favicon.ico?5" type="image/x-icon">
     <meta http-equiv="refresh" content="300">
 </head>
 <body id="@ViewBag.PageId">
-    <header>
-        @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
-        @{
-            var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
-        }
+<header>
+    @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+    @{
+        var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+    }
 
-        @inject ITenantService TenantService
-        @{
-            var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-            Log.Information($"[{timestamp}] Page rendering started");
+    @inject ITenantService TenantService
+    @{
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+        Log.Information("[{Timestamp}] Page rendering started", timestamp);
 
-            var userIdClaim = User.FindFirst("UserID");
-            var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
-            Log.Information($"[{timestamp}] UserID claim: {userIdClaim?.Value}");
-            Log.Information($"[{timestamp}] CurrentTenantID claim: {currentTenantIdClaim?.Value}");
+        var userIdClaim = User.FindFirst("UserID");
+        var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
+        Log.Information("[{Timestamp}] UserID claim: {Value}", timestamp, userIdClaim?.Value);
+        Log.Information("[{Timestamp}] CurrentTenantID claim: {Value}", timestamp, currentTenantIdClaim?.Value);
 
-            List<TenantViewModel> tenants = null;
-            int? currentTenantId = 0;
-            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+        List<TenantViewModel> tenants = null;
+        int? currentTenantId = 0;
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
+        {
+            var tenantList = await TenantService.GetTenantsForUserAsync(userId);
+            tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code = o.Code }).ToList();
+            Log.Information("[{Timestamp}] Fetched {TenantsCount} tenants for user {UserId}", timestamp, tenants.Count, userId);
+
+            if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out var orgId))
             {
-                var tenantList = await TenantService.GetTenantsForUserAsync(userId);
-                tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code = o.Code }).ToList();
-                Log.Information($"[{timestamp}] Fetched {tenants.Count} tenants for user {userId}");
-
-                if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out int orgId))
-                {
-                    currentTenantId = orgId;
-                    Log.Information($"[{timestamp}] Current tenant ID set to {currentTenantId}");
-
-                }
-                else
-                {
-                    Log.Warning($"[{timestamp}] Failed to parse current tenant ID from claim");
-                }
-            }
-
-            else
-            {
-                Log.Warning($"[{timestamp}] UserID claim is null or invalid");
-            }
-            // Determine if the user has any tenants
-            var hasTenants = tenants != null && tenants.Any();
-
-            // Get the current tenant name
-            var currentTenantCode = "";
-            if (hasTenants && currentTenantId.HasValue)
-            {
-                var currentTenant = tenants.FirstOrDefault(t => t.Id == currentTenantId.Value);
-                currentTenantCode = currentTenant?.Code ?? "";
-                Log.Information($"[{timestamp}] Current tenant code set to '{currentTenantCode}'");
+                currentTenantId = orgId;
+                Log.Information("[{Timestamp}] Current tenant ID set to {CurrentTenantId}", timestamp, currentTenantId);
             }
             else
             {
-                Log.Warning($"[{timestamp}] Unable to determine current tenant code. HasTenants: {hasTenants}, CurrentTenantId: {currentTenantId}");
+                Log.Warning("[{Timestamp}] Failed to parse current tenant ID from claim", timestamp);
             }
         }
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
-                    @await Component.InvokeAsync("TenantLogo", new { cssClass = "logo", alt = "Deliver Different" })
-                </a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <!-- Your other nav items here -->
-                    </ul>
-                    <ul class="navbar-nav align-items-center">
-                        @if (tenants != null && tenants.Any())
-                        {
-                            <li class="nav-item tenant-selector mr-3">
-                                <span class="tenant-label mr-2">Organizations:</span>
-                                <div class="dropdown">
-                                    <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        @(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")
-                                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                                    </button>
-                                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="tenantDropdown">
-                                        @foreach (var tenant in tenants)
-                                        {
-                                            <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : "")" href="#" data-tenant-code="@tenant.Code" data-tenant-id="@tenant.Id">@tenant.Name</a>
-                                        }
-                                    </div>
-                                </div>
-                            </li>
-                        }
-                        <li class="nav-item mr-3">
-                            <div class="profile-dropdown">
-                                <div class="profile-icon-username">
-                                    <i class="fas fa-user-circle profile-icon"></i>
-                                    <span class="username">@User.Identity?.Name</span>
-                                    <i class="fas fa-chevron-down dropdown-arrow"></i>
-                                </div>
-                                <div class="profile-menu">
-                                    <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
-                                        <i class="fas fa-cog menu-icon"></i>
-                                        Settings
-                                    </a>
-                                    <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
-                                        <i class="fas fa-sign-out-alt menu-icon"></i>
-                                        Logout
-                                    </a>
+
+        else
+        {
+            Log.Warning("[{Timestamp}] UserID claim is null or invalid", timestamp);
+        }
+
+        // Determine if the user has any tenants
+        var hasTenants = tenants != null && tenants.Any();
+
+        // Get the current tenant name
+        var currentTenantCode = "";
+        if (hasTenants && currentTenantId.HasValue)
+        {
+            var currentTenant = tenants.FirstOrDefault(t => t.Id == currentTenantId.Value);
+            currentTenantCode = currentTenant?.Code ?? "";
+            Log.Information("[{Timestamp}] Current tenant code set to '{CurrentTenantCode}'", timestamp, currentTenantCode);
+        }
+        else
+        {
+            Log.Warning("[{Timestamp}] Unable to determine current tenant code. HasTenants: {HasTenants}, CurrentTenantId: {CurrentTenantId}", timestamp, hasTenants, currentTenantId);
+        }
+    }
+    <nav class="navbar navbar-expand-sm mb-3">
+        <div class="container">
+            <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                @await Component.InvokeAsync("TenantLogo", new { cssClass = "logo", alt = "Deliver Different" })
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
+                    aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <ul class="navbar-nav flex-grow-1">
+                    <!-- Your other nav items here -->
+                </ul>
+                <ul class="navbar-nav align-items-center">
+                    @if (tenants != null && tenants.Any())
+                    {
+                        <li class="nav-item tenant-selector me-3">
+                            <span class="tenant-label me-2">Organizations:</span>
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown"
+                                        data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    @(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")
+                                    <span class="spinner-border spinner-border-sm d-none" role="status"
+                                          aria-hidden="true"></span>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="tenantDropdown">
+                                    @foreach (var tenant in tenants)
+                                    {
+                                        <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : "")"
+                                           href="#" data-tenant-code="@tenant.Code"
+                                           data-tenant-id="@tenant.Id">@tenant.Name</a>
+                                    }
                                 </div>
                             </div>
                         </li>
-                    </ul>
-                </div>
+                    }
+                    <li class="nav-item me-3">
+                        <div class="profile-dropdown">
+                            <div class="profile-icon-username">
+                                <span class="material-symbols-outlined profile-icon">account_circle</span>
+                                <span class="username">@User.Identity?.Name</span>
+                                <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
+                            </div>
+                            <div class="profile-menu">
+                                <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
+                                    <span class="material-symbols-outlined menu-icon">settings</span>
+                                    Settings
+                                </a>
+                                <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
+                                    <span class="material-symbols-outlined menu-icon">logout</span>
+                                    Logout
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
             </div>
-        </nav>
-    </header>
-    <div class="container" style="width:85%; max-width:1500px;">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted navbar-dark bg-black">
-        <div class="container">
-            <div class="text">&copy; 2024 - Deliver Different</div>
         </div>
-    </footer>
+    </nav>
+</header>
+<div class="container" style="width:85%; max-width:1500px;">
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
+</div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+<footer class="footer">
+    <div class="container">
+        <div class="text text-center">&copy; @DateTime.Now.Year - Deliver Different</div>
+    </div>
+</footer>
 
-    <script>
-        // Use sessionStorage to track if we've just changed the URL
-        function setUrlJustChanged() {
-            sessionStorage.setItem('urlJustChanged', 'true');
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/lib/mdb/dist/js/mdb.umd.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+
+<script>
+    // Use sessionStorage to track if we've just changed the URL
+    function setUrlJustChanged() {
+        sessionStorage.setItem('urlJustChanged', 'true');
+    }
+
+    function clearUrlJustChanged() {
+        sessionStorage.removeItem('urlJustChanged');
+    }
+
+    function wasUrlJustChanged() {
+        return sessionStorage.getItem('urlJustChanged') === 'true';
+    }
+
+    function getCurrentTenantNameFromUrl() {
+        let url = new URL(window.location.href);
+        let hostnameParts = url.hostname.split('.');
+        return hostnameParts[1]; // Assuming tenant name is always the second part
+    }
+
+    function replaceTenantNameAndRefresh(newTenantName) {
+        let url = new URL(window.location.href);
+        let hostnameParts = url.hostname.split('.');
+
+        if (newTenantName === "DFRNT") {
+            // Remove the tenant part completely
+            hostnameParts.splice(1, 1);
+        } else {
+            // Replace the tenant name as before
+            hostnameParts[1] = newTenantName;
         }
 
-        function clearUrlJustChanged() {
-            sessionStorage.removeItem('urlJustChanged');
-        }
+        // Filter out any empty parts to avoid double dots
+        hostnameParts = hostnameParts.filter(part => part !== '');
 
-        function wasUrlJustChanged() {
-            return sessionStorage.getItem('urlJustChanged') === 'true';
-        }
+        url.hostname = hostnameParts.join('.');
 
-        function getCurrentTenantNameFromUrl() {
-            let url = new URL(window.location.href);
-            let hostnameParts = url.hostname.split('.');
-            return hostnameParts[1]; // Assuming tenant name is always the second part
-        }
+        setUrlJustChanged();
 
-        function replaceTenantNameAndRefresh(newTenantName) {
-            let url = new URL(window.location.href);
-            let hostnameParts = url.hostname.split('.');
+        window.location.href = url.href;
+    }
 
-            if (newTenantName === "DFRNT") {
-                // Remove the tenant part completely
-                hostnameParts.splice(1, 1);
-            } else {
-                // Replace the tenant name as before
-                hostnameParts[1] = newTenantName;
+    function checkAndSyncTenantName(currentTenantName, hasTenants) {
+        if (!hasTenants) return; // Exit if user has no tenants
+
+        let urlTenantName = getCurrentTenantNameFromUrl();
+
+        if (urlTenantName === 'local' || urlTenantName === 'staging') {
+            if (typeof setTenantLoading === 'function') {
+                setTenantLoading(false);
             }
-
-            // Filter out any empty parts to avoid double dots
-            hostnameParts = hostnameParts.filter(part => part !== '');
-
-            url.hostname = hostnameParts.join('.');
-
-            setUrlJustChanged();
-
-            window.location.href = url.href;
-        }
-
-        function checkAndSyncTenantName(currentTenantName, hasTenants) {
-            if (!hasTenants) return; // Exit if user has no tenants
-
-            let urlTenantName = getCurrentTenantNameFromUrl();
-
-            if (urlTenantName == 'local' || urlTenantName == 'staging') {
-                if (typeof setTenantLoading === 'function') {
-                    setTenantLoading(false);
-                }
             return; //Exit if local developer or dfrnt staging we don't want to change URL
         }
 
-            if (urlTenantName !== currentTenantName) {
-                replaceTenantNameAndRefresh(currentTenantName);
+        if (urlTenantName !== currentTenantName) {
+            replaceTenantNameAndRefresh(currentTenantName);
+        }
+    }
+
+    // This function will be called when the page loads
+    function initTenantSync(currentTenantName, hasTenants) {
+        if (wasUrlJustChanged()) {
+            clearUrlJustChanged(); // Clear the flag
+            return; // Exit without checking if we just changed the URL
+        }
+        checkAndSyncTenantName(currentTenantName, hasTenants);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if the dropdown menu exists
+        var dropdownMenu = document.querySelector('.dropdown-menu');
+        const tenantDropdown = document.getElementById('tenantDropdown');
+
+        // Create a safe tenant loading function that checks if elements exist
+        function setTenantLoading(isLoading) {
+            if (!tenantDropdown) return; // Exit if element doesn't exist
+
+            tenantDropdown.disabled = isLoading;
+
+            const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
+            if (tenantSpinner) {
+                tenantSpinner.classList.toggle('d-none', !isLoading);
             }
         }
 
-        // This function will be called when the page loads
-        function initTenantSync(currentTenantName, hasTenants) {
-            if (wasUrlJustChanged()) {
-                clearUrlJustChanged(); // Clear the flag
-                return; // Exit without checking if we just changed the URL
-            }
-            checkAndSyncTenantName(currentTenantName, hasTenants);
-        }
+        // Only add event listener if dropdown exists
+        if (dropdownMenu) {
+            dropdownMenu.addEventListener('click', function (e) {
+                if (e.target && e.target.nodeName === 'A') {
+                    e.preventDefault();
+                    const selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
+                    const selectedTenantCode = e.target.getAttribute('data-tenant-code');
+                    const selectedTenantName = e.target.textContent;
 
-                document.addEventListener('DOMContentLoaded', function () {
-            // Check if the dropdown menu exists
-            var dropdownMenu = document.querySelector('.dropdown-menu');
-            const tenantDropdown = document.getElementById('tenantDropdown');
+                    setTenantLoading(true);
 
-            // Create a safe tenant loading function that checks if elements exist
-            function setTenantLoading(isLoading) {
-                if (!tenantDropdown) return; // Exit if element doesn't exist
-
-                tenantDropdown.disabled = isLoading;
-
-                const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
-                if (tenantSpinner) {
-                    tenantSpinner.classList.toggle('d-none', !isLoading);
-                }
-            }
-
-            // Only add event listener if dropdown exists
-            if (dropdownMenu) {
-                dropdownMenu.addEventListener('click', function (e) {
-                    if (e.target && e.target.nodeName == 'A') {
-                        e.preventDefault();
-                        var selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
-                        var selectedTenantCode = e.target.getAttribute('data-tenant-code');
-                        var selectedTenantName = e.target.textContent;
-
-                        setTenantLoading(true);
-
-                        fetch('/Account/UpdateCurrentTenant', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'RequestVerificationToken': '@requestToken'
-                            },
-                            body: JSON.stringify({ tenantId: selectedTenantId })
-                        })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    if (tenantDropdown) {
-                                        tenantDropdown.textContent = selectedTenantName + ' ';
-                                        const spinner = tenantDropdown.querySelector('.spinner-border');
-                                        if (spinner) {
-                                            tenantDropdown.appendChild(spinner);
-                                        }
+                    fetch('/Account/UpdateCurrentTenant', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': '@requestToken'
+                        },
+                        body: JSON.stringify({tenantId: selectedTenantId})
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                if (tenantDropdown) {
+                                    tenantDropdown.textContent = selectedTenantName + ' ';
+                                    const spinner = tenantDropdown.querySelector('.spinner-border');
+                                    if (spinner) {
+                                        tenantDropdown.appendChild(spinner);
                                     }
-
-                                    let urlTenantName = getCurrentTenantNameFromUrl();
-
-                                    if (urlTenantName == 'local' || urlTenantName == 'staging') {
-                                        setTenantLoading(false);
-                                        return; //Exit if local developer or dfrnt staging we don't want to change URL
-                                    }
-                                    replaceTenantNameAndRefresh(selectedTenantCode);
-                                } else {
-                                    console.error('Failed to update tenant');
-                                    setTenantLoading(false);
                                 }
-                            })
-                            .catch(error => {
-                                console.error('Error updating tenant:', error);
+
+                                let urlTenantName = getCurrentTenantNameFromUrl();
+
+                                if (urlTenantName === 'local' || urlTenantName === 'staging') {
+                                    setTenantLoading(false);
+                                    return; //Exit if local developer or dfrnt staging we don't want to change URL
+                                }
+                                replaceTenantNameAndRefresh(selectedTenantCode);
+                            } else {
+                                console.error('Failed to update tenant');
                                 setTenantLoading(false);
-                            });
-                    }
-                });
-            }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error updating tenant:', error);
+                            setTenantLoading(false);
+                        });
+                }
+            });
+        }
 
-            // Handle profile dropdown - add null checks
-            const profileDropdown = document.querySelector('.profile-dropdown');
-            const profileIconUsername = document.querySelector('.profile-icon-username');
-            const profileMenu = document.querySelector('.profile-menu');
+        // Handle profile dropdown - add null checks
+        const profileDropdown = document.querySelector('.profile-dropdown');
+        const profileIconUsername = document.querySelector('.profile-icon-username');
+        const profileMenu = document.querySelector('.profile-menu');
 
-            // Only set up profile dropdown if all elements exist
-            if (profileDropdown && profileIconUsername && profileMenu) {
-                profileIconUsername.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    profileDropdown.classList.toggle('active');
-                    profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
-                });
+        // Only set up profile dropdown if all elements exist
+        if (profileDropdown && profileIconUsername && profileMenu) {
+            profileIconUsername.addEventListener('click', function (e) {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('active');
+                profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
+            });
 
-                document.addEventListener('click', function (e) {
-                    if (!profileDropdown.contains(e.target)) {
-                        profileDropdown.classList.remove('active');
-                        profileMenu.style.display = 'none';
-                    }
-                });
-            }
+            document.addEventListener('click', function (e) {
+                if (!profileDropdown.contains(e.target)) {
+                    profileDropdown.classList.remove('active');
+                    profileMenu.style.display = 'none';
+                }
+            });
+        }
 
-            console.log('Current URL at DOMContentLoaded:', window.location.href);
+        console.log('Current URL at DOMContentLoaded:', window.location.href);
 
-            // Make sure initTenantSync is defined before calling it
-            if (typeof initTenantSync === 'function') {
-                initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
-            }
-        });
-    </script>
+        // Make sure initTenantSync is defined before calling it
+        if (typeof initTenantSync === 'function') {
+            initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
+        }
+    });
+</script>
 
-    @await RenderSectionAsync("Scripts", required: false)
+@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

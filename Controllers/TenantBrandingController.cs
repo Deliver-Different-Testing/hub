@@ -13,10 +13,7 @@ public class TenantBrandingController(ITenantBrandingConfigService tenantBrandin
     public async Task<IActionResult> GetReportConfig(int tenantId)
     {
         var config = await tenantBrandingConfigService.GetReportConfigAsync(tenantId);
-        if (config == null)
-        {
-            return NotFound();
-        }
+        if (config == null) return NotFound();
 
         return Ok(config);
     }
