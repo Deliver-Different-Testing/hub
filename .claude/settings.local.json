@@ -12,7 +12,8 @@
       "WebFetch(domain:www.questpdf.com)",
       "Bash(ls:*)",
       "Bash(sort:*)",
-      "Bash(CI=true dotnet build:*)"
+      "Bash(CI=true dotnet build:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
