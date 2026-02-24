@@ -1,4 +1,3 @@
-﻿@using System.Security.Claims
 @using Hub.Services
 @{
     ViewData["Title"] = "Home page";
@@ -7,7 +6,7 @@
 @{
     var clientId = ViewBag.ClientID;
 
-    bool clientInternal = false;
+    var clientInternal = false;
     if (ViewBag.ClientInternal != null)
     {
         if (ViewBag.ClientInternal is bool)
@@ -21,24 +20,15 @@
     }
 
     // Check if user is a courier
-    bool isCourier = false;
+    var isCourier = false;
     var isCourierClaim = User.FindFirst("IsCourier")?.Value;
     if (!string.IsNullOrEmpty(isCourierClaim))
     {
         bool.TryParse(isCourierClaim, out isCourier);
     }
 
-    // var clientName = ViewBag.ClientName;
-    // var clientCreated = ViewBag.ClientCreated;
-    //var clientStripe = ViewBag.ClientStripe;
-
     var contactId = ViewBag.ContactID;
-    // var contactName = ViewBag.ContactName;
-    // var contactFullName = ViewBag.ContactFullName;
-    // var contactEmail = ViewBag.ContactEmail;
-    // var contactCreated = ViewBag.ContactCreated;
     var greetingString = ViewBag.GreetingString;
-    // var despatchWebPermission = ViewBag.DespatchWebPermission;
     var userEmail = ViewBag.UserEmail;
     var tenantCode = ViewBag.TenantCode;
 
@@ -52,7 +42,7 @@
     var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
     var bookingAppFullUrl = bookingAppUrl + bookingAppPath;
 
-    bool bookJobPermission = false;
+    var bookJobPermission = false;
     if (ViewBag.BookJobPermission != null)
     {
         if (ViewBag.BookJobPermission is bool)
@@ -65,7 +55,7 @@
         }
     }
 
-    bool bulkUploadPermission = false;
+    var bulkUploadPermission = false;
     if (ViewBag.BulkUploadPermission != null)
     {
         if (ViewBag.BulkUploadPermission is bool)
@@ -79,189 +69,114 @@
     }
 }
 <script>
-var ClientID = '@clientId';
+    var ClientID = '@clientId';
     var ContactID = '@contactId';
     var GreetingString = '@greetingString';
 </script>
 
-<div class="text-center">
-    <div style="padding-bottom:8px;">
-        @await Component.InvokeAsync("TenantLogo", new { cssClass = "logo", alt = "Deliver Different" })
-    </div>
-    <h4 style="color: #283DB8; ">App Hub</h4>
-</div>
-
 <div id="urgent-hub">
-    <div class="dash-boxes container-fluid">
+    <div class="hub-header">
+        @await Component.InvokeAsync("TenantLogo", new { cssClass = "logo", alt = "Deliver Different" })
+        <h4>App Hub</h4>
+    </div>
+
+    <div class="app-grid">
         @if (isCourier)
         {
-            <!-- Courier users only see CourierPortal and AfterHours -->
             @if (ViewBag.ShowAfterHours == true)
             {
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
-                        <i class="fas fa-moon"></i>
-                        <div class="text">After Hours</div>
-                    </div>
+                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
+                    <div class="app-card-icon"><span class="material-symbols-outlined">dark_mode</span></div>
+                    <div class="app-card-title">After Hours</div>
                 </div>
             }
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                        <i class="fas fa-hamsa"></i>
-                        <div class="text">Courier Portal</div>
-                    </div>
-                </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">local_shipping</span></div>
+                <div class="app-card-title">Courier Portal</div>
             </div>
         }
         else if (!clientInternal)
         {
-            <!-- External-only apps (clientInternal = false) -->
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@bookingAppFullUrl')">
-                        <i class="fas fa-atlas"></i>
-                        <div class="text">Booking Page</div>
-                    </div>
-                </div>
-                @if (bulkUploadPermission)
-                {
-                    <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
-                            <i class="fas fa-file-import"></i>
-                            <div class="text">Bulk Import</div>
-                        </div>
-                    </div>
-                }
-                @if (!isUrgentAsureUser)
-                {
-                    <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                            <i class="fas fa-print"></i>
-                            <div class="text">Print</div>
-                        </div>
-                    </div>
-                }
+            <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">menu_book</span></div>
+                <div class="app-card-title">Booking Page</div>
             </div>
-
-            <!-- Second row - Route Viewer and Print -->
-            <div class="row">
-                @if (!isUrgentAsureUser)
-                {
-                    <div class="col-sm-4">
-                        <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                            <i class="fas fa-map-marked-alt"></i>
-                            <div class="text">Route Viewer</div>
-                        </div>
-                    </div>
-                }
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                        <i class="fas fa-route"></i>
-                        <div class="text">Tracker</div>
-                    </div>
+            @if (bulkUploadPermission)
+            {
+                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
+                    <div class="app-card-icon"><span class="material-symbols-outlined">upload_file</span></div>
+                    <div class="app-card-title">Bulk Import</div>
                 </div>
+            }
+            @if (!isUrgentAsureUser)
+            {
+                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
+                    <div class="app-card-icon"><span class="material-symbols-outlined">print</span></div>
+                    <div class="app-card-title">Print</div>
+                </div>
+                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+                    <div class="app-card-icon"><span class="material-symbols-outlined">map</span></div>
+                    <div class="app-card-title">Route Viewer</div>
+                </div>
+            }
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
+                <div class="app-card-title">Tracker</div>
             </div>
         }
         else
         {
-            <!-- All apps for internal users (clientInternal = true) in original order -->
-            <!-- First row -->
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accounts")')">
-                        <i class="fas fa-street-view"></i>
-                        <div class="text">Accounts</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "adminmanager")')">
-                        <i class="fas fa-cogs"></i>
-                        <div class="text">Admin Manager</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@bookingAppFullUrl')">
-                        <i class="fas fa-atlas"></i>
-                        <div class="text">Booking Page</div>
-                    </div>
-                </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accounts")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">account_balance</span></div>
+                <div class="app-card-title">Accounts</div>
             </div>
-
-            <!-- Second row -->
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
-                        <i class="fas fa-file-import"></i>
-                        <div class="text">Bulk Import</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "clientmanager")')">
-                        <i class="fas fa-user-plus"></i>
-                        <div class="text">Client Manager</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
-                        <i class="fas fa-dolly"></i>
-                        <div class="text">Courier Manager</div>
-                    </div>
-                </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "adminmanager")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">admin_panel_settings</span></div>
+                <div class="app-card-title">Admin Manager</div>
             </div>
-
-            <!-- Third row -->
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                        <i class="fas fa-hamsa"></i>
-                        <div class="text">Courier Portal</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
-                        <i class="fas fa-window-maximize"></i>
-                        <div class="text">Dispatch</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                        <i class="fas fa-print"></i>
-                        <div class="text">Print</div>
-                    </div>
-                </div>
+            <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">menu_book</span></div>
+                <div class="app-card-title">Booking Page</div>
             </div>
-
-            <!-- Fourth row -->
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                        <i class="fas fa-map-marked-alt"></i>
-                        <div class="text">Route Viewer</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
-                        <i class="fas fa-project-diagram"></i>
-                        <div class="text">Route Builder</div>
-                    </div>
-                </div>
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                        <i class="fas fa-route"></i>
-                        <div class="text">Tracker</div>
-                    </div>
-                </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">upload_file</span></div>
+                <div class="app-card-title">Bulk Import</div>
             </div>
-
-            <!-- Fifth row -->
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="dash-box icon" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "integrationmanager")' + '/auth/entry')">
-                        <i class="fas fa-plug"></i>
-                        <div class="text">Integration Manager</div>
-                    </div>
-                </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "clientmanager")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">person_add</span></div>
+                <div class="app-card-title">Client Manager</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">package_2</span></div>
+                <div class="app-card-title">Courier Manager</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">local_shipping</span></div>
+                <div class="app-card-title">Courier Portal</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">desktop_windows</span></div>
+                <div class="app-card-title">Dispatch</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">print</span></div>
+                <div class="app-card-title">Print</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">map</span></div>
+                <div class="app-card-title">Route Viewer</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">account_tree</span></div>
+                <div class="app-card-title">Route Builder</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
+                <div class="app-card-title">Tracker</div>
+            </div>
+            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "integrationmanager")' + '/auth/entry')">
+                <div class="app-card-icon"><span class="material-symbols-outlined">extension</span></div>
+                <div class="app-card-title">Integration Manager</div>
             </div>
         }
     </div>

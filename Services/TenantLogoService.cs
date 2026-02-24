@@ -19,9 +19,9 @@ public class TenantLogoService : ITenantLogoService
 {
     private readonly IAmazonS3 _s3Client;
     private readonly IMemoryCache _cache;
-    private readonly string? _bucketName;
+    private readonly string _bucketName;
     private const string LogoKey = "tenantLogo.png";
-    private readonly string? _fallbackLogoPath = "/images/deliverDifferentLogo.png";
+    private const string FallbackLogoPath = "/images/DFRNT_HorizLogo_RGB.png";
     private const int CacheDurationMinutes = 30;
     private string LogoCacheKey => $"tenant_logo_url_{_bucketName}";
 
@@ -31,22 +31,19 @@ public class TenantLogoService : ITenantLogoService
         _cache = cache;
         _bucketName = Environment.GetEnvironmentVariable("S3BucketBulk");
 
-        if (string.IsNullOrEmpty(_bucketName))
-        {
-            Log.Warning("S3BucketBulk environment variable not set");
-        }
+        if (string.IsNullOrEmpty(_bucketName)) Log.Warning("S3BucketBulk environment variable not set");
     }
 
-    public async Task<string?> GetLogoUrlAsync()
+    public async Task<string> GetLogoUrlAsync()
     {
         // Check cache first
-        if (_cache.TryGetValue(LogoCacheKey, out string? cachedUrl))
+        if (_cache.TryGetValue(LogoCacheKey, out string cachedUrl))
         {
             Log.Debug("Retrieved tenant logo URL from cache: {LogoUrl}", cachedUrl);
             return cachedUrl;
         }
 
-        string? logoUrl = _fallbackLogoPath;
+        var logoUrl = FallbackLogoPath;
         Log.Information("S3BucketBulk environment variable value: {BucketName}", _bucketName ?? "null");
 
         try
@@ -92,10 +89,7 @@ public class TenantLogoService : ITenantLogoService
         }
     }
 
-    public async Task<bool> LogoExistsAsync()
-    {
-        return await LogoExistsInS3Async();
-    }
+    public async Task<bool> LogoExistsAsync() => await LogoExistsInS3Async();
 
     public void ClearCache()
     {
@@ -138,9 +132,10 @@ public class TenantLogoService : ITenantLogoService
                 _bucketName, ex.ErrorCode, ex.Message);
             return false;
         }
-        catch (Amazon.Runtime.Internal.HttpErrorResponseException ex)
+        catch (HttpErrorResponseException ex)
         {
-            Log.Error(ex, "HTTP error connecting to S3 for bucket {BucketName} - possible credential or network issue", _bucketName);
+            Log.Error(ex, "HTTP error connecting to S3 for bucket {BucketName} - possible credential or network issue",
+                _bucketName);
             return false;
         }
         catch (Exception ex)

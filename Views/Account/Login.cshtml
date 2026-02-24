@@ -1,4 +1,4 @@
-﻿@model LoginViewModel
+@model LoginViewModel
 @{
     ViewBag.Title = "Log in";
     ViewBag.PageTitle = "Login";
@@ -7,126 +7,122 @@
     ViewBag.PageDescription = "";
 }
 
-<div class="login container">
-    <h2 class="text-center mb-4">Login</h2>
-    <div class="box mb-4">
-        <div class="icon">
-            <i class="fa fa-map-marker-alt"></i>
-        </div>
-        Login to our customer area
-    </div>
-
-    <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewBag.ReturnUrl" method="post" class="needs-validation" novalidate id="loginForm">
-        @Html.AntiForgeryToken()
-        @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
-
-        <div class="mb-3">
-            <label asp-for="Email" class="form-label">Email</label>
-            <input asp-for="Email" class="form-control" required type="email" />
-            <div class="invalid-feedback">
-                Please enter a valid email address.
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <label asp-for="Password" class="form-label">Password</label>
-            <input asp-for="Password" class="form-control" type="password" required />
-            <div class="invalid-feedback">
-                Please enter your password.
-            </div>
-        </div>
-
-        <div class="mb-4">
-            <label asp-for="IsCourierLogin" class="form-label">Login Type</label>
-            <select asp-for="IsCourierLogin" class="form-select" required>
-                <option value="false" selected>Staff Login</option>
-                <option value="true">Courier Login</option>
-            </select>
-            <div class="valid-feedback">
-                Looks good!
-            </div>
-        </div>
-
-        <div class="mb-4 form-check">
-            <input asp-for="RememberMe" type="checkbox" class="form-check-input" />
-            <label asp-for="RememberMe" class="form-check-label">Remember me?</label>
-        </div>
-
-        <div class="text-center mb-3" style="margin-top: 6rem;">
-            <button type="submit" class="btn btn-primary" id="loginButton">
-                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                <span class="button-text">Log in</span>
-            </button>
-        </div>
-
+<div class="auth-wrapper">
+    <div class="auth-card">
         <div class="text-center">
-            <a asp-action="ForgotPassword" asp-controller="Account">Forgot your password?</a>
+            <img src="~/images/Atomloop.gif" alt="Atomloop Logo" class="auth-logo" />
         </div>
-    </form>
+        <h2>Welcome back</h2>
+        <p class="auth-subtitle">Sign in to your account</p>
+
+        <div class="auth-info-box">
+            <div class="icon">
+                <span class="material-symbols-outlined">location_on</span>
+            </div>
+            Login to our customer area
+        </div>
+
+        <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewBag.ReturnUrl" method="post" class="needs-validation" novalidate id="loginForm">
+            @Html.AntiForgeryToken()
+            @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label">Email</label>
+                <input asp-for="Email" class="form-control" required type="email" placeholder="you@company.com" />
+                <div class="invalid-feedback">
+                    Please enter a valid email address.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label">Password</label>
+                <input asp-for="Password" class="form-control" type="password" required placeholder="Enter your password" />
+                <div class="invalid-feedback">
+                    Please enter your password.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="IsCourierLogin" class="form-label">Login Type</label>
+                <select asp-for="IsCourierLogin" class="form-select" required>
+                    <option value="false" selected>Customer Login</option>
+                    <option value="true">Courier Login</option>
+                </select>
+                <div class="valid-feedback">
+                    Looks good!
+                </div>
+            </div>
+
+            <div class="mb-4 form-check d-flex justify-content-center">
+                <input asp-for="RememberMe" type="checkbox" class="form-check-input" />
+                <label asp-for="RememberMe" class="form-check-label">Remember me</label>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary" id="loginButton">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    <span class="button-text">Log in</span>
+                </button>
+            </div>
+
+            <div class="text-center">
+                <a asp-action="ForgotPassword" asp-controller="Account">Forgot your password?</a>
+            </div>
+        </form>
+    </div>
 </div>
 
 @section Scripts {
     <style>
-        /* Prevent button validation styling interference */
+        /* Login button state management */
         #loginButton {
             position: relative;
             z-index: 1;
         }
 
         #loginButton:disabled {
-            opacity: 0.9;
+            opacity: 0.85;
         }
 
-        /* Ensure spinner and text are properly layered */
         #loginButton .spinner-border,
         #loginButton .button-text {
             position: relative;
             z-index: 2;
         }
 
-        /* Prevent any validation feedback from affecting the button */
         .was-validated #loginButton,
         .was-validated #loginButton:disabled {
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
+            background-color: var(--dd-primary) !important;
+            border-color: var(--dd-primary) !important;
         }
 
-        /* Override all button states to prevent white flash */
         #loginButton:hover,
         #loginButton:focus,
         #loginButton:active,
         #loginButton:focus-visible {
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
+            background-color: var(--dd-primary-hover) !important;
+            border-color: var(--dd-primary-hover) !important;
             color: white !important;
             outline: none !important;
-            box-shadow: none !important;
         }
 
-        /* Prevent any transitions that might cause flashing */
-        #loginButton {
-            transition: none !important;
+        #loginButton:active {
+            background-color: var(--dd-primary-active) !important;
+            border-color: var(--dd-primary-active) !important;
         }
 
+        #loginButton,
         #loginButton * {
             transition: none !important;
         }
 
-        /* Prevent validation feedback from overlapping button area */
         .valid-feedback,
         .invalid-feedback {
             position: relative;
             z-index: 0;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
         }
 
-        /* Ensure form fields contain their feedback */
-        .mb-3 {
-            overflow: visible;
-            position: relative;
-        }
-
-        /* Hide validation styling on submit to prevent white flash */
         #loginForm.submitting .valid-feedback,
         #loginForm.submitting .invalid-feedback {
             display: none !important;
@@ -136,11 +132,10 @@
         #loginForm.submitting .form-control.is-invalid,
         #loginForm.submitting .form-select.is-valid,
         #loginForm.submitting .form-select.is-invalid {
-            border-color: #ced4da !important;
+            border-color: var(--dd-outline) !important;
             background-image: none !important;
         }
 
-        /* Ensure spinner has proper color */
         #loginButton .spinner-border {
             color: white;
             border-color: currentColor;
@@ -194,7 +189,6 @@
             form.addEventListener('submit', function(e) {
                 if (form.checkValidity() && validateEmail(emailInput.value)) {
                     form.classList.add('submitting');
-                    // Immediately blur any focused element to prevent white flash on Enter key
                     if (document.activeElement) {
                         document.activeElement.blur();
                     }

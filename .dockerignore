@@ -1,0 +1,5 @@
+Hub.Tests/
+Hub.sln
+**/.git
+**/bin
+**/obj

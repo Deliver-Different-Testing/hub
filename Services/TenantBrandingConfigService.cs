@@ -53,10 +53,4 @@ public class TenantBrandingConfigService(
             CountryCode = tenant.CountryCode
         };
     }
-
-    public async Task<bool> UserHasAccessToTenantAsync(int userId, int tenantId)
-    {
-        return await context.TenantUsers
-            .AnyAsync(tu => tu.UserId == userId && tu.TenantId == tenantId);
-    }
 }

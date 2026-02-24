@@ -1,14 +1,12 @@
-﻿namespace Hub.Models
+﻿namespace Hub.Models;
+
+public class SaltHashed
 {
-    public class SaltHashed
-    {
-        #region Properties
+    #region Properties
 
-        public string Salt { get; set; }
+    public string Salt { get; set; }
 
-        public string Hashed { get; set; }
+    public string Hashed { get; set; }
 
-
-        #endregion Properties
-    }
+    #endregion Properties
 }

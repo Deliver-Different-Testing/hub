@@ -16,17 +16,16 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
             var logoUrl = await tenantLogoService.GetLogoUrlAsync();
 
             // If it's a local path, serve the file directly
-            if (logoUrl != null && logoUrl.StartsWith("/"))
-            {
-                return Json(new { success = true, logoUrl = logoUrl, isLocal = true });
-            }
+            if (logoUrl != null && logoUrl.StartsWith('/'))
+                return Json(new { success = true, logoUrl, isLocal = true });
 
             // If it's an S3 URL, return the pre-signed URL
-            return Json(new { success = true, logoUrl = logoUrl, isLocal = false });
+            return Json(new { success = true, logoUrl, isLocal = false });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return Json(new { success = false, message = "Error retrieving logo", logoUrl = "/images/deliverDifferentLogo.png" });
+            return Json(new
+                { success = false, message = "Error retrieving logo", logoUrl = "/images/DFRNT_HorizLogo_RGB.png" });
         }
     }
 
@@ -36,7 +35,7 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
         try
         {
             var exists = await tenantLogoService.LogoExistsAsync();
-            return Json(new { success = true, exists = exists });
+            return Json(new { success = true, exists });
         }
         catch (Exception ex)
         {
@@ -52,7 +51,7 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
             tenantLogoService.ClearCache();
             return Json(new { success = true, message = "Cache cleared successfully" });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Json(new { success = false, message = "Error clearing cache" });
         }

@@ -1,11 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Hub.ViewModels
+namespace Hub.ViewModels;
+
+public class ForgotPasswordViewModel
 {
-    public class ForgotPasswordViewModel
-    {
-        [Required]
-        [Display(Name = "Email")]
-        public string Email { get; set; }
-    }
+    [Required]
+    [Display(Name = "Email")]
+    public string Email { get; init; }
 }

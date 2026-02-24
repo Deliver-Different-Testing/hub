@@ -2,3 +2,21 @@ include:
   - project: 'urgent-couriers/ci-templates'
     file: 'ci-template.yml'
     ref: 'main'
+
+unit-tests:
+  stage: .pre
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  allow_failure: false
+  script:
+    - dotnet restore
+    - dotnet test Hub.Tests/ --no-restore --verbosity normal --logger "junit;LogFilePath=results.xml" --logger "trx;LogFilePath=results.trx"
+  artifacts:
+    when: always
+    paths:
+      - Hub.Tests/results.xml
+      - Hub.Tests/results.trx
+    reports:
+      junit: Hub.Tests/results.xml
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "master"
