@@ -1,17 +1,10 @@
 @model Hub.ViewComponents.TenantLogoViewComponent.TenantLogoViewModel
-@using Serilog
-
-@{
-    Log.Information("Rendering logo view - LogoUrl: {LogoUrl}, CssClass: {CssClass}, IsS3Logo: {IsS3Logo}",
-        Model.LogoUrl ?? "null", Model.CssClass ?? "null", Model.IsS3Logo);
-}
 
 <img src="@Model.LogoUrl"
      alt="@Model.AltText"
      class="@Model.CssClass @(Model.IsS3Logo ? "s3-logo" : "local-logo")"
      loading="lazy"
-     onerror="console.error('Failed to load logo:', this.src); Serilog.Log.Error('Failed to load logo image: {Src}', this.src);"
-     onload="console.log('Logo loaded successfully:', this.src);">
+     onerror="console.error('Failed to load logo:', this.src);">
 
 <script>
     // Pre-load next logo URL to avoid expiration issues
@@ -20,12 +13,11 @@
             const response = await fetch('/api/logo');
             const data = await response.json();
             if (data.success && !data.isLocal) {
-                // Pre-cache the next logo URL
                 const img = new Image();
                 img.src = data.logoUrl;
             }
         } catch (e) {
             console.warn('Failed to pre-load logo URL:', e);
         }
-    }, 30 * 60 * 1000); // Refresh after 30 minutes
+    }, 30 * 60 * 1000);
 </script>

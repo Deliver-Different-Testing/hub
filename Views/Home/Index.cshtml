@@ -1,77 +1,34 @@
-@using Hub.Services
 @{
     ViewData["Title"] = "Home page";
-}
-@inject ITenantService TenantService
-@{
+
     var clientId = ViewBag.ClientID;
-
-    var clientInternal = false;
-    if (ViewBag.ClientInternal != null)
-    {
-        if (ViewBag.ClientInternal is bool)
-        {
-            clientInternal = (bool)ViewBag.ClientInternal;
-        }
-        else
-        {
-            bool.TryParse(ViewBag.ClientInternal.ToString(), out clientInternal);
-        }
-    }
-
-    // Check if user is a courier
-    var isCourier = false;
-    var isCourierClaim = User.FindFirst("IsCourier")?.Value;
-    if (!string.IsNullOrEmpty(isCourierClaim))
-    {
-        bool.TryParse(isCourierClaim, out isCourier);
-    }
-
     var contactId = ViewBag.ContactID;
     var greetingString = ViewBag.GreetingString;
-    var userEmail = ViewBag.UserEmail;
-    var tenantCode = ViewBag.TenantCode;
+    var userEmail = (string)ViewBag.UserEmail;
+    var tenantCode = (string)ViewBag.TenantCode;
 
-    // Check if this is the special urgent/asure user that needs custom redirect
-    bool isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
-                             !string.IsNullOrEmpty(tenantCode) &&
-                             userEmail.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase) &&
-                             tenantCode.Equals("urgent", StringComparison.OrdinalIgnoreCase);
+    bool ParseBool(dynamic value) =>
+        value is bool b ? b : bool.TryParse(value?.ToString(), out bool result) && result;
 
-    var bookingAppUrl = Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking");
+    var clientInternal = ParseBool(ViewBag.ClientInternal);
+    var isCourier = bool.TryParse(User.FindFirst("IsCourier")?.Value, out var c) && c;
+    var bulkUploadPermission = ParseBool(ViewBag.BulkUploadPermission);
+
+    var isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
+                            !string.IsNullOrEmpty(tenantCode) &&
+                            userEmail.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase) &&
+                            tenantCode.Equals("urgent", StringComparison.OrdinalIgnoreCase);
+
+    string AppUrl(string appName) =>
+        Environment.GetEnvironmentVariable("TenantURL")!.Replace("app_name", appName);
+
     var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
-    var bookingAppFullUrl = bookingAppUrl + bookingAppPath;
-
-    var bookJobPermission = false;
-    if (ViewBag.BookJobPermission != null)
-    {
-        if (ViewBag.BookJobPermission is bool)
-        {
-            bookJobPermission = (bool)ViewBag.BookJobPermission;
-        }
-        else
-        {
-            bool.TryParse(ViewBag.BookJobPermission.ToString(), out bookJobPermission);
-        }
-    }
-
-    var bulkUploadPermission = false;
-    if (ViewBag.BulkUploadPermission != null)
-    {
-        if (ViewBag.BulkUploadPermission is bool)
-        {
-            bulkUploadPermission = (bool)ViewBag.BulkUploadPermission;
-        }
-        else
-        {
-            bool.TryParse(ViewBag.BulkUploadPermission.ToString(), out bulkUploadPermission);
-        }
-    }
+    var bookingAppFullUrl = AppUrl("booking") + bookingAppPath;
 }
 <script>
-    var ClientID = '@clientId';
-    var ContactID = '@contactId';
-    var GreetingString = '@greetingString';
+    const ClientID = '@clientId';
+    const ContactID = '@contactId';
+    const GreetingString = '@greetingString';
 </script>
 
 <div id="urgent-hub">
@@ -85,97 +42,97 @@
         {
             @if (ViewBag.ShowAfterHours == true)
             {
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">dark_mode</span></div>
+                <div class="app-card" onclick="window.open('@AppUrl("afterhours")')">
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="After Hours" /></div>
                     <div class="app-card-title">After Hours</div>
                 </div>
             }
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">local_shipping</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("courierportal")')">
+                <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="Courier Portal" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </div>
         }
         else if (!clientInternal)
         {
             <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">menu_book</span></div>
+                <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="Booking Page" /></div>
                 <div class="app-card-title">Booking Page</div>
             </div>
             @if (bulkUploadPermission)
             {
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">upload_file</span></div>
+                <div class="app-card" onclick="window.open('@(AppUrl("bulkimport") + "/#/login/")')">
+                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="Bulk Import" /></div>
                     <div class="app-card-title">Bulk Import</div>
                 </div>
             }
             @if (!isUrgentAsureUser)
             {
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">print</span></div>
+                <div class="app-card" onclick="window.open('@(AppUrl("runviewer") + "/#/print")')">
+                    <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="Print" /></div>
                     <div class="app-card-title">Print</div>
                 </div>
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">map</span></div>
+                <div class="app-card" onclick="window.open('@AppUrl("runviewer")')">
+                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="Route Viewer" /></div>
                     <div class="app-card-title">Route Viewer</div>
                 </div>
             }
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("tracking")')">
+                <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="Tracker" /></div>
                 <div class="app-card-title">Tracker</div>
             </div>
         }
         else
         {
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accounts")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">account_balance</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("accounts")')">
+                <div class="app-card-icon"><img src="~/images/icons/accounts.svg" alt="Accounts" /></div>
                 <div class="app-card-title">Accounts</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "adminmanager")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">admin_panel_settings</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("adminmanager")')">
+                <div class="app-card-icon"><img src="~/images/icons/admin-manager.svg" alt="Admin Manager" /></div>
                 <div class="app-card-title">Admin Manager</div>
             </div>
             <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">menu_book</span></div>
+                <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="Booking Page" /></div>
                 <div class="app-card-title">Booking Page</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">upload_file</span></div>
+            <div class="app-card" onclick="window.open('@(AppUrl("bulkimport") + "/#/login/")')">
+                <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="Bulk Import" /></div>
                 <div class="app-card-title">Bulk Import</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "clientmanager")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">person_add</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("clientmanager")')">
+                <div class="app-card-icon"><img src="~/images/icons/client-manager.svg" alt="Client Manager" /></div>
                 <div class="app-card-title">Client Manager</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">package_2</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("couriermanager")')">
+                <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="Courier Manager" /></div>
                 <div class="app-card-title">Courier Manager</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">local_shipping</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("courierportal")')">
+                <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="Courier Portal" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">desktop_windows</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("despatch")')">
+                <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="Dispatch" /></div>
                 <div class="app-card-title">Dispatch</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">print</span></div>
+            <div class="app-card" onclick="window.open('@(AppUrl("runviewer") + "/#/print")')">
+                <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="Print" /></div>
                 <div class="app-card-title">Print</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">map</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("runviewer")')">
+                <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="Route Viewer" /></div>
                 <div class="app-card-title">Route Viewer</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">account_tree</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("runbuilder")')">
+                <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="Route Builder" /></div>
                 <div class="app-card-title">Route Builder</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
+            <div class="app-card" onclick="window.open('@AppUrl("tracking")')">
+                <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="Tracker" /></div>
                 <div class="app-card-title">Tracker</div>
             </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "integrationmanager")' + '/auth/entry')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">extension</span></div>
+            <div class="app-card" onclick="window.open('@(AppUrl("integrationmanager") + "/auth/entry")')">
+                <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="Integration Manager" /></div>
                 <div class="app-card-title">Integration Manager</div>
             </div>
         }

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Hub.Interfaces;
 using Hub.Models.Master;
 using Hub.Repositories;
 using Microsoft.AspNetCore.Hosting;
@@ -33,7 +34,7 @@ public class TenantService(AuthenticationRepository authenticationRepository, IW
     private bool LogoFileExists(string virtualPath)
     {
         // Convert virtual path (~/...) to physical path
-        var path = virtualPath.Replace("~/", "");
+        var path = virtualPath.Replace("~/", string.Empty);
         var physicalPath = Path.Combine(hostingEnvironment.WebRootPath, path);
 
         // Check if the file exists

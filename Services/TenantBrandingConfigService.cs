@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Hub.Interfaces;
 using Hub.Models.Master;
 using Hub.ViewModels;
 using Microsoft.EntityFrameworkCore;

@@ -1,10 +1,7 @@
 @model LoginViewModel
 @{
     ViewBag.Title = "Log in";
-    ViewBag.PageTitle = "Login";
     ViewBag.PageId = "login";
-    ViewBag.MenuClass = "solid";
-    ViewBag.PageDescription = "";
 }
 
 <div class="auth-wrapper">
@@ -48,9 +45,6 @@
                     <option value="false" selected>Customer Login</option>
                     <option value="true">Courier Login</option>
                 </select>
-                <div class="valid-feedback">
-                    Looks good!
-                </div>
             </div>
 
             <div class="mb-4 form-check d-flex justify-content-center">
@@ -74,7 +68,6 @@
 
 @section Scripts {
     <style>
-        /* Login button state management */
         #loginButton {
             position: relative;
             z-index: 1;
@@ -144,12 +137,12 @@
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var form = document.getElementById('loginForm');
-            var button = document.getElementById('loginButton');
-            var spinner = button.querySelector('.spinner-border');
-            var buttonText = button.querySelector('.button-text');
-            var emailInput = document.getElementById('Email');
-            var emailFeedback = emailInput.nextElementSibling;
+            const form = document.getElementById('loginForm');
+            const button = document.getElementById('loginButton');
+            const spinner = button.querySelector('.spinner-border');
+            const buttonText = button.querySelector('.button-text');
+            const emailInput = document.getElementById('Email');
+            const emailFeedback = emailInput.nextElementSibling;
 
             function resetButton() {
                 button.disabled = false;
@@ -158,25 +151,20 @@
             }
 
             function validateEmail(email) {
-                @Html.Raw("var re = /^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$/;")
+                @Html.Raw("const re = /^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$/;")
                 return re.test(String(email).toLowerCase());
             }
 
             function updateEmailValidationUI() {
-                if (emailInput.value) {
-                    if (validateEmail(emailInput.value)) {
-                        emailInput.classList.remove('is-invalid');
-                        emailInput.classList.add('is-valid');
-                        emailFeedback.style.display = 'none';
-                    } else {
-                        emailInput.classList.remove('is-valid');
-                        emailInput.classList.add('is-invalid');
-                        emailFeedback.style.display = 'block';
-                    }
-                } else {
+                if (!emailInput.value) {
                     emailInput.classList.remove('is-valid', 'is-invalid');
                     emailFeedback.style.display = 'none';
+                    return;
                 }
+                const isValid = validateEmail(emailInput.value);
+                emailInput.classList.toggle('is-valid', isValid);
+                emailInput.classList.toggle('is-invalid', !isValid);
+                emailFeedback.style.display = isValid ? 'none' : 'block';
             }
 
             @if (ViewBag.LoginFailed == true)
@@ -204,25 +192,17 @@
                 form.classList.add('was-validated');
             });
 
-            emailInput.addEventListener('input', function() {
-                updateEmailValidationUI();
-            });
-
-            emailInput.addEventListener('blur', function() {
-                updateEmailValidationUI();
-            });
+            emailInput.addEventListener('input', updateEmailValidationUI);
+            emailInput.addEventListener('blur', updateEmailValidationUI);
 
             form.querySelectorAll('input, select').forEach(function(element) {
-                element.addEventListener('input', function() {
+                function clearValidation() {
                     if (this !== emailInput && form.classList.contains('was-validated')) {
                         form.classList.remove('was-validated');
                     }
-                });
-                element.addEventListener('change', function() {
-                    if (this !== emailInput && form.classList.contains('was-validated')) {
-                        form.classList.remove('was-validated');
-                    }
-                });
+                }
+                element.addEventListener('input', clearValidation);
+                element.addEventListener('change', clearValidation);
             });
         });
     </script>

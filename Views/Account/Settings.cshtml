@@ -1,4 +1,4 @@
-﻿@model List<TenantUserSettingViewModel>
+@model List<TenantUserSettingViewModel>
 
 <div class="settings-page">
     <h2>User Settings</h2>
@@ -67,7 +67,6 @@
     </form>
 </div>
 
-
 @section Scripts {
     <script>
         const generateButton = document.getElementById('generateApiKey');
@@ -89,8 +88,6 @@
                     const result = await response.json();
                     if (result.success) {
                         document.getElementById('ApiKey').value = result.apiKey;
-                        // Replace generate button with copy button
-                        const generateButton = document.getElementById('generateApiKey');
                         const copyButton = document.createElement('button');
                         copyButton.type = 'button';
                         copyButton.className = 'btn btn-outline-secondary';
@@ -108,50 +105,31 @@
                     document.getElementById('ApiKey').classList.add('is-invalid');
                     console.error('Error:', error);
                 }
-
-            })
+            });
         }
 
-        // Copy API Key functionality
-        if (document.getElementById('copyApiKey')) {
-            document.getElementById('copyApiKey').addEventListener('click', copyApiKeyToClipboard)
+        const copyButton = document.getElementById('copyApiKey');
+        if (copyButton) {
+            copyButton.addEventListener('click', copyApiKeyToClipboard);
         }
 
-        function copyApiKeyToClipboard() {
+        async function copyApiKeyToClipboard() {
             const apiKeyInput = document.getElementById('ApiKey');
-
-            // Create temporary textarea
-            const textarea = document.createElement('textarea');
-            textarea.value = apiKeyInput.value;
-            textarea.style.position = 'fixed';  // Prevent scrolling to bottom
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
+            const btn = document.getElementById('copyApiKey');
 
             try {
-                // Select and copy
-                textarea.select();
-                document.execCommand('copy');
+                await navigator.clipboard.writeText(apiKeyInput.value);
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">check</span> Copied!';
+                btn.classList.replace('btn-outline-secondary', 'btn-success');
 
-                // Visual feedback
-                const copyButton = document.getElementById('copyApiKey');
-                const originalContent = copyButton.innerHTML;
-                copyButton.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">check</span> Copied!';
-                copyButton.classList.remove('btn-outline-secondary');
-                copyButton.classList.add('btn-success');
-
-                // Reset button after 2 seconds
                 setTimeout(() => {
-                    copyButton.innerHTML = originalContent;
-                    copyButton.classList.remove('btn-success');
-                    copyButton.classList.add('btn-outline-secondary')
-                }, 2000)
+                    btn.innerHTML = originalContent;
+                    btn.classList.replace('btn-success', 'btn-outline-secondary');
+                }, 2000);
             } catch (err) {
-                console.error('Failed to copy text: ', err)
-            } finally {
-                // Clean up
-                document.body.removeChild(textarea)
+                console.error('Failed to copy text:', err);
             }
         }
-
     </script>
 }
