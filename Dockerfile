@@ -1,4 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
+
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs
+
 WORKDIR /App
 
 COPY *.csproj ./
