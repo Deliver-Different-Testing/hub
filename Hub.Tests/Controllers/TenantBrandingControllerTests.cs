@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Hub.Controllers;
-using Hub.Services;
+using Hub.Interfaces;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Moq;

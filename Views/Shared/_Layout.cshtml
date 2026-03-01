@@ -1,5 +1,6 @@
-﻿@using Hub.Services
-@using Serilog
+@using Hub.Interfaces
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject ITenantService TenantService
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,32 +10,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="~/lib/mdb/dist/css/mdb.min.css"/>
+    <link rel="stylesheet" href="~/dist/vendor.css"/>
     <link rel="stylesheet" href="~/css/site.css"/>
-    <link rel="stylesheet" href="~/css/styles.css"/>
-    <!-- Material Symbols Outlined -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <!-- favicon -->
     <link rel="icon" href="~/images/favicon.ico?5" type="image/x-icon">
     <meta http-equiv="refresh" content="300">
 </head>
 <body id="@ViewBag.PageId">
 <header>
-    @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
     @{
         var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
-    }
-
-    @inject ITenantService TenantService
-    @{
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        Log.Information("[{Timestamp}] Page rendering started", timestamp);
 
         var userIdClaim = User.FindFirst("UserID");
         var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
-        Log.Information("[{Timestamp}] UserID claim: {Value}", timestamp, userIdClaim?.Value);
-        Log.Information("[{Timestamp}] CurrentTenantID claim: {Value}", timestamp, currentTenantIdClaim?.Value);
 
         List<TenantViewModel> tenants = null;
         int? currentTenantId = 0;
@@ -42,38 +30,20 @@
         {
             var tenantList = await TenantService.GetTenantsForUserAsync(userId);
             tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code = o.Code }).ToList();
-            Log.Information("[{Timestamp}] Fetched {TenantsCount} tenants for user {UserId}", timestamp, tenants.Count, userId);
 
             if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out var orgId))
             {
                 currentTenantId = orgId;
-                Log.Information("[{Timestamp}] Current tenant ID set to {CurrentTenantId}", timestamp, currentTenantId);
-            }
-            else
-            {
-                Log.Warning("[{Timestamp}] Failed to parse current tenant ID from claim", timestamp);
             }
         }
 
-        else
-        {
-            Log.Warning("[{Timestamp}] UserID claim is null or invalid", timestamp);
-        }
-
-        // Determine if the user has any tenants
         var hasTenants = tenants != null && tenants.Any();
 
-        // Get the current tenant name
-        var currentTenantCode = "";
-        if (hasTenants && currentTenantId.HasValue)
+        var currentTenantCode = string.Empty;
+        if (hasTenants)
         {
             var currentTenant = tenants.FirstOrDefault(t => t.Id == currentTenantId.Value);
-            currentTenantCode = currentTenant?.Code ?? "";
-            Log.Information("[{Timestamp}] Current tenant code set to '{CurrentTenantCode}'", timestamp, currentTenantCode);
-        }
-        else
-        {
-            Log.Warning("[{Timestamp}] Unable to determine current tenant code. HasTenants: {HasTenants}, CurrentTenantId: {CurrentTenantId}", timestamp, hasTenants, currentTenantId);
+            currentTenantCode = currentTenant?.Code ?? string.Empty;
         }
     }
     <nav class="navbar navbar-expand-sm mb-3">
@@ -87,9 +57,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                <ul class="navbar-nav flex-grow-1">
-                    <!-- Your other nav items here -->
-                </ul>
+                <ul class="navbar-nav flex-grow-1"></ul>
                 <ul class="navbar-nav align-items-center">
                     @if (tenants != null && tenants.Any())
                     {
@@ -105,7 +73,7 @@
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="tenantDropdown">
                                     @foreach (var tenant in tenants)
                                     {
-                                        <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : "")"
+                                        <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : string.Empty)"
                                            href="#" data-tenant-code="@tenant.Code"
                                            data-tenant-id="@tenant.Id">@tenant.Name</a>
                                     }
@@ -149,63 +117,43 @@
     </div>
 </footer>
 
-<script src="~/lib/jquery/dist/jquery.min.js"></script>
-<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<script src="~/lib/mdb/dist/js/mdb.umd.min.js"></script>
+<script src="~/dist/vendor.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 
 <script>
-    // Use sessionStorage to track if we've just changed the URL
-    function setUrlJustChanged() {
-        sessionStorage.setItem('urlJustChanged', 'true');
-    }
-
-    function clearUrlJustChanged() {
-        sessionStorage.removeItem('urlJustChanged');
-    }
-
-    function wasUrlJustChanged() {
-        return sessionStorage.getItem('urlJustChanged') === 'true';
-    }
-
     function getCurrentTenantNameFromUrl() {
-        let url = new URL(window.location.href);
-        let hostnameParts = url.hostname.split('.');
-        return hostnameParts[1]; // Assuming tenant name is always the second part
+        const url = new URL(window.location.href);
+        const hostnameParts = url.hostname.split('.');
+        return hostnameParts[1];
     }
 
     function replaceTenantNameAndRefresh(newTenantName) {
-        let url = new URL(window.location.href);
+        const url = new URL(window.location.href);
         let hostnameParts = url.hostname.split('.');
 
         if (newTenantName === "DFRNT") {
-            // Remove the tenant part completely
             hostnameParts.splice(1, 1);
         } else {
-            // Replace the tenant name as before
             hostnameParts[1] = newTenantName;
         }
 
-        // Filter out any empty parts to avoid double dots
         hostnameParts = hostnameParts.filter(part => part !== '');
-
         url.hostname = hostnameParts.join('.');
 
-        setUrlJustChanged();
-
+        sessionStorage.setItem('urlJustChanged', 'true');
         window.location.href = url.href;
     }
 
     function checkAndSyncTenantName(currentTenantName, hasTenants) {
-        if (!hasTenants) return; // Exit if user has no tenants
+        if (!hasTenants) return;
 
-        let urlTenantName = getCurrentTenantNameFromUrl();
+        const urlTenantName = getCurrentTenantNameFromUrl();
 
         if (urlTenantName === 'local' || urlTenantName === 'staging') {
             if (typeof setTenantLoading === 'function') {
                 setTenantLoading(false);
             }
-            return; //Exit if local developer or dfrnt staging we don't want to change URL
+            return;
         }
 
         if (urlTenantName !== currentTenantName) {
@@ -213,33 +161,27 @@
         }
     }
 
-    // This function will be called when the page loads
     function initTenantSync(currentTenantName, hasTenants) {
-        if (wasUrlJustChanged()) {
-            clearUrlJustChanged(); // Clear the flag
-            return; // Exit without checking if we just changed the URL
+        if (sessionStorage.getItem('urlJustChanged') === 'true') {
+            sessionStorage.removeItem('urlJustChanged');
+            return;
         }
         checkAndSyncTenantName(currentTenantName, hasTenants);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Check if the dropdown menu exists
-        var dropdownMenu = document.querySelector('.dropdown-menu');
+        const dropdownMenu = document.querySelector('.dropdown-menu');
         const tenantDropdown = document.getElementById('tenantDropdown');
 
-        // Create a safe tenant loading function that checks if elements exist
         function setTenantLoading(isLoading) {
-            if (!tenantDropdown) return; // Exit if element doesn't exist
-
+            if (!tenantDropdown) return;
             tenantDropdown.disabled = isLoading;
-
             const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
             if (tenantSpinner) {
                 tenantSpinner.classList.toggle('d-none', !isLoading);
             }
         }
 
-        // Only add event listener if dropdown exists
         if (dropdownMenu) {
             dropdownMenu.addEventListener('click', function (e) {
                 if (e.target && e.target.nodeName === 'A') {
@@ -256,45 +198,42 @@
                             'Content-Type': 'application/json',
                             'RequestVerificationToken': '@requestToken'
                         },
-                        body: JSON.stringify({tenantId: selectedTenantId})
+                        body: JSON.stringify({ tenantId: selectedTenantId })
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                if (tenantDropdown) {
-                                    tenantDropdown.textContent = selectedTenantName + ' ';
-                                    const spinner = tenantDropdown.querySelector('.spinner-border');
-                                    if (spinner) {
-                                        tenantDropdown.appendChild(spinner);
-                                    }
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (tenantDropdown) {
+                                tenantDropdown.textContent = selectedTenantName + ' ';
+                                const spinner = tenantDropdown.querySelector('.spinner-border');
+                                if (spinner) {
+                                    tenantDropdown.appendChild(spinner);
                                 }
-
-                                let urlTenantName = getCurrentTenantNameFromUrl();
-
-                                if (urlTenantName === 'local' || urlTenantName === 'staging') {
-                                    setTenantLoading(false);
-                                    return; //Exit if local developer or dfrnt staging we don't want to change URL
-                                }
-                                replaceTenantNameAndRefresh(selectedTenantCode);
-                            } else {
-                                console.error('Failed to update tenant');
-                                setTenantLoading(false);
                             }
-                        })
-                        .catch(error => {
-                            console.error('Error updating tenant:', error);
+
+                            const urlTenantName = getCurrentTenantNameFromUrl();
+                            if (urlTenantName === 'local' || urlTenantName === 'staging') {
+                                setTenantLoading(false);
+                                return;
+                            }
+                            replaceTenantNameAndRefresh(selectedTenantCode);
+                        } else {
+                            console.error('Failed to update tenant');
                             setTenantLoading(false);
-                        });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating tenant:', error);
+                        setTenantLoading(false);
+                    });
                 }
             });
         }
 
-        // Handle profile dropdown - add null checks
         const profileDropdown = document.querySelector('.profile-dropdown');
         const profileIconUsername = document.querySelector('.profile-icon-username');
         const profileMenu = document.querySelector('.profile-menu');
 
-        // Only set up profile dropdown if all elements exist
         if (profileDropdown && profileIconUsername && profileMenu) {
             profileIconUsername.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -310,9 +249,6 @@
             });
         }
 
-        console.log('Current URL at DOMContentLoaded:', window.location.href);
-
-        // Make sure initTenantSync is defined before calling it
         if (typeof initTenantSync === 'function') {
             initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
         }

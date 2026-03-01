@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Hub.Services;
+using Hub.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

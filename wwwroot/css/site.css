@@ -485,9 +485,10 @@ a.navbar-brand {
   background: rgba(var(--dd-primary-rgb), .15);
 }
 
-.app-card-icon .material-symbols-outlined {
-  font-size: 1.375rem;
-  color: var(--dd-primary);
+.app-card-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .app-card-title {
@@ -853,8 +854,9 @@ a.navbar-brand {
     height: 48px;
   }
 
-  .app-card-icon .material-symbols-outlined {
-    font-size: 1.125rem;
+  .app-card-icon img {
+    width: 28px;
+    height: 28px;
   }
 
   .app-card-title {

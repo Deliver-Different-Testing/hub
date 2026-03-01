@@ -9,10 +9,6 @@
     <None Remove="Hub.Tests\**" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="efpt.Despatch.config.json.user" />
-    <None Include="efpt.Master.config.json.user" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Amazon.AspNetCore.DataProtection.SSM" Version="4.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
     <PackageReference Include="AWSSDK.Core" Version="4.0.3.15" />
@@ -27,4 +23,10 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.3" />
   </ItemGroup>
+  <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="!Exists('node_modules')">
+    <Exec Command="npm install" />
+  </Target>
+  <Target Name="NpmBuild" BeforeTargets="BeforeBuild">
+    <Exec Command="npm run build" />
+  </Target>
 </Project>

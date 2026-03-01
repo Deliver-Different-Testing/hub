@@ -21,6 +21,7 @@ using StackExchange.Redis;
 using System;
 using System.IO;
 using System.Security.AccessControl;
+using Hub.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,7 +57,7 @@ builder.Services.AddDbContext<DespatchContext>((_, options) =>
     options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=dummy;Trusted_Connection=True;");
 });
 // Register DynamicDespatchDbContext
-builder.Services.AddScoped<DynamicDespatchDbContext>((serviceProvider) =>
+builder.Services.AddScoped(serviceProvider =>
 {
     var optionsBuilder = new DbContextOptionsBuilder<DespatchContext>();
     var connectionStringManager = serviceProvider.GetRequiredService<IConnectionStringManager>();
