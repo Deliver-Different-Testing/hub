@@ -6,38 +6,40 @@
 /* ── 1. Design Tokens ───────────────────── */
 
 :root {
-  /* Primary */
-  --dd-primary: #283DB8;
-  --dd-primary-rgb: 40, 61, 184;
-  --dd-primary-hover: #3350d0;
-  --dd-primary-active: #1e2f94;
-  --dd-primary-container: #dfe2f8;
+  /* Primary — matches professionalPrimary (blue) palette */
+  --dd-primary: #2196f3;
+  --dd-primary-rgb: 33, 150, 243;
+  --dd-primary-hover: #1e88e5;
+  --dd-primary-active: #1565c0;
+  --dd-primary-container: #e3f2fd;
   --dd-on-primary: #ffffff;
-  --dd-on-primary-container: #101d60;
+  --dd-on-primary-container: #0d47a1;
 
-  /* Secondary */
-  --dd-secondary: #3EAFC2;
-  --dd-secondary-rgb: 62, 175, 194;
-  --dd-accent: #ea891c;
+  /* Secondary — warm gray accent palette */
+  --dd-secondary: #78716c;
+  --dd-secondary-rgb: 120, 113, 108;
+  --dd-accent: #FF9800;
 
-  /* Neutral surfaces */
+  /* Neutral surfaces — warm grays */
   --dd-surface: #ffffff;
-  --dd-surface-dim: #f5f6fa;
-  --dd-surface-variant: #eceef4;
-  --dd-on-surface: #1a1c24;
-  --dd-on-surface-secondary: #5c5e69;
-  --dd-outline: #c4c7d2;
-  --dd-outline-variant: #e1e3eb;
+  --dd-surface-dim: #f5f7fa;
+  --dd-surface-variant: #f5f5f4;
+  --dd-on-surface: rgba(0, 0, 0, 0.87);
+  --dd-on-surface-secondary: rgba(0, 0, 0, 0.54);
+  --dd-outline: #d6d3d1;
+  --dd-outline-variant: #e7e5e4;
 
   /* Status */
-  --dd-error: #d32f2f;
-  --dd-success: #2e7d32;
+  --dd-error: #F44336;
+  --dd-success: #4CAF50;
+  --dd-warning: #FF9800;
+  --dd-info: #2196F3;
 
-  /* Elevation */
-  --elevation-1: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --elevation-2: 0 4px 8px rgba(0,0,0,.06), 0 2px 4px rgba(0,0,0,.04);
-  --elevation-3: 0 12px 28px rgba(0,0,0,.08), 0 4px 10px rgba(0,0,0,.05);
-  --elevation-4: 0 24px 48px rgba(0,0,0,.10), 0 8px 16px rgba(0,0,0,.06);
+  /* Elevation — softer shadows matching DespatchWeb */
+  --elevation-1: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --elevation-2: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  --elevation-3: 0 4px 6px rgba(0,0,0,.1), 0 2px 4px rgba(0,0,0,.06);
+  --elevation-4: 0 10px 20px rgba(0,0,0,.1), 0 6px 6px rgba(0,0,0,.08);
 
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -74,7 +76,6 @@ html {
 }
 
 body {
-  font-family: var(--font-sans);
   color: var(--dd-on-surface);
   background-color: var(--dd-surface-dim);
   margin-bottom: 64px;
@@ -142,7 +143,7 @@ a.navbar-brand {
 }
 
 .navbar-toggler {
-  border: 1.5px solid var(--dd-outline);
+  border: 2px solid var(--dd-outline);
   border-radius: var(--radius-sm);
   padding: .375rem .625rem;
   transition: border-color var(--duration-short) var(--ease-standard),
@@ -192,7 +193,6 @@ a.navbar-brand {
 /* ── 5. Buttons ─────────────────────────── */
 
 .btn {
-  font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: .01em;
   border-radius: var(--radius-sm);
@@ -273,9 +273,8 @@ a.navbar-brand {
 
 .form-control,
 .form-select {
-  border: 1.5px solid var(--dd-outline);
+  border: 2px solid var(--dd-outline);
   border-radius: var(--radius-sm);
-  font-family: var(--font-sans);
   transition: border-color var(--duration-short) var(--ease-standard),
               box-shadow var(--duration-short) var(--ease-standard);
 }
