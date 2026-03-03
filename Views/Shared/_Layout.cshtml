@@ -186,8 +186,11 @@
             dropdownMenu.addEventListener('click', function (e) {
                 if (e.target && e.target.nodeName === 'A') {
                     e.preventDefault();
-                    var bsDropdown = bootstrap.Dropdown.getInstance(tenantDropdown);
-                    if (bsDropdown) bsDropdown.hide();
+                    dropdownMenu.classList.remove('show');
+                    if (tenantDropdown) {
+                        tenantDropdown.classList.remove('show');
+                        tenantDropdown.setAttribute('aria-expanded', 'false');
+                    }
                     const selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
                     const selectedTenantCode = e.target.getAttribute('data-tenant-code');
                     const selectedTenantName = e.target.textContent;
@@ -215,7 +218,7 @@
 
                             const urlTenantName = getCurrentTenantNameFromUrl();
                             if (urlTenantName === 'local' || urlTenantName === 'staging') {
-                                setTenantLoading(false);
+                                window.location.reload();
                                 return;
                             }
                             replaceTenantNameAndRefresh(selectedTenantCode);
