@@ -186,6 +186,8 @@
             dropdownMenu.addEventListener('click', function (e) {
                 if (e.target && e.target.nodeName === 'A') {
                     e.preventDefault();
+                    var bsDropdown = bootstrap.Dropdown.getInstance(tenantDropdown);
+                    if (bsDropdown) bsDropdown.hide();
                     const selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
                     const selectedTenantCode = e.target.getAttribute('data-tenant-code');
                     const selectedTenantName = e.target.textContent;

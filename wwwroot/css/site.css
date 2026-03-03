@@ -132,7 +132,7 @@ a.navbar-brand {
 
 .navbar-brand img,
 .navbar-brand .logo {
-  max-height: 44px;
+  max-height: 56px;
   width: auto;
   transition: opacity var(--duration-short) var(--ease-standard);
 }
@@ -391,7 +391,7 @@ a.navbar-brand {
 }
 
 .hub-header .logo {
-  max-height: 56px;
+  max-height: 144px;
   margin-bottom: .75rem;
 }
 
@@ -441,24 +441,9 @@ a.navbar-brand {
   animation: cardEntrance .45s var(--ease-decelerate) both;
 }
 
-.app-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 40%, rgba(var(--dd-primary-rgb), .04) 0%, transparent 70%);
-  opacity: 0;
-  transition: opacity var(--duration-medium) var(--ease-standard);
-  pointer-events: none;
-}
-
 .app-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--elevation-3);
-  border-color: rgba(var(--dd-primary-rgb), .18);
-}
-
-.app-card:hover::after {
-  opacity: 1;
 }
 
 .app-card:active {
@@ -470,24 +455,25 @@ a.navbar-brand {
 .app-card-icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--radius-md);
-  background: var(--dd-primary-container);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform var(--duration-medium) var(--ease-standard),
-              background-color var(--duration-medium) var(--ease-standard);
+  transition: transform var(--duration-medium) var(--ease-standard);
 }
 
 .app-card:hover .app-card-icon {
   transform: scale(1.08);
-  background: rgba(var(--dd-primary-rgb), .15);
 }
 
 .app-card-icon img {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
+}
+
+.app-card-icon img.icon-lg {
+  width: 62px;
+  height: 62px;
 }
 
 .app-card-title {
@@ -854,8 +840,8 @@ a.navbar-brand {
   }
 
   .app-card-icon img {
-    width: 28px;
-    height: 28px;
+    width: 42px;
+    height: 42px;
   }
 
   .app-card-title {
