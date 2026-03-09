@@ -10,6 +10,7 @@ using Hub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -190,6 +191,7 @@ builder.Services.AddSession(options =>
 });
 
 var app = builder.Build();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/healthz");
 app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) =>
     await diagnostics.RunDiagnosticsAsync());

@@ -47,8 +47,17 @@ ingress:
 service:
   externalPort: 5000
   internalPort: 8080
+startupProbe:
+  enabled: true
+  path: "/health/live"
+  probeType: "httpGet"
+  scheme: "HTTP"
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  failureThreshold: 30
+  timeoutSeconds: 15
 livenessProbe:
-  path: "/healthz"
+  path: "/health/live"
   initialDelaySeconds: 30
   timeoutSeconds: 15
   scheme: "HTTP"
