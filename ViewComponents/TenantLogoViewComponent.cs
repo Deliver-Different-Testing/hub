@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Hub.Services;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;

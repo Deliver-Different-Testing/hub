@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Hub.Controllers;
 using Hub.Interfaces;
 using Hub.ViewModels;
@@ -26,14 +25,28 @@ public class TenantBrandingControllerTests
             .ReturnsAsync(new TenantBrandingResponse
             {
                 TenantId = 1,
-                CompanyName = "Test Company"
+                CompanyName = "Test Company",
+                AddressLines = [],
+                Country = string.Empty,
+                Phone = string.Empty,
+                Email = string.Empty,
+                Website = string.Empty,
+                LogoUrl = string.Empty,
+                PrimaryColour = string.Empty,
+                HeaderTextColour = string.Empty,
+                AccentColour = string.Empty,
+                FooterText = string.Empty,
+                DisclaimerText = string.Empty,
+                PaperSize = string.Empty,
+                TimeZoneId = string.Empty,
+                CountryCode = string.Empty
             });
 
         var result = await _controller.GetReportConfig(1);
 
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var response = okResult.Value.Should().BeOfType<TenantBrandingResponse>().Subject;
-        response.CompanyName.Should().Be("Test Company");
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<TenantBrandingResponse>(okResult.Value);
+        Assert.Equal("Test Company", response.CompanyName);
     }
 
     [Fact]
@@ -45,6 +58,6 @@ public class TenantBrandingControllerTests
 
         var result = await _controller.GetReportConfig(999);
 
-        result.Should().BeOfType<NotFoundResult>();
+        Assert.IsType<NotFoundResult>(result);
     }
 }

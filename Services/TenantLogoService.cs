@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Amazon.Runtime.Internal;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -10,16 +8,16 @@ namespace Hub.Services;
 
 public interface ITenantLogoService
 {
-    Task<string> GetLogoUrlAsync();
+    Task<string?> GetLogoUrlAsync();
     Task<bool> LogoExistsAsync();
     void ClearCache();
 }
 
-public class TenantLogoService : ITenantLogoService
+public sealed class TenantLogoService : ITenantLogoService
 {
     private readonly IAmazonS3 _s3Client;
     private readonly IMemoryCache _cache;
-    private readonly string _bucketName;
+    private readonly string? _bucketName;
     private const string LogoKey = "tenantLogo.png";
     private const string FallbackLogoPath = "/images/DFRNT_HorizLogo_RGB.png";
     private const int CacheDurationMinutes = 30;
@@ -34,10 +32,10 @@ public class TenantLogoService : ITenantLogoService
         if (string.IsNullOrEmpty(_bucketName)) Log.Warning("S3BucketBulk environment variable not set");
     }
 
-    public async Task<string> GetLogoUrlAsync()
+    public async Task<string?> GetLogoUrlAsync()
     {
         // Check cache first
-        if (_cache.TryGetValue(LogoCacheKey, out string cachedUrl))
+        if (_cache.TryGetValue(LogoCacheKey, out string? cachedUrl))
         {
             Log.Debug("Retrieved tenant logo URL from cache: {LogoUrl}", cachedUrl);
             return cachedUrl;

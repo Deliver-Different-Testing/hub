@@ -4,9 +4,9 @@ public class SaltHashed
 {
     #region Properties
 
-    public string Salt { get; set; }
+    public required string Salt { get; set; }
 
-    public string Hashed { get; set; }
+    public required string Hashed { get; set; }
 
     #endregion Properties
 }

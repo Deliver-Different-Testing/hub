@@ -8,7 +8,7 @@ public interface IConnectionStringManager
 
 public class ConnectionStringManager : IConnectionStringManager
 {
-    private string _connectionString;
+    private string _connectionString = string.Empty;
 
     public void SetConnectionString(string connectionString) => _connectionString = connectionString;
 

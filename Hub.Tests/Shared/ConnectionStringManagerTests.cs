@@ -1,15 +1,13 @@
-using FluentAssertions;
-
 namespace Hub.Tests.Shared;
 
 public class ConnectionStringManagerTests
 {
     [Fact]
-    public void GetConnectionString_BeforeSet_ReturnsNull()
+    public void GetConnectionString_BeforeSet_ReturnsEmpty()
     {
         var manager = new ConnectionStringManager();
 
-        manager.GetConnectionString().Should().BeNull();
+        Assert.Empty(manager.GetConnectionString());
     }
 
     [Fact]
@@ -19,7 +17,7 @@ public class ConnectionStringManagerTests
 
         manager.SetConnectionString("Server=test;Database=test;");
 
-        manager.GetConnectionString().Should().Be("Server=test;Database=test;");
+        Assert.Equal("Server=test;Database=test;", manager.GetConnectionString());
     }
 
     [Fact]
@@ -30,7 +28,7 @@ public class ConnectionStringManagerTests
         manager.SetConnectionString("First");
         manager.SetConnectionString("Second");
 
-        manager.GetConnectionString().Should().Be("Second");
+        Assert.Equal("Second", manager.GetConnectionString());
     }
 
     [Fact]
@@ -38,7 +36,7 @@ public class ConnectionStringManagerTests
     {
         var manager = new ConnectionStringManager();
 
-        manager.IsConnectionStringSet().Should().BeFalse();
+        Assert.False(manager.IsConnectionStringSet());
     }
 
     [Fact]
@@ -48,6 +46,6 @@ public class ConnectionStringManagerTests
 
         manager.SetConnectionString("Server=test;");
 
-        manager.IsConnectionStringSet().Should().BeTrue();
+        Assert.True(manager.IsConnectionStringSet());
     }
 }

@@ -1,18 +1,15 @@
+@model Hub.ViewModels.HomeViewModel
 @{
     ViewData["Title"] = "Home page";
 
-    var clientId = ViewBag.ClientID;
-    var contactId = ViewBag.ContactID;
-    var greetingString = ViewBag.GreetingString;
-    var userEmail = (string)ViewBag.UserEmail;
-    var tenantCode = (string)ViewBag.TenantCode;
+    var contactId = Model.ContactId;
+    var greetingString = Model.GreetingString;
+    var userEmail = Model.UserEmail;
+    var tenantCode = Model.TenantCode;
 
-    bool ParseBool(dynamic value) =>
-        value is bool b ? b : bool.TryParse(value?.ToString(), out bool result) && result;
-
-    var clientInternal = ParseBool(ViewBag.ClientInternal);
+    var clientInternal = bool.TryParse(Model.ClientInternal, out var ci) && ci;
     var isCourier = bool.TryParse(User.FindFirst("IsCourier")?.Value, out var c) && c;
-    var bulkUploadPermission = ParseBool(ViewBag.BulkUploadPermission);
+    var bulkUploadPermission = Model.BulkUploadPermission;
 
     var isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
                             !string.IsNullOrEmpty(tenantCode) &&
@@ -26,7 +23,6 @@
     var bookingAppFullUrl = AppUrl("booking") + bookingAppPath;
 }
 <script>
-    const ClientID = '@clientId';
     const ContactID = '@contactId';
     const GreetingString = '@greetingString';
 </script>
@@ -40,7 +36,7 @@
     <div class="app-grid">
         @if (isCourier)
         {
-            @if (ViewBag.ShowAfterHours == true)
+            @if (Model.ShowAfterHours)
             {
                 <div class="app-card" onclick="window.open('@AppUrl("afterhours")')">
                     <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/dispatch.svg" alt="After Hours" /></div>

@@ -1,6 +1,6 @@
 ﻿namespace Hub.ViewModels;
 
-public class TenantUpdateModel
+public sealed class TenantUpdateModel
 {
     public int TenantId { get; set; }
 }

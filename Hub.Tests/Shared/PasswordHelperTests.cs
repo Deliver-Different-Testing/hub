@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Hub.Shared;
 
 namespace Hub.Tests.Shared;
@@ -11,7 +10,7 @@ public class PasswordHelperTests
         var hash1 = PasswordHelper.HashPassword("password123", "12345");
         var hash2 = PasswordHelper.HashPassword("password123", "12345");
 
-        hash1.Should().Be(hash2);
+        Assert.Equal(hash1, hash2);
     }
 
     [Fact]
@@ -20,7 +19,7 @@ public class PasswordHelperTests
         var hash1 = PasswordHelper.HashPassword("password1", "12345");
         var hash2 = PasswordHelper.HashPassword("password2", "12345");
 
-        hash1.Should().NotBe(hash2);
+        Assert.NotEqual(hash1, hash2);
     }
 
     [Fact]
@@ -29,7 +28,7 @@ public class PasswordHelperTests
         var hash1 = PasswordHelper.HashPassword("password", "11111");
         var hash2 = PasswordHelper.HashPassword("password", "22222");
 
-        hash1.Should().NotBe(hash2);
+        Assert.NotEqual(hash1, hash2);
     }
 
     [Fact]
@@ -37,8 +36,8 @@ public class PasswordHelperTests
     {
         var hash = PasswordHelper.HashPassword("password", "12345");
 
-        hash.Should().HaveLength(128);
-        hash.Should().MatchRegex("^[0-9A-F]+$");
+        Assert.Equal(128, hash.Length);
+        Assert.Matches("^[0-9A-F]+$", hash);
     }
 
     [Fact]
@@ -49,7 +48,7 @@ public class PasswordHelperTests
         var hash2 = PasswordHelper.HashPasswordLegacy("password123", "12345");
 #pragma warning restore CS0618
 
-        hash1.Should().Be(hash2);
+        Assert.Equal(hash1, hash2);
     }
 
     [Fact]
@@ -60,7 +59,7 @@ public class PasswordHelperTests
 #pragma warning restore CS0618
         var modernHash = PasswordHelper.HashPassword("password", "12345");
 
-        legacyHash.Should().NotBe(modernHash);
+        Assert.NotEqual(legacyHash, modernHash);
     }
 
     [Fact]
@@ -70,19 +69,18 @@ public class PasswordHelperTests
         var hash = PasswordHelper.HashPasswordLegacy("password", "12345");
 #pragma warning restore CS0618
 
-        hash.Should().HaveLength(128);
-        hash.Should().MatchRegex("^[0-9A-F]+$");
+        Assert.Equal(128, hash.Length);
+        Assert.Matches("^[0-9A-F]+$", hash);
     }
 
     [Fact]
-    public void SaltHashNewPassword_ReturnsSaltBetween10000And99999()
+    public void SaltHashNewPassword_ReturnsBase64Salt()
     {
         var result = PasswordHelper.SaltHashNewPassword("Test@1234");
 
-        var saltValue = int.Parse(result.Salt);
-        saltValue.Should().BeGreaterThanOrEqualTo(10000);
-        saltValue.Should().BeLessThan(99999);
-        result.Salt.Should().HaveLength(5);
+        Assert.False(string.IsNullOrEmpty(result.Salt));
+        var bytes = Convert.FromBase64String(result.Salt);
+        Assert.Equal(16, bytes.Count());
     }
 
     [Fact]
@@ -91,7 +89,7 @@ public class PasswordHelperTests
         var result = PasswordHelper.SaltHashNewPassword("Test@1234");
 
         var expectedHash = PasswordHelper.HashPassword("Test@1234", result.Salt);
-        result.Hashed.Should().Be(expectedHash);
+        Assert.Equal(expectedHash, result.Hashed);
     }
 
     [Fact]
@@ -99,8 +97,8 @@ public class PasswordHelperTests
     {
         var result = PasswordHelper.SaltHashNewPassword("password");
 
-        result.Should().NotBeNull();
-        result.Salt.Should().NotBeNullOrEmpty();
-        result.Hashed.Should().NotBeNullOrEmpty();
+        Assert.NotNull(result);
+        Assert.False(string.IsNullOrEmpty(result.Salt));
+        Assert.False(string.IsNullOrEmpty(result.Hashed));
     }
 }

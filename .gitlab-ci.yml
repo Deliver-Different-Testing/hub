@@ -11,7 +11,7 @@ unit-tests:
     - curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
     - apt-get install -y nodejs
     - dotnet restore
-    - dotnet test Hub.Tests/ --no-restore --verbosity normal --logger "junit;LogFilePath=results.xml" --logger "trx;LogFilePath=results.trx"
+    - dotnet test Hub.Tests/ --no-restore --verbosity normal -- --report-junit Hub.Tests/results.xml --report-trx Hub.Tests/results.trx
   artifacts:
     when: always
     paths:

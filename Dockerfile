@@ -5,8 +5,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
 
 WORKDIR /App
 
-COPY *.csproj ./
-RUN dotnet restore
+COPY Hub.csproj Directory.Build.props Directory.Packages.props NuGet.Config global.json ./
+RUN dotnet restore Hub.csproj
 
 COPY . ./
 RUN dotnet build Hub.csproj -c Release --property:OutputPath=/app

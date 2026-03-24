@@ -1,5 +1,3 @@
-using System.Linq;
-using System.Threading.Tasks;
 using Hub.Interfaces;
 using Hub.Models.Master;
 using Hub.ViewModels;
@@ -7,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Services;
 
-public class TenantBrandingConfigService(
+public sealed class TenantBrandingConfigService(
     MasterContext context,
     ITenantLogoService tenantLogoService) : ITenantBrandingConfigService
 {
-    public async Task<TenantBrandingResponse> GetReportConfigAsync(int tenantId)
+    public async Task<TenantBrandingResponse?> GetReportConfigAsync(int tenantId)
     {
         var result = await context.TenantBrandings
             .Where(tb => tb.TenantId == tenantId)
@@ -43,7 +41,7 @@ public class TenantBrandingConfigService(
             Phone = branding.Phone,
             Email = branding.Email,
             Website = branding.Website,
-            LogoUrl = logoUrl,
+            LogoUrl = logoUrl ?? string.Empty,
             PrimaryColour = branding.PrimaryColour,
             HeaderTextColour = branding.HeaderTextColour,
             AccentColour = branding.AccentColour,

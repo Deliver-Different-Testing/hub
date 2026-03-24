@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Hub.Controllers;
 using Hub.Models;
 using Hub.Models.Master;
@@ -21,8 +20,8 @@ public class AccountControllerTests : IDisposable
 
     public AccountControllerTests()
     {
-        _originalCredentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
-        _originalRecaptchaKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey") ?? "";
+        _originalCredentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        _originalRecaptchaKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey") ?? string.Empty;
         Environment.SetEnvironmentVariable("SQLCredentials", ";User=test;Password=test;");
         Environment.SetEnvironmentVariable("GoogleRecaptchaSecretKey", "test-recaptcha-key");
         Environment.SetEnvironmentVariable("ReplyEmail", "noreply@test.com");
@@ -33,6 +32,7 @@ public class AccountControllerTests : IDisposable
     {
         Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
         Environment.SetEnvironmentVariable("GoogleRecaptchaSecretKey", _originalRecaptchaKey);
+        GC.SuppressFinalize(this);
     }
 
     private static (AccountController controller, MasterContext masterCtx, DynamicDespatchDbContext despatchCtx) CreateController(
@@ -93,7 +93,7 @@ public class AccountControllerTests : IDisposable
 
         var result = controller.Login("/home") as ViewResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
         Assert.Equal("/home", (string)controller.ViewBag.ReturnUrl);
     }
 
@@ -107,7 +107,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!);
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
@@ -118,8 +118,8 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -132,13 +132,13 @@ public class AccountControllerTests : IDisposable
             UserId = 10, Email = "notenant@test.com", Password = "x", Salt = "x",
             CurrentTenantId = null, IsLegacyHash = false, IsCourier = false
         });
-        await masterCtx.SaveChangesAsync();
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
         var model = new LoginViewModel { Email = "notenant@test.com", Password = "pass", IsCourierLogin = false };
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -149,8 +149,8 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -161,10 +161,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!);
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("Index");
-        redirect.ControllerName.Should().Be("Home");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("Home", redirect.ControllerName);
     }
 
     [Fact]
@@ -175,9 +174,8 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!);
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("Index");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
     }
 
     [Fact]
@@ -188,11 +186,11 @@ public class AccountControllerTests : IDisposable
 
         await controller.Login(model, null!);
 
-        var user = (await masterCtx.Users.FindAsync(3))!;
-        user.IsLegacyHash.Should().BeFalse();
+        var user = (await masterCtx.Users.FindAsync([3], TestContext.Current.CancellationToken))!;
+        Assert.False(user.IsLegacyHash);
         // Password should now be the modern hash
         var expectedHash = PasswordHelper.HashPassword("LegacyPass1!", "11111");
-        user.Password.Should().Be(expectedHash);
+        Assert.Equal(expectedHash, user.Password);
     }
 
     [Fact]
@@ -207,13 +205,13 @@ public class AccountControllerTests : IDisposable
             CurrentTenantId = 1, IsLegacyHash = false, IsCourier = true
         });
         masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 20, TenantId = 1, UserId = 20 });
-        await masterCtx.SaveChangesAsync();
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
         var model = new LoginViewModel { Email = "ghost-courier@test.com", Password = "Pass1!", IsCourierLogin = true };
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -227,13 +225,13 @@ public class AccountControllerTests : IDisposable
             CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
         });
         masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 21, TenantId = 1, UserId = 21 });
-        await masterCtx.SaveChangesAsync();
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
         var model = new LoginViewModel { Email = "ghost-staff@test.com", Password = "Pass1!", IsCourierLogin = false };
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -245,8 +243,8 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     // ResetPassword GET tests
@@ -257,7 +255,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword((string)null!);
 
-        result.Should().BeOfType<RedirectToActionResult>();
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
@@ -267,7 +265,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword("invalid-code");
 
-        result.Should().BeOfType<RedirectToActionResult>();
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
@@ -277,10 +275,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword("valid-reset-key") as ViewResult;
 
-        result.Should().NotBeNull();
-        var model = result.Model as ResetPasswordViewModel;
-        model.Should().NotBeNull();
-        model.Email.Should().Be("reset@test.com");
+        Assert.NotNull(result);
+        var model = Assert.IsType<ResetPasswordViewModel>(result.Model);
+        Assert.Equal("reset@test.com", model.Email);
     }
 
     // ResetPassword POST tests
@@ -289,11 +286,11 @@ public class AccountControllerTests : IDisposable
     {
         var (controller, _, _) = CreateController();
         controller.ModelState.AddModelError("Password", "Required");
-        var model = new ResetPasswordViewModel();
+        var model = new ResetPasswordViewModel { Email = "", Code = "" };
 
         var result = await controller.ResetPassword(model);
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
@@ -307,7 +304,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword(model);
 
-        result.Should().BeOfType<RedirectToActionResult>();
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
@@ -321,7 +318,7 @@ public class AccountControllerTests : IDisposable
             UcctSurname = "User", Active = true, HasEmail = true, ValidatedEmail = true,
             Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
         });
-        await despatchCtx.SaveChangesAsync();
+        await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var model = new ResetPasswordViewModel
         {
@@ -330,9 +327,9 @@ public class AccountControllerTests : IDisposable
 
         await controller.ResetPassword(model);
 
-        var user = (await masterCtx.Users.FindAsync(4))!;
-        user.ResetKey.Should().BeNull();
-        user.Password.Should().NotBe("RESETPASSWORD");
+        var user = (await masterCtx.Users.FindAsync([4], TestContext.Current.CancellationToken))!;
+        Assert.Null(user.ResetKey);
+        Assert.NotEqual("RESETPASSWORD", user.Password);
     }
 
     // ForgotPassword tests
@@ -343,7 +340,7 @@ public class AccountControllerTests : IDisposable
 
         var result = controller.ForgotPassword();
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
@@ -355,9 +352,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ForgotPassword(model) as JsonResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
         var value = result.Value;
-        value.Should().BeEquivalentTo(new { success = false, message = "Please check your input and try again." });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Please check your input and try again." }, value);
     }
 
     [Fact]
@@ -370,9 +367,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ForgotPassword(model) as JsonResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
         var value = result.Value;
-        value.Should().BeEquivalentTo(new { success = false, message = "reCAPTCHA validation failed. Please try again." });
+        AssertHelper.JsonEquivalent(new { success = false, message = "reCAPTCHA validation failed. Please try again." }, value);
     }
 
     [Fact]
@@ -384,7 +381,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ForgotPassword(model) as JsonResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -396,8 +393,8 @@ public class AccountControllerTests : IDisposable
 
         _ = await controller.ForgotPassword(model) as JsonResult;
 
-        var user = (await masterCtx.Users.FindAsync(1))!;
-        user.ResetKey.Should().NotBeNullOrEmpty();
+        var user = (await masterCtx.Users.FindAsync([1], TestContext.Current.CancellationToken))!;
+        Assert.False(string.IsNullOrEmpty(user.ResetKey));
     }
 
     // Logout tests
@@ -408,10 +405,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Logout();
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("login");
-        redirect.ControllerName.Should().Be("Account");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("login", redirect.ActionName);
+        Assert.Equal("Account", redirect.ControllerName);
     }
 
     // UpdateCurrentTenant tests
@@ -423,7 +419,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 1 }) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "User not found" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "User not found" }, result!.Value);
     }
 
     [Fact]
@@ -433,7 +429,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.UpdateCurrentTenant(null!) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Invalid tenant ID" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Invalid tenant ID" }, result!.Value);
     }
 
     [Fact]
@@ -443,7 +439,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 0 }) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Invalid tenant ID" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Invalid tenant ID" }, result!.Value);
     }
 
     [Fact]
@@ -455,7 +451,7 @@ public class AccountControllerTests : IDisposable
         // User 2 not associated with tenant 2
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Update database failed" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Update database failed" }, result!.Value);
     }
 
     [Fact]
@@ -467,7 +463,7 @@ public class AccountControllerTests : IDisposable
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
 
         // Staff user (userId=1) is associated with both tenants
-        result!.Value.Should().BeEquivalentTo(new { success = true });
+        AssertHelper.JsonEquivalent(new { success = true }, result!.Value);
     }
 
     // Settings tests
@@ -479,7 +475,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Settings() as ViewResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -490,10 +486,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Settings() as ViewResult;
 
-        result.Should().NotBeNull();
-        var model = result.Model as List<TenantUserSettingViewModel>;
-        // Should have at least the hardcoded "Test Setting" added in Settings action
-        model.Should().NotBeNull();
+        Assert.NotNull(result);
+        var model = Assert.IsType<IReadOnlyList<TenantUserSettingViewModel>>(result.Model, exactMatch: false);
+        Assert.Empty(model);
     }
 
     [Fact]
@@ -504,12 +499,70 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Settings() as ViewResult;
 
-        result.Should().NotBeNull();
-        var model = result.Model as List<TenantUserSettingViewModel>;
-        model.Should().NotBeNull();
-        // Should include "Theme" from seed data + "Test Setting" hardcoded
-        model.Should().Contain(s => s.Name == "Theme");
-        model.Should().Contain(s => s.Name == "Test Setting");
+        Assert.NotNull(result);
+        var model = Assert.IsAssignableFrom<IReadOnlyList<TenantUserSettingViewModel>>(result.Model);
+        Assert.Contains(model, s => s.Name == "Theme");
+    }
+
+    // GenerateApiKey tests
+    [Fact]
+    public async Task GenerateApiKey_MissingClaims_ReturnsFailure()
+    {
+        var anonymous = ClaimsPrincipalFactory.CreateAnonymous();
+        var (controller, _, _) = CreateController(anonymous);
+
+        var result = await controller.GenerateApiKey() as JsonResult;
+
+        Assert.NotNull(result);
+        AssertHelper.JsonEquivalent(new { success = false, message = "Failed to generate API key" }, result.Value);
+    }
+
+    [Fact]
+    public async Task GenerateApiKey_ValidUser_ReturnsApiKey()
+    {
+        Environment.SetEnvironmentVariable("JWTSecretKey", "ThisIsASecretKeyForTestingThatMustBeLongEnough123!");
+        Environment.SetEnvironmentVariable("ClaimsKey", Convert.ToBase64String(new byte[32]));
+        Environment.SetEnvironmentVariable("Issuer", "test-issuer");
+        Environment.SetEnvironmentVariable("Audience", "test-audience");
+        try
+        {
+            var user = ClaimsPrincipalFactory.Create(email: "staff@test.com");
+            var (controller, _, _) = CreateController(user);
+
+            var result = await controller.GenerateApiKey() as JsonResult;
+
+            Assert.NotNull(result);
+            var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+            Assert.Contains("\"success\":true", json);
+            Assert.Contains("apiKey", json);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JWTSecretKey", null);
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+            Environment.SetEnvironmentVariable("Issuer", null);
+            Environment.SetEnvironmentVariable("Audience", null);
+        }
+    }
+
+    // SetTenantConnectionString branch: missing SQLCredentials
+    [Fact]
+    public async Task Login_Post_MissingSQLCredentials_Throws()
+    {
+        var original = Environment.GetEnvironmentVariable("SQLCredentials");
+        Environment.SetEnvironmentVariable("SQLCredentials", "");
+        try
+        {
+            var (controller, _, _) = CreateController();
+            var model = new LoginViewModel
+                { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => controller.Login(model, null!));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SQLCredentials", original);
+        }
     }
 
     private static void SetFormValues(AccountController controller, string reCaptchaToken)

@@ -24,7 +24,7 @@
         var userIdClaim = User.FindFirst("UserID");
         var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
 
-        List<TenantViewModel> tenants = null;
+        List<TenantViewModel>? tenants = null;
         int? currentTenantId = 0;
         if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
         {
@@ -42,7 +42,7 @@
         var currentTenantCode = string.Empty;
         if (hasTenants)
         {
-            var currentTenant = tenants.FirstOrDefault(t => t.Id == currentTenantId.Value);
+            var currentTenant = tenants?.FirstOrDefault(t => t.Id == currentTenantId.Value);
             currentTenantCode = currentTenant?.Code ?? string.Empty;
         }
     }
@@ -81,25 +81,28 @@
                             </div>
                         </li>
                     }
-                    <li class="nav-item me-3">
-                        <div class="profile-dropdown">
-                            <div class="profile-icon-username">
-                                <span class="material-symbols-outlined profile-icon">account_circle</span>
-                                <span class="username">@User.Identity?.Name</span>
-                                <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <li class="nav-item me-3">
+                            <div class="profile-dropdown">
+                                <div class="profile-icon-username">
+                                    <span class="material-symbols-outlined profile-icon">account_circle</span>
+                                    <span class="username">@User.Identity?.Name</span>
+                                    <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
+                                </div>
+                                <div class="profile-menu">
+                                    <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
+                                        <span class="material-symbols-outlined menu-icon">settings</span>
+                                        Settings
+                                    </a>
+                                    <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
+                                        <span class="material-symbols-outlined menu-icon">logout</span>
+                                        Logout
+                                    </a>
+                                </div>
                             </div>
-                            <div class="profile-menu">
-                                <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
-                                    <span class="material-symbols-outlined menu-icon">settings</span>
-                                    Settings
-                                </a>
-                                <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
-                                    <span class="material-symbols-outlined menu-icon">logout</span>
-                                    Logout
-                                </a>
-                            </div>
-                        </div>
-                    </li>
+                        </li>
+                    }
                 </ul>
             </div>
         </div>

@@ -1,8 +1,8 @@
-using FluentAssertions;
 using Hub.Controllers;
 using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
+using Hub.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -19,9 +19,13 @@ public class HomeControllerTests : IDisposable
         Environment.SetEnvironmentVariable("SQLCredentials", ";User=test;Password=test;");
     }
 
-    public void Dispose() => Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
+        GC.SuppressFinalize(this);
+    }
 
-    private static (HomeController controller, DynamicDespatchDbContext context) CreateController(
+    private static HomeController CreateController(
         System.Security.Claims.ClaimsPrincipal? user = null)
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
@@ -43,63 +47,71 @@ public class HomeControllerTests : IDisposable
         var controller = new HomeController(connectionStringManager, repo);
         ControllerTestBase.SetupHttpContext(controller, user);
 
-        return (controller, context);
+        return controller;
+    }
+
+    private static HomeViewModel GetModel(IActionResult result)
+    {
+        var viewResult = (ViewResult)result;
+        return (HomeViewModel)viewResult.Model!;
     }
 
     [Fact]
     public async Task Index_NotAuthenticated_RedirectsToLogin()
     {
         var anonymous = ClaimsPrincipalFactory.CreateAnonymous();
-        var (controller, _) = CreateController(anonymous);
+        var controller = CreateController(anonymous);
 
         var result = await controller.Index();
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("Login");
-        redirect.ControllerName.Should().Be("Account");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+        Assert.Equal("Account", redirect.ControllerName);
     }
 
     [Fact]
     public async Task Index_Authenticated_ReturnsView()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
         var result = await controller.Index();
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
     public async Task Index_SetsViewBagPermissions()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((bool)controller.ViewBag.DespatchWebPermission).Should().BeTrue();
-        ((bool)controller.ViewBag.BookJobPermission).Should().BeTrue();
-        ((bool)controller.ViewBag.BulkUploadPermission).Should().BeTrue();
+        var model = GetModel(result);
+        Assert.True(model.DespatchWebPermission);
+        Assert.True(model.BookJobPermission);
+        Assert.True(model.BulkUploadPermission);
     }
 
     [Fact]
     public async Task Index_SetsViewBagContactId()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((int)controller.ViewBag.ContactID).Should().Be(1);
+        var model = GetModel(result);
+        Assert.Equal(1, model.ContactId);
     }
 
     [Fact]
     public async Task Index_SetsViewBagGreetingString()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((string)controller.ViewBag.GreetingString).Should().NotBeNullOrEmpty();
+        var model = GetModel(result);
+        Assert.False(string.IsNullOrEmpty(model.GreetingString));
     }
 
     [Fact]
@@ -112,42 +124,46 @@ public class HomeControllerTests : IDisposable
             contactId: "1",
             timeZone: "New Zealand Standard Time"
         );
-        var (controller, _) = CreateController(courierUser);
+        var controller = CreateController(courierUser);
 
-        await controller.Index();
+        var result = await controller.Index();
 
         // Courier 1 has after-hours record in seed data
-        ((bool)controller.ViewBag.ShowAfterHours).Should().BeTrue();
+        var model = GetModel(result);
+        Assert.True(model.ShowAfterHours);
     }
 
     [Fact]
     public async Task Index_NonCourierUser_ShowAfterHoursFalse()
     {
         var staffUser = ClaimsPrincipalFactory.Create(isCourier: false);
-        var (controller, _) = CreateController(staffUser);
+        var controller = CreateController(staffUser);
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((bool)controller.ViewBag.ShowAfterHours).Should().BeFalse();
+        var model = GetModel(result);
+        Assert.False(model.ShowAfterHours);
     }
 
     [Fact]
     public async Task Index_GreetingStringIsNotEmpty()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((string)controller.ViewBag.GreetingString).Should().NotBeNullOrEmpty();
+        var model = GetModel(result);
+        Assert.False(string.IsNullOrEmpty(model.GreetingString));
     }
 
     [Fact]
     public async Task Index_SetsViewBagTenantCode()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((string)controller.ViewBag.TenantCode).Should().Be("test");
+        var model = GetModel(result);
+        Assert.Equal("test", model.TenantCode);
     }
 }

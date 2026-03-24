@@ -1,7 +1,6 @@
 using System.Net;
 using Amazon.S3;
 using Amazon.S3.Model;
-using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Moq;
 
@@ -11,7 +10,7 @@ namespace Hub.Tests.Services;
 public class TenantLogoServiceTests : IDisposable
 {
     private readonly Mock<IAmazonS3> _mockS3;
-    private readonly IMemoryCache _cache;
+    private readonly MemoryCache _cache;
     private readonly string _originalBucket;
 
     public TenantLogoServiceTests()
@@ -38,7 +37,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.GetLogoUrlAsync();
 
-        result.Should().Be("https://cached-url.com");
+        Assert.Equal("https://cached-url.com", result);
         _mockS3.Verify(s => s.GetObjectMetadataAsync(It.IsAny<GetObjectMetadataRequest>(), CancellationToken.None), Times.Never);
     }
 
@@ -55,7 +54,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.GetLogoUrlAsync();
 
-        result.Should().StartWith("https://s3.amazonaws.com/");
+        Assert.StartsWith("https://s3.amazonaws.com/", result);
     }
 
     [Fact]
@@ -68,7 +67,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.GetLogoUrlAsync();
 
-        result.Should().Be("/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
@@ -79,7 +78,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.GetLogoUrlAsync();
 
-        result.Should().Be("/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
@@ -92,7 +91,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.GetLogoUrlAsync();
 
-        result.Should().Be("/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
@@ -124,7 +123,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.LogoExistsAsync();
 
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Fact]
@@ -137,7 +136,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.LogoExistsAsync();
 
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -150,7 +149,7 @@ public class TenantLogoServiceTests : IDisposable
 
         var result = await service.LogoExistsAsync();
 
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     // ClearCache tests
@@ -162,6 +161,6 @@ public class TenantLogoServiceTests : IDisposable
 
         service.ClearCache();
 
-        _cache.TryGetValue("tenant_logo_url_test-bucket", out _).Should().BeFalse();
+        Assert.False(_cache.TryGetValue("tenant_logo_url_test-bucket", out _));
     }
 }

@@ -1,15 +1,11 @@
-﻿#nullable enable
-using Hub.Models.Master;
+﻿using Hub.Models.Master;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Hub.ViewModels;
 
 namespace Hub.Repositories;
 
-public class AuthenticationRepository(MasterContext context)
+public sealed class AuthenticationRepository(MasterContext context)
 {
     public async Task<User?> GetUserByEmail(string email, bool? isCourier = null)
     {
@@ -31,8 +27,9 @@ public class AuthenticationRepository(MasterContext context)
         return await query.FirstOrDefaultAsync();
     }
 
-    public async Task<IEnumerable<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId) =>
+    public async Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId) =>
         await context.TenantUserSettings
+            .AsNoTracking()
             .Where(tus => tus.TenantId == tenantId && tus.UserId == userId)
             .Select(tus => new TenantUserSettingViewModel
             {
@@ -77,6 +74,7 @@ public class AuthenticationRepository(MasterContext context)
 
     public async Task<User?> GetUserById(int id) =>
         await context.Users
+            .AsNoTracking()
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.UserId == id);
 
@@ -85,8 +83,8 @@ public class AuthenticationRepository(MasterContext context)
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.ResetKey == resetKey);
 
-    public async Task<List<Tenant>> GetTenantsByUserIdAsync(int userId) =>
-        await context.TenantUsers.Where(tu => tu.UserId == userId).Select(tu => tu.Tenant)
+    public async Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId) =>
+        await context.TenantUsers.AsNoTracking().Where(tu => tu.UserId == userId).Select(tu => tu.Tenant)
             .Distinct()
             .ToListAsync();
 

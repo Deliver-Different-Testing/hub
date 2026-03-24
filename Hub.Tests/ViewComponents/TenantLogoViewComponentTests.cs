@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Hub.Services;
 using Hub.ViewComponents;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
@@ -25,7 +24,7 @@ public class TenantLogoViewComponentTests
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
-        model!.IsS3Logo.Should().BeTrue();
+        Assert.True(model!.IsS3Logo);
     }
 
     [Fact]
@@ -36,8 +35,8 @@ public class TenantLogoViewComponentTests
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
-        model!.IsS3Logo.Should().BeFalse();
-        model.LogoUrl.Should().Be("/images/logo.png");
+        Assert.False(model!.IsS3Logo);
+        Assert.Equal("/images/logo.png", model.LogoUrl);
     }
 
     [Fact]
@@ -48,8 +47,8 @@ public class TenantLogoViewComponentTests
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
-        model!.LogoUrl.Should().Be("/images/DFRNT_HorizLogo_RGB.png");
-        model.IsS3Logo.Should().BeFalse();
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", model!.LogoUrl);
+        Assert.False(model.IsS3Logo);
     }
 
     [Fact]
@@ -60,8 +59,8 @@ public class TenantLogoViewComponentTests
         var result = await _viewComponent.InvokeAsync("my-class", "My Logo") as ViewViewComponentResult;
 
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
-        model!.CssClass.Should().Be("my-class");
-        model.AltText.Should().Be("My Logo");
+        Assert.Equal("my-class", model!.CssClass);
+        Assert.Equal("My Logo", model.AltText);
     }
 
     [Fact]
@@ -72,8 +71,8 @@ public class TenantLogoViewComponentTests
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
-        model!.CssClass.Should().Be("");
-        model.AltText.Should().Be("Company Logo");
+        Assert.Equal("", model!.CssClass);
+        Assert.Equal("Company Logo", model.AltText);
     }
 
     [Fact]
@@ -85,8 +84,8 @@ public class TenantLogoViewComponentTests
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
-        model!.IsS3Logo.Should().BeTrue();
+        Assert.True(model!.IsS3Logo);
         // UrlPathEncode should have been applied
-        model.LogoUrl.Should().NotBeNullOrEmpty();
+        Assert.False(string.IsNullOrEmpty(model.LogoUrl));
     }
 }
