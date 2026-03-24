@@ -1,5 +1,4 @@
-﻿using System;
-using Hub.Models;
+﻿using Hub.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hub;

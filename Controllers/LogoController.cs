@@ -1,11 +1,11 @@
-using System;
-using System.Threading.Tasks;
 using Hub.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Hub.Controllers;
 
 [Route("api/[controller]")]
+[EnableRateLimiting("api")]
 public class LogoController(ITenantLogoService tenantLogoService) : Controller
 {
     [HttpGet]
@@ -37,7 +37,7 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
             var exists = await tenantLogoService.LogoExistsAsync();
             return Json(new { success = true, exists });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Json(new { success = false, exists = false });
         }

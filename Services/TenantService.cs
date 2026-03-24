@@ -1,17 +1,13 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
-using Hub.Interfaces;
+﻿using Hub.Interfaces;
 using Hub.Models.Master;
 using Hub.Repositories;
-using Microsoft.AspNetCore.Hosting;
 
 namespace Hub.Services;
 
-public class TenantService(AuthenticationRepository authenticationRepository, IWebHostEnvironment hostingEnvironment)
+public sealed class TenantService(AuthenticationRepository authenticationRepository, IWebHostEnvironment hostingEnvironment)
     : ITenantService
 {
-    public async Task<List<Tenant>> GetTenantsForUserAsync(int userId) =>
+    public async Task<IReadOnlyList<Tenant>> GetTenantsForUserAsync(int userId) =>
         await authenticationRepository.GetTenantsByUserIdAsync(userId);
 
     public string GetTenantLogoPath(string tenantCode)

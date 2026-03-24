@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Hub.Repositories;
 using Hub.Services;
 using Hub.Tests.Helpers;
@@ -28,21 +27,21 @@ public class TenantServiceTests
     [Fact]
     public async Task GetTenantsForUserAsync_WithTenants_ReturnsTenants()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var tenants = await service.GetTenantsForUserAsync(1);
 
-        tenants.Should().HaveCount(2);
+        Assert.Equal(2, tenants.Count);
     }
 
     [Fact]
     public async Task GetTenantsForUserAsync_NoTenants_ReturnsEmpty()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var tenants = await service.GetTenantsForUserAsync(999);
 
-        tenants.Should().BeEmpty();
+        Assert.Empty(tenants);
     }
 
     [Fact]
@@ -56,11 +55,11 @@ public class TenantServiceTests
 
         try
         {
-            var (service, _) = CreateService();
+            var service = CreateService().service;
 
             var result = service.GetTenantLogoPath("test");
 
-            result.Should().Be("~/images/testLogo.png");
+            Assert.Equal("~/images/testLogo.png", result);
         }
         finally
         {
@@ -71,30 +70,30 @@ public class TenantServiceTests
     [Fact]
     public void GetTenantLogoPath_LogoNotExists_ReturnsDefault()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var result = service.GetTenantLogoPath("nonexistent");
 
-        result.Should().Be("~/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
     public void GetTenantLogoPath_NullCode_ReturnsDefault()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var result = service.GetTenantLogoPath(null!);
 
-        result.Should().Be("~/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
     public void GetTenantLogoPath_EmptyCode_ReturnsDefault()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var result = service.GetTenantLogoPath(string.Empty);
 
-        result.Should().Be("~/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
     }
 }

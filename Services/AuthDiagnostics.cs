@@ -2,12 +2,10 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Serilog;
 using StackExchange.Redis;
-using System;
-using System.Threading.Tasks;
 
 namespace Hub.Services;
 
-public class AuthDiagnostics(
+public sealed class AuthDiagnostics(
     IConnectionMultiplexer redis,
     IDistributedCache cache,
     IDataProtectionProvider dataProtection)
@@ -71,16 +69,16 @@ public class AuthDiagnostics(
     }
 }
 
-public class DiagnosticResults
+public sealed class DiagnosticResults
 {
     public bool RedisConnectivity { get; set; }
     public double RedisPingMs { get; set; }
     public bool RedisReadWriteWorking { get; set; }
-    public string RedisError { get; set; }
+    public string RedisError { get; set; } = string.Empty;
 
     public bool DistributedCacheWorking { get; set; }
-    public string DistributedCacheError { get; set; }
+    public string DistributedCacheError { get; set; } = string.Empty;
 
     public bool DataProtectionWorking { get; set; }
-    public string DataProtectionError { get; set; }
+    public string DataProtectionError { get; set; } = string.Empty;
 }

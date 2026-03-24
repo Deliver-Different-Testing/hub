@@ -1,22 +1,17 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.IO;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Hub.Repositories;
-using System.Linq;
 using Hub.Shared;
 using Hub.ViewModels;
 
@@ -41,6 +36,7 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult> Login(LoginViewModel model, string returnUrl)
     {
         if (!ModelState.IsValid)
@@ -86,51 +82,18 @@ public class AccountController(
             return View(model);
         }
 
-        var salted = masterUser.Salt;
-        var userPassword = masterUser.Password;
+        if (!VerifyPassword(model.Password, masterUser.Salt, masterUser.Password, masterUser.IsLegacyHash))
+        {
+            Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
+            ViewBag.LoginFailed = true;
+            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+            return View(model);
+        }
 
         if (masterUser.IsLegacyHash)
-        {
-            var hashedPassword = PasswordHelper.HashPasswordLegacy(model.Password, salted);
+            await UpgradeLegacyHashAsync(masterUser, model.Password);
 
-            if (hashedPassword != userPassword)
-            {
-                Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
-                ViewBag.LoginFailed = true;
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                return View(model);
-            }
-
-            // Generate new hash with the improved method
-            var newHash = PasswordHelper.HashPassword(model.Password, salted);
-
-            masterUser.Password = newHash;
-            masterUser.IsLegacyHash = false;
-            await authenticationRepository.SaveAsync();
-        }
-        else
-        {
-            var hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
-
-            if (hashedPassword != userPassword)
-            {
-                Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
-                ViewBag.LoginFailed = true;
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                return View(model);
-            }
-        }
-
-
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
-
-        connectionStringManager.SetConnectionString(connectionString + credentials);
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         // Fetch AccountsMode once for use in all code paths
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
@@ -154,23 +117,23 @@ public class AccountController(
             Log.Information("Courier validated with ID: {CourierId}", courierId.Value);
 
             // Courier users don't need staff user validation - skip to claims generation with default values
-            var claims = GenerateClaims(
-                model.Email,
-                masterUser.UserId,
-                masterUser.CurrentTenant.TenantId,
-                "0", // No ContactID for courier
-                "0", // No ClientID for courier
-                string.Empty, // No StaffID for courier
-                masterUser.CurrentTenant.Dbconnection,
-                model.RememberMe,
-                masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code ?? string.Empty,
-                false, // Couriers are not internal tenant users
-                true,
-                courierId,
-                accountsMode
-            );
+            var claims = GenerateClaims(new ClaimsInput(
+                Email: model.Email,
+                UserId: masterUser.UserId,
+                CurrentTenantId: masterUser.CurrentTenant.TenantId,
+                ContactId: "0",
+                ClientId: "0",
+                StaffId: string.Empty,
+                Connection: masterUser.CurrentTenant.Dbconnection,
+                RememberMe: model.RememberMe,
+                CountryCode: masterUser.CurrentTenant.CountryCode,
+                TimeZone: masterUser.CurrentTenant.TimeZone,
+                TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+                InternalTenantUser: false,
+                IsCourier: true,
+                CourierId: courierId,
+                AccountsMode: accountsMode
+            ));
 
             await SignInUserAsync(claims, model.RememberMe);
 
@@ -191,31 +154,29 @@ public class AccountController(
                 return View(model);
             }
 
-            despatchRepository.UpdateUserAccessed(user.UcctId, model.RememberMe);
+            await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe);
 
-            var claims = GenerateClaims(
-                model.Email,
-                masterUser.UserId,
-                masterUser.CurrentTenant.TenantId,
-                user.UcctId.ToString(),
-                user.UcctClientId.ToString(),
-                user.StaffId?.ToString() ?? string.Empty,
-                masterUser.CurrentTenant.Dbconnection,
-                model.RememberMe,
-                masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code ?? string.Empty,
-                user.UcctClient.UcclInternal,
-                false,
-                null,
-                accountsMode
-            );
+            var claims = GenerateClaims(new ClaimsInput(
+                Email: model.Email,
+                UserId: masterUser.UserId,
+                CurrentTenantId: masterUser.CurrentTenant.TenantId,
+                ContactId: user.UcctId.ToString(),
+                ClientId: user.UcctClientId?.ToString() ?? "0",
+                StaffId: user.StaffId?.ToString() ?? string.Empty,
+                Connection: masterUser.CurrentTenant.Dbconnection,
+                RememberMe: model.RememberMe,
+                CountryCode: masterUser.CurrentTenant.CountryCode,
+                TimeZone: masterUser.CurrentTenant.TimeZone,
+                TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+                InternalTenantUser: user.UcctClient.UcclInternal,
+                AccountsMode: accountsMode
+            ));
 
             await SignInUserAsync(claims, model.RememberMe);
 
             // Special redirect for asure@urgent.co.nz to booking app with /asure param
             if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
-                || !masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+                || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))
                 return RedirectToAction("Index", "Home");
             var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
             if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
@@ -232,11 +193,24 @@ public class AccountController(
     // GET: /Account/CreditCard
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult> CreditCard()
+    [EnableRateLimiting("auth")]
+    public async Task<ActionResult> CreditCard(string token)
     {
-        // Define the preset credentials
-        const string presetEmail = "creditcard@urgent.co.nz";
-        const string presetPassword = "AiZAy671pL";
+        var expectedToken = Environment.GetEnvironmentVariable("CreditCardToken") ?? string.Empty;
+        if (string.IsNullOrEmpty(expectedToken) || token != expectedToken)
+        {
+            Log.Warning("CreditCard auto-login rejected: invalid or missing token");
+            return RedirectToAction("Login");
+        }
+
+        var presetEmail = Environment.GetEnvironmentVariable("CreditCardEmail") ?? string.Empty;
+        var presetPassword = Environment.GetEnvironmentVariable("CreditCardPassword") ?? string.Empty;
+
+        if (string.IsNullOrEmpty(presetEmail) || string.IsNullOrEmpty(presetPassword))
+        {
+            Log.Warning("Credit card auto-login credentials not configured in environment variables");
+            return RedirectToAction("Login", new { error = "Auto-login not configured." });
+        }
 
         // Create a login model with preset credentials
         var model = new LoginViewModel
@@ -262,48 +236,16 @@ public class AccountController(
             return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
         }
 
-        var salted = masterUser.Salt;
-        var userPassword = masterUser.Password;
+        if (!VerifyPassword(model.Password, masterUser.Salt, masterUser.Password, masterUser.IsLegacyHash))
+        {
+            Log.Warning("Credit card auto-login failed: Invalid password for {ModelEmail}", model.Email);
+            return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+        }
 
-        // Verify password
-        string hashedPassword;
         if (masterUser.IsLegacyHash)
-        {
-            hashedPassword = PasswordHelper.HashPasswordLegacy(model.Password, salted);
+            await UpgradeLegacyHashAsync(masterUser, model.Password);
 
-            if (hashedPassword != userPassword)
-            {
-                Log.Warning("Credit card auto-login failed: Invalid password for {ModelEmail}", model.Email);
-                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
-            }
-
-            // Upgrade to new hash
-            var newHash = PasswordHelper.HashPassword(model.Password, salted);
-            masterUser.Password = newHash;
-            masterUser.IsLegacyHash = false;
-            await authenticationRepository.SaveAsync();
-        }
-        else
-        {
-            hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
-
-            if (hashedPassword != userPassword)
-            {
-                Log.Warning("Credit card auto-login failed: Invalid password for {ModelEmail}", model.Email);
-                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
-            }
-        }
-
-        // Set connection string
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
-
-        connectionStringManager.SetConnectionString(connectionString + credentials);
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
         var isCourier = masterUser.IsCourier ?? false;
@@ -316,25 +258,24 @@ public class AccountController(
             return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
         }
 
-        despatchRepository.UpdateUserAccessed(user.UcctId, false);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false);
 
-        var claims = GenerateClaims(
-            model.Email,
-            masterUser.UserId,
-            masterUser.CurrentTenant.TenantId,
-            user.UcctId.ToString(),
-            user.UcctClientId.ToString(),
-            user.StaffId?.ToString() ?? string.Empty,
-            masterUser.CurrentTenant.Dbconnection,
-            false,
-            masterUser.CurrentTenant.CountryCode,
-            masterUser.CurrentTenant.TimeZone,
-            masterUser.CurrentTenant.Code ?? string.Empty,
-            user.UcctClient.UcclInternal,
-            isCourier,
-            null,
-            accountsMode
-        );
+        var claims = GenerateClaims(new ClaimsInput(
+            Email: model.Email,
+            UserId: masterUser.UserId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
+            ContactId: user.UcctId.ToString(),
+            ClientId: user.UcctClientId?.ToString() ?? "0",
+            StaffId: user.StaffId?.ToString() ?? string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: false,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: user.UcctClient.UcclInternal,
+            IsCourier: isCourier,
+            AccountsMode: accountsMode
+        ));
 
         await SignInUserAsync(claims, false);
 
@@ -373,6 +314,7 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult> ResetPassword(ResetPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -395,17 +337,8 @@ public class AccountController(
         masterUser.ResetKey = null;
         await authenticationRepository.SaveAsync();
 
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
-        connectionStringManager.SetConnectionString(connectionString + credentials);
-
-        // Fetch AccountsMode once for use in claims generation
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
         var user = await despatchRepository.FetchUserByUsername(model.Email);
@@ -416,31 +349,30 @@ public class AccountController(
             return View(model);
         }
 
-        despatchRepository.UpdateUserAccessed(user.UcctId, false);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false);
 
-        var claims = GenerateClaims(
-            model.Email,
-            masterUser.UserId,
-            masterUser.CurrentTenant.TenantId,
-            user.UcctId.ToString(),
-            user.UcctClientId.ToString(),
-            user.StaffId?.ToString() ?? string.Empty,
-            masterUser.CurrentTenant.Dbconnection,
-            false,
-            masterUser.CurrentTenant.CountryCode,
-            masterUser.CurrentTenant.TimeZone,
-            masterUser.CurrentTenant.Code ?? string.Empty,
-            user.UcctClient.UcclInternal,
-            masterUser.IsCourier ?? false,
-            null,
-            accountsMode
-        );
+        var claims = GenerateClaims(new ClaimsInput(
+            Email: model.Email,
+            UserId: masterUser.UserId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
+            ContactId: user.UcctId.ToString(),
+            ClientId: user.UcctClientId?.ToString() ?? "0",
+            StaffId: user.StaffId?.ToString() ?? string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: false,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: user.UcctClient.UcclInternal,
+            IsCourier: masterUser.IsCourier ?? false,
+            AccountsMode: accountsMode
+        ));
 
         await SignInUserAsync(claims, false);
 
         // Special redirect for asure@urgent.co.nz to booking app with /asure param
         if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
-            || !masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+            || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))
             return RedirectToAction("Index", "Home");
         var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
         if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
@@ -458,13 +390,14 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         if (!ModelState.IsValid)
             return Json(new { success = false, message = "Please check your input and try again." });
 
 
-        var reCaptchaResponse = await VerifyReCaptcha(Request.Form["g-recaptcha-response"]);
+        var reCaptchaResponse = await VerifyReCaptcha(Request.Form["g-recaptcha-response"].ToString());
 
         if (!reCaptchaResponse.Success || reCaptchaResponse.Score < 0.5)
             return Json(new { success = false, message = "reCAPTCHA validation failed. Please try again." });
@@ -477,20 +410,11 @@ public class AccountController(
 
         masterUser.ResetKey = Guid.NewGuid().ToString();
         await authenticationRepository.SaveAsync();
-        var reply = Environment.GetEnvironmentVariable("ReplyEmail");
+        var reply = Environment.GetEnvironmentVariable("ReplyEmail") ?? string.Empty;
         var baseLink = Environment.GetEnvironmentVariable("ResetBaseLink");
         var link = $"{baseLink}?code={masterUser.ResetKey}";
 
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
-
-        connectionStringManager.SetConnectionString(connectionString + credentials);
-
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var user = await despatchRepository.FetchUserByUsername(model.Email);
 
@@ -509,7 +433,7 @@ public class AccountController(
 
     private async Task<ReCaptchaResponse> VerifyReCaptcha(string token)
     {
-        var secretKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey");
+        var secretKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey") ?? string.Empty;
         var content = new FormUrlEncodedContent([
             new KeyValuePair<string, string>("secret", secretKey),
             new KeyValuePair<string, string>("response", token)
@@ -523,7 +447,8 @@ public class AccountController(
             PropertyNameCaseInsensitive = true
         };
 
-        return JsonSerializer.Deserialize<ReCaptchaResponse>(responseString, options);
+        return JsonSerializer.Deserialize<ReCaptchaResponse>(responseString, options)
+               ?? new ReCaptchaResponse();
     }
 
 
@@ -533,36 +458,72 @@ public class AccountController(
 
         [JsonPropertyName("score")] public double Score { get; init; }
 
-        [JsonPropertyName("action")] public string Action { get; init; }
+        [JsonPropertyName("action")] public string Action { get; init; } = string.Empty;
 
         [JsonPropertyName("challenge_ts")] public DateTime ChallengeTs { get; init; }
 
-        [JsonPropertyName("hostname")] public string Hostname { get; init; }
+        [JsonPropertyName("hostname")] public string Hostname { get; init; } = string.Empty;
     }
 
-    private static List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId,
-        string clientId,
-        string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode,
-        bool internalTenantUser, bool isCourier = false, int? courierId = null, int? accountsMode = null)
+    private record ClaimsInput(
+        string Email,
+        int UserId,
+        int CurrentTenantId,
+        string ContactId,
+        string ClientId,
+        string StaffId,
+        string Connection,
+        bool RememberMe,
+        string CountryCode,
+        string TimeZone,
+        string TenantCode,
+        bool InternalTenantUser,
+        bool IsCourier = false,
+        int? CourierId = null,
+        int? AccountsMode = null);
+
+    private static List<Claim> GenerateClaims(ClaimsInput input) =>
+    [
+        new(ClaimTypes.Name, input.Email),
+        new("UserID", input.UserId.ToString()),
+        new("CurrentTenantID", input.CurrentTenantId.ToString()),
+        new("ContactID", input.ContactId),
+        new("ClientID", input.ClientId),
+        new("StaffID", input.StaffId),
+        new("Connection", input.Connection),
+        new("CountryCode", input.CountryCode),
+        new("TimeZone", input.TimeZone),
+        new("TenantCode", input.TenantCode),
+        new("RememberMe", input.RememberMe.ToString()),
+        new("Internal", input.InternalTenantUser.ToString()),
+        new("IsCourier", input.IsCourier.ToString()),
+        new("CourierID", input.CourierId?.ToString() ?? string.Empty),
+        new("AccountsMode", input.AccountsMode?.ToString() ?? "1")
+    ];
+
+    private void SetTenantConnectionString(string dbConnection)
     {
-        return
-        [
-            new Claim(ClaimTypes.Name, email),
-            new Claim("UserID", userId.ToString()),
-            new Claim("CurrentTenantID", currentTenantId.ToString()),
-            new Claim("ContactID", contactId),
-            new Claim("ClientID", clientId),
-            new Claim("StaffID", staffId ?? string.Empty),
-            new Claim("Connection", connection),
-            new Claim("CountryCode", countryCode),
-            new Claim("TimeZone", timeZone),
-            new Claim("TenantCode", tenantCode),
-            new Claim("RememberMe", rememberMe.ToString()),
-            new Claim("Internal", internalTenantUser.ToString()),
-            new Claim("IsCourier", isCourier.ToString()),
-            new Claim("CourierID", courierId?.ToString() ?? string.Empty),
-            new Claim("AccountsMode", accountsMode?.ToString() ?? "1")
-        ];
+        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        if (string.IsNullOrEmpty(credentials))
+            throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        connectionStringManager.SetConnectionString(dbConnection + credentials);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Obsolete", "CS0618", Justification = "Legacy hash needed to verify users not yet upgraded")]
+    private static bool VerifyPassword(string password, string salt, string storedHash, bool isLegacy)
+    {
+        var hash = isLegacy
+            ? PasswordHelper.HashPasswordLegacy(password, salt)
+            : PasswordHelper.HashPassword(password, salt);
+        return hash == storedHash;
+    }
+
+    private async Task UpgradeLegacyHashAsync(Models.Master.User masterUser, string password)
+    {
+        var newHash = PasswordHelper.HashPassword(password, masterUser.Salt);
+        masterUser.Password = newHash;
+        masterUser.IsLegacyHash = false;
+        await authenticationRepository.SaveAsync();
     }
 
     private async Task SignInUserAsync(List<Claim> claims, bool isPersistent)
@@ -582,6 +543,7 @@ public class AccountController(
             authProperties);
     }
 
+    [Authorize]
     public async Task<IActionResult> Logout()
     {
         // Clear the existing external cookie
@@ -594,8 +556,9 @@ public class AccountController(
 
 
     [HttpPost]
+    [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel model)
+    public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel? model)
     {
         var userId = User.FindFirst("UserID")?.Value;
         if (userId == null)
@@ -623,50 +586,42 @@ public class AccountController(
         }
 
         //Changed Tenant - switch connection
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        Log.Debug("Changed Current Tenant. Setting new connection: {ConnectionString}", connectionString);
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
+        Log.Debug("Changed Current Tenant for user {UserId}", userId);
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
-        connectionStringManager.SetConnectionString(connectionString + credentials);
-
-        // Fetch AccountsMode once for use in claims generation
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
-        var user = await despatchRepository.FetchUserByUsername(User.Identity?.Name);
+        var email = User.Identity?.Name ?? string.Empty;
+        var user = await despatchRepository.FetchUserByUsername(email);
 
         if (user == null)
         {
-            Log.Debug("Failed to authenticate Despatch User {IdentityName}. Invalid username.", User.Identity?.Name);
+            Log.Debug("Failed to authenticate Despatch User {IdentityName}. Invalid username.", email);
             return Json(new { success = false, message = "Despatch User not found" });
         }
 
         var rememberMe = bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
-        despatchRepository.UpdateUserAccessed(user.UcctId, rememberMe);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe);
         Log.Debug("About to write Claim details. ContactID: {ToString}", user.UcctId.ToString());
         Log.Debug("About to write Claim details. Connection: {CurrentTenantDbconnection}",
             masterUser.CurrentTenant.Dbconnection);
 
-        var claims = GenerateClaims(
-            User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
-            masterUser.UserId,
-            model.TenantId,
-            user.UcctId.ToString(),
-            user.UcctClientId.ToString(),
-            user.StaffId?.ToString() ?? string.Empty,
-            masterUser.CurrentTenant.Dbconnection,
-            rememberMe,
-            masterUser.CurrentTenant.CountryCode,
-            masterUser.CurrentTenant.TimeZone,
-            masterUser.CurrentTenant.Code ?? string.Empty,
-            user.UcctClient.UcclInternal,
-            masterUser.IsCourier ?? false,
-            accountsMode
-        );
+        var claims = GenerateClaims(new ClaimsInput(
+            Email: User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
+            UserId: masterUser.UserId,
+            CurrentTenantId: model.TenantId,
+            ContactId: user.UcctId.ToString(),
+            ClientId: user.UcctClientId?.ToString() ?? "0",
+            StaffId: user.StaffId?.ToString() ?? string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: rememberMe,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: user.UcctClient.UcclInternal,
+            IsCourier: masterUser.IsCourier ?? false,
+            AccountsMode: accountsMode
+        ));
 
         await SignInUserAsync(claims, rememberMe);
 
@@ -695,71 +650,25 @@ public class AccountController(
 
 
     [HttpPost]
+    [Authorize]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> GenerateApiKey()
     {
         try
         {
-            var email = HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
-            if (email == null)
-            {
-                Log.Debug("Failed to generate API key: email is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
+            var email = GetClaim(ClaimTypes.Name);
+            var clientId = GetClaim("ClientID");
+            var tenantId = GetClaim("CurrentTenantID");
+            var connection = GetClaim("Connection");
+            var timeZone = GetClaim("TimeZone");
+            var contactId = GetClaim("ContactID");
+            var userId = GetClaim("UserID");
+            var tenantCode = GetClaim("TenantCode");
 
-            var uid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserID")?.Value;
-            if (uid == null)
+            if (email == null || clientId == null || tenantId == null || connection == null ||
+                timeZone == null || contactId == null || userId == null || tenantCode == null)
             {
-                Log.Debug("Failed to generate API key: UserID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var clientId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
-            if (clientId == null)
-            {
-                Log.Debug("Failed to generate API key: ClientID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var tenantId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CurrentTenantID")?.Value;
-            if (tenantId == null)
-            {
-                Log.Debug("Failed to generate API key: CurrentTenantID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var connection = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
-            if (connection == null)
-            {
-                Log.Debug("Failed to generate API key: Connection is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var timeZone = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TimeZone")?.Value;
-            if (timeZone == null)
-            {
-                Log.Debug("Failed to generate API key: TimeZone is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var contactId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
-            if (contactId == null)
-            {
-                Log.Debug("Failed to generate API key: ContactID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var userId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserID")?.Value;
-            if (userId == null)
-            {
-                Log.Debug("Failed to generate API key: UserID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
-            if (tenantCode == null)
-            {
-                Log.Debug("Failed to generate API key: tenantCode is not found");
+                Log.Debug("Failed to generate API key: one or more required claims missing");
                 return Json(new { success = false, message = "Failed to generate API key" });
             }
 
@@ -776,6 +685,8 @@ public class AccountController(
 
             await authenticationRepository.SaveUserSetting(viewModel, int.Parse(tenantId), int.Parse(userId));
             return Json(new { success = true, message = "Successfully generated API key", apiKey = respToken });
+
+            string? GetClaim(string type) => User.FindFirst(type)?.Value;
         }
         catch (Exception ex)
         {
@@ -803,7 +714,8 @@ public class AccountController(
             TimeZone = tenantTimeZone,
             TenantCode = tenantCode
         });
-        var encryptedClaims = EncryptClaims(sensitiveClaims, Environment.GetEnvironmentVariable("ClaimsKey"));
+        var encryptedClaims = EncryptClaims(sensitiveClaims,
+            Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, name),
@@ -819,9 +731,10 @@ public class AccountController(
         );
     }
 
+    [Authorize]
     public async Task<ActionResult> Settings()
     {
-        var data = new List<TenantUserSettingViewModel>();
+        IReadOnlyList<TenantUserSettingViewModel> data = [];
         var email = HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
 
         if (email == null)
@@ -838,18 +751,8 @@ public class AccountController(
             return View(data);
         }
 
-        var us = await authenticationRepository.GetUserSettings(masterUser.CurrentTenant.TenantId, masterUser.UserId);
-        data = us.ToList();
+        data = await authenticationRepository.GetUserSettings(masterUser.CurrentTenant.TenantId, masterUser.UserId);
 
-
-        var other1 = new TenantUserSettingViewModel
-        {
-            Id = 2,
-            Name = "Test Setting",
-            Value = "Testing Settings"
-        };
-
-        data.Add(other1);
         return View(data);
     }
 }

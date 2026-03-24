@@ -1,53 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using Hub.Models;
+﻿using Hub.Models;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace Hub.Repositories;
 
-public partial class Repository(DynamicDespatchDbContext context)
+public sealed class Repository(DynamicDespatchDbContext context)
 {
-    private void LogConnectionDetails()
+
+    public async Task<TucClientContact?> FetchUserByUsername(string email)
     {
         try
         {
-            var connection = context.Database.GetDbConnection();
-            var maskedConnectionString = MaskSensitiveInfo(connection.ConnectionString);
+            Log.Debug("Attempting to fetch user with email: {Email}", email);
 
-            Log.Information("Current Connection Details:");
-            Log.Information("Data Source: {ConnectionDataSource}", connection.DataSource);
-            Log.Information("Database: {ConnectionDatabase}", connection.Database);
-            Log.Information("Masked Connection String: {MaskedConnectionString}", maskedConnectionString);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error logging connection details");
-        }
-    }
-
-    private static string MaskSensitiveInfo(string connectionString)
-    {
-        // Mask password
-        var maskedString = PasswordRegex().Replace(connectionString, "$1=********");
-
-        // Mask user id if present
-        maskedString = UserNameRegex().Replace(maskedString, "$1=********");
-
-        return maskedString;
-    }
-
-    public async Task<TucClientContact> FetchUserByUsername(string email)
-    {
-        LogConnectionDetails();
-        try
-        {
-            Log.Information("Attempting to fetch user with email: {Email}", email);
-
-            return await context.TucClientContacts.Where(x => x.Active && x.UserName == email)
+            return await context.TucClientContacts
+                .AsNoTracking()
+                .Where(x => x.Active && x.UserName == email)
                 .Include(c => c.UcctClient)
                 .FirstOrDefaultAsync();
         }
@@ -60,9 +28,12 @@ public partial class Repository(DynamicDespatchDbContext context)
 
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
-        var subAccounts = await context.TucClients.Where(x => x.UcclGroupId == clientId).Select(y => y.UcclId)
+        var subAccounts = await context.TucClients
+            .AsNoTracking()
+            .Where(x => x.UcclGroupId == clientId)
+            .Select(y => y.UcclId)
             .ToListAsync();
-        return string.Join(",", subAccounts.Select(n => n.ToString()).ToArray());
+        return string.Join(",", subAccounts);
     }
 
     public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissions(int contactId)
@@ -75,36 +46,41 @@ public partial class Repository(DynamicDespatchDbContext context)
     public async Task InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link) =>
         await context.Procedures.NET_stpContact_ResetPasswordAsync(contactId, recoveryEmail, replyEmail, link);
 
-    public void UpdateUserAccessed(int id, bool rememberMe)
+    public async Task UpdateUserAccessedAsync(int id, bool rememberMe)
     {
-        var contact = context.TucClientContacts.FirstOrDefault(x => x.UcctId == id);
+        var contact = await context.TucClientContacts.FirstOrDefaultAsync(x => x.UcctId == id);
         if (contact == null) return;
-        contact.LastAccessed = DateTime.Now;
-        contact.HasEmail = contact.WhenEmailValidated == null || contact.HasEmail;
-        contact.ValidatedEmail = contact.WhenEmailValidated == null || contact.ValidatedEmail;
-        contact.WhenEmailValidated ??= DateTime.Now;
-        contact.WhenEmailValidatedSent = contact.WhenEmailValidated == null
-            ? DateTime.Now
+
+        var isFirstEmailValidation = contact.WhenEmailValidated == null;
+
+        var utcNow = DateTime.UtcNow;
+        contact.LastAccessed = utcNow;
+        contact.HasEmail = isFirstEmailValidation || contact.HasEmail;
+        contact.ValidatedEmail = isFirstEmailValidation || contact.ValidatedEmail;
+        contact.WhenEmailValidatedSent = isFirstEmailValidation
+            ? utcNow
             : contact.WhenEmailValidatedSent;
+        contact.WhenEmailValidated ??= utcNow;
         contact.AllowCookieLogin = rememberMe;
-        context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public async Task<int?> ValidateCourierByEmail(string email)
     {
-        LogConnectionDetails();
         try
         {
-            Log.Information("Attempting to validate courier with email: {Email}", email);
+            Log.Debug("Validating courier with email: {Email}", email);
 
-            // Get the tucCourier record with the given email
-            var courier = await context.TucCouriers
-                .FirstOrDefaultAsync(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim() == email);
+            var courierId = await context.TucCouriers
+                .AsNoTracking()
+                .Where(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim() == email)
+                .Select(x => (int?)x.UccrId)
+                .FirstOrDefaultAsync();
 
-            if (courier != null)
+            if (courierId.HasValue)
             {
-                Log.Information("Found courier with ID: {CourierUccrId}", courier.UccrId);
-                return courier.UccrId;
+                Log.Debug("Found courier with ID: {CourierId}", courierId.Value);
+                return courierId;
             }
 
             Log.Warning("No active courier found with email: {Email}", email);
@@ -119,20 +95,15 @@ public partial class Repository(DynamicDespatchDbContext context)
 
     public async Task<int?> GetAccountsModeAsync()
     {
-        LogConnectionDetails();
         try
         {
-            Log.Information("Fetching AccountsMode from TblSettings");
+            var accountsMode = await context.TblSettings
+                .AsNoTracking()
+                .Select(s => s.AccountsMode)
+                .FirstOrDefaultAsync();
 
-            var settings = await context.TblSettings.FirstOrDefaultAsync();
-            if (settings == null)
-            {
-                Log.Warning("TblSettings record not found");
-                return null;
-            }
-
-            Log.Information("AccountsMode: {ToString}", settings.AccountsMode?.ToString() ?? "NULL");
-            return settings.AccountsMode;
+            Log.Debug("AccountsMode: {AccountsMode}", accountsMode?.ToString() ?? "NULL");
+            return accountsMode;
         }
         catch (Exception ex)
         {
@@ -141,32 +112,21 @@ public partial class Repository(DynamicDespatchDbContext context)
         }
     }
 
-    public async Task<bool> IsAfterHoursAuthorized(int courierId, int dayOfWeek)
+    public async Task<bool> IsAfterHoursAuthorized(int courierId)
     {
-        LogConnectionDetails();
         try
         {
-            Log.Information("Checking after-hours authorization for courier {CourierId} on day {DayOfWeek}", courierId,
-                dayOfWeek);
-
-            // Check if a tblAfterHoursCourier record exists for this courier.
-            // 2026-01-20 New logic from George - ignore day/time. Just existence of courier qualifies for auth.
+            // 2026-01-20 New logic from George - just existence of courier qualifies for auth.
             var isAuthorized = await context.TblAfterhoursCouriers
+                .AsNoTracking()
                 .AnyAsync(ah => ah.CourierId == courierId);
 
             return isAuthorized;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error checking after-hours authorization for courier {CourierId} on day {DayOfWeek}",
-                courierId, dayOfWeek);
+            Log.Error(ex, "Error checking after-hours authorization for courier {CourierId}", courierId);
             return false;
         }
     }
-
-    [GeneratedRegex("(Password|Pwd)=[^;]*", RegexOptions.IgnoreCase, "en-NZ")]
-    private static partial Regex PasswordRegex();
-
-    [GeneratedRegex("(User ID|Uid)=[^;]*", RegexOptions.IgnoreCase, "en-NZ")]
-    private static partial Regex UserNameRegex();
 }

@@ -1,6 +1,6 @@
-using FluentAssertions;
 using Hub.Controllers;
 using Hub.Services;
+using Hub.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -26,7 +26,7 @@ public class LogoControllerTests
         var result = await _controller.GetLogo() as JsonResult;
 
         var value = result!.Value;
-        value.Should().BeEquivalentTo(new { success = true, logoUrl = "/images/logo.png", isLocal = true });
+        AssertHelper.JsonEquivalent(new { success = true, logoUrl = "/images/logo.png", isLocal = true }, value);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class LogoControllerTests
         var result = await _controller.GetLogo() as JsonResult;
 
         var value = result!.Value;
-        value.Should().BeEquivalentTo(new { success = true, logoUrl = "https://s3.amazonaws.com/logo.png", isLocal = false });
+        AssertHelper.JsonEquivalent(new { success = true, logoUrl = "https://s3.amazonaws.com/logo.png", isLocal = false }, value);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class LogoControllerTests
         var result = await _controller.GetLogo() as JsonResult;
 
         var value = result!.Value;
-        value.Should().BeEquivalentTo(new { success = true, logoUrl = (string?)null, isLocal = false });
+        AssertHelper.JsonEquivalent(new { success = true, logoUrl = (string?)null, isLocal = false }, value);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class LogoControllerTests
         var result = await _controller.GetLogo() as JsonResult;
 
         var value = result!.Value;
-        value.Should().BeEquivalentTo(new { success = false, message = "Error retrieving logo", logoUrl = "/images/DFRNT_HorizLogo_RGB.png" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Error retrieving logo", logoUrl = "/images/DFRNT_HorizLogo_RGB.png" }, value);
     }
 
     // LogoExists tests
@@ -70,7 +70,7 @@ public class LogoControllerTests
 
         var result = await _controller.LogoExists() as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = true, exists = true });
+        AssertHelper.JsonEquivalent(new { success = true, exists = true }, result!.Value);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class LogoControllerTests
 
         var result = await _controller.LogoExists() as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = true, exists = false });
+        AssertHelper.JsonEquivalent(new { success = true, exists = false }, result!.Value);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class LogoControllerTests
 
         var result = await _controller.LogoExists() as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, exists = false });
+        AssertHelper.JsonEquivalent(new { success = false, exists = false }, result!.Value);
     }
 
     // ClearCache tests
@@ -99,7 +99,7 @@ public class LogoControllerTests
     {
         var result = _controller.ClearCache() as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = true, message = "Cache cleared successfully" });
+        AssertHelper.JsonEquivalent(new { success = true, message = "Cache cleared successfully" }, result!.Value);
     }
 
     [Fact]
@@ -109,6 +109,6 @@ public class LogoControllerTests
 
         var result = _controller.ClearCache() as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Error clearing cache" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Error clearing cache" }, result!.Value);
     }
 }

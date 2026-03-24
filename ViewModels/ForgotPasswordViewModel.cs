@@ -2,9 +2,9 @@
 
 namespace Hub.ViewModels;
 
-public class ForgotPasswordViewModel
+public sealed class ForgotPasswordViewModel
 {
     [Required]
     [Display(Name = "Email")]
-    public string Email { get; init; }
+    public required string Email { get; init; }
 }

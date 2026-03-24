@@ -1,5 +1,4 @@
-﻿using System;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using Hub.Models;
 
 namespace Hub.Shared;
@@ -12,20 +11,25 @@ public static class PasswordHelper
     /// <param name="password"></param>
     /// <param name="salt"></param>
     /// <returns></returns>
-    [Obsolete("Obsolete")]
+    /// <summary>
+    /// Legacy hash kept only for verifying existing passwords during upgrade to HashPassword.
+    /// Do not use for new passwords.
+    /// </summary>
     public static string HashPasswordLegacy(string password, string salt)
     {
-        var k2 = new Rfc2898DeriveBytes(password, System.Text.Encoding.UTF8.GetBytes(salt + salt));
-        var hashBytes = k2.GetBytes(64); // 64 bytes = 512 bits
-        var result = Convert.ToHexString(hashBytes);
-        return result;
+        var hashBytes = Rfc2898DeriveBytes.Pbkdf2(
+            password,
+            System.Text.Encoding.UTF8.GetBytes(salt + salt),
+            1000,
+            HashAlgorithmName.SHA1,
+            64); // 64 bytes = 512 bits
+        return Convert.ToHexString(hashBytes);
     }
 
     public static SaltHashed SaltHashNewPassword(string password)
     {
-        var random = new Random();
-        var salt = random.Next(10000, 99999);
-        var salted = salt.ToString();
+        var saltBytes = RandomNumberGenerator.GetBytes(16);
+        var salted = Convert.ToBase64String(saltBytes);
         var result = new SaltHashed
         {
             Salt = salted,
