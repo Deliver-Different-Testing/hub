@@ -3,7 +3,6 @@ using Hub.Extensions;
 using Hub.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using Serilog;
 
@@ -87,10 +86,6 @@ else
         .SetApplicationName("DeliverDifferent");
 }
 
-var cookieSecurePolicy = builder.Environment.IsDevelopment()
-    ? CookieSecurePolicy.SameAsRequest
-    : CookieSecurePolicy.Always;
-
 builder.Services.AddAuthentication("Identity.Application")
     .AddCookie("Identity.Application", options =>
     {
@@ -100,83 +95,22 @@ builder.Services.AddAuthentication("Identity.Application")
         options.AccessDeniedPath = "/Forbidden/";
         options.LoginPath = "/Account/Login";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = cookieSecurePolicy;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        if (!string.IsNullOrEmpty(domain))
-            options.Cookie.Domain = domain;
+        options.Cookie.Domain = domain;
     });
 
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "hub_session";
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = cookieSecurePolicy;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-});
-
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-    options.AddFixedWindowLimiter("auth", limiter =>
-    {
-        limiter.PermitLimit = 10;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-    });
-
-    options.AddFixedWindowLimiter("api", limiter =>
-    {
-        limiter.PermitLimit = 60;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-    });
-
-    options.OnRejected = async (context, _) =>
-    {
-        context.HttpContext.Response.Headers.RetryAfter = "60";
-        Log.Warning("Rate limit exceeded for {RemoteIp} on {Path}",
-            context.HttpContext.Connection.RemoteIpAddress,
-            context.HttpContext.Request.Path);
-        await ValueTask.CompletedTask;
-    };
+    options.IdleTimeout = TimeSpan.FromMinutes(60 * 24);
 });
 
 var app = builder.Build();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/healthz");
 app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) =>
-    await diagnostics.RunDiagnosticsAsync()).RequireAuthorization();
+    await diagnostics.RunDiagnosticsAsync());
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
-
-// Security headers
-app.Use(async (HttpContext context, Func<Task> next) =>
-{
-    var headers = context.Response.Headers;
-    headers.XContentTypeOptions = "nosniff";
-    headers.XFrameOptions = "DENY";
-    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    headers.ContentSecurityPolicy = string.Join("; ",
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
-        "img-src 'self' data:",
-        "connect-src 'self'",
-        "frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/",
-        "base-uri 'self'",
-        "form-action 'self'");
-    await next();
-});
-
 var provider = new FileExtensionContentTypeProvider { Mappings = { [".tpl"] = "text/plain" } };
 
 app.UseStaticFiles(new StaticFileOptions
@@ -199,7 +133,6 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseSession();
-app.UseRateLimiter();
 app.UseCookiePolicy();
 app.UseRouting();
 app.UseAuthentication();
