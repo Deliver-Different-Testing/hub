@@ -25,7 +25,7 @@ public class AccountController(
 {
     // GET: /Account/Login
     [AllowAnonymous]
-    public ActionResult Login(string returnUrl)
+    public ActionResult Login(string? returnUrl)
     {
         ViewBag.ReturnUrl = returnUrl;
         ViewBag.IsValid = true;
@@ -37,7 +37,7 @@ public class AccountController(
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
     [EnableRateLimiting("auth")]
-    public async Task<ActionResult> Login(LoginViewModel model, string returnUrl)
+    public async Task<ActionResult> Login(LoginViewModel model, string? returnUrl)
     {
         if (!ModelState.IsValid)
         {
