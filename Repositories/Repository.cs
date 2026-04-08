@@ -1,10 +1,11 @@
-﻿using Hub.Models;
+﻿using Hub.Interfaces;
+using Hub.Models;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace Hub.Repositories;
 
-public sealed class Repository(DynamicDespatchDbContext context)
+public sealed class Repository(DynamicDespatchDbContext context) : IDespatchRepository
 {
 
     public async Task<TucClientContact?> FetchUserByUsername(string email)
@@ -15,8 +16,8 @@ public sealed class Repository(DynamicDespatchDbContext context)
 
             return await context.TucClientContacts
                 .AsNoTracking()
-                .Where(x => x.Active && x.UserName == email)
                 .Include(c => c.UcctClient)
+                .Where(x => x.Active && x.UserName == email)
                 .FirstOrDefaultAsync();
         }
         catch (Exception ex)

@@ -1,3 +1,4 @@
+using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
 using Hub.Repositories;
@@ -28,8 +29,8 @@ public static class DatabaseServiceExtensions
             return new DynamicDespatchDbContext(optionsBuilder.Options, connectionStringManager);
         });
 
-        services.AddScoped<Repository, Repository>();
-        services.AddScoped<AuthenticationRepository, AuthenticationRepository>();
+        services.AddScoped<IDespatchRepository, Repository>();
+        services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
 
         return services;
     }

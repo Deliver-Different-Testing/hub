@@ -10,6 +10,9 @@
     <None Remove="Hub.Tests\**" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="efpt.Master.config.json.user" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Amazon.AspNetCore.DataProtection.SSM" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" />
     <PackageReference Include="AWSSDK.Core" />

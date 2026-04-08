@@ -1,17 +1,11 @@
 using Amazon.Runtime.Internal;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Hub.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
 using Serilog;
 
 namespace Hub.Services;
-
-public interface ITenantLogoService
-{
-    Task<string?> GetLogoUrlAsync();
-    Task<bool> LogoExistsAsync();
-    void ClearCache();
-}
 
 public sealed class TenantLogoService : ITenantLogoService
 {

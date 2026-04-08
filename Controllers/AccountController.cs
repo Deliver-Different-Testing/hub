@@ -11,7 +11,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Hub.Repositories;
+using Hub.Interfaces;
 using Hub.Shared;
 using Hub.ViewModels;
 
@@ -19,8 +19,8 @@ namespace Hub.Controllers;
 
 public class AccountController(
     IConnectionStringManager connectionStringManager,
-    Repository despatchRepository,
-    AuthenticationRepository authenticationRepository,
+    IDespatchRepository despatchRepository,
+    IAuthenticationRepository authenticationRepository,
     HttpClient httpClient) : Controller
 {
     // GET: /Account/Login

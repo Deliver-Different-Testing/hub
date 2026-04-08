@@ -1,4 +1,4 @@
-using Hub.Controllers;
+﻿using Hub.Controllers;
 using Hub.Models;
 using Hub.Models.Master;
 using Hub.Repositories;
@@ -8,7 +8,7 @@ using Hub.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Controllers;
 
@@ -61,17 +61,15 @@ public class AccountControllerTests : IDisposable
         masterCtx.SaveChanges();
 
         // Mock stored procedures
-        var mockProcs = new Mock<IDespatchContextProcedures>();
-        mockProcs
-            .Setup(p => p.RVW_stpValidateInternetPermissionsAsync(
-                It.IsAny<int?>(), It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-        mockProcs
-            .Setup(p => p.NET_stpContact_ResetPasswordAsync(
-                It.IsAny<int?>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-        despatchCtx.Procedures = mockProcs.Object;
+        var mockProcs = Substitute.For<IDespatchContextProcedures>();
+        mockProcs.RVW_stpValidateInternetPermissionsAsync(
+                Arg.Any<int?>(), Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        mockProcs.NET_stpContact_ResetPasswordAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        despatchCtx.Procedures = mockProcs;
 
         var connectionStringManager = new ConnectionStringManager();
         var authRepo = new AuthenticationRepository(masterCtx);

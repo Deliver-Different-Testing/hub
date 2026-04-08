@@ -1,10 +1,9 @@
 ﻿using Hub.Interfaces;
 using Hub.Models.Master;
-using Hub.Repositories;
 
 namespace Hub.Services;
 
-public sealed class TenantService(AuthenticationRepository authenticationRepository, IWebHostEnvironment hostingEnvironment)
+public sealed class TenantService(IAuthenticationRepository authenticationRepository, IWebHostEnvironment hostingEnvironment)
     : ITenantService
 {
     public async Task<IReadOnlyList<Tenant>> GetTenantsForUserAsync(int userId) =>

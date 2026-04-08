@@ -80,7 +80,7 @@ public class PasswordHelperTests
 
         Assert.False(string.IsNullOrEmpty(result.Salt));
         var bytes = Convert.FromBase64String(result.Salt);
-        Assert.Equal(16, bytes.Count());
+        Assert.Equal(16, bytes.Length);
     }
 
     [Fact]

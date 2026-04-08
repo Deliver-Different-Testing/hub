@@ -13,6 +13,8 @@ public partial class MasterContext : DbContext
     {
     }
 
+    public virtual DbSet<IntMgrPartnerDirectoryListing> IntMgrPartnerDirectoryListings { get; set; }
+
     public virtual DbSet<Tenant> Tenants { get; set; }
 
     public virtual DbSet<TenantBranding> TenantBrandings { get; set; }
@@ -26,6 +28,34 @@ public partial class MasterContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.UseCollation("Latin1_General_CI_AS");
+
+        modelBuilder.Entity<IntMgrPartnerDirectoryListing>(entity =>
+        {
+            entity.HasKey(e => e.TenantId);
+
+            entity.ToTable("IntMgrPartnerDirectoryListing");
+
+            entity.HasIndex(e => e.IsActive, "IX_IntMgrPartnerDirectoryListing_IsActive");
+
+            entity.Property(e => e.TenantId).ValueGeneratedNever();
+            entity.Property(e => e.BaseUrl)
+                .IsRequired()
+                .HasMaxLength(500);
+            entity.Property(e => e.CreatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_IntMgrPartnerDirectoryListing_CreatedAtUtc")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true, "DF_IntMgrPartnerDirectoryListing_IsActive");
+            entity.Property(e => e.Region).HasMaxLength(50);
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_IntMgrPartnerDirectoryListing_UpdatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Tenant).WithOne(p => p.IntMgrPartnerDirectoryListing)
+                .HasForeignKey<IntMgrPartnerDirectoryListing>(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_IntMgrPartnerDirectoryListing_Tenant");
+        });
 
         modelBuilder.Entity<Tenant>(entity =>
         {
@@ -108,6 +138,9 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.SettingName)
                 .IsRequired()
                 .HasMaxLength(150);
+            entity.Property(e => e.SettingValue)
+                .IsRequired()
+                .HasMaxLength(200);
 
             entity.HasOne(d => d.Tenant).WithMany(p => p.TenantUserSettings)
                 .HasForeignKey(d => d.TenantId)
@@ -133,7 +166,7 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Email)
                 .IsRequired()
                 .HasMaxLength(250);
-            entity.Property(e => e.IsLegacyHash).HasDefaultValue(true);
+            entity.Property(e => e.IsLegacyHash).HasDefaultValue(true, "DF_User_IsLegacyHash");
             entity.Property(e => e.Password)
                 .IsRequired()
                 .HasMaxLength(200);

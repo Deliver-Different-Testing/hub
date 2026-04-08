@@ -1,11 +1,12 @@
-﻿using Hub.Models.Master;
+﻿using Hub.Interfaces;
+using Hub.Models.Master;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Hub.ViewModels;
 
 namespace Hub.Repositories;
 
-public sealed class AuthenticationRepository(MasterContext context)
+public sealed class AuthenticationRepository(MasterContext context) : IAuthenticationRepository
 {
     public async Task<User?> GetUserByEmail(string email, bool? isCourier = null)
     {

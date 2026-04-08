@@ -19,6 +19,8 @@ public partial class Tenant
 
     public string TimeZone { get; set; }
 
+    public virtual IntMgrPartnerDirectoryListing IntMgrPartnerDirectoryListing { get; set; }
+
     public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();
 
     public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();

@@ -1,26 +1,26 @@
-using Hub.Repositories;
+﻿using Hub.Repositories;
 using Hub.Services;
 using Hub.Tests.Helpers;
 using Microsoft.AspNetCore.Hosting;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Services;
 
 public class TenantServiceTests
 {
-    private readonly Mock<IWebHostEnvironment> _mockHostEnv;
+    private readonly IWebHostEnvironment _mockHostEnv;
 
     public TenantServiceTests()
     {
-        _mockHostEnv = new Mock<IWebHostEnvironment>();
-        _mockHostEnv.Setup(e => e.WebRootPath).Returns(Path.GetTempPath());
+        _mockHostEnv = Substitute.For<IWebHostEnvironment>();
+        _mockHostEnv.WebRootPath.Returns(Path.GetTempPath());
     }
 
     private (TenantService service, AuthenticationRepository authRepo) CreateService()
     {
         var context = TestMasterContextFactory.CreateWithSeedData();
         var authRepo = new AuthenticationRepository(context);
-        var service = new TenantService(authRepo, _mockHostEnv.Object);
+        var service = new TenantService(authRepo, _mockHostEnv);
         return (service, authRepo);
     }
 
