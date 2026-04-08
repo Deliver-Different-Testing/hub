@@ -1,25 +1,25 @@
-using Hub.Services;
+﻿using Hub.Interfaces;
 using Hub.ViewComponents;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.ViewComponents;
 
 public class TenantLogoViewComponentTests
 {
-    private readonly Mock<ITenantLogoService> _mockLogoService;
+    private readonly ITenantLogoService _mockLogoService;
     private readonly TenantLogoViewComponent _viewComponent;
 
     public TenantLogoViewComponentTests()
     {
-        _mockLogoService = new Mock<ITenantLogoService>();
-        _viewComponent = new TenantLogoViewComponent(_mockLogoService.Object);
+        _mockLogoService = Substitute.For<ITenantLogoService>();
+        _viewComponent = new TenantLogoViewComponent(_mockLogoService);
     }
 
     [Fact]
     public async Task InvokeAsync_S3Logo_IsS3LogoTrue()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync("https://s3.amazonaws.com/bucket/logo.png");
+        _mockLogoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/bucket/logo.png");
 
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
@@ -30,7 +30,7 @@ public class TenantLogoViewComponentTests
     [Fact]
     public async Task InvokeAsync_LocalLogo_IsS3LogoFalse()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync("/images/logo.png");
+        _mockLogoService.GetLogoUrlAsync().Returns("/images/logo.png");
 
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
@@ -42,7 +42,7 @@ public class TenantLogoViewComponentTests
     [Fact]
     public async Task InvokeAsync_NullLogo_UsesFallback()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync((string)null!);
+        _mockLogoService.GetLogoUrlAsync().Returns((string)null!);
 
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
@@ -54,7 +54,7 @@ public class TenantLogoViewComponentTests
     [Fact]
     public async Task InvokeAsync_CssClassAndAltForwarded()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync("/images/logo.png");
+        _mockLogoService.GetLogoUrlAsync().Returns("/images/logo.png");
 
         var result = await _viewComponent.InvokeAsync("my-class", "My Logo") as ViewViewComponentResult;
 
@@ -66,7 +66,7 @@ public class TenantLogoViewComponentTests
     [Fact]
     public async Task InvokeAsync_DefaultsApplied()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync("/images/logo.png");
+        _mockLogoService.GetLogoUrlAsync().Returns("/images/logo.png");
 
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 
@@ -78,8 +78,8 @@ public class TenantLogoViewComponentTests
     [Fact]
     public async Task InvokeAsync_S3Url_IsUrlEncoded()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync())
-            .ReturnsAsync("https://s3.amazonaws.com/bucket/logo.png?X-Amz-Security-Token=abc+def");
+        _mockLogoService.GetLogoUrlAsync()
+            .Returns("https://s3.amazonaws.com/bucket/logo.png?X-Amz-Security-Token=abc+def");
 
         var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
 

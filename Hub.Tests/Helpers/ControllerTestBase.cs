@@ -1,10 +1,10 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Helpers;
 
@@ -14,54 +14,48 @@ public static class ControllerTestBase
     {
         user ??= ClaimsPrincipalFactory.Create();
 
-        var mockAuthService = new Mock<IAuthenticationService>();
-        mockAuthService
-            .Setup(x => x.SignInAsync(
-                It.IsAny<HttpContext>(),
-                It.IsAny<string>(),
-                It.IsAny<ClaimsPrincipal>(),
-                It.IsAny<AuthenticationProperties>()))
+        var mockAuthService = Substitute.For<IAuthenticationService>();
+        mockAuthService.SignInAsync(
+                Arg.Any<HttpContext>(),
+                Arg.Any<string>(),
+                Arg.Any<ClaimsPrincipal>(),
+                Arg.Any<AuthenticationProperties>())
             .Returns(Task.CompletedTask);
-        mockAuthService
-            .Setup(x => x.SignOutAsync(
-                It.IsAny<HttpContext>(),
-                It.IsAny<string>(),
-                It.IsAny<AuthenticationProperties>()))
+        mockAuthService.SignOutAsync(
+                Arg.Any<HttpContext>(),
+                Arg.Any<string>(),
+                Arg.Any<AuthenticationProperties>())
             .Returns(Task.CompletedTask);
 
-        var mockUrlHelper = new Mock<IUrlHelper>();
-        mockUrlHelper
-            .Setup(x => x.Action(It.IsAny<UrlActionContext>()))
+        var mockUrlHelper = Substitute.For<IUrlHelper>();
+        mockUrlHelper.Action(Arg.Any<UrlActionContext>())
             .Returns("/mocked-url");
 
-        var mockUrlHelperFactory = new Mock<IUrlHelperFactory>();
-        mockUrlHelperFactory
-            .Setup(f => f.GetUrlHelper(It.IsAny<ActionContext>()))
-            .Returns(mockUrlHelper.Object);
+        var mockUrlHelperFactory = Substitute.For<IUrlHelperFactory>();
+        mockUrlHelperFactory.GetUrlHelper(Arg.Any<ActionContext>())
+            .Returns(mockUrlHelper);
 
-        var serviceProvider = new Mock<IServiceProvider>();
-        serviceProvider
-            .Setup(sp => sp.GetService(typeof(IAuthenticationService)))
-            .Returns(mockAuthService.Object);
-        serviceProvider
-            .Setup(sp => sp.GetService(typeof(IUrlHelperFactory)))
-            .Returns(mockUrlHelperFactory.Object);
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IAuthenticationService))
+            .Returns(mockAuthService);
+        serviceProvider.GetService(typeof(IUrlHelperFactory))
+            .Returns(mockUrlHelperFactory);
 
-        var mockSession = new Mock<ISession>();
+        var mockSession = Substitute.For<ISession>();
 
         var httpContext = new DefaultHttpContext
         {
             User = user,
-            RequestServices = serviceProvider.Object
+            RequestServices = serviceProvider
         };
-        httpContext.Features.Set<ISessionFeature>(new SessionFeature { Session = mockSession.Object });
+        httpContext.Features.Set<ISessionFeature>(new SessionFeature { Session = mockSession });
 
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = httpContext
         };
 
-        controller.TempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>());
+        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
     }
 
     private class SessionFeature : ISessionFeature

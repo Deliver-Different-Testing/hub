@@ -1,25 +1,25 @@
+﻿using Hub.Interfaces;
 using Hub.Services;
 using Hub.Tests.Helpers;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Services;
 
 public class TenantBrandingConfigServiceTests
 {
-    private readonly Mock<ITenantLogoService> _mockLogoService;
+    private readonly ITenantLogoService _mockLogoService;
 
     public TenantBrandingConfigServiceTests()
     {
-        _mockLogoService = new Mock<ITenantLogoService>();
-        _mockLogoService
-            .Setup(s => s.GetLogoUrlAsync())
-            .ReturnsAsync("https://s3.amazonaws.com/logo.png");
+        _mockLogoService = Substitute.For<ITenantLogoService>();
+        _mockLogoService.GetLogoUrlAsync()
+            .Returns("https://s3.amazonaws.com/logo.png");
     }
 
     private TenantBrandingConfigService CreateService()
     {
         var context = TestMasterContextFactory.CreateWithSeedData();
-        return new TenantBrandingConfigService(context, _mockLogoService.Object);
+        return new TenantBrandingConfigService(context, _mockLogoService);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public class TenantBrandingConfigServiceTests
         var result = await service.GetReportConfigAsync(1);
 
         // AddressLine3 is null in seed data, so should be filtered out
-        Assert.Equal(2, result!.AddressLines.Count());
+        Assert.Equal(2, result!.AddressLines.Length);
         Assert.Contains("123 Test St", result.AddressLines);
         Assert.Contains("Suite 100", result.AddressLines);
     }

@@ -1,4 +1,4 @@
-﻿using Hub.Repositories;
+﻿using Hub.Interfaces;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ using Hub.Models;
 namespace Hub.Controllers;
 
 [Authorize]
-public class HomeController(IConnectionStringManager connectionStringManager, Repository despatchRepository)
+public class HomeController(IConnectionStringManager connectionStringManager, IDespatchRepository despatchRepository)
     : Controller
 {
     public async Task<IActionResult> Index()

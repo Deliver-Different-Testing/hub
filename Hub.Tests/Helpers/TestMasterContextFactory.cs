@@ -112,6 +112,28 @@ public static class TestMasterContextFactory
             SettingValue = "Dark"
         });
 
+        context.IntMgrPartnerDirectoryListings.AddRange(
+            new IntMgrPartnerDirectoryListing
+            {
+                TenantId = 1,
+                BaseUrl = "https://tenant1.example.com",
+                Description = "Tenant 1 Partner",
+                Region = "NZ",
+                IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            new IntMgrPartnerDirectoryListing
+            {
+                TenantId = 2,
+                BaseUrl = "https://tenant2.example.com",
+                Description = "Tenant 2 Partner",
+                Region = "AU",
+                IsActive = false,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            });
+
         context.TenantBrandings.Add(new TenantBranding
         {
             TenantId = 1,

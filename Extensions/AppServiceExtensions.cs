@@ -11,6 +11,7 @@ public static class AppServiceExtensions
         services.AddMemoryCache();
         services.AddScoped<ITenantLogoService, TenantLogoService>();
         services.AddScoped<ITenantBrandingConfigService, TenantBrandingConfigService>();
+        services.AddScoped<IPartnerDirectoryService, PartnerDirectoryService>();
         services.AddSingleton<AuthDiagnostics>();
     }
 }

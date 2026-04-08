@@ -1,4 +1,4 @@
-using Hub.Services;
+using Hub.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 

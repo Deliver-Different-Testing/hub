@@ -1,27 +1,28 @@
-using Hub.Controllers;
-using Hub.Services;
+﻿using Hub.Controllers;
+using Hub.Interfaces;
 using Hub.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Hub.Tests.Controllers;
 
 public class LogoControllerTests
 {
-    private readonly Mock<ITenantLogoService> _mockLogoService;
+    private readonly ITenantLogoService _logoService;
     private readonly LogoController _controller;
 
     public LogoControllerTests()
     {
-        _mockLogoService = new Mock<ITenantLogoService>();
-        _controller = new LogoController(_mockLogoService.Object);
+        _logoService = Substitute.For<ITenantLogoService>();
+        _controller = new LogoController(_logoService);
     }
 
     // GetLogo tests
     [Fact]
     public async Task GetLogo_LocalPath_ReturnsIsLocalTrue()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync("/images/logo.png");
+        _logoService.GetLogoUrlAsync().Returns("/images/logo.png");
 
         var result = await _controller.GetLogo() as JsonResult;
 
@@ -32,7 +33,7 @@ public class LogoControllerTests
     [Fact]
     public async Task GetLogo_S3Url_ReturnsIsLocalFalse()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync("https://s3.amazonaws.com/logo.png");
+        _logoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/logo.png");
 
         var result = await _controller.GetLogo() as JsonResult;
 
@@ -43,7 +44,7 @@ public class LogoControllerTests
     [Fact]
     public async Task GetLogo_NullUrl_ReturnsIsLocalFalse()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ReturnsAsync((string)null!);
+        _logoService.GetLogoUrlAsync().Returns((string)null!);
 
         var result = await _controller.GetLogo() as JsonResult;
 
@@ -54,7 +55,7 @@ public class LogoControllerTests
     [Fact]
     public async Task GetLogo_ServiceThrows_ReturnsFailure()
     {
-        _mockLogoService.Setup(s => s.GetLogoUrlAsync()).ThrowsAsync(new Exception("S3 error"));
+        _logoService.GetLogoUrlAsync().ThrowsAsync(new Exception("S3 error"));
 
         var result = await _controller.GetLogo() as JsonResult;
 
@@ -66,7 +67,7 @@ public class LogoControllerTests
     [Fact]
     public async Task LogoExists_Exists_ReturnsTrue()
     {
-        _mockLogoService.Setup(s => s.LogoExistsAsync()).ReturnsAsync(true);
+        _logoService.LogoExistsAsync().Returns(true);
 
         var result = await _controller.LogoExists() as JsonResult;
 
@@ -76,7 +77,7 @@ public class LogoControllerTests
     [Fact]
     public async Task LogoExists_NotExists_ReturnsFalse()
     {
-        _mockLogoService.Setup(s => s.LogoExistsAsync()).ReturnsAsync(false);
+        _logoService.LogoExistsAsync().Returns(false);
 
         var result = await _controller.LogoExists() as JsonResult;
 
@@ -86,7 +87,7 @@ public class LogoControllerTests
     [Fact]
     public async Task LogoExists_Throws_ReturnsFailure()
     {
-        _mockLogoService.Setup(s => s.LogoExistsAsync()).ThrowsAsync(new Exception("error"));
+        _logoService.LogoExistsAsync().ThrowsAsync(new Exception("error"));
 
         var result = await _controller.LogoExists() as JsonResult;
 
@@ -105,7 +106,7 @@ public class LogoControllerTests
     [Fact]
     public void ClearCache_Throws_ReturnsFailure()
     {
-        _mockLogoService.Setup(s => s.ClearCache()).Throws(new Exception("error"));
+        _logoService.When(s => s.ClearCache()).Throw(new Exception("error"));
 
         var result = _controller.ClearCache() as JsonResult;
 

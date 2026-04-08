@@ -1,10 +1,10 @@
-using Hub.Controllers;
+﻿using Hub.Controllers;
 using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.Mvc;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Controllers;
 
@@ -33,16 +33,15 @@ public class HomeControllerTests : IDisposable
         var repo = new Repository(context);
 
         // Mock the stored procedures
-        var mockProcs = new Mock<IDespatchContextProcedures>();
-        mockProcs
-            .Setup(p => p.RVW_stpValidateInternetPermissionsAsync(
-                It.IsAny<int?>(), It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([
+        var mockProcs = Substitute.For<IDespatchContextProcedures>();
+        mockProcs.RVW_stpValidateInternetPermissionsAsync(
+                Arg.Any<int?>(), Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns([
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 2, ClientContactID = 1 },
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 12, ClientContactID = 1 },
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 11, ClientContactID = 1 }
             ]);
-        context.Procedures = mockProcs.Object;
+        context.Procedures = mockProcs;
 
         var controller = new HomeController(connectionStringManager, repo);
         ControllerTestBase.SetupHttpContext(controller, user);

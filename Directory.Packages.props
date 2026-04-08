@@ -10,15 +10,16 @@
   <ItemGroup Label="App">
     <PackageVersion Include="Amazon.AspNetCore.DataProtection.SSM" Version="4.0.2" />
     <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
-    <PackageVersion Include="AWSSDK.Core" Version="4.0.3.21" />
-    <PackageVersion Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.26" />
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.19.1" />
+    <PackageVersion Include="AWSSDK.Core" Version="4.0.3.28" />
+    <PackageVersion Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.32" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.21" />
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.5" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="$(MicrosoftExtVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="$(MicrosoftExtVersion)" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageVersion Include="System.Configuration.ConfigurationManager" Version="$(MicrosoftExtVersion)" />

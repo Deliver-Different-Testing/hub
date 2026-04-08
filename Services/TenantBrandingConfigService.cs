@@ -12,6 +12,7 @@ public sealed class TenantBrandingConfigService(
     public async Task<TenantBrandingResponse?> GetReportConfigAsync(int tenantId)
     {
         var result = await context.TenantBrandings
+            .AsNoTracking()
             .Where(tb => tb.TenantId == tenantId)
             .Join(
                 context.Tenants,

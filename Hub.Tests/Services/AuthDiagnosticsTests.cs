@@ -1,7 +1,8 @@
-using Hub.Services;
+﻿using Hub.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Distributed;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using StackExchange.Redis;
 
 namespace Hub.Tests.Services;
@@ -11,36 +12,36 @@ public class AuthDiagnosticsTests
     [Fact]
     public async Task RunDiagnosticsAsync_AllServicesHealthy_ReturnsSuccess()
     {
-        var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(d => d.PingAsync(It.IsAny<CommandFlags>()))
-            .ReturnsAsync(TimeSpan.FromMilliseconds(5));
-        mockDb.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(),
-                It.IsAny<TimeSpan?>(), It.IsAny<bool>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(true);
-        mockDb.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)"test_value");
+        var mockDb = Substitute.For<IDatabase>();
+        mockDb.PingAsync(Arg.Any<CommandFlags>())
+            .Returns(TimeSpan.FromMilliseconds(5));
+        mockDb.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(),
+                Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+            .Returns(true);
+        mockDb.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns((RedisValue)"test_value");
 
-        var mockRedis = new Mock<IConnectionMultiplexer>();
-        mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
-            .Returns(mockDb.Object);
+        var mockRedis = Substitute.For<IConnectionMultiplexer>();
+        mockRedis.GetDatabase(Arg.Any<int>(), Arg.Any<object>())
+            .Returns(mockDb);
 
-        var mockCache = new Mock<IDistributedCache>();
-        mockCache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes("test_value"));
+        var mockCache = Substitute.For<IDistributedCache>();
+        mockCache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("test_value"u8.ToArray());
 
-        var mockProtector = new Mock<IDataProtector>();
-        mockProtector.Setup(p => p.Protect(It.IsAny<byte[]>()))
+        var mockProtector = Substitute.For<IDataProtector>();
+        mockProtector.Protect(Arg.Any<byte[]>())
             .Returns([1, 2, 3]);
-        mockProtector.Setup(p => p.Unprotect(It.IsAny<byte[]>()))
-            .Returns(System.Text.Encoding.UTF8.GetBytes("test_value"));
-        mockProtector.Setup(p => p.CreateProtector(It.IsAny<string>()))
-            .Returns(mockProtector.Object);
+        mockProtector.Unprotect(Arg.Any<byte[]>())
+            .Returns("test_value"u8.ToArray());
+        mockProtector.CreateProtector(Arg.Any<string>())
+            .Returns(mockProtector);
 
-        var mockDataProtection = new Mock<IDataProtectionProvider>();
-        mockDataProtection.Setup(d => d.CreateProtector(It.IsAny<string>()))
-            .Returns(mockProtector.Object);
+        var mockDataProtection = Substitute.For<IDataProtectionProvider>();
+        mockDataProtection.CreateProtector(Arg.Any<string>())
+            .Returns(mockProtector);
 
-        var diagnostics = new AuthDiagnostics(mockRedis.Object, mockCache.Object, mockDataProtection.Object);
+        var diagnostics = new AuthDiagnostics(mockRedis, mockCache, mockDataProtection);
 
         var results = await diagnostics.RunDiagnosticsAsync();
 
@@ -53,27 +54,26 @@ public class AuthDiagnosticsTests
     [Fact]
     public async Task RunDiagnosticsAsync_RedisDown_CapturesError()
     {
-        var mockRedis = new Mock<IConnectionMultiplexer>();
-        mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
-            .Throws(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Connection refused"));
+        var mockRedis = Substitute.For<IConnectionMultiplexer>();
+        mockRedis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Throws(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Connection refused"));
 
-        var mockCache = new Mock<IDistributedCache>();
-        mockCache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes("test_value"));
+        var mockCache = Substitute.For<IDistributedCache>();
+        mockCache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("test_value"u8.ToArray());
 
-        var mockProtector = new Mock<IDataProtector>();
-        mockProtector.Setup(p => p.Protect(It.IsAny<byte[]>()))
+        var mockProtector = Substitute.For<IDataProtector>();
+        mockProtector.Protect(Arg.Any<byte[]>())
             .Returns([1, 2, 3]);
-        mockProtector.Setup(p => p.Unprotect(It.IsAny<byte[]>()))
-            .Returns(System.Text.Encoding.UTF8.GetBytes("test_value"));
-        mockProtector.Setup(p => p.CreateProtector(It.IsAny<string>()))
-            .Returns(mockProtector.Object);
+        mockProtector.Unprotect(Arg.Any<byte[]>())
+            .Returns("test_value"u8.ToArray());
+        mockProtector.CreateProtector(Arg.Any<string>())
+            .Returns(mockProtector);
 
-        var mockDataProtection = new Mock<IDataProtectionProvider>();
-        mockDataProtection.Setup(d => d.CreateProtector(It.IsAny<string>()))
-            .Returns(mockProtector.Object);
+        var mockDataProtection = Substitute.For<IDataProtectionProvider>();
+        mockDataProtection.CreateProtector(Arg.Any<string>())
+            .Returns(mockProtector);
 
-        var diagnostics = new AuthDiagnostics(mockRedis.Object, mockCache.Object, mockDataProtection.Object);
+        var diagnostics = new AuthDiagnostics(mockRedis, mockCache, mockDataProtection);
 
         var results = await diagnostics.RunDiagnosticsAsync();
 
@@ -84,37 +84,36 @@ public class AuthDiagnosticsTests
     [Fact]
     public async Task RunDiagnosticsAsync_CacheDown_CapturesError()
     {
-        var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(d => d.PingAsync(It.IsAny<CommandFlags>()))
-            .ReturnsAsync(TimeSpan.FromMilliseconds(5));
-        mockDb.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(),
-                It.IsAny<TimeSpan?>(), It.IsAny<bool>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(true);
-        mockDb.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)"test_value");
+        var mockDb = Substitute.For<IDatabase>();
+        mockDb.PingAsync(Arg.Any<CommandFlags>())
+            .Returns(TimeSpan.FromMilliseconds(5));
+        mockDb.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(),
+                Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+            .Returns(true);
+        mockDb.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns((RedisValue)"test_value");
 
-        var mockRedis = new Mock<IConnectionMultiplexer>();
-        mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
-            .Returns(mockDb.Object);
+        var mockRedis = Substitute.For<IConnectionMultiplexer>();
+        mockRedis.GetDatabase(Arg.Any<int>(), Arg.Any<object>())
+            .Returns(mockDb);
 
-        var mockCache = new Mock<IDistributedCache>();
-        mockCache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(),
-                It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Cache unavailable"));
+        var mockCache = Substitute.For<IDistributedCache>();
+        mockCache.SetAsync(Arg.Any<string>(), Arg.Any<byte[]>(),
+                Arg.Any<DistributedCacheEntryOptions>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("Cache unavailable"));
 
-        var mockProtector = new Mock<IDataProtector>();
-        mockProtector.Setup(p => p.Protect(It.IsAny<byte[]>()))
+        var mockProtector = Substitute.For<IDataProtector>();
+        mockProtector.Protect(Arg.Any<byte[]>())
             .Returns([1, 2, 3]);
-        mockProtector.Setup(p => p.Unprotect(It.IsAny<byte[]>()))
-            .Returns(System.Text.Encoding.UTF8.GetBytes("test_value"));
-        mockProtector.Setup(p => p.CreateProtector(It.IsAny<string>()))
-            .Returns(mockProtector.Object);
+        mockProtector.Unprotect(Arg.Any<byte[]>())
+            .Returns("test_value"u8.ToArray());
+        mockProtector.CreateProtector(Arg.Any<string>())
+            .Returns(mockProtector);
 
-        var mockDataProtection = new Mock<IDataProtectionProvider>();
-        mockDataProtection.Setup(d => d.CreateProtector(It.IsAny<string>()))
-            .Returns(mockProtector.Object);
+        var mockDataProtection = Substitute.For<IDataProtectionProvider>();
+        mockDataProtection.CreateProtector(Arg.Any<string>())
+            .Returns(mockProtector);
 
-        var diagnostics = new AuthDiagnostics(mockRedis.Object, mockCache.Object, mockDataProtection.Object);
+        var diagnostics = new AuthDiagnostics(mockRedis, mockCache, mockDataProtection);
 
         var results = await diagnostics.RunDiagnosticsAsync();
 
@@ -125,28 +124,27 @@ public class AuthDiagnosticsTests
     [Fact]
     public async Task RunDiagnosticsAsync_DataProtectionDown_CapturesError()
     {
-        var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(d => d.PingAsync(It.IsAny<CommandFlags>()))
-            .ReturnsAsync(TimeSpan.FromMilliseconds(5));
-        mockDb.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(),
-                It.IsAny<TimeSpan?>(), It.IsAny<bool>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(true);
-        mockDb.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)"test_value");
+        var mockDb = Substitute.For<IDatabase>();
+        mockDb.PingAsync(Arg.Any<CommandFlags>())
+            .Returns(TimeSpan.FromMilliseconds(5));
+        mockDb.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(),
+                Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+            .Returns(true);
+        mockDb.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns((RedisValue)"test_value");
 
-        var mockRedis = new Mock<IConnectionMultiplexer>();
-        mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
-            .Returns(mockDb.Object);
+        var mockRedis = Substitute.For<IConnectionMultiplexer>();
+        mockRedis.GetDatabase(Arg.Any<int>(), Arg.Any<object>())
+            .Returns(mockDb);
 
-        var mockCache = new Mock<IDistributedCache>();
-        mockCache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes("test_value"));
+        var mockCache = Substitute.For<IDistributedCache>();
+        mockCache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("test_value"u8.ToArray());
 
-        var mockDataProtection = new Mock<IDataProtectionProvider>();
-        mockDataProtection.Setup(d => d.CreateProtector(It.IsAny<string>()))
-            .Throws(new InvalidOperationException("Key ring not available"));
+        var mockDataProtection = Substitute.For<IDataProtectionProvider>();
+        mockDataProtection.CreateProtector(Arg.Any<string>()).Throws(new InvalidOperationException("Key ring not available"));
 
-        var diagnostics = new AuthDiagnostics(mockRedis.Object, mockCache.Object, mockDataProtection.Object);
+        var diagnostics = new AuthDiagnostics(mockRedis, mockCache, mockDataProtection);
 
         var results = await diagnostics.RunDiagnosticsAsync();
 
