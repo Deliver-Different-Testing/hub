@@ -1,4 +1,5 @@
-﻿using Hub.Models;
+﻿using Hub.Interfaces;
+using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
 using NSubstitute;
@@ -10,7 +11,9 @@ public class RepositoryTests
     private static (Repository repo, DynamicDespatchDbContext context) CreateRepo()
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
-        var repo = new Repository(context);
+        var tenantService = Substitute.For<ITenantService>();
+        tenantService.GetCurrentTenantTimeAsync(Arg.Any<int>()).Returns(DateTime.UtcNow);
+        var repo = new Repository(context, tenantService);
         return (repo, context);
     }
 
@@ -149,7 +152,8 @@ public class RepositoryTests
     public async Task GetAccountsModeAsync_NoSettings_ReturnsNull()
     {
         var context = TestDespatchContextFactory.Create();
-        var repo = new Repository(context);
+        var tenantService = Substitute.For<ITenantService>();
+        var repo = new Repository(context, tenantService);
 
         var mode = await repo.GetAccountsModeAsync();
 
@@ -183,8 +187,10 @@ public class RepositoryTests
     {
         var (repo, context) = CreateRepo();
 
-        await repo.UpdateUserAccessedAsync(1, true);
+        await repo.UpdateUserAccessedAsync(1, true, 1);
 
+        // ExecuteUpdateAsync bypasses the change tracker, so clear it before re-querying
+        context.ChangeTracker.Clear();
         var contact = await context.TucClientContacts.FindAsync([1], TestContext.Current.CancellationToken);
         Assert.True(contact!.AllowCookieLogin);
         Assert.NotNull(contact.LastAccessed);
@@ -197,7 +203,7 @@ public class RepositoryTests
         var (repo, _) = CreateRepo();
 
         // Should not throw
-        await repo.UpdateUserAccessedAsync(999, false);
+        await repo.UpdateUserAccessedAsync(999, false, 1);
     }
 
     // GetDespatchWebInternetPermissions tests (stored proc mock)

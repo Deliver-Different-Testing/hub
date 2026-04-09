@@ -154,7 +154,7 @@ public class AccountController(
                 return View(model);
             }
 
-            await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe);
+            await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe, masterUser.CurrentTenant.TenantId);
 
             var claims = GenerateClaims(new ClaimsInput(
                 Email: model.Email,
@@ -258,7 +258,7 @@ public class AccountController(
             return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
         }
 
-        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(new ClaimsInput(
             Email: model.Email,
@@ -349,7 +349,7 @@ public class AccountController(
             return View(model);
         }
 
-        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(new ClaimsInput(
             Email: model.Email,
@@ -601,7 +601,7 @@ public class AccountController(
         }
 
         var rememberMe = bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
-        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe, model.TenantId);
         Log.Debug("About to write Claim details. ContactID: {ToString}", user.UcctId.ToString());
         Log.Debug("About to write Claim details. Connection: {CurrentTenantDbconnection}",
             masterUser.CurrentTenant.Dbconnection);

@@ -5,7 +5,8 @@ using Serilog;
 
 namespace Hub.Repositories;
 
-public sealed class Repository(DynamicDespatchDbContext context) : IDespatchRepository
+public sealed class Repository(DynamicDespatchDbContext context,
+    ITenantService tenantService) : IDespatchRepository
 {
 
     public async Task<TucClientContact?> FetchUserByUsername(string email)
@@ -42,28 +43,22 @@ public sealed class Repository(DynamicDespatchDbContext context) : IDespatchRepo
         var data = await context.Procedures.RVW_stpValidateInternetPermissionsAsync(contactId);
         return data;
     }
-
-
+    
     public async Task InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link) =>
         await context.Procedures.NET_stpContact_ResetPasswordAsync(contactId, recoveryEmail, replyEmail, link);
 
-    public async Task UpdateUserAccessedAsync(int id, bool rememberMe)
+    public async Task UpdateUserAccessedAsync(int id, bool rememberMe, int tenantId)
     {
-        var contact = await context.TucClientContacts.FirstOrDefaultAsync(x => x.UcctId == id);
-        if (contact == null) return;
-
-        var isFirstEmailValidation = contact.WhenEmailValidated == null;
-
-        var utcNow = DateTime.UtcNow;
-        contact.LastAccessed = utcNow;
-        contact.HasEmail = isFirstEmailValidation || contact.HasEmail;
-        contact.ValidatedEmail = isFirstEmailValidation || contact.ValidatedEmail;
-        contact.WhenEmailValidatedSent = isFirstEmailValidation
-            ? utcNow
-            : contact.WhenEmailValidatedSent;
-        contact.WhenEmailValidated ??= utcNow;
-        contact.AllowCookieLogin = rememberMe;
-        await context.SaveChangesAsync();
+        var tenantTime = await tenantService.GetCurrentTenantTimeAsync(tenantId);
+        await context.TucClientContacts
+            .Where(x => x.UcctId == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.LastAccessed, tenantTime)
+                .SetProperty(x => x.HasEmail, x => x.WhenEmailValidated == null || x.HasEmail)
+                .SetProperty(x => x.ValidatedEmail, x => x.WhenEmailValidated == null || x.ValidatedEmail)
+                .SetProperty(x => x.WhenEmailValidatedSent, x => x.WhenEmailValidated == null ? tenantTime : x.WhenEmailValidatedSent)
+                .SetProperty(x => x.WhenEmailValidated, x => x.WhenEmailValidated ?? tenantTime)
+                .SetProperty(x => x.AllowCookieLogin, rememberMe));
     }
 
     public async Task<int?> ValidateCourierByEmail(string email)

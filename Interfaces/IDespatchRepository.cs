@@ -8,7 +8,7 @@ public interface IDespatchRepository
     Task<string> FetchSubAccountsAsync(int clientId);
     Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissions(int contactId);
     Task InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link);
-    Task UpdateUserAccessedAsync(int id, bool rememberMe);
+    Task UpdateUserAccessedAsync(int id, bool rememberMe, int tenantId);
     Task<int?> ValidateCourierByEmail(string email);
     Task<int?> GetAccountsModeAsync();
     Task<bool> IsAfterHoursAuthorized(int courierId);

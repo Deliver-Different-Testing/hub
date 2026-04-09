@@ -1,4 +1,5 @@
 ﻿using Hub.Controllers;
+using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
 using Hub.Repositories;
@@ -73,7 +74,8 @@ public class AccountControllerTests : IDisposable
 
         var connectionStringManager = new ConnectionStringManager();
         var authRepo = new AuthenticationRepository(masterCtx);
-        var despatchRepo = new Repository(despatchCtx);
+        var tenantService = Substitute.For<ITenantService>();
+        var despatchRepo = new Repository(despatchCtx, tenantService);
 
         httpClient ??= MockHttpMessageHandler.CreateReCaptchaClient();
 

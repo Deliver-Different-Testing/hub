@@ -1,9 +1,10 @@
-﻿using Hub.Interfaces;
+using Hub.Interfaces;
 using Hub.Models.Master;
 
 namespace Hub.Services;
 
-public sealed class TenantService(IAuthenticationRepository authenticationRepository, IWebHostEnvironment hostingEnvironment)
+public sealed class TenantService(IAuthenticationRepository authenticationRepository,
+    IWebHostEnvironment hostingEnvironment)
     : ITenantService
 {
     public async Task<IReadOnlyList<Tenant>> GetTenantsForUserAsync(int userId) =>
@@ -34,5 +35,15 @@ public sealed class TenantService(IAuthenticationRepository authenticationReposi
 
         // Check if the file exists
         return File.Exists(physicalPath);
+    }
+
+    /// <summary>
+    /// Gets the current date/time converted to the tenant's timezone.
+    /// </summary>
+    public async Task<DateTime> GetCurrentTenantTimeAsync(int tenantId)
+    {
+        var timeZoneId = await authenticationRepository.GetTenantTimeZoneAsync(tenantId);
+        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId ?? "UTC");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
     }
 }

@@ -1,4 +1,4 @@
-﻿using Hub.Repositories;
+using Hub.Repositories;
 using Hub.Services;
 using Hub.Tests.Helpers;
 using Microsoft.AspNetCore.Hosting;

@@ -13,4 +13,5 @@ public interface IAuthenticationRepository
     Task<User?> GetUserByResetKey(string resetKey);
     Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId);
     Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId);
+    Task<string?> GetTenantTimeZoneAsync(int tenantId);
 }
