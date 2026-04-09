@@ -1,4 +1,5 @@
 ﻿using Hub.Controllers;
+using Hub.Interfaces;
 using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
@@ -30,7 +31,8 @@ public class HomeControllerTests : IDisposable
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
         var connectionStringManager = new ConnectionStringManager();
-        var repo = new Repository(context);
+        var tenantService = Substitute.For<ITenantService>();
+        var repo = new Repository(context, tenantService);
 
         // Mock the stored procedures
         var mockProcs = Substitute.For<IDespatchContextProcedures>();

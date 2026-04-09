@@ -1,4 +1,5 @@
 using Hub.Models;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Tests.Helpers;
@@ -7,9 +8,11 @@ public static class TestDespatchContextFactory
 {
     public static DynamicDespatchDbContext Create(string? dbName = null)
     {
-        dbName ??= Guid.NewGuid().ToString();
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+
         var options = new DbContextOptionsBuilder<DespatchContext>()
-            .UseInMemoryDatabase(dbName)
+            .UseSqlite(connection)
             .Options;
 
         var connectionStringManager = new ConnectionStringManager();

@@ -12,8 +12,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/dist/vendor.css"/>
     <link rel="stylesheet" href="~/css/site.css"/>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
     <link rel="icon" href="~/images/favicon.ico?5" type="image/x-icon">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-player/2.0.12/lottie-player.js"
+            integrity="sha512-2nOSQ1o1ohJgCDWTrSe2tFG4CU8hurCGROpUKoopgPHT2mUWy1mgLed21mf2le8n9gZ2c3ujOHuiXlivAnYvTQ=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <meta http-equiv="refresh" content="300">
 </head>
 <body id="@ViewBag.PageId">
@@ -206,34 +210,34 @@
                             'Content-Type': 'application/json',
                             'RequestVerificationToken': '@requestToken'
                         },
-                        body: JSON.stringify({ tenantId: selectedTenantId })
+                        body: JSON.stringify({tenantId: selectedTenantId})
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (tenantDropdown) {
-                                tenantDropdown.textContent = selectedTenantName + ' ';
-                                const spinner = tenantDropdown.querySelector('.spinner-border');
-                                if (spinner) {
-                                    tenantDropdown.appendChild(spinner);
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                if (tenantDropdown) {
+                                    tenantDropdown.textContent = selectedTenantName + ' ';
+                                    const spinner = tenantDropdown.querySelector('.spinner-border');
+                                    if (spinner) {
+                                        tenantDropdown.appendChild(spinner);
+                                    }
                                 }
-                            }
 
-                            const urlTenantName = getCurrentTenantNameFromUrl();
-                            if (urlTenantName === 'local' || urlTenantName === 'staging') {
-                                window.location.reload();
-                                return;
+                                const urlTenantName = getCurrentTenantNameFromUrl();
+                                if (urlTenantName === 'local' || urlTenantName === 'staging') {
+                                    window.location.reload();
+                                    return;
+                                }
+                                replaceTenantNameAndRefresh(selectedTenantCode);
+                            } else {
+                                console.error('Failed to update tenant');
+                                setTenantLoading(false);
                             }
-                            replaceTenantNameAndRefresh(selectedTenantCode);
-                        } else {
-                            console.error('Failed to update tenant');
+                        })
+                        .catch(error => {
+                            console.error('Error updating tenant:', error);
                             setTenantLoading(false);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error updating tenant:', error);
-                        setTenantLoading(false);
-                    });
+                        });
                 }
             });
         }

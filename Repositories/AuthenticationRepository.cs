@@ -89,6 +89,13 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             .Distinct()
             .ToListAsync();
 
+    public async Task<string?> GetTenantTimeZoneAsync(int tenantId) =>
+        await context.Tenants
+            .AsNoTracking()
+            .Where(t => t.TenantId == tenantId)
+            .Select(t => t.TimeZone)
+            .FirstOrDefaultAsync();
+
     public async Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId)
     {
         var user = await context.Users.FindAsync(userId);
