@@ -2,9 +2,10 @@
 @{
     ViewBag.Title = "Log in";
     ViewBag.PageId = "login";
+    ViewBag.LoginFailedData = ViewBag.LoginFailed == true ? "true" : "false";
 }
 
-<div class="auth-wrapper">
+<div class="auth-wrapper" data-login-failed="@ViewBag.LoginFailedData">
     <div class="auth-card">
         <div class="text-center">
             <lottie-player src="/images/Auto-mate-Ready%20state%20(2).json" background="transparent" speed="1" style="width: 200px; height: 200px; margin: 0 auto;" loop autoplay></lottie-player>
@@ -67,143 +68,6 @@
 </div>
 
 @section Scripts {
-    <style>
-        #loginButton {
-            position: relative;
-            z-index: 1;
-        }
-
-        #loginButton:disabled {
-            opacity: 0.85;
-        }
-
-        #loginButton .spinner-border,
-        #loginButton .button-text {
-            position: relative;
-            z-index: 2;
-        }
-
-        .was-validated #loginButton,
-        .was-validated #loginButton:disabled {
-            background-color: var(--dd-primary) !important;
-            border-color: var(--dd-primary) !important;
-        }
-
-        #loginButton:hover,
-        #loginButton:focus,
-        #loginButton:active,
-        #loginButton:focus-visible {
-            background-color: var(--dd-primary-hover) !important;
-            border-color: var(--dd-primary-hover) !important;
-            color: white !important;
-            outline: none !important;
-        }
-
-        #loginButton:active {
-            background-color: var(--dd-primary-active) !important;
-            border-color: var(--dd-primary-active) !important;
-        }
-
-        #loginButton,
-        #loginButton * {
-            transition: none !important;
-        }
-
-        .valid-feedback,
-        .invalid-feedback {
-            position: relative;
-            z-index: 0;
-            margin-bottom: 0.25rem;
-        }
-
-        #loginForm.submitting .valid-feedback,
-        #loginForm.submitting .invalid-feedback {
-            display: none !important;
-        }
-
-        #loginForm.submitting .form-control.is-valid,
-        #loginForm.submitting .form-control.is-invalid,
-        #loginForm.submitting .form-select.is-valid,
-        #loginForm.submitting .form-select.is-invalid {
-            border-color: var(--dd-outline) !important;
-            background-image: none !important;
-        }
-
-        #loginButton .spinner-border {
-            color: white;
-            border-color: currentColor;
-            border-right-color: transparent;
-        }
-    </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('loginForm');
-            const button = document.getElementById('loginButton');
-            const spinner = button.querySelector('.spinner-border');
-            const buttonText = button.querySelector('.button-text');
-            const emailInput = document.getElementById('Email');
-            const emailFeedback = emailInput.nextElementSibling;
-
-            function resetButton() {
-                button.disabled = false;
-                spinner.classList.add('d-none');
-                buttonText.textContent = 'Log in';
-            }
-
-            function validateEmail(email) {
-                @Html.Raw("const re = /^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$/;")
-                return re.test(String(email).toLowerCase());
-            }
-
-            function updateEmailValidationUI() {
-                if (!emailInput.value) {
-                    emailInput.classList.remove('is-valid', 'is-invalid');
-                    emailFeedback.style.display = 'none';
-                    return;
-                }
-                const isValid = validateEmail(emailInput.value);
-                emailInput.classList.toggle('is-valid', isValid);
-                emailInput.classList.toggle('is-invalid', !isValid);
-                emailFeedback.style.display = isValid ? 'none' : 'block';
-            }
-
-            @if (ViewBag.LoginFailed == true)
-            {
-                <text>
-                resetButton();
-                </text>
-            }
-
-            form.addEventListener('submit', function(e) {
-                if (form.checkValidity() && validateEmail(emailInput.value)) {
-                    form.classList.add('submitting');
-                    if (document.activeElement) {
-                        document.activeElement.blur();
-                    }
-                    button.blur();
-                    button.disabled = true;
-                    spinner.classList.remove('d-none');
-                    buttonText.textContent = 'Logging in...';
-                } else {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    updateEmailValidationUI();
-                }
-                form.classList.add('was-validated');
-            });
-
-            emailInput.addEventListener('input', updateEmailValidationUI);
-            emailInput.addEventListener('blur', updateEmailValidationUI);
-
-            form.querySelectorAll('input, select').forEach(function(element) {
-                function clearValidation() {
-                    if (this !== emailInput && form.classList.contains('was-validated')) {
-                        form.classList.remove('was-validated');
-                    }
-                }
-                element.addEventListener('input', clearValidation);
-                element.addEventListener('change', clearValidation);
-            });
-        });
-    </script>
+    <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
+    <script src="~/dist/login.js" asp-append-version="true"></script>
 }

@@ -1,9 +1,11 @@
 {
   "name": "hub",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "node esbuild.config.mjs",
-    "watch": "node esbuild.config.mjs --watch"
+    "build": "node esbuild.config.ts",
+    "watch": "node esbuild.config.ts --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "bootstrap": "^5.3.8",
@@ -13,6 +15,8 @@
     "mdb-ui-kit": "^9.3.0"
   },
   "devDependencies": {
-    "esbuild": "^0.27.3"
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^6.0.2"
   }
 }

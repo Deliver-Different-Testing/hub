@@ -3,7 +3,6 @@
     ViewData["Title"] = "Home page";
 
     var contactId = Model.ContactId;
-    var greetingString = Model.GreetingString;
     var userEmail = Model.UserEmail;
     var tenantCode = Model.TenantCode;
 
@@ -22,10 +21,7 @@
     var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
     var bookingAppFullUrl = AppUrl("booking") + bookingAppPath;
 }
-<script>
-    const ContactID = '@contactId';
-    const GreetingString = '@greetingString';
-</script>
+<script>const ContactID = '@contactId';</script>
 
 <div id="urgent-hub">
     <div class="hub-header">

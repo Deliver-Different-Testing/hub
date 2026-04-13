@@ -105,17 +105,6 @@ public class HomeControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task Index_SetsViewBagGreetingString()
-    {
-        var controller = CreateController();
-
-        var result = await controller.Index();
-
-        var model = GetModel(result);
-        Assert.False(string.IsNullOrEmpty(model.GreetingString));
-    }
-
-    [Fact]
     public async Task Index_CourierUser_ChecksAfterHours()
     {
         var courierUser = ClaimsPrincipalFactory.Create(
@@ -144,17 +133,6 @@ public class HomeControllerTests : IDisposable
 
         var model = GetModel(result);
         Assert.False(model.ShowAfterHours);
-    }
-
-    [Fact]
-    public async Task Index_GreetingStringIsNotEmpty()
-    {
-        var controller = CreateController();
-
-        var result = await controller.Index();
-
-        var model = GetModel(result);
-        Assert.False(string.IsNullOrEmpty(model.GreetingString));
     }
 
     [Fact]

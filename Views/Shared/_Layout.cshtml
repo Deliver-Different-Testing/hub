@@ -9,7 +9,7 @@
     <title>@ViewData["Title"] - Deliver Different Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/dist/vendor.css"/>
     <link rel="stylesheet" href="~/css/site.css"/>
     <link rel="stylesheet"
@@ -20,37 +20,40 @@
             crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <meta http-equiv="refresh" content="300">
 </head>
-<body id="@ViewBag.PageId">
-<header>
-    @{
-        var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+@{
+    var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
 
-        var userIdClaim = User.FindFirst("UserID");
-        var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
+    var userIdClaim = User.FindFirst("UserID");
+    var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
 
-        List<TenantViewModel>? tenants = null;
-        int? currentTenantId = 0;
-        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
+    List<TenantViewModel>? tenants = null;
+    int? currentTenantId = 0;
+    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
+    {
+        var tenantList = await TenantService.GetTenantsForUserAsync(userId);
+        tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code = o.Code, CountryCode = o.CountryCode }).ToList();
+
+        if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out var orgId))
         {
-            var tenantList = await TenantService.GetTenantsForUserAsync(userId);
-            tenants = tenantList.Select(o => new TenantViewModel { Id = o.TenantId, Name = o.Name, Code = o.Code }).ToList();
-
-            if (currentTenantIdClaim != null && int.TryParse(currentTenantIdClaim.Value, out var orgId))
-            {
-                currentTenantId = orgId;
-            }
-        }
-
-        var hasTenants = tenants != null && tenants.Any();
-
-        var currentTenantCode = string.Empty;
-        if (hasTenants)
-        {
-            var currentTenant = tenants?.FirstOrDefault(t => t.Id == currentTenantId.Value);
-            currentTenantCode = currentTenant?.Code ?? string.Empty;
+            currentTenantId = orgId;
         }
     }
-    <nav class="navbar navbar-expand-sm mb-3">
+
+    var hasTenants = tenants != null && tenants.Any();
+
+    var currentTenantCode = string.Empty;
+    var currentTenantCountry = string.Empty;
+    if (hasTenants)
+    {
+        var currentTenant = tenants?.FirstOrDefault(t => t.Id == currentTenantId.Value);
+        currentTenantCode = currentTenant?.Code ?? string.Empty;
+        currentTenantCountry = currentTenant?.CountryCode ?? string.Empty;
+    }
+}
+<body id="@ViewBag.PageId" data-tenant-country="@currentTenantCountry" data-tenant-code="@currentTenantCode" data-has-tenants="@hasTenants.ToString().ToLower()">
+<meta name="request-token" content="@requestToken" />
+<header>
+    <nav class="navbar navbar-expand-sm navbar-floating mb-3">
         <div class="container">
             <a class="navbar-brand" asp-controller="Home" asp-action="Index">
                 @await Component.InvokeAsync("TenantLogo", new { cssClass = "logo", alt = "Deliver Different" })
@@ -99,6 +102,7 @@
                                         <span class="material-symbols-outlined menu-icon">settings</span>
                                         Settings
                                     </a>
+                                    <div class="profile-menu-divider"></div>
                                     <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
                                         <span class="material-symbols-outlined menu-icon">logout</span>
                                         Logout
@@ -112,7 +116,7 @@
         </div>
     </nav>
 </header>
-<div class="container" style="width:85%; max-width:1500px;">
+<div class="container" style="width:85%; max-width:1500px; flex:1;">
     <main role="main" class="pb-3">
         @RenderBody()
     </main>
@@ -125,147 +129,7 @@
 </footer>
 
 <script src="~/dist/vendor.js"></script>
-<script src="~/js/site.js" asp-append-version="true"></script>
-
-<script>
-    function getCurrentTenantNameFromUrl() {
-        const url = new URL(window.location.href);
-        const hostnameParts = url.hostname.split('.');
-        return hostnameParts[1];
-    }
-
-    function replaceTenantNameAndRefresh(newTenantName) {
-        const url = new URL(window.location.href);
-        let hostnameParts = url.hostname.split('.');
-
-        if (newTenantName === "DFRNT") {
-            hostnameParts.splice(1, 1);
-        } else {
-            hostnameParts[1] = newTenantName;
-        }
-
-        hostnameParts = hostnameParts.filter(part => part !== '');
-        url.hostname = hostnameParts.join('.');
-
-        sessionStorage.setItem('urlJustChanged', 'true');
-        window.location.href = url.href;
-    }
-
-    function checkAndSyncTenantName(currentTenantName, hasTenants) {
-        if (!hasTenants) return;
-
-        const urlTenantName = getCurrentTenantNameFromUrl();
-
-        if (urlTenantName === 'local' || urlTenantName === 'staging') {
-            if (typeof setTenantLoading === 'function') {
-                setTenantLoading(false);
-            }
-            return;
-        }
-
-        if (urlTenantName !== currentTenantName) {
-            replaceTenantNameAndRefresh(currentTenantName);
-        }
-    }
-
-    function initTenantSync(currentTenantName, hasTenants) {
-        if (sessionStorage.getItem('urlJustChanged') === 'true') {
-            sessionStorage.removeItem('urlJustChanged');
-            return;
-        }
-        checkAndSyncTenantName(currentTenantName, hasTenants);
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const dropdownMenu = document.querySelector('.dropdown-menu');
-        const tenantDropdown = document.getElementById('tenantDropdown');
-
-        function setTenantLoading(isLoading) {
-            if (!tenantDropdown) return;
-            tenantDropdown.disabled = isLoading;
-            const tenantSpinner = tenantDropdown.querySelector('.spinner-border');
-            if (tenantSpinner) {
-                tenantSpinner.classList.toggle('d-none', !isLoading);
-            }
-        }
-
-        if (dropdownMenu) {
-            dropdownMenu.addEventListener('click', function (e) {
-                if (e.target && e.target.nodeName === 'A') {
-                    e.preventDefault();
-                    dropdownMenu.classList.remove('show');
-                    if (tenantDropdown) {
-                        tenantDropdown.classList.remove('show');
-                        tenantDropdown.setAttribute('aria-expanded', 'false');
-                    }
-                    const selectedTenantId = parseInt(e.target.getAttribute('data-tenant-id'), 10);
-                    const selectedTenantCode = e.target.getAttribute('data-tenant-code');
-                    const selectedTenantName = e.target.textContent;
-
-                    setTenantLoading(true);
-
-                    fetch('/Account/UpdateCurrentTenant', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': '@requestToken'
-                        },
-                        body: JSON.stringify({tenantId: selectedTenantId})
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                if (tenantDropdown) {
-                                    tenantDropdown.textContent = selectedTenantName + ' ';
-                                    const spinner = tenantDropdown.querySelector('.spinner-border');
-                                    if (spinner) {
-                                        tenantDropdown.appendChild(spinner);
-                                    }
-                                }
-
-                                const urlTenantName = getCurrentTenantNameFromUrl();
-                                if (urlTenantName === 'local' || urlTenantName === 'staging') {
-                                    window.location.reload();
-                                    return;
-                                }
-                                replaceTenantNameAndRefresh(selectedTenantCode);
-                            } else {
-                                console.error('Failed to update tenant');
-                                setTenantLoading(false);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error updating tenant:', error);
-                            setTenantLoading(false);
-                        });
-                }
-            });
-        }
-
-        const profileDropdown = document.querySelector('.profile-dropdown');
-        const profileIconUsername = document.querySelector('.profile-icon-username');
-        const profileMenu = document.querySelector('.profile-menu');
-
-        if (profileDropdown && profileIconUsername && profileMenu) {
-            profileIconUsername.addEventListener('click', function (e) {
-                e.stopPropagation();
-                profileDropdown.classList.toggle('active');
-                profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!profileDropdown.contains(e.target)) {
-                    profileDropdown.classList.remove('active');
-                    profileMenu.style.display = 'none';
-                }
-            });
-        }
-
-        if (typeof initTenantSync === 'function') {
-            initTenantSync('@currentTenantCode', @Json.Serialize(hasTenants));
-        }
-    });
-</script>
+<script src="~/dist/layout.js" asp-append-version="true"></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>
