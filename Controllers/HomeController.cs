@@ -29,7 +29,7 @@ public class HomeController(IConnectionStringManager connectionStringManager, ID
         var model = new HomeViewModel
         {
             ContactId = contactId,
-            GreetingString = GetGreetingString(),
+
             DespatchWebPermission = GetPermission(internetPermissions, 12),
             BookJobPermission = GetPermission(internetPermissions, 2),
             BulkUploadPermission = GetPermission(internetPermissions, 11),
@@ -48,17 +48,6 @@ public class HomeController(IConnectionStringManager connectionStringManager, ID
         if (string.IsNullOrEmpty(credentials))
             throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
         connectionStringManager.SetConnectionString(dbConnection + credentials);
-    }
-
-    private static string GetGreetingString()
-    {
-        var greetings = new[]
-        {
-            "Hi", "Hello", "Welcome", "Greetings", "G'day", "Hey", "Good to see you,", "How are you",
-            "Hope it's swell,", "How's it going", "What's good", "Howdy", "Kia ora", "Tēnā koe",
-            "The world is yours,", "Hi", "Hello", "Hey", "All the best,", "Enjoy,", "Seize the day,", "Kia ora"
-        };
-        return greetings[Random.Shared.Next(greetings.Length)];
     }
 
     private static bool GetPermission(List<RVW_stpValidateInternetPermissionsResult> internetPermissions,
