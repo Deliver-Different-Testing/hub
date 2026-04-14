@@ -1,5 +1,6 @@
 using Hub.Extensions;
 using Hub.Interfaces;
+using Hub.Models.Master;
 using Hub.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -32,5 +33,10 @@ public class DatabaseServiceExtensionTests
 
         var descriptors = services.ToList();
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IConnectionStringManager));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(IDespatchRepository));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(IAuthenticationRepository));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(MasterContext));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(DynamicDespatchDbContext)
+                                          && d.Lifetime == ServiceLifetime.Scoped);
     }
 }

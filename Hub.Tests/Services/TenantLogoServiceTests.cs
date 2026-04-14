@@ -1,4 +1,6 @@
 ﻿using System.Net;
+using Amazon.Runtime.Internal;
+using Amazon.Runtime.Internal.Transform;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Caching.Memory;
@@ -139,6 +141,71 @@ public class TenantLogoServiceTests : IDisposable
         var result = await service.LogoExistsAsync();
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task LogoExistsAsync_EmptyBucket_ReturnsFalse()
+    {
+        Environment.SetEnvironmentVariable("S3BucketBulk", string.Empty);
+        var service = CreateService();
+
+        var result = await service.LogoExistsAsync();
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task LogoExistsAsync_HttpErrorResponse_ReturnsFalse()
+    {
+        var mockResponse = Substitute.For<IWebResponseData>();
+        _mockS3.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), CancellationToken.None)
+            .ThrowsAsync(new HttpErrorResponseException(mockResponse));
+        var service = CreateService();
+
+        var result = await service.LogoExistsAsync();
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task LogoExistsAsync_UnexpectedException_ReturnsFalse()
+    {
+        _mockS3.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), CancellationToken.None)
+            .ThrowsAsync(new InvalidOperationException("unexpected"));
+        var service = CreateService();
+
+        var result = await service.LogoExistsAsync();
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task GetLogoUrlAsync_PreSignedUrlThrows_ReturnsFallbackAndCaches()
+    {
+        _mockS3.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), CancellationToken.None)
+            .Returns(new GetObjectMetadataResponse());
+        _mockS3.GetPreSignedURLAsync(Arg.Any<GetPreSignedUrlRequest>())
+            .ThrowsAsync(new Exception("S3 error"));
+        var service = CreateService();
+
+        var result = await service.GetLogoUrlAsync();
+
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", result);
+        // Verify fallback was cached
+        Assert.True(_cache.TryGetValue("tenant_logo_url_test-bucket", out string? cached));
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", cached);
+    }
+
+    [Fact]
+    public async Task GetLogoUrlAsync_S3GeneralException_ReturnsFallback()
+    {
+        _mockS3.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), CancellationToken.None)
+            .ThrowsAsync(new AmazonS3Exception("Service Error") { StatusCode = HttpStatusCode.ServiceUnavailable });
+        var service = CreateService();
+
+        var result = await service.GetLogoUrlAsync();
+
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     // ClearCache tests

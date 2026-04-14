@@ -14,9 +14,11 @@ public class DynamicDespatchDbContext(
             var connectionString = connectionStringManager.GetConnectionString();
             if (string.IsNullOrEmpty(connectionString))
                 throw new InvalidOperationException("Connection string not set. Please ensure you're logged in.");
-            optionsBuilder.UseSqlServer(connectionString);
+            optionsBuilder.UseSqlServer(connectionString,
+                o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
         }
 
+        optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
         base.OnConfiguring(optionsBuilder);
     }
 }

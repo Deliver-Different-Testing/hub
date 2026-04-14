@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to generate API key');
+                    document.getElementById('apiKeyError')!.textContent = 'Failed to generate API key';
+                    document.getElementById('ApiKey')!.classList.add('is-invalid');
+                    return;
                 }
 
                 const result = await response.json();

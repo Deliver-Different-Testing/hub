@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (dropdownMenu) {
-        dropdownMenu.addEventListener('click', e => {
+        dropdownMenu.addEventListener('click', async e => {
             const target = e.target as HTMLElement;
             if (target && target.nodeName === 'A') {
                 e.preventDefault();
@@ -73,40 +73,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 setTenantLoading(true);
 
-                fetch('/Account/UpdateCurrentTenant', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': requestToken ?? ''
-                    },
-                    body: JSON.stringify({tenantId: selectedTenantId})
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (tenantDropdown) {
-                                tenantDropdown.textContent = selectedTenantName + ' ';
-                                const spinner = tenantDropdown.querySelector('.spinner-border');
-                                if (spinner) {
-                                    tenantDropdown.appendChild(spinner);
-                                }
-                            }
-
-                            const urlTenantName = getCurrentTenantNameFromUrl();
-                            if (urlTenantName === 'local' || urlTenantName === 'staging') {
-                                window.location.reload();
-                                return;
-                            }
-                            replaceTenantNameAndRefresh(selectedTenantCode ?? '');
-                        } else {
-                            console.error('Failed to update tenant');
-                            setTenantLoading(false);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error updating tenant:', error);
-                        setTenantLoading(false);
+                try {
+                    const response = await fetch('/Account/UpdateCurrentTenant', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': requestToken ?? ''
+                        },
+                        body: JSON.stringify({tenantId: selectedTenantId})
                     });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        if (tenantDropdown) {
+                            tenantDropdown.textContent = selectedTenantName + ' ';
+                            const spinner = tenantDropdown.querySelector('.spinner-border');
+                            if (spinner) {
+                                tenantDropdown.appendChild(spinner);
+                            }
+                        }
+
+                        const urlTenantName = getCurrentTenantNameFromUrl();
+                        if (urlTenantName === 'local' || urlTenantName === 'staging') {
+                            window.location.reload();
+                            return;
+                        }
+                        replaceTenantNameAndRefresh(selectedTenantCode ?? '');
+                    } else {
+                        console.error('Failed to update tenant');
+                        setTenantLoading(false);
+                    }
+                } catch (error) {
+                    console.error('Error updating tenant:', error);
+                    setTenantLoading(false);
+                }
             }
         });
     }
