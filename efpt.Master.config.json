@@ -19,15 +19,15 @@
    "T4TemplatePath": null,
    "Tables": [
       {
+         "Name": "[dbo].[IntMgrPartnerDirectoryLinkRequest]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[IntMgrPartnerDirectoryListing]",
          "ObjectType": 0
       },
       {
          "Name": "[dbo].[Tenant]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[TenantBranding]",
          "ObjectType": 0
       },
       {

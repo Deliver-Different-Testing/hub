@@ -13,6 +13,8 @@ public partial class MasterContext : DbContext
     {
     }
 
+    public virtual DbSet<IntMgrPartnerDirectoryLinkRequest> IntMgrPartnerDirectoryLinkRequests { get; set; }
+
     public virtual DbSet<IntMgrPartnerDirectoryListing> IntMgrPartnerDirectoryListings { get; set; }
 
     public virtual DbSet<Tenant> Tenants { get; set; }
@@ -28,6 +30,40 @@ public partial class MasterContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.UseCollation("Latin1_General_CI_AS");
+
+        modelBuilder.Entity<IntMgrPartnerDirectoryLinkRequest>(entity =>
+        {
+            entity.ToTable("IntMgrPartnerDirectoryLinkRequest");
+
+            entity.HasIndex(e => new { e.RequestingTenantId, e.TargetTenantId, e.Status }, "IX_LinkRequest_Pending").IsUnique();
+
+            entity.HasIndex(e => e.RequestingTenantId, "IX_LinkRequest_RequestingTenantId");
+
+            entity.HasIndex(e => e.TargetTenantId, "IX_LinkRequest_TargetTenantId");
+
+            entity.Property(e => e.CreatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_LinkRequest_CreatedAtUtc")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeclineReason).HasMaxLength(500);
+            entity.Property(e => e.Message).HasMaxLength(500);
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("Pending", "DF_LinkRequest_Status");
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_LinkRequest_UpdatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.RequestingTenant).WithMany(p => p.IntMgrPartnerDirectoryLinkRequestRequestingTenants)
+                .HasForeignKey(d => d.RequestingTenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_LinkRequest_RequestingTenant");
+
+            entity.HasOne(d => d.TargetTenant).WithMany(p => p.IntMgrPartnerDirectoryLinkRequestTargetTenants)
+                .HasForeignKey(d => d.TargetTenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_LinkRequest_TargetTenant");
+        });
 
         modelBuilder.Entity<IntMgrPartnerDirectoryListing>(entity =>
         {

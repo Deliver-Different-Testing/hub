@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', async e => {
         e.preventDefault();
 
         if (!validateEmail(emailInput.value)) {
@@ -49,33 +49,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setLoading(true);
 
-        grecaptcha.ready(() => {
-            grecaptcha.execute(recaptchaSiteKey!, {action: 'forgot_password'}).then(token => {
-                (document.getElementById('g-recaptcha-response') as HTMLInputElement).value = token;
-                submitForm();
-            });
-        });
+        await new Promise<void>(resolve => grecaptcha.ready(resolve));
+        (document.getElementById('g-recaptcha-response') as HTMLInputElement).value = await grecaptcha.execute(recaptchaSiteKey!, {action: 'forgot_password'});
+        await submitForm();
     });
 
-    function submitForm(): void {
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-        })
-            .then(response => response.json())
-            .then(data => {
-                setLoading(false);
-                if (data.success) {
-                    showMessage(data.message);
-                    form.reset();
-                    emailInput.classList.remove('is-valid');
-                } else {
-                    showMessage(data.message, true);
-                }
-            })
-            .catch(() => {
-                setLoading(false);
-                showMessage('An error occurred. Please try again later.', true);
+    async function submitForm(): Promise<void> {
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
             });
+            const data = await response.json();
+
+            setLoading(false);
+            if (data.success) {
+                showMessage(data.message);
+                form.reset();
+                emailInput.classList.remove('is-valid');
+            } else {
+                showMessage(data.message, true);
+            }
+        } catch {
+            setLoading(false);
+            showMessage('An error occurred. Please try again later.', true);
+        }
     }
 });

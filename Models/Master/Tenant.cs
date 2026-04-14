@@ -19,6 +19,10 @@ public partial class Tenant
 
     public string TimeZone { get; set; }
 
+    public virtual ICollection<IntMgrPartnerDirectoryLinkRequest> IntMgrPartnerDirectoryLinkRequestRequestingTenants { get; set; } = new List<IntMgrPartnerDirectoryLinkRequest>();
+
+    public virtual ICollection<IntMgrPartnerDirectoryLinkRequest> IntMgrPartnerDirectoryLinkRequestTargetTenants { get; set; } = new List<IntMgrPartnerDirectoryLinkRequest>();
+
     public virtual IntMgrPartnerDirectoryListing IntMgrPartnerDirectoryListing { get; set; }
 
     public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();

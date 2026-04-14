@@ -65,7 +65,7 @@ public class LayoutTenantSwitchingTests
         // Extract the local/staging branch inside the .then(data => { ... }) success handler.
         // It should NOT just call setTenantLoading(false) and return — that leaves
         // the page showing stale data from the previous tenant.
-        var successHandler = ExtractBetween(_layoutJsContent, "if (data.success)", ".catch(");
+        var successHandler = ExtractBetween(_layoutJsContent, "if (data.success)", "} catch (");
         var localStagingBlock = ExtractBetween(successHandler,
             "if (urlTenantName === 'local' || urlTenantName === 'staging')", "replaceTenantNameAndRefresh");
 

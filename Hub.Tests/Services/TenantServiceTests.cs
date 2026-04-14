@@ -96,4 +96,29 @@ public class TenantServiceTests
 
         Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
     }
+
+    [Fact]
+    public async Task GetCurrentTenantTimeAsync_ValidTenant_ReturnsConvertedTime()
+    {
+        var service = CreateService().service;
+
+        var result = await service.GetCurrentTenantTimeAsync(1);
+
+        // Tenant 1 has "New Zealand Standard Time" which is UTC+12/+13
+        // The converted time should differ from UTC
+        var utcNow = DateTime.UtcNow;
+        Assert.NotEqual(utcNow.Hour, result.Hour);
+    }
+
+    [Fact]
+    public async Task GetCurrentTenantTimeAsync_UnknownTenant_FallsBackToUtc()
+    {
+        var service = CreateService().service;
+
+        // Tenant 999 doesn't exist, GetTenantTimeZoneAsync returns null, falls back to "UTC"
+        var result = await service.GetCurrentTenantTimeAsync(999);
+
+        var utcNow = DateTime.UtcNow;
+        Assert.True(Math.Abs((result - utcNow).TotalSeconds) < 5);
+    }
 }

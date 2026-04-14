@@ -17,7 +17,7 @@ public class StrongPasswordAttributeTests
     public void NullPassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate(null));
 
     [Fact]
-    public void EmptyPassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate(""));
+    public void EmptyPassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate(string.Empty));
 
     [Fact]
     public void WhitespacePassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("   "));

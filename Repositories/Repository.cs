@@ -5,10 +5,10 @@ using Serilog;
 
 namespace Hub.Repositories;
 
-public sealed class Repository(DynamicDespatchDbContext context,
+public sealed class Repository(
+    DynamicDespatchDbContext context,
     ITenantService tenantService) : IDespatchRepository
 {
-
     public async Task<TucClientContact?> FetchUserByUsername(string email)
     {
         try
@@ -16,7 +16,6 @@ public sealed class Repository(DynamicDespatchDbContext context,
             Log.Debug("Attempting to fetch user with email: {Email}", email);
 
             return await context.TucClientContacts
-                .AsNoTracking()
                 .Include(c => c.UcctClient)
                 .Where(x => x.Active && x.UserName == email)
                 .FirstOrDefaultAsync();
@@ -31,7 +30,6 @@ public sealed class Repository(DynamicDespatchDbContext context,
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
         var subAccounts = await context.TucClients
-            .AsNoTracking()
             .Where(x => x.UcclGroupId == clientId)
             .Select(y => y.UcclId)
             .ToListAsync();
@@ -43,7 +41,7 @@ public sealed class Repository(DynamicDespatchDbContext context,
         var data = await context.Procedures.RVW_stpValidateInternetPermissionsAsync(contactId);
         return data;
     }
-    
+
     public async Task InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link) =>
         await context.Procedures.NET_stpContact_ResetPasswordAsync(contactId, recoveryEmail, replyEmail, link);
 
@@ -56,7 +54,8 @@ public sealed class Repository(DynamicDespatchDbContext context,
                 .SetProperty(x => x.LastAccessed, tenantTime)
                 .SetProperty(x => x.HasEmail, x => x.WhenEmailValidated == null || x.HasEmail)
                 .SetProperty(x => x.ValidatedEmail, x => x.WhenEmailValidated == null || x.ValidatedEmail)
-                .SetProperty(x => x.WhenEmailValidatedSent, x => x.WhenEmailValidated == null ? tenantTime : x.WhenEmailValidatedSent)
+                .SetProperty(x => x.WhenEmailValidatedSent,
+                    x => x.WhenEmailValidated == null ? tenantTime : x.WhenEmailValidatedSent)
                 .SetProperty(x => x.WhenEmailValidated, x => x.WhenEmailValidated ?? tenantTime)
                 .SetProperty(x => x.AllowCookieLogin, rememberMe));
     }
@@ -68,7 +67,6 @@ public sealed class Repository(DynamicDespatchDbContext context,
             Log.Debug("Validating courier with email: {Email}", email);
 
             var courierId = await context.TucCouriers
-                .AsNoTracking()
                 .Where(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim() == email)
                 .Select(x => (int?)x.UccrId)
                 .FirstOrDefaultAsync();
@@ -94,7 +92,6 @@ public sealed class Repository(DynamicDespatchDbContext context,
         try
         {
             var accountsMode = await context.TblSettings
-                .AsNoTracking()
                 .Select(s => s.AccountsMode)
                 .FirstOrDefaultAsync();
 
@@ -114,7 +111,6 @@ public sealed class Repository(DynamicDespatchDbContext context,
         {
             // 2026-01-20 New logic from George - just existence of courier qualifies for auth.
             var isAuthorized = await context.TblAfterhoursCouriers
-                .AsNoTracking()
                 .AnyAsync(ah => ah.CourierId == courierId);
 
             return isAuthorized;

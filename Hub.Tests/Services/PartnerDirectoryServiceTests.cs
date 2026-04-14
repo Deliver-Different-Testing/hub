@@ -1,6 +1,5 @@
 using Hub.Models.Master;
 using Hub.Services;
-using Hub.Tests.Helpers;
 using Hub.ViewModels;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +44,11 @@ public class PartnerDirectoryServiceTests : IDisposable
             {
                 TenantId = 2, Name = "Second Tenant", Dbconnection = "Server=test;Database=SecondDB;",
                 Code = "second", CountryCode = "AU", TimeZone = "AUS Eastern Standard Time"
+            },
+            new Tenant
+            {
+                TenantId = 3, Name = "Third Tenant", Dbconnection = "Server=test;Database=ThirdDB;",
+                Code = "third", CountryCode = "US", TimeZone = "Eastern Standard Time"
             });
 
         context.IntMgrPartnerDirectoryListings.AddRange(
@@ -101,20 +105,119 @@ public class PartnerDirectoryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetActiveListingsAsync_WithViewingTenantId_NoRequests_BothFlagsFalse()
+    {
+        var service = CreateService();
+
+        var result = await service.GetActiveListingsAsync(viewingTenantId: 3);
+
+        Assert.Single(result);
+        Assert.False(result[0].HasExistingLink);
+        Assert.False(result[0].HasPendingRequest);
+    }
+
+    [Fact]
+    public async Task GetActiveListingsAsync_WithViewingTenantId_AcceptedLink_HasExistingLinkTrue()
+    {
+        _context.IntMgrPartnerDirectoryLinkRequests.Add(new IntMgrPartnerDirectoryLinkRequest
+        {
+            RequestingTenantId = 3, TargetTenantId = 1, Status = "Accepted",
+            CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        var service = CreateService();
+
+        var result = await service.GetActiveListingsAsync(viewingTenantId: 3);
+
+        Assert.Single(result);
+        Assert.True(result[0].HasExistingLink);
+        Assert.False(result[0].HasPendingRequest);
+    }
+
+    [Fact]
+    public async Task GetActiveListingsAsync_WithViewingTenantId_PendingRequest_HasPendingRequestTrue()
+    {
+        _context.IntMgrPartnerDirectoryLinkRequests.Add(new IntMgrPartnerDirectoryLinkRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 3, Status = "Pending",
+            CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        var service = CreateService();
+
+        var result = await service.GetActiveListingsAsync(viewingTenantId: 3);
+
+        Assert.Single(result);
+        Assert.False(result[0].HasExistingLink);
+        Assert.True(result[0].HasPendingRequest);
+    }
+
+    [Fact]
+    public async Task GetActiveListingsAsync_WithoutViewingTenantId_BothFlagsFalse()
+    {
+        _context.IntMgrPartnerDirectoryLinkRequests.Add(new IntMgrPartnerDirectoryLinkRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 3, Status = "Accepted",
+            CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        var service = CreateService();
+
+        var result = await service.GetActiveListingsAsync();
+
+        Assert.Single(result);
+        Assert.False(result[0].HasExistingLink);
+        Assert.False(result[0].HasPendingRequest);
+    }
+
+    [Fact]
     public async Task GetActiveListingsAsync_EmptyDatabase_ReturnsEmptyList()
     {
-        using var connection = new SqliteConnection("DataSource=:memory:");
+        await using var connection = new SqliteConnection("DataSource=:memory:");
         connection.Open();
         var options = new DbContextOptionsBuilder<MasterContext>()
             .UseSqlite(connection)
             .Options;
-        using var context = new MasterContext(options);
-        context.Database.EnsureCreated();
+        await using var context = new MasterContext(options);
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var service = new PartnerDirectoryService(context);
 
         var result = await service.GetActiveListingsAsync();
 
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetListingAsync_ActiveListing_ReturnsWithIsActiveTrue()
+    {
+        var service = CreateService();
+
+        var result = await service.GetListingAsync(1);
+
+        Assert.NotNull(result);
+        Assert.True(result.IsActive);
+    }
+
+    [Fact]
+    public async Task GetListingAsync_InactiveListing_ReturnsWithIsActiveFalse()
+    {
+        var service = CreateService();
+
+        var result = await service.GetListingAsync(2);
+
+        Assert.NotNull(result);
+        Assert.False(result.IsActive);
+        Assert.Equal("Second Tenant", result.TenantName);
+    }
+
+    [Fact]
+    public async Task GetListingAsync_NonExistentTenant_ReturnsNull()
+    {
+        var service = CreateService();
+
+        var result = await service.GetListingAsync(999);
+
+        Assert.Null(result);
     }
 
     [Fact]
@@ -219,8 +322,8 @@ public class PartnerDirectoryServiceTests : IDisposable
         var result = await service.RemoveListingAsync(1);
 
         Assert.True(result);
+        _context.ChangeTracker.Clear();
         var listing = await _context.IntMgrPartnerDirectoryListings
-            .AsNoTracking()
             .FirstOrDefaultAsync(l => l.TenantId == 1, TestContext.Current.CancellationToken);
         Assert.False(listing!.IsActive);
     }
@@ -233,5 +336,200 @@ public class PartnerDirectoryServiceTests : IDisposable
         var result = await service.RemoveListingAsync(999);
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task ActivateListingAsync_InactiveListing_SetsActiveAndReturnsTrue()
+    {
+        var service = CreateService();
+
+        var result = await service.ActivateListingAsync(2);
+
+        Assert.True(result);
+        _context.ChangeTracker.Clear();
+        var listing = await _context.IntMgrPartnerDirectoryListings
+            .FirstOrDefaultAsync(l => l.TenantId == 2, TestContext.Current.CancellationToken);
+        Assert.True(listing!.IsActive);
+    }
+
+    [Fact]
+    public async Task ActivateListingAsync_NonExistentListing_ReturnsFalse()
+    {
+        var service = CreateService();
+
+        var result = await service.ActivateListingAsync(999);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CreateLinkRequestAsync_ValidTenants_CreatesAndReturns()
+    {
+        var service = CreateService();
+        var request = new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2, Message = "Let's partner"
+        };
+
+        var result = await service.CreateLinkRequestAsync(request);
+
+        Assert.NotNull(result);
+        Assert.Equal(1, result.RequestingTenantId);
+        Assert.Equal("Test Tenant", result.RequestingTenantName);
+        Assert.Equal(2, result.TargetTenantId);
+        Assert.Equal("Second Tenant", result.TargetTenantName);
+        Assert.Equal("Pending", result.Status);
+        Assert.Equal("Let's partner", result.Message);
+        Assert.Null(result.DeclineReason);
+        Assert.True(result.Id > 0);
+    }
+
+    [Fact]
+    public async Task CreateLinkRequestAsync_NonExistentRequestingTenant_ReturnsNull()
+    {
+        var service = CreateService();
+        var request = new LinkRequestCreateRequest { RequestingTenantId = 999, TargetTenantId = 2 };
+
+        var result = await service.CreateLinkRequestAsync(request);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CreateLinkRequestAsync_NonExistentTargetTenant_ReturnsNull()
+    {
+        var service = CreateService();
+        var request = new LinkRequestCreateRequest { RequestingTenantId = 1, TargetTenantId = 999 };
+
+        var result = await service.CreateLinkRequestAsync(request);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CreateLinkRequestAsync_DuplicatePending_ThrowsInvalidOperation()
+    {
+        var service = CreateService();
+        var request = new LinkRequestCreateRequest { RequestingTenantId = 1, TargetTenantId = 2 };
+        await service.CreateLinkRequestAsync(request);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateLinkRequestAsync(request));
+    }
+
+    [Fact]
+    public async Task GetLinkRequestsAsync_ReturnsByRequestingOrTargetTenant()
+    {
+        var service = CreateService();
+        await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 3, TargetTenantId = 1
+        });
+
+        var results = await service.GetLinkRequestsAsync(1);
+
+        Assert.Equal(2, results.Count);
+    }
+
+    [Fact]
+    public async Task GetLinkRequestsAsync_NoRequests_ReturnsEmptyList()
+    {
+        var service = CreateService();
+
+        var results = await service.GetLinkRequestsAsync(1);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task AcceptLinkRequestAsync_PendingRequest_UpdatesStatus()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        _context.ChangeTracker.Clear();
+
+        var result = await service.AcceptLinkRequestAsync(created!.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal("Accepted", result.Status);
+        Assert.Equal("Test Tenant", result.RequestingTenantName);
+        Assert.Equal("Second Tenant", result.TargetTenantName);
+    }
+
+    [Fact]
+    public async Task AcceptLinkRequestAsync_NonExistent_ReturnsNull()
+    {
+        var service = CreateService();
+
+        var result = await service.AcceptLinkRequestAsync(999);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task AcceptLinkRequestAsync_AlreadyDeclined_ReturnsNull()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        _context.ChangeTracker.Clear();
+        await service.DeclineLinkRequestAsync(created!.Id, "No");
+        _context.ChangeTracker.Clear();
+
+        var result = await service.AcceptLinkRequestAsync(created.Id);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task DeclineLinkRequestAsync_PendingRequest_UpdatesStatusAndReason()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        _context.ChangeTracker.Clear();
+
+        var result = await service.DeclineLinkRequestAsync(created!.Id, "Not interested");
+
+        Assert.NotNull(result);
+        Assert.Equal("Declined", result.Status);
+        Assert.Equal("Not interested", result.DeclineReason);
+    }
+
+    [Fact]
+    public async Task DeclineLinkRequestAsync_NullReason_SetsNullDeclineReason()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        _context.ChangeTracker.Clear();
+
+        var result = await service.DeclineLinkRequestAsync(created!.Id, null);
+
+        Assert.NotNull(result);
+        Assert.Equal("Declined", result.Status);
+        Assert.Null(result.DeclineReason);
+    }
+
+    [Fact]
+    public async Task DeclineLinkRequestAsync_NonExistent_ReturnsNull()
+    {
+        var service = CreateService();
+
+        var result = await service.DeclineLinkRequestAsync(999, "reason");
+
+        Assert.Null(result);
     }
 }

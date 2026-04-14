@@ -247,6 +247,19 @@ public class AccountControllerTests : IDisposable
         Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
+    [Fact]
+    public async Task Login_Post_AlreadyAuthenticatedAsSameUser_ProceedsWithLogin()
+    {
+        var existingUser = ClaimsPrincipalFactory.Create(email: "staff@test.com");
+        var (controller, _, _) = CreateController(existingUser);
+        var model = new LoginViewModel { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, null!);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+    }
+
     // ResetPassword GET tests
     [Fact]
     public async Task ResetPassword_Get_NullCode_Redirects()
@@ -563,6 +576,526 @@ public class AccountControllerTests : IDisposable
         {
             Environment.SetEnvironmentVariable("SQLCredentials", original);
         }
+    }
+
+    // CreditCard tests
+    [Fact]
+    public async Task CreditCard_MissingToken_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", string.Empty);
+        var (controller, _, _) = CreateController();
+
+        var result = await controller.CreditCard("any-token");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task CreditCard_InvalidToken_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard("wrong-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_MissingCredentials_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", string.Empty);
+        Environment.SetEnvironmentVariable("CreditCardPassword", string.Empty);
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_UserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "nobody@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "pass");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_NullTenant_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "notenant@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "Pass1!");
+        try
+        {
+            var (controller, masterCtx, _) = CreateController();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 30, Email = "notenant@test.com",
+                Password = PasswordHelper.HashPassword("Pass1!", "99999"), Salt = "99999",
+                CurrentTenantId = null, IsLegacyHash = false, IsCourier = false
+            });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_WrongPassword_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "WrongPassword!");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_DespatchUserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "nodespatch@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "Pass1!");
+        try
+        {
+            var (controller, masterCtx, _) = CreateController();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 31, Email = "nodespatch@test.com",
+                Password = PasswordHelper.HashPassword("Pass1!", "88888"), Salt = "88888",
+                CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 31, TenantId = 1, UserId = 31 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_ValidLogin_NoTenantUrl_RedirectsToHome()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "TestPassword1!");
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+            Assert.Equal("Home", redirect.ControllerName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_ValidLogin_WithTenantUrl_RedirectsToBooking()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "TestPassword1!");
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard("valid-token");
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Contains("booking", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_LegacyHash_UpgradesPassword()
+    {
+        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
+        Environment.SetEnvironmentVariable("CreditCardEmail", "legacy@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "LegacyPass1!");
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, masterCtx, _) = CreateController();
+
+            await controller.CreditCard("valid-token");
+
+            var user = (await masterCtx.Users.FindAsync([3], TestContext.Current.CancellationToken))!;
+            Assert.False(user.IsLegacyHash);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardToken", null);
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    // ResetPassword POST edge cases
+    [Fact]
+    public async Task ResetPassword_Post_ValidCode_DespatchUserNotFound_ReturnsView()
+    {
+        var (controller, _, _) = CreateController();
+        // reset@test.com has valid-reset-key but no despatch contact (not in seed data)
+        var model = new ResetPasswordViewModel
+        {
+            Email = "reset@test.com", Password = "NewStrong1!", ConfirmPassword = "NewStrong1!", Code = "valid-reset-key"
+        };
+
+        var result = await controller.ResetPassword(model);
+
+        Assert.IsType<ViewResult>(result);
+    }
+
+    // ForgotPassword POST - despatch user not found
+    [Fact]
+    public async Task ForgotPassword_Post_DespatchUserNotFound_ReturnsError()
+    {
+        var (controller, masterCtx, _) = CreateController();
+        masterCtx.Users.Add(new User
+        {
+            UserId = 32, Email = "nodespatch2@test.com",
+            Password = "x", Salt = "x",
+            CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+        });
+        masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 32, TenantId = 1, UserId = 32 });
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        SetFormValues(controller, "token");
+        var model = new ForgotPasswordViewModel { Email = "nodespatch2@test.com" };
+
+        var result = await controller.ForgotPassword(model) as JsonResult;
+
+        Assert.NotNull(result);
+        AssertHelper.JsonEquivalent(
+            new { success = false, message = "Reset failed due to contact validation failure" }, result.Value);
+    }
+
+    // GenerateApiKey exception catch block
+    [Fact]
+    public async Task GenerateApiKey_CryptoException_ReturnsFailure()
+    {
+        Environment.SetEnvironmentVariable("JWTSecretKey", "ThisIsASecretKeyForTestingThatMustBeLongEnough123!");
+        Environment.SetEnvironmentVariable("ClaimsKey", "not-valid-base64!!!");
+        Environment.SetEnvironmentVariable("Issuer", "test-issuer");
+        Environment.SetEnvironmentVariable("Audience", "test-audience");
+        try
+        {
+            var user = ClaimsPrincipalFactory.Create(email: "staff@test.com");
+            var (controller, _, _) = CreateController(user);
+
+            var result = await controller.GenerateApiKey() as JsonResult;
+
+            Assert.NotNull(result);
+            AssertHelper.JsonEquivalent(new { success = false, message = "Failed to generate API key" }, result.Value);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JWTSecretKey", null);
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+            Environment.SetEnvironmentVariable("Issuer", null);
+            Environment.SetEnvironmentVariable("Audience", null);
+        }
+    }
+
+    // Login - asure redirect
+    [Fact]
+    public async Task Login_Post_AsureUser_WithTenantUrl_RedirectsToBooking()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            // Add "urgent" tenant
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            var asureUser = new User
+            {
+                UserId = 40, Email = "asure@urgent.co.nz",
+                Password = PasswordHelper.HashPassword("AsurePass1!", "77777"), Salt = "77777",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            };
+            masterCtx.Users.Add(asureUser);
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 40, TenantId = 3, UserId = 40 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            // Add despatch contact for asure user
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 40, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "User", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new LoginViewModel
+                { Email = "asure@urgent.co.nz", Password = "AsurePass1!", IsCourierLogin = false };
+
+            var result = await controller.Login(model, null!);
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Contains("booking", redirect.Url);
+            Assert.Contains("asure", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task Login_Post_AsureUser_NoTenantUrl_RedirectsToHome()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            masterCtx.Users.Add(new User
+            {
+                UserId = 41, Email = "asure@urgent.co.nz",
+                Password = PasswordHelper.HashPassword("AsurePass1!", "77778"), Salt = "77778",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 41, TenantId = 3, UserId = 41 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 41, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "User2", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new LoginViewModel
+                { Email = "asure@urgent.co.nz", Password = "AsurePass1!", IsCourierLogin = false };
+
+            var result = await controller.Login(model, null!);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    // ResetPassword - asure redirect
+    [Fact]
+    public async Task ResetPassword_Post_AsureUser_WithTenantUrl_RedirectsToBooking()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            masterCtx.Users.Add(new User
+            {
+                UserId = 42, Email = "asure@urgent.co.nz",
+                Password = "OLD", Salt = "77779",
+                ResetKey = "asure-reset-key",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 42, TenantId = 3, UserId = 42 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 42, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "Reset", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new ResetPasswordViewModel
+            {
+                Email = "asure@urgent.co.nz", Password = "NewStrong1!",
+                ConfirmPassword = "NewStrong1!", Code = "asure-reset-key"
+            };
+
+            var result = await controller.ResetPassword(model);
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Contains("booking", redirect.Url);
+            Assert.Contains("asure", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task ResetPassword_Post_AsureUser_NoTenantUrl_RedirectsToHome()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            masterCtx.Users.Add(new User
+            {
+                UserId = 43, Email = "asure@urgent.co.nz",
+                Password = "OLD", Salt = "77780",
+                ResetKey = "asure-reset-key-2",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 43, TenantId = 3, UserId = 43 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 43, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "Reset2", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new ResetPasswordViewModel
+            {
+                Email = "asure@urgent.co.nz", Password = "NewStrong1!",
+                ConfirmPassword = "NewStrong1!", Code = "asure-reset-key-2"
+            };
+
+            var result = await controller.ResetPassword(model);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    // UpdateCurrentTenant - CurrentTenant null after update
+    [Fact]
+    public async Task UpdateCurrentTenant_TenantNotInDb_ReturnsFailure()
+    {
+        var user = ClaimsPrincipalFactory.Create(userId: 1, email: "staff@test.com");
+        var (controller, masterCtx, _) = CreateController(user);
+        // Add tenant-user link for non-existent tenant
+        masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 40, TenantId = 999, UserId = 1 });
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 999 }) as JsonResult;
+
+        AssertHelper.JsonEquivalent(
+            new { success = false, message = "Current Tenant Not Set for user 1" }, result!.Value);
+    }
+
+    // UpdateCurrentTenant - Despatch user not found
+    [Fact]
+    public async Task UpdateCurrentTenant_DespatchUserNotFound_ReturnsFailure()
+    {
+        var user = ClaimsPrincipalFactory.Create(userId: 1, email: "nodespatch@test.com");
+        var (controller, _, _) = CreateController(user);
+
+        var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
+
+        AssertHelper.JsonEquivalent(
+            new { success = false, message = "Despatch User not found" }, result!.Value);
     }
 
     private static void SetFormValues(AccountController controller, string reCaptchaToken)

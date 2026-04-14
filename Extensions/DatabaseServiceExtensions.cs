@@ -16,7 +16,8 @@ public static class DatabaseServiceExtensions
 
         services.AddDbContext<MasterContext>(x =>
         {
-            x.UseSqlServer(connectionString);
+            x.UseSqlServer(connectionString, o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+            x.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
 #if DEBUG
             x.UseLoggerFactory(LoggerFactory.Create(c => c.AddDebug()));
 #endif
