@@ -16,6 +16,7 @@ public sealed class Repository(
             Log.Debug("Attempting to fetch user with email: {Email}", email);
 
             return await context.TucClientContacts
+                .AsNoTracking()
                 .Include(c => c.UcctClient)
                 .Where(x => x.Active && x.UserName == email)
                 .FirstOrDefaultAsync();
@@ -30,6 +31,7 @@ public sealed class Repository(
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
         var subAccounts = await context.TucClients
+            .AsNoTracking()
             .Where(x => x.UcclGroupId == clientId)
             .Select(y => y.UcclId)
             .ToListAsync();
@@ -67,6 +69,7 @@ public sealed class Repository(
             Log.Debug("Validating courier with email: {Email}", email);
 
             var courierId = await context.TucCouriers
+                .AsNoTracking()
                 .Where(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim() == email)
                 .Select(x => (int?)x.UccrId)
                 .FirstOrDefaultAsync();
@@ -92,6 +95,7 @@ public sealed class Repository(
         try
         {
             var accountsMode = await context.TblSettings
+                .AsNoTracking()
                 .Select(s => s.AccountsMode)
                 .FirstOrDefaultAsync();
 
@@ -111,6 +115,7 @@ public sealed class Repository(
         {
             // 2026-01-20 New logic from George - just existence of courier qualifies for auth.
             var isAuthorized = await context.TblAfterhoursCouriers
+                .AsNoTracking()
                 .AnyAsync(ah => ah.CourierId == courierId);
 
             return isAuthorized;
