@@ -30,6 +30,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
 
     public async Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId) =>
         await context.TenantUserSettings
+            .AsNoTracking()
             .Where(tus => tus.TenantId == tenantId && tus.UserId == userId)
             .Select(tus => new TenantUserSettingViewModel
             {
@@ -74,6 +75,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
 
     public async Task<User?> GetUserById(int id) =>
         await context.Users
+            .AsNoTracking()
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.UserId == id);
 
@@ -83,12 +85,13 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             .FirstOrDefaultAsync(u => u.ResetKey == resetKey);
 
     public async Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId) =>
-        await context.TenantUsers.Where(tu => tu.UserId == userId).Select(tu => tu.Tenant)
+        await context.TenantUsers.AsNoTracking().Where(tu => tu.UserId == userId).Select(tu => tu.Tenant)
             .Distinct()
             .ToListAsync();
 
     public async Task<string?> GetTenantTimeZoneAsync(int tenantId) =>
         await context.Tenants
+            .AsNoTracking()
             .Where(t => t.TenantId == tenantId)
             .Select(t => t.TimeZone)
             .FirstOrDefaultAsync();

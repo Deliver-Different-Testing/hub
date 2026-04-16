@@ -178,6 +178,22 @@ public class AuthenticationRepositoryTests
     }
 
     [Fact]
+    public async Task UpdateCurrentTenantIdAsync_GetUserById_ReturnsNewTenant()
+    {
+        // Regression: ba04c0e added NoTracking default to MasterContext which caused
+        // UpdateCurrentTenantIdAsync to silently not persist, so GetUserById returned
+        // the old tenant — breaking tenant switching and passing wrong tenant to apps.
+        var repo = CreateRepo();
+
+        await repo.UpdateCurrentTenantIdAsync(1, 2);
+
+        var user = await repo.GetUserById(1);
+        Assert.NotNull(user!.CurrentTenant);
+        Assert.Equal(2, user.CurrentTenant!.TenantId);
+        Assert.Equal("second", user.CurrentTenant.Code);
+    }
+
+    [Fact]
     public async Task UpdateCurrentTenantIdAsync_NotAssociated_ReturnsFalse()
     {
         var repo = CreateRepo();
@@ -246,5 +262,19 @@ public class AuthenticationRepositoryTests
         var settings = await repo.GetUserSettings(1, 1);
         Assert.Single(settings, s => s.Name == "Theme");
         Assert.Equal("Light", settings.First(s => s.Name == "Theme").Value);
+    }
+
+    [Fact]
+    public async Task SaveUserSetting_ExistingSetting_PersistsAcrossReads()
+    {
+        // Regression: NoTracking default on MasterContext caused SaveUserSetting to
+        // load existing settings as untracked entities, so modifications were never saved.
+        var repo = CreateRepo();
+
+        await repo.SaveUserSetting(new TenantUserSettingViewModel { Name = "Theme", Value = "Blue" }, 1, 1);
+        // Read again to confirm persistence (not just in-memory)
+        var settings = await repo.GetUserSettings(1, 1);
+
+        Assert.Equal("Blue", settings.First(s => s.Name == "Theme").Value);
     }
 }
