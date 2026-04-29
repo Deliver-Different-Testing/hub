@@ -526,4 +526,50 @@ public class PartnerDirectoryControllerTests : IDisposable
         var statusResult = Assert.IsType<StatusCodeResult>(result);
         Assert.Equal(500, statusResult.StatusCode);
     }
+
+    [Fact]
+    public async Task ClearLinkRequest_ValidApiKey_Returns200()
+    {
+        var response = new LinkRequestResponse
+        {
+            Id = 1, RequestingTenantId = 1, RequestingTenantName = "A",
+            TargetTenantId = 2, TargetTenantName = "B", Status = "Declined", DeclineReason = "Stale"
+        };
+        _mockService.ClearLinkRequestAsync(1, "Stale").Returns(response);
+
+        var result = await _controller.ClearLinkRequest(ValidApiKey, 1,
+            new DeclineLinkRequestRequest { Reason = "Stale" });
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(response, okResult.Value);
+    }
+
+    [Fact]
+    public async Task ClearLinkRequest_MissingApiKey_Returns401()
+    {
+        var result = await _controller.ClearLinkRequest(null, 1, null);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task ClearLinkRequest_NotFound_Returns404()
+    {
+        _mockService.ClearLinkRequestAsync(99, null).Returns((LinkRequestResponse?)null);
+
+        var result = await _controller.ClearLinkRequest(ValidApiKey, 99, null);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task ClearLinkRequest_ServiceThrows_Returns500()
+    {
+        _mockService.ClearLinkRequestAsync(1, Arg.Any<string?>()).ThrowsAsync(new Exception("test"));
+
+        var result = await _controller.ClearLinkRequest(ValidApiKey, 1, null);
+
+        var statusResult = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, statusResult.StatusCode);
+    }
 }

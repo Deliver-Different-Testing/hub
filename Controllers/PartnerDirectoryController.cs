@@ -225,6 +225,27 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         }
     }
 
+    [HttpPost("link-requests/{requestId:int}/clear")]
+    public async Task<IActionResult> ClearLinkRequest(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        int requestId,
+        [FromBody] DeclineLinkRequestRequest? request)
+    {
+        if (!IsApiKeyValid(apiKey))
+            return Unauthorized();
+
+        try
+        {
+            var result = await partnerDirectoryService.ClearLinkRequestAsync(requestId, request?.Reason);
+            return result == null ? NotFound() : Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to clear link request {RequestId}", requestId);
+            return StatusCode(500);
+        }
+    }
+
     private static bool IsApiKeyValid(string? apiKey)
     {
         var expectedKey = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey") ?? string.Empty;

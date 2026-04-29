@@ -292,4 +292,35 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
             })
             .FirstOrDefaultAsync();
     }
+
+    public async Task<LinkRequestResponse?> ClearLinkRequestAsync(int requestId, string? reason)
+    {
+        var now = DateTime.UtcNow;
+        var rowsAffected = await context.IntMgrPartnerDirectoryLinkRequests
+            .Where(r => r.Id == requestId && (r.Status == "Pending" || r.Status == "Accepted"))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, "Declined")
+                .SetProperty(r => r.DeclineReason, reason)
+                .SetProperty(r => r.UpdatedAtUtc, now));
+
+        if (rowsAffected is 0)
+            return null;
+
+        return await context.IntMgrPartnerDirectoryLinkRequests
+            .Where(r => r.Id == requestId)
+            .Select(r => new LinkRequestResponse
+            {
+                Id = r.Id,
+                RequestingTenantId = r.RequestingTenantId,
+                RequestingTenantName = r.RequestingTenant.Name,
+                TargetTenantId = r.TargetTenantId,
+                TargetTenantName = r.TargetTenant.Name,
+                Status = r.Status,
+                Message = r.Message,
+                DeclineReason = r.DeclineReason,
+                CreatedAtUtc = r.CreatedAtUtc,
+                UpdatedAtUtc = r.UpdatedAtUtc
+            })
+            .FirstOrDefaultAsync();
+    }
 }
