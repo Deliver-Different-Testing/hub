@@ -532,4 +532,65 @@ public class PartnerDirectoryServiceTests : IDisposable
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task ClearLinkRequestAsync_PendingRequest_UpdatesStatusAndReason()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        _context.ChangeTracker.Clear();
+
+        var result = await service.ClearLinkRequestAsync(created!.Id, "Stale link");
+
+        Assert.NotNull(result);
+        Assert.Equal("Declined", result.Status);
+        Assert.Equal("Stale link", result.DeclineReason);
+    }
+
+    [Fact]
+    public async Task ClearLinkRequestAsync_AcceptedRequest_UpdatesStatusAndReason()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        await service.AcceptLinkRequestAsync(created!.Id);
+        _context.ChangeTracker.Clear();
+
+        var result = await service.ClearLinkRequestAsync(created.Id, "Stale link");
+
+        Assert.NotNull(result);
+        Assert.Equal("Declined", result.Status);
+        Assert.Equal("Stale link", result.DeclineReason);
+    }
+
+    [Fact]
+    public async Task ClearLinkRequestAsync_AlreadyDeclined_ReturnsNull()
+    {
+        var service = CreateService();
+        var created = await service.CreateLinkRequestAsync(new LinkRequestCreateRequest
+        {
+            RequestingTenantId = 1, TargetTenantId = 2
+        });
+        await service.DeclineLinkRequestAsync(created!.Id, "first decline");
+        _context.ChangeTracker.Clear();
+
+        var result = await service.ClearLinkRequestAsync(created.Id, "Stale link");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ClearLinkRequestAsync_NonExistent_ReturnsNull()
+    {
+        var service = CreateService();
+
+        var result = await service.ClearLinkRequestAsync(999, "reason");
+
+        Assert.Null(result);
+    }
 }

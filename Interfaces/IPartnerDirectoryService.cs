@@ -14,4 +14,5 @@ public interface IPartnerDirectoryService
     Task<IReadOnlyList<LinkRequestResponse>> GetLinkRequestsAsync(int tenantId);
     Task<LinkRequestResponse?> AcceptLinkRequestAsync(int requestId);
     Task<LinkRequestResponse?> DeclineLinkRequestAsync(int requestId, string? reason);
+    Task<LinkRequestResponse?> ClearLinkRequestAsync(int requestId, string? reason);
 }
