@@ -14,4 +14,5 @@ public interface IAuthenticationRepository
     Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId);
     Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId);
     Task<string?> GetTenantTimeZoneAsync(int tenantId);
+    Task<string?> GetTenantConnectionStringAsync(int tenantId);
 }
