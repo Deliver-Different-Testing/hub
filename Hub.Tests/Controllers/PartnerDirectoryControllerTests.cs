@@ -7,6 +7,7 @@ using NSubstitute.ExceptionExtensions;
 
 namespace Hub.Tests.Controllers;
 
+[Collection("PartnerDirectoryApiKey")]
 public class PartnerDirectoryControllerTests : IDisposable
 {
     private readonly IPartnerDirectoryService _mockService;
