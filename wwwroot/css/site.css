@@ -541,6 +541,18 @@ a.navbar-brand {
   padding: 1.5rem 1.5rem;
 }
 
+.fuel-header-card--simple {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1.15fr) auto;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.fuel-header-copy {
+  display: flex;
+  align-items: center;
+}
+
 .fuel-eyebrow {
   font-size: .75rem;
   text-transform: uppercase;
@@ -572,8 +584,19 @@ a.navbar-brand {
   gap: 1rem;
 }
 
+.fuel-page--simple .fuel-highlight-grid {
+  display: none;
+}
+
 .fuel-highlight-card {
   padding: 1.5rem;
+}
+
+.fuel-highlight-card--inline {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
 }
 
 .fuel-highlight-card--current {
@@ -697,11 +720,19 @@ a.navbar-brand {
   .fuel-highlight-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .fuel-header-card--simple {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
   .fuel-header-card {
     flex-direction: column;
+  }
+
+  .fuel-header-card--simple {
+    grid-template-columns: 1fr;
   }
 
   .fuel-highlight-grid {

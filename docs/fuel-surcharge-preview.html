@@ -60,6 +60,18 @@
       gap: 18px;
     }
 
+    .fuel-header-card--simple {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1.15fr) auto;
+      align-items: stretch;
+      gap: 16px;
+    }
+
+    .fuel-header-copy {
+      display: flex;
+      align-items: center;
+    }
+
     .fuel-header-card,
     .fuel-section-card,
     .fuel-stat-card,
@@ -114,6 +126,12 @@
     }
 
     .fuel-highlight-card { padding: 24px; }
+    .fuel-highlight-card--inline {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100%;
+    }
     .fuel-highlight-card--current {
       background: linear-gradient(135deg, rgba(40,61,184,.08), rgba(62,175,194,.08));
       border-color: rgba(var(--dd-primary-rgb), .18);
@@ -212,12 +230,14 @@
 
     @media (max-width: 1100px) {
       .fuel-highlight-grid { grid-template-columns: repeat(2, 1fr); }
+      .fuel-header-card--simple { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 720px) {
       .shell { padding: 16px; }
       .fuel-highlight-grid { grid-template-columns: 1fr; }
       .fuel-header-card { flex-direction: column; }
+      .fuel-header-card--simple { grid-template-columns: 1fr; }
       .fuel-rate { font-size: 42px; }
       .table-wrap { overflow-x: auto; }
       table { min-width: 860px; }
@@ -229,17 +249,16 @@
     <div class="preview-banner">Preview only · GitHub Pages mock of the new Hub Fuel Surcharge tile + page</div>
 
     <div class="mock-page">
-      <div class="fuel-header-card">
-        <div>
-          <div class="fuel-eyebrow">Pricing</div>
-          <h1>Fuel Surcharge</h1>
-          <p class="subtext">Current fuel surcharge for <strong>Urgent Couriers</strong>, with three months of history. Your client account: <strong>Mainfreight Test Client</strong>. Because this client has its own override, the generic tenant-wide surcharge is hidden from the client view.</p>
+      <div class="fuel-header-card fuel-header-card--simple">
+        <div class="fuel-header-copy">
+          <div>
+            <div class="fuel-eyebrow">Pricing</div>
+            <h1>Fuel Surcharge</h1>
+            <p class="subtext">Fuel surcharge history for <strong>Mainfreight Test Client</strong></p>
+          </div>
         </div>
-        <button class="btn">Back to Hub</button>
-      </div>
 
-      <div class="fuel-highlight-grid">
-        <div class="fuel-highlight-card fuel-highlight-card--current">
+        <div class="fuel-highlight-card fuel-highlight-card--current fuel-highlight-card--inline">
           <div class="fuel-label">Current surcharge</div>
           <div class="fuel-rate">14.25%</div>
           <div class="fuel-meta">
@@ -251,23 +270,7 @@
           </div>
         </div>
 
-        <div class="fuel-stat-card">
-          <div class="fuel-label">Current standard</div>
-          <div class="fuel-stat-value">—</div>
-          <div class="fuel-stat-note">Hidden because client override applies</div>
-        </div>
-
-        <div class="fuel-stat-card">
-          <div class="fuel-label">Client-specific current</div>
-          <div class="fuel-stat-value">14.25%</div>
-          <div class="fuel-stat-note">Mainfreight Test Client override</div>
-        </div>
-
-        <div class="fuel-stat-card">
-          <div class="fuel-label">History loaded</div>
-          <div class="fuel-stat-value">8</div>
-          <div class="fuel-stat-note">Last 3 months • 2 active overrides</div>
-        </div>
+        <button class="btn">Back to Hub</button>
       </div>
 
       <div class="fuel-section-card">
