@@ -585,6 +585,18 @@ public class AccountController(
             return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}" });
         }
 
+        // Defensive consistency check: the just-persisted CurrentTenant must match the
+        // requested tenant. If it doesn't, the update silently failed (stale EF entity,
+        // SaveChanges no-op, etc.) and we must NOT mint a cookie that mixes the new
+        // TenantId claim with the old tenant's other attributes — that exact mismatch is
+        // what produced the OTGCargo cache poisoning incident on 2026-04-14.
+        if (masterUser.CurrentTenant.TenantId != model.TenantId)
+        {
+            Log.Error("Tenant switch did not persist: requested {Requested}, persisted {Persisted} for user {UserId}",
+                model.TenantId, masterUser.CurrentTenant.TenantId, userId);
+            return Json(new { success = false, message = "Tenant update did not persist" });
+        }
+
         //Changed Tenant - switch connection
         Log.Debug("Changed Current Tenant for user {UserId}", userId);
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
@@ -601,7 +613,7 @@ public class AccountController(
         }
 
         var rememberMe = bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
-        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe, model.TenantId);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe, masterUser.CurrentTenant.TenantId);
         Log.Debug("About to write Claim details. ContactID: {ToString}", user.UcctId.ToString());
         Log.Debug("About to write Claim details. Connection: {CurrentTenantDbconnection}",
             masterUser.CurrentTenant.Dbconnection);
@@ -609,7 +621,7 @@ public class AccountController(
         var claims = GenerateClaims(new ClaimsInput(
             Email: User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
             UserId: masterUser.UserId,
-            CurrentTenantId: model.TenantId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
             ContactId: user.UcctId.ToString(),
             ClientId: user.UcctClientId?.ToString() ?? "0",
             StaffId: user.StaffId?.ToString() ?? string.Empty,
