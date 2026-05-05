@@ -52,27 +52,26 @@ public class LayoutTenantSwitchingTests
     }
 
     [Fact]
-    public void Layout_ReloadsPage_ForLocalAndStagingTenants()
+    public void Layout_ReloadsPage_AfterTenantSwitch()
     {
-        // After a successful tenant switch on local/staging, the page must reload
-        // so the UI reflects the new tenant. Previously it only hid the spinner.
-        Assert.Contains("window.location.reload()", _layoutJsContent);
+        // After a successful tenant switch the page must reload so the UI reflects
+        // the new tenant claims in the just-issued cookie. The previous code sometimes
+        // redirected to a different tenant subdomain via replaceTenantNameAndRefresh,
+        // but per-tenant Cookie.Domain scoping makes cross-subdomain redirects land
+        // on a destination with a stale cookie.
+        var successHandler = ExtractBetween(_layoutJsContent, "if (data.success)", "} catch (");
+        Assert.Contains("window.location.reload()", successHandler);
     }
 
     [Fact]
-    public void Layout_DoesNotSilentlySwallowTenantSwitch_OnLocalOrStaging()
+    public void Layout_DoesNotRedirectAcrossSubdomains_AfterTenantSwitch()
     {
-        // Extract the local/staging branch inside the .then(data => { ... }) success handler.
-        // It should NOT just call setTenantLoading(false) and return — that leaves
-        // the page showing stale data from the previous tenant.
-        var successHandler = ExtractBetween(_layoutJsContent, "if (data.success)", "} catch (");
-        var localStagingBlock = ExtractBetween(successHandler,
-            "if (urlTenantName === 'local' || urlTenantName === 'staging')", "replaceTenantNameAndRefresh");
-
-        // the local/staging branch should exist in the success handler
-        Assert.NotEmpty(localStagingBlock);
-        // hiding the spinner without reloading leaves stale tenant data on screen
-        Assert.DoesNotContain("setTenantLoading(false)", localStagingBlock);
+        // The cross-subdomain redirect helpers were retired together with the
+        // cross-subdomain URL swap. Cookie scoping makes those redirects unsafe;
+        // a future cross-domain SSO flow can restore the URL-matches-tenant
+        // behaviour properly.
+        Assert.DoesNotContain("replaceTenantNameAndRefresh", _layoutJsContent);
+        Assert.DoesNotContain("getCurrentTenantNameFromUrl", _layoutJsContent);
     }
 
     private static string ExtractBetween(string source, string start, string end)

@@ -1,47 +1,11 @@
-function getCurrentTenantNameFromUrl(): string | undefined {
-    const url = new URL(window.location.href);
-    const hostnameParts = url.hostname.split('.');
-    return hostnameParts[1];
-}
-
-function replaceTenantNameAndRefresh(newTenantName: string): void {
-    const url = new URL(window.location.href);
-    let hostnameParts = url.hostname.split('.');
-
-    if (newTenantName === "DFRNT") {
-        hostnameParts.splice(1, 1);
-    } else {
-        hostnameParts[1] = newTenantName;
-    }
-
-    hostnameParts = hostnameParts.filter(part => part !== '');
-    url.hostname = hostnameParts.join('.');
-
-    sessionStorage.setItem('urlJustChanged', 'true');
-    window.location.href = url.href;
-}
-
-function checkAndSyncTenantName(currentTenantName: string, hasTenants: boolean): void {
-    if (!hasTenants) return;
-
-    const urlTenantName = getCurrentTenantNameFromUrl();
-
-    if (urlTenantName === 'local' || urlTenantName === 'staging') {
-        return;
-    }
-
-    if (urlTenantName !== currentTenantName) {
-        replaceTenantNameAndRefresh(currentTenantName);
-    }
-}
-
-function initTenantSync(currentTenantName: string, hasTenants: boolean): void {
-    if (sessionStorage.getItem('urlJustChanged') === 'true') {
-        sessionStorage.removeItem('urlJustChanged');
-        return;
-    }
-    checkAndSyncTenantName(currentTenantName, hasTenants);
-}
+// Cross-subdomain URL-swap helpers were removed in favour of always reloading
+// the current page after a tenant switch. Hub uses per-tenant Cookie.Domain
+// scoping (each subdomain has its own session cookie), so redirecting to a
+// different tenant's subdomain leaves the destination reading a stale cookie
+// from a previous session. Reloading in place lets the just-issued cookie's
+// claims take effect within the current subdomain. A future cross-domain SSO
+// flow can restore "URL matches active tenant" properly when multi-tenant
+// users land in production.
 
 document.addEventListener('DOMContentLoaded', () => {
     const dropdownMenu = document.querySelector('.dropdown-menu');
@@ -68,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     tenantDropdown.setAttribute('aria-expanded', 'false');
                 }
                 const selectedTenantId = parseInt(target.getAttribute('data-tenant-id') ?? '0', 10);
-                const selectedTenantCode = target.getAttribute('data-tenant-code');
                 const selectedTenantName = target.textContent;
 
                 setTenantLoading(true);
@@ -93,12 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
 
-                        const urlTenantName = getCurrentTenantNameFromUrl();
-                        if (urlTenantName === 'local' || urlTenantName === 'staging') {
-                            window.location.reload();
-                            return;
-                        }
-                        replaceTenantNameAndRefresh(selectedTenantCode ?? '');
+                        // Always reload in place. The new cookie issued for this subdomain
+                        // carries the chosen tenant's claims; a reload re-renders the page
+                        // (and any apps launched from it) against the updated session.
+                        window.location.reload();
                     } else {
                         console.error('Failed to update tenant');
                         setTenantLoading(false);
@@ -130,9 +91,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const body = document.body;
-    const currentTenantCode = body.dataset.tenantCode ?? '';
-    const hasTenants = body.dataset.hasTenants === 'true';
-
-    initTenantSync(currentTenantCode, hasTenants);
 });
