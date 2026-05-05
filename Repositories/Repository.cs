@@ -162,7 +162,14 @@ public partial class Repository(DynamicDespatchDbContext context)
 
         if (!isInternalUser)
         {
-            query = query.Where(x => x.ClientId == null || (clientId.HasValue && x.ClientId == clientId.Value));
+            var hasClientSpecific = clientId.HasValue && await context.TblFuelSurcharges.AsNoTracking()
+                .AnyAsync(x => x.ClientId == clientId.Value
+                               && x.Start <= today
+                               && (!x.End.HasValue || x.End.Value >= historyStart));
+
+            query = hasClientSpecific
+                ? query.Where(x => clientId.HasValue && x.ClientId == clientId.Value)
+                : query.Where(x => x.ClientId == null);
         }
 
         var items = await query

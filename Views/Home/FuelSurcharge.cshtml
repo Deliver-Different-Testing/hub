@@ -48,8 +48,8 @@
 
         <div class="fuel-stat-card">
             <div class="fuel-label">Current standard</div>
-            <div class="fuel-stat-value">@(Model.CurrentStandard != null ? Model.CurrentStandard.Rate.ToString("0.00##") + "%" : "—")</div>
-            <div class="fuel-stat-note">Tenant-wide default rate</div>
+            <div class="fuel-stat-value">@(Model.CurrentClientSpecific == null && Model.CurrentStandard != null ? Model.CurrentStandard.Rate.ToString("0.00##") + "%" : "—")</div>
+            <div class="fuel-stat-note">@(Model.CurrentClientSpecific == null ? "Tenant-wide default rate" : "Hidden because client override applies")</div>
         </div>
 
         <div class="fuel-stat-card">
