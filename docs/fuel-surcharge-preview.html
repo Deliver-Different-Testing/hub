@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fuel Surcharge Preview — Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dd-primary: #283DB8;
+      --dd-primary-rgb: 40, 61, 184;
+      --dd-secondary: #3EAFC2;
+      --dd-surface: #ffffff;
+      --dd-surface-dim: #f5f6fa;
+      --dd-surface-variant: #eceef4;
+      --dd-on-surface: #1a1c24;
+      --dd-on-surface-secondary: #5c5e69;
+      --dd-outline-variant: #e1e3eb;
+      --dd-success: #2e7d32;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --elevation-1: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --elevation-3: 0 12px 28px rgba(0,0,0,.08), 0 4px 10px rgba(0,0,0,.05);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      background: var(--dd-surface-dim);
+      color: var(--dd-on-surface);
+    }
+
+    .shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .preview-banner {
+      margin-bottom: 18px;
+      background: rgba(var(--dd-primary-rgb), .08);
+      color: var(--dd-primary);
+      border: 1px solid rgba(var(--dd-primary-rgb), .14);
+      border-radius: 999px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .tile-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .app-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 144px;
+      background: var(--dd-surface);
+      border-radius: var(--radius-lg);
+      padding: 24px 16px;
+      border: 1px solid var(--dd-outline-variant);
+      box-shadow: var(--elevation-1);
+      position: relative;
+    }
+
+    .app-card.featured {
+      box-shadow: var(--elevation-3);
+      border-color: rgba(var(--dd-primary-rgb), .18);
+      background: linear-gradient(135deg, #fff, rgba(40, 61, 184, .04));
+    }
+
+    .app-card-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(var(--dd-primary-rgb), .12);
+      color: var(--dd-primary);
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .app-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .mock-page {
+      display: grid;
+      gap: 18px;
+    }
+
+    .fuel-header-card,
+    .fuel-section-card,
+    .fuel-stat-card,
+    .fuel-highlight-card {
+      background: var(--dd-surface);
+      border: 1px solid var(--dd-outline-variant);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--elevation-1);
+    }
+
+    .fuel-header-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .fuel-eyebrow {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 800;
+      color: var(--dd-secondary);
+      margin-bottom: 6px;
+    }
+
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 34px; }
+    h2 { font-size: 22px; }
+    .subtext {
+      margin-top: 8px;
+      color: var(--dd-on-surface-secondary);
+      line-height: 1.5;
+      max-width: 760px;
+    }
+
+    .btn {
+      border: 1px solid var(--dd-outline-variant);
+      background: white;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: var(--dd-on-surface);
+      white-space: nowrap;
+    }
+
+    .fuel-highlight-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .fuel-highlight-card { padding: 24px; }
+    .fuel-highlight-card--current {
+      background: linear-gradient(135deg, rgba(40,61,184,.08), rgba(62,175,194,.08));
+      border-color: rgba(var(--dd-primary-rgb), .18);
+    }
+
+    .fuel-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--dd-on-surface-secondary);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .fuel-rate {
+      font-size: 52px;
+      line-height: 1;
+      font-weight: 800;
+      color: var(--dd-primary);
+      margin-bottom: 12px;
+    }
+
+    .fuel-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--dd-on-surface-secondary);
+      font-size: 14px;
+    }
+
+    .fuel-stat-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .fuel-stat-value {
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .fuel-stat-note {
+      color: var(--dd-on-surface-secondary);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .fuel-section-card { padding: 20px; }
+    .fuel-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--dd-on-surface-secondary);
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--dd-outline-variant);
+    }
+
+    tbody td {
+      padding: 14px 10px;
+      border-bottom: 1px solid var(--dd-outline-variant);
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    .fuel-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .fuel-badge.current { background: rgba(var(--dd-primary-rgb), .12); color: var(--dd-primary); }
+    .fuel-badge.active { background: rgba(46,125,50,.12); color: var(--dd-success); }
+    .fuel-badge.historic { background: var(--dd-surface-variant); color: var(--dd-on-surface-secondary); }
+    .rate-cell { font-weight: 800; color: var(--dd-primary); }
+
+    @media (max-width: 1100px) {
+      .tile-row, .fuel-highlight-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .shell { padding: 16px; }
+      .tile-row, .fuel-highlight-grid { grid-template-columns: 1fr; }
+      .fuel-header-card { flex-direction: column; }
+      .fuel-rate { font-size: 42px; }
+      .table-wrap { overflow-x: auto; }
+      table { min-width: 860px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="preview-banner">Preview only · GitHub Pages mock of the new Hub Fuel Surcharge tile + page</div>
+
+    <div class="tile-row">
+      <div class="app-card">
+        <div class="app-card-icon">A</div>
+        <div class="app-card-title">Accounts</div>
+      </div>
+      <div class="app-card">
+        <div class="app-card-icon">R</div>
+        <div class="app-card-title">Route Viewer</div>
+      </div>
+      <div class="app-card">
+        <div class="app-card-icon">T</div>
+        <div class="app-card-title">Tracker</div>
+      </div>
+      <div class="app-card featured">
+        <div class="app-card-icon">F</div>
+        <div class="app-card-title">Fuel Surcharge</div>
+      </div>
+    </div>
+
+    <div class="mock-page">
+      <div class="fuel-header-card">
+        <div>
+          <div class="fuel-eyebrow">Pricing</div>
+          <h1>Fuel Surcharge</h1>
+          <p class="subtext">Current fuel surcharge for <strong>Urgent Couriers</strong>, with three months of history. Your client account: <strong>Mainfreight Test Client</strong>.</p>
+        </div>
+        <button class="btn">Back to Hub</button>
+      </div>
+
+      <div class="fuel-highlight-grid">
+        <div class="fuel-highlight-card fuel-highlight-card--current">
+          <div class="fuel-label">Current surcharge</div>
+          <div class="fuel-rate">14.25%</div>
+          <div class="fuel-meta">
+            <span>Client-specific</span>
+            <span>•</span>
+            <span>From 1 May 2026</span>
+            <span>•</span>
+            <span>Pump 2.4870</span>
+          </div>
+        </div>
+
+        <div class="fuel-stat-card">
+          <div class="fuel-label">Current standard</div>
+          <div class="fuel-stat-value">12.75%</div>
+          <div class="fuel-stat-note">Tenant-wide default rate</div>
+        </div>
+
+        <div class="fuel-stat-card">
+          <div class="fuel-label">Client-specific current</div>
+          <div class="fuel-stat-value">14.25%</div>
+          <div class="fuel-stat-note">Mainfreight Test Client override</div>
+        </div>
+
+        <div class="fuel-stat-card">
+          <div class="fuel-label">History loaded</div>
+          <div class="fuel-stat-value">8</div>
+          <div class="fuel-stat-note">Last 3 months • 2 active overrides</div>
+        </div>
+      </div>
+
+      <div class="fuel-section-card">
+        <div class="fuel-section-header">
+          <div>
+            <h2>Last 3 months</h2>
+            <p class="subtext">Showing standard and relevant client-specific surcharge records.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Scope</th>
+                <th>Client</th>
+                <th>Rate</th>
+                <th>Pump Price</th>
+                <th>Start</th>
+                <th>End</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="fuel-badge current">Current</span></td>
+                <td>Client-specific</td>
+                <td>Mainfreight Test Client</td>
+                <td class="rate-cell">14.25%</td>
+                <td>2.4870</td>
+                <td>1 May 2026</td>
+                <td>Open</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge current">Current</span></td>
+                <td>Standard</td>
+                <td>All clients</td>
+                <td class="rate-cell">12.75%</td>
+                <td>2.4310</td>
+                <td>1 May 2026</td>
+                <td>Open</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge historic">Historic</span></td>
+                <td>Client-specific</td>
+                <td>Mainfreight Test Client</td>
+                <td class="rate-cell">13.80%</td>
+                <td>2.3960</td>
+                <td>1 Apr 2026</td>
+                <td>30 Apr 2026</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge historic">Historic</span></td>
+                <td>Standard</td>
+                <td>All clients</td>
+                <td class="rate-cell">12.10%</td>
+                <td>2.3550</td>
+                <td>1 Apr 2026</td>
+                <td>30 Apr 2026</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge historic">Historic</span></td>
+                <td>Standard</td>
+                <td>All clients</td>
+                <td class="rate-cell">11.60%</td>
+                <td>2.3010</td>
+                <td>1 Mar 2026</td>
+                <td>31 Mar 2026</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge historic">Historic</span></td>
+                <td>Client-specific</td>
+                <td>Foodstuffs Demo</td>
+                <td class="rate-cell">13.25%</td>
+                <td>2.3010</td>
+                <td>1 Mar 2026</td>
+                <td>31 Mar 2026</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge historic">Historic</span></td>
+                <td>Standard</td>
+                <td>All clients</td>
+                <td class="rate-cell">10.95%</td>
+                <td>2.2440</td>
+                <td>1 Feb 2026</td>
+                <td>29 Feb 2026</td>
+              </tr>
+              <tr>
+                <td><span class="fuel-badge historic">Historic</span></td>
+                <td>Client-specific</td>
+                <td>Mainfreight Test Client</td>
+                <td class="rate-cell">12.30%</td>
+                <td>2.2440</td>
+                <td>1 Feb 2026</td>
+                <td>29 Feb 2026</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
