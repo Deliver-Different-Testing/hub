@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fuel Surcharge Preview — Hub</title>
+  <link rel="icon" type="image/svg+xml" href="../wwwroot/images/fuel-pump-favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -52,53 +53,6 @@
       padding: 8px 14px;
       font-size: 13px;
       font-weight: 700;
-    }
-
-    .tile-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 18px;
-      margin-bottom: 24px;
-    }
-
-    .app-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      min-height: 144px;
-      background: var(--dd-surface);
-      border-radius: var(--radius-lg);
-      padding: 24px 16px;
-      border: 1px solid var(--dd-outline-variant);
-      box-shadow: var(--elevation-1);
-      position: relative;
-    }
-
-    .app-card.featured {
-      box-shadow: var(--elevation-3);
-      border-color: rgba(var(--dd-primary-rgb), .18);
-      background: linear-gradient(135deg, #fff, rgba(40, 61, 184, .04));
-    }
-
-    .app-card-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(var(--dd-primary-rgb), .12);
-      color: var(--dd-primary);
-      font-size: 24px;
-      font-weight: 800;
-    }
-
-    .app-card-title {
-      font-size: 14px;
-      font-weight: 700;
-      text-align: center;
     }
 
     .mock-page {
@@ -257,12 +211,12 @@
     .rate-cell { font-weight: 800; color: var(--dd-primary); }
 
     @media (max-width: 1100px) {
-      .tile-row, .fuel-highlight-grid { grid-template-columns: repeat(2, 1fr); }
+      .fuel-highlight-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 720px) {
       .shell { padding: 16px; }
-      .tile-row, .fuel-highlight-grid { grid-template-columns: 1fr; }
+      .fuel-highlight-grid { grid-template-columns: 1fr; }
       .fuel-header-card { flex-direction: column; }
       .fuel-rate { font-size: 42px; }
       .table-wrap { overflow-x: auto; }
@@ -273,25 +227,6 @@
 <body>
   <div class="shell">
     <div class="preview-banner">Preview only · GitHub Pages mock of the new Hub Fuel Surcharge tile + page</div>
-
-    <div class="tile-row">
-      <div class="app-card">
-        <div class="app-card-icon">A</div>
-        <div class="app-card-title">Accounts</div>
-      </div>
-      <div class="app-card">
-        <div class="app-card-icon">R</div>
-        <div class="app-card-title">Route Viewer</div>
-      </div>
-      <div class="app-card">
-        <div class="app-card-icon">T</div>
-        <div class="app-card-title">Tracker</div>
-      </div>
-      <div class="app-card featured">
-        <div class="app-card-icon">F</div>
-        <div class="app-card-title">Fuel Surcharge</div>
-      </div>
-    </div>
 
     <div class="mock-page">
       <div class="fuel-header-card">

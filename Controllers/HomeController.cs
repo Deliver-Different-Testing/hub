@@ -103,6 +103,7 @@ public class HomeController(IConnectionStringManager connectionStringManager, Re
         }
 
         var history = await despatchRepository.GetFuelSurchargeHistoryAsync(clientId, isInternalUser);
+        ViewBag.FaviconPath = Url.Content("~/images/fuel-pump-favicon.svg");
 
         var model = new FuelSurchargeViewModel
         {
