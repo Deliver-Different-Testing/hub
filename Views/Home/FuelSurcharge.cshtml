@@ -1,0 +1,142 @@
+@model Hub.ViewModels.FuelSurchargeViewModel
+@{
+    ViewData["Title"] = "Fuel Surcharge";
+
+    var currentDisplay = Model.CurrentClientSpecific ?? Model.CurrentStandard;
+    var historyCount = Model.History.Count;
+    var activeOverrideCount = Model.History.Count(x => x.ClientId != null && x.IsCurrent);
+}
+
+<div class="fuel-page">
+    <div class="fuel-header-card">
+        <div>
+            <div class="fuel-eyebrow">Pricing</div>
+            <h1>Fuel Surcharge</h1>
+            <p>
+                Current fuel surcharge for <strong>@Model.TenantName</strong>, with three months of history.
+                @if (!string.IsNullOrWhiteSpace(Model.ClientName))
+                {
+                    <span>Your client account: <strong>@Model.ClientName</strong>.</span>
+                }
+            </p>
+        </div>
+        <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Home")">Back to Hub</a>
+    </div>
+
+    <div class="fuel-highlight-grid">
+        <div class="fuel-highlight-card fuel-highlight-card--current">
+            <div class="fuel-label">Current surcharge</div>
+            <div class="fuel-rate">@(currentDisplay != null ? currentDisplay.Rate.ToString("0.00##") + "%" : "—")</div>
+            <div class="fuel-meta">
+                @if (currentDisplay != null)
+                {
+                    <span>@currentDisplay.ScopeLabel</span>
+                    <span>•</span>
+                    <span>From @currentDisplay.Start.ToString("d MMM yyyy")</span>
+                    @if (currentDisplay.PumpPrice.HasValue)
+                    {
+                        <span>•</span>
+                        <span>Pump @currentDisplay.PumpPrice.Value.ToString("0.0000")</span>
+                    }
+                }
+                else
+                {
+                    <span>No current surcharge found</span>
+                }
+            </div>
+        </div>
+
+        <div class="fuel-stat-card">
+            <div class="fuel-label">Current standard</div>
+            <div class="fuel-stat-value">@(Model.CurrentStandard != null ? Model.CurrentStandard.Rate.ToString("0.00##") + "%" : "—")</div>
+            <div class="fuel-stat-note">Tenant-wide default rate</div>
+        </div>
+
+        <div class="fuel-stat-card">
+            <div class="fuel-label">Client-specific current</div>
+            <div class="fuel-stat-value">@(Model.CurrentClientSpecific != null ? Model.CurrentClientSpecific.Rate.ToString("0.00##") + "%" : "—")</div>
+            <div class="fuel-stat-note">
+                @(Model.CurrentClientSpecific != null ? (Model.ClientName ?? "Override found") : "No active override")
+            </div>
+        </div>
+
+        <div class="fuel-stat-card">
+            <div class="fuel-label">History loaded</div>
+            <div class="fuel-stat-value">@historyCount</div>
+            <div class="fuel-stat-note">
+                Last 3 months
+                @if (Model.IsInternalUser)
+                {
+                    <span>• @activeOverrideCount active overrides</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="fuel-section-card">
+        <div class="fuel-section-header">
+            <div>
+                <h2>Last 3 months</h2>
+                <p>Showing standard and relevant client-specific surcharge records.</p>
+            </div>
+        </div>
+
+        @if (!Model.History.Any())
+        {
+            <div class="fuel-empty-state">
+                <span class="material-symbols-outlined">history</span>
+                <div>
+                    <strong>No fuel surcharge history found.</strong>
+                    <p>We couldn't find any records in tblFuelSurcharge for the last three months.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table fuel-history-table align-middle">
+                    <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Scope</th>
+                        <th>Client</th>
+                        <th>Rate</th>
+                        <th>Pump Price</th>
+                        <th>Start</th>
+                        <th>End</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var item in Model.History)
+                    {
+                        <tr>
+                            <td>
+                                @if (item.IsCurrent)
+                                {
+                                    <span class="fuel-badge fuel-badge--current">Current</span>
+                                }
+                                else if (item.Active)
+                                {
+                                    <span class="fuel-badge fuel-badge--active">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="fuel-badge fuel-badge--historic">Historic</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="fuel-scope">@item.ScopeLabel</span>
+                            </td>
+                            <td>@(item.ClientName ?? "All clients")</td>
+                            <td class="fuel-rate-cell">@item.Rate.ToString("0.00##")%</td>
+                            <td>@(item.PumpPrice.HasValue ? item.PumpPrice.Value.ToString("0.0000") : "—")</td>
+                            <td>@item.Start.ToString("d MMM yyyy")</td>
+                            <td>@(item.End.HasValue ? item.End.Value.ToString("d MMM yyyy") : "Open")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

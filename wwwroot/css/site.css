@@ -515,7 +515,205 @@ a.navbar-brand {
 .app-card:nth-child(14) { animation-delay: 520ms; }
 
 
-/* ── 11. Auth Pages ─────────────────────── */
+/* ── 11. Fuel Surcharge ─────────────────── */
+
+.fuel-page {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1rem 0 3rem;
+}
+
+.fuel-header-card,
+.fuel-section-card,
+.fuel-stat-card,
+.fuel-highlight-card {
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
+}
+
+.fuel-header-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem;
+}
+
+.fuel-eyebrow {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 700;
+  color: var(--dd-secondary);
+  margin-bottom: .4rem;
+}
+
+.fuel-header-card h1,
+.fuel-section-header h2 {
+  margin: 0;
+  color: var(--dd-on-surface);
+  font-weight: 700;
+}
+
+.fuel-header-card p,
+.fuel-section-header p,
+.fuel-empty-state p,
+.fuel-stat-note,
+.fuel-meta {
+  margin: .35rem 0 0;
+  color: var(--dd-on-surface-secondary);
+}
+
+.fuel-highlight-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.fuel-highlight-card {
+  padding: 1.5rem;
+}
+
+.fuel-highlight-card--current {
+  background: linear-gradient(135deg, rgba(var(--dd-primary-rgb), .08), rgba(62, 175, 194, .08));
+  border-color: rgba(var(--dd-primary-rgb), .18);
+}
+
+.fuel-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--dd-on-surface-secondary);
+  font-weight: 700;
+}
+
+.fuel-rate {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  margin-top: .5rem;
+  font-weight: 800;
+  color: var(--dd-primary);
+}
+
+.fuel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  font-size: .95rem;
+}
+
+.fuel-stat-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+
+.fuel-stat-value {
+  font-size: 1.8rem;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--dd-on-surface);
+}
+
+.fuel-section-card {
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+.fuel-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fuel-empty-state {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem;
+  background: var(--dd-surface-dim);
+  border-radius: var(--radius-md);
+}
+
+.fuel-empty-state .material-symbols-outlined {
+  color: var(--dd-primary);
+  font-size: 1.5rem;
+}
+
+.fuel-history-table thead th {
+  color: var(--dd-on-surface-secondary);
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--dd-outline-variant);
+}
+
+.fuel-history-table td {
+  vertical-align: middle;
+  border-color: var(--dd-outline-variant);
+}
+
+.fuel-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: .35rem .65rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.fuel-badge--current {
+  background: rgba(var(--dd-primary-rgb), .12);
+  color: var(--dd-primary);
+}
+
+.fuel-badge--active {
+  background: rgba(46, 125, 50, .12);
+  color: var(--dd-success);
+}
+
+.fuel-badge--historic {
+  background: var(--dd-surface-variant);
+  color: var(--dd-on-surface-secondary);
+}
+
+.fuel-scope {
+  font-weight: 600;
+  color: var(--dd-on-surface);
+}
+
+.fuel-rate-cell {
+  font-weight: 700;
+  color: var(--dd-primary);
+}
+
+@media (max-width: 1200px) {
+  .fuel-highlight-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .fuel-header-card {
+    flex-direction: column;
+  }
+
+  .fuel-highlight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fuel-section-card {
+    padding: 1rem;
+  }
+}
+
+/* ── 12. Auth Pages ─────────────────────── */
 
 .auth-wrapper {
   display: flex;

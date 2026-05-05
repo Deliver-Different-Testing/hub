@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Hub.Models;
+using Hub.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -139,6 +140,54 @@ public partial class Repository(DynamicDespatchDbContext context)
             Log.Error(ex, "Error fetching AccountsMode from TblSettings");
             return null;
         }
+    }
+
+    public async Task<string?> GetClientNameAsync(int clientId)
+    {
+        return await context.TucClients
+            .Where(x => x.UcclId == clientId)
+            .Select(x => x.UcclName)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<List<FuelSurchargeItemViewModel>> GetFuelSurchargeHistoryAsync(int? clientId, bool isInternalUser)
+    {
+        LogConnectionDetails();
+
+        var today = DateTime.UtcNow.Date;
+        var historyStart = today.AddMonths(-3);
+
+        var query = context.TblFuelSurcharges.AsNoTracking()
+            .Where(x => x.Start <= today && (!x.End.HasValue || x.End.Value >= historyStart));
+
+        if (!isInternalUser)
+        {
+            query = query.Where(x => x.ClientId == null || (clientId.HasValue && x.ClientId == clientId.Value));
+        }
+
+        var items = await query
+            .GroupJoin(context.TucClients,
+                surcharge => surcharge.ClientId,
+                client => (int?)client.UcclId,
+                (surcharge, clients) => new { surcharge, client = clients.FirstOrDefault() })
+            .OrderByDescending(x => x.surcharge.Start)
+            .ThenByDescending(x => x.surcharge.FuelSurchargeId)
+            .Select(x => new FuelSurchargeItemViewModel
+            {
+                FuelSurchargeId = x.surcharge.FuelSurchargeId,
+                ClientId = x.surcharge.ClientId,
+                ClientName = x.client != null ? x.client.UcclName : null,
+                ScopeLabel = x.surcharge.ClientId == null ? "Standard" : "Client-specific",
+                Rate = x.surcharge.Rate,
+                PumpPrice = x.surcharge.PumpPrice,
+                Start = x.surcharge.Start,
+                End = x.surcharge.End,
+                Active = x.surcharge.Active,
+                IsCurrent = x.surcharge.Active && x.surcharge.Start <= today && (!x.surcharge.End.HasValue || x.surcharge.End.Value >= today)
+            })
+            .ToListAsync();
+
+        return items;
     }
 
     public async Task<bool> IsAfterHoursAuthorized(int courierId, int dayOfWeek)

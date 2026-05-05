@@ -15,6 +15,8 @@ public partial class DespatchContext : DbContext
 
     public virtual DbSet<TblAfterhoursCourier> TblAfterhoursCouriers { get; set; }
 
+    public virtual DbSet<TblFuelSurcharge> TblFuelSurcharges { get; set; }
+
     public virtual DbSet<TblSetting> TblSettings { get; set; }
 
     public virtual DbSet<TblUser> TblUsers { get; set; }
@@ -43,6 +45,23 @@ public partial class DespatchContext : DbContext
             entity.HasOne(d => d.Courier).WithMany(p => p.TblAfterhoursCouriers)
                 .HasForeignKey(d => d.CourierId)
                 .HasConstraintName("fk_tucCourier");
+        });
+
+        modelBuilder.Entity<TblFuelSurcharge>(entity =>
+        {
+            entity.HasKey(e => e.FuelSurchargeId);
+
+            entity.ToTable("tblFuelSurcharge");
+
+            entity.Property(e => e.FuelSurchargeId).HasColumnName("FuelSurchargeID");
+            entity.Property(e => e.ClientId).HasColumnName("ClientID");
+            entity.Property(e => e.Created).HasColumnType("datetime");
+            entity.Property(e => e.LastModified).HasColumnType("datetime");
+            entity.Property(e => e.Start).HasColumnType("datetime");
+            entity.Property(e => e.End).HasColumnType("datetime");
+            entity.Property(e => e.Rate).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.PumpPrice).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.VehicleSizeId).HasColumnName("VehicleSizeID");
         });
 
         modelBuilder.Entity<TblSetting>(entity =>

@@ -123,6 +123,10 @@
                 <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
                 <div class="app-card-title">Tracker</div>
             </div>
+            <div class="app-card" onclick="window.location.href='@Url.Action("FuelSurcharge", "Home")'">
+                <div class="app-card-icon"><span class="material-symbols-outlined">local_gas_station</span></div>
+                <div class="app-card-title">Fuel Surcharge</div>
+            </div>
         }
         else
         {
@@ -177,6 +181,10 @@
             <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "integrationmanager")' + '/auth/entry')">
                 <div class="app-card-icon"><span class="material-symbols-outlined">extension</span></div>
                 <div class="app-card-title">Integration Manager</div>
+            </div>
+            <div class="app-card" onclick="window.location.href='@Url.Action("FuelSurcharge", "Home")'">
+                <div class="app-card-icon"><span class="material-symbols-outlined">local_gas_station</span></div>
+                <div class="app-card-title">Fuel Surcharge</div>
             </div>
         }
     </div>

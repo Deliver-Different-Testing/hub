@@ -1,4 +1,5 @@
 ﻿using Hub.Repositories;
+using Hub.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System;
@@ -57,6 +58,65 @@ public class HomeController(IConnectionStringManager connectionStringManager, Re
         ViewBag.ShowAfterHours = await IsAfterHoursAuthorizedAsync();
 
         return View();
+    }
+
+    public async Task<IActionResult> FuelSurcharge()
+    {
+        var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
+        var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
+        var internalTenantUser = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Internal")?.Value;
+        var tenantName = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantName")?.Value
+                         ?? HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value
+                         ?? "Tenant";
+
+        if (cid == null || connectionString == null)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        if (string.IsNullOrEmpty(credentials))
+        {
+            throw new InvalidOperationException(
+                "Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
+        connectionStringManager.SetConnectionString(connectionString + credentials);
+
+        var isInternalUser = false;
+        if (!string.IsNullOrWhiteSpace(internalTenantUser))
+        {
+            bool.TryParse(internalTenantUser, out isInternalUser);
+        }
+
+        int? clientId = null;
+        string? clientName = null;
+
+        if (User.Identity?.Name != null)
+        {
+            var contact = await despatchRepository.FetchUserByUsername(User.Identity.Name);
+            clientId = contact?.UcctClientId;
+            if (clientId.HasValue)
+            {
+                clientName = await despatchRepository.GetClientNameAsync(clientId.Value);
+            }
+        }
+
+        var history = await despatchRepository.GetFuelSurchargeHistoryAsync(clientId, isInternalUser);
+
+        var model = new FuelSurchargeViewModel
+        {
+            TenantName = tenantName,
+            IsInternalUser = isInternalUser,
+            ClientId = clientId,
+            ClientName = clientName,
+            History = history
+        };
+
+        model.CurrentStandard = history.FirstOrDefault(x => x.ClientId == null && x.IsCurrent);
+        model.CurrentClientSpecific = history.FirstOrDefault(x => clientId.HasValue && x.ClientId == clientId.Value && x.IsCurrent);
+
+        return View(model);
     }
 
     private static string GetGreetingString()
