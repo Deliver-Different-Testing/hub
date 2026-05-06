@@ -29,23 +29,25 @@
         <h4>App Hub</h4>
     </div>
 
-    <div class="app-grid">
-        @if (isCourier)
-        {
+    @if (isCourier)
+    {
+        <div class="app-grid">
             @if (Model.ShowAfterHours)
             {
                 <div class="app-card" onclick="window.open('@AppUrl("afterhours")')">
-                    <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/dispatch.svg" alt="After Hours" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="After Hours" /></div>
                     <div class="app-card-title">After Hours</div>
                 </div>
             }
             <div class="app-card" onclick="window.open('@AppUrl("courierportal")')">
-                <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/courier-portal.svg" alt="Courier Portal" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="Courier Portal" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </div>
-        }
-        else if (!clientInternal)
-        {
+        </div>
+    }
+    else if (!clientInternal)
+    {
+        <div class="app-grid">
             <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
                 <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="Booking Page" /></div>
                 <div class="app-card-title">Booking Page</div>
@@ -64,7 +66,7 @@
                     <div class="app-card-title">Print</div>
                 </div>
                 <div class="app-card" onclick="window.open('@AppUrl("runviewer")')">
-                    <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/route-viewer.svg" alt="Route Viewer" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="Route Viewer" /></div>
                     <div class="app-card-title">Route Viewer</div>
                 </div>
             }
@@ -72,65 +74,102 @@
                 <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="Tracker" /></div>
                 <div class="app-card-title">Tracker</div>
             </div>
-        }
-        else
-        {
-            <div class="app-card" onclick="window.open('@AppUrl("accounts")')">
-                <div class="app-card-icon"><img src="~/images/icons/accounts.svg" alt="Accounts" /></div>
-                <div class="app-card-title">Accounts</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("adminmanager")')">
-                <div class="app-card-icon"><img src="~/images/icons/admin-manager.svg" alt="Admin Manager" /></div>
-                <div class="app-card-title">Admin Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("dfrntdriveconfig")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined" style="font-size:48px;">schema</span></div>
-                <div class="app-card-title">Workflows</div>
-            </div>
-            <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
-                <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="Booking Page" /></div>
-                <div class="app-card-title">Booking Page</div>
-            </div>
-            <div class="app-card" onclick="window.open('@(AppUrl("bulkimport") + "/#/login/")')">
-                <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="Bulk Import" /></div>
-                <div class="app-card-title">Bulk Import</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("clientmanager")')">
-                <div class="app-card-icon"><img src="~/images/icons/client-manager.svg" alt="Client Manager" /></div>
-                <div class="app-card-title">Client Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("couriermanager")')">
-                <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/courier-manager.svg" alt="Courier Manager" /></div>
-                <div class="app-card-title">Courier Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("courierportal")')">
-                <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/courier-portal.svg" alt="Courier Portal" /></div>
-                <div class="app-card-title">Courier Portal</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("despatch")')">
-                <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/dispatch.svg" alt="Dispatch" /></div>
-                <div class="app-card-title">Dispatch</div>
-            </div>
-            <div class="app-card" onclick="window.open('@(AppUrl("runviewer") + "/#/print")')">
-                <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="Print" /></div>
-                <div class="app-card-title">Print</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("runviewer")')">
-                <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/route-viewer.svg" alt="Route Viewer" /></div>
-                <div class="app-card-title">Route Viewer</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("runbuilder")')">
-                <div class="app-card-icon"><img class="icon-lg" src="~/images/icons/route-builder.svg" alt="Route Builder" /></div>
-                <div class="app-card-title">Route Builder</div>
-            </div>
-            <div class="app-card" onclick="window.open('@AppUrl("tracking")')">
-                <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="Tracker" /></div>
-                <div class="app-card-title">Tracker</div>
-            </div>
-            <div class="app-card" onclick="window.open('@(AppUrl("integrationmanager") + "/auth/entry")')">
-                <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="Integration Manager" /></div>
-                <div class="app-card-title">Integration Manager</div>
-            </div>
-        }
-    </div>
+        </div>
+    }
+    else
+    {
+        <div class="app-sections">
+            <section class="app-section">
+                <div class="app-section-header">
+                    <h5 class="app-section-title">Operations</h5>
+                    <span class="app-section-count">4 apps</span>
+                </div>
+                <div class="app-grid">
+                    <div class="app-card" onclick="window.open('@AppUrl("despatch")')">
+                        <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="Dispatch" /></div>
+                        <div class="app-card-title">Dispatch</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("runbuilder")')">
+                        <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="Route Builder" /></div>
+                        <div class="app-card-title">Route Builder</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("runviewer")')">
+                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="Route Viewer" /></div>
+                        <div class="app-card-title">Route Viewer</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("tracking")')">
+                        <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="Tracker" /></div>
+                        <div class="app-card-title">Tracker</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="app-section">
+                <div class="app-section-header">
+                    <h5 class="app-section-title">Bookings &amp; Print</h5>
+                    <span class="app-section-count">3 apps</span>
+                </div>
+                <div class="app-grid">
+                    <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
+                        <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="Booking Page" /></div>
+                        <div class="app-card-title">Booking Page</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@(AppUrl("bulkimport") + "/#/login/")')">
+                        <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="Bulk Import" /></div>
+                        <div class="app-card-title">Bulk Import</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@(AppUrl("runviewer") + "/#/print")')">
+                        <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="Print" /></div>
+                        <div class="app-card-title">Print</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="app-section">
+                <div class="app-section-header">
+                    <h5 class="app-section-title">Management</h5>
+                    <span class="app-section-count">5 apps</span>
+                </div>
+                <div class="app-grid">
+                    <div class="app-card" onclick="window.open('@AppUrl("accounts")')">
+                        <div class="app-card-icon"><img src="~/images/icons/accounts.svg" alt="Accounts" /></div>
+                        <div class="app-card-title">Accounts</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("adminmanager")')">
+                        <div class="app-card-icon"><img src="~/images/icons/admin-manager.svg" alt="Admin Manager" /></div>
+                        <div class="app-card-title">Admin Manager</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("clientmanager")')">
+                        <div class="app-card-icon"><img src="~/images/icons/client-manager.svg" alt="Client Manager" /></div>
+                        <div class="app-card-title">Client Manager</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("couriermanager")')">
+                        <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="Courier Manager" /></div>
+                        <div class="app-card-title">Courier Manager</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@AppUrl("dfrntdriveconfig")')">
+                        <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="Workflows" /></div>
+                        <div class="app-card-title">Workflows</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="app-section">
+                <div class="app-section-header">
+                    <h5 class="app-section-title">Connect</h5>
+                    <span class="app-section-count">2 apps</span>
+                </div>
+                <div class="app-grid">
+                    <div class="app-card" onclick="window.open('@AppUrl("courierportal")')">
+                        <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="Courier Portal" /></div>
+                        <div class="app-card-title">Courier Portal</div>
+                    </div>
+                    <div class="app-card" onclick="window.open('@(AppUrl("integrationmanager") + "/auth/entry")')">
+                        <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="Integration Manager" /></div>
+                        <div class="app-card-title">Integration Manager</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    }
 </div>
