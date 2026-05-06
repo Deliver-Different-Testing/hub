@@ -56,3 +56,18 @@ resources:
   limits:
     memory: 512Mi
     cpu: 500m
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: tenant
+              operator: In
+              values:
+                - staging
+tolerations:
+  - key: tenant
+    operator: Equal
+    value: staging
+    effect: NoSchedule
