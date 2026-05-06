@@ -637,7 +637,154 @@ public class AccountController(
 
         await SignInUserAsync(claims, rememberMe);
 
-        return Json(new { success = true });
+        // Phase 2: build a short-lived SSO token and return the destination Hub URL.
+        // The frontend redirects the browser there; the destination Hub validates the
+        // token and issues a fresh cookie scoped to its own subdomain. This restores
+        // "URL matches active tenant" once the user lands.
+        var destHost = BuildDestinationHubHost(HttpContext.Request.Host.Host, masterUser.CurrentTenant.Code ?? string.Empty);
+        if (destHost == null)
+        {
+            // Couldn't infer destination — return success without a redirectUrl so
+            // the frontend falls back to in-place reload (Phase 1 behaviour).
+            return Json(new { success = true });
+        }
+
+        var token = JsonSerializer.Serialize(new
+        {
+            UserId = masterUser.UserId,
+            TenantId = masterUser.CurrentTenant.TenantId,
+            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+        });
+        var encryptedToken = EncryptClaims(token, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
+        var redirectUrl = $"https://{destHost}/Account/AcceptTenantSwitchToken?t={Uri.EscapeDataString(encryptedToken)}";
+
+        return Json(new { success = true, redirectUrl });
+    }
+
+    [HttpGet("Account/AcceptTenantSwitchToken")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AcceptTenantSwitchToken([FromQuery] string t)
+    {
+        if (string.IsNullOrWhiteSpace(t))
+        {
+            Log.Warning("AcceptTenantSwitchToken: empty token");
+            return RedirectToAction("Login");
+        }
+
+        TenantSwitchTokenPayload? payload;
+        try
+        {
+            var decrypted = DecryptClaims(t, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
+            payload = JsonSerializer.Deserialize<TenantSwitchTokenPayload>(decrypted,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "AcceptTenantSwitchToken: failed to decrypt or parse token");
+            return RedirectToAction("Login");
+        }
+
+        if (payload == null || payload.UserId <= 0 || payload.TenantId <= 0)
+        {
+            Log.Warning("AcceptTenantSwitchToken: token payload invalid");
+            return RedirectToAction("Login");
+        }
+
+        if (payload.ExpiresAt < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+        {
+            Log.Warning("AcceptTenantSwitchToken: token expired (issued for user {UserId}, tenant {TenantId})",
+                payload.UserId, payload.TenantId);
+            return RedirectToAction("Login");
+        }
+
+        var masterUser = await authenticationRepository.GetUserById(payload.UserId);
+        if (masterUser?.CurrentTenant == null)
+        {
+            Log.Warning("AcceptTenantSwitchToken: user {UserId} or current tenant not found", payload.UserId);
+            return RedirectToAction("Login");
+        }
+
+        // Verify this Hub serves the tenant the token was issued for. Prevents a token
+        // generated for one tenant being replayed at another tenant's Hub.
+        var hostTenant = ExtractTenantFromHost(HttpContext.Request.Host.Host);
+        if (hostTenant == null ||
+            !string.Equals(hostTenant, masterUser.CurrentTenant.Code, StringComparison.OrdinalIgnoreCase) ||
+            masterUser.CurrentTenant.TenantId != payload.TenantId)
+        {
+            Log.Warning("AcceptTenantSwitchToken: token tenant {TokenTenant}/{TokenCode} does not match host {HostTenant} (user {UserId})",
+                payload.TenantId, masterUser.CurrentTenant.Code, hostTenant, payload.UserId);
+            return RedirectToAction("Login");
+        }
+
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
+
+        var accountsMode = await despatchRepository.GetAccountsModeAsync();
+        var user = await despatchRepository.FetchUserByUsername(masterUser.Email);
+        if (user == null)
+        {
+            Log.Warning("AcceptTenantSwitchToken: despatch user not found for {Email}", masterUser.Email);
+            return RedirectToAction("Login");
+        }
+
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
+
+        var claims = GenerateClaims(new ClaimsInput(
+            Email: masterUser.Email,
+            UserId: masterUser.UserId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
+            ContactId: user.UcctId.ToString(),
+            ClientId: user.UcctClientId?.ToString() ?? "0",
+            StaffId: user.StaffId?.ToString() ?? string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: false,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: user.UcctClient.UcclInternal,
+            IsCourier: masterUser.IsCourier ?? false,
+            AccountsMode: accountsMode
+        ));
+
+        await SignInUserAsync(claims, false);
+
+        return RedirectToAction("Index", "Home");
+    }
+
+    private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt);
+
+    /// <summary>
+    /// Replaces the tenant segment in the current request host with the destination
+    /// tenant's code, returning the resulting Hub host. Expects the host to follow
+    /// the pattern app.tenant.[env.]deliverdifferent.com.
+    /// </summary>
+    internal static string? BuildDestinationHubHost(string requestHost, string destinationTenantCode)
+    {
+        if (string.IsNullOrWhiteSpace(destinationTenantCode)) return null;
+        if (string.IsNullOrEmpty(requestHost)) return null;
+        if (!requestHost.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase)) return null;
+
+        var parts = requestHost.Split('.');
+        if (parts.Length < 4) return null;
+
+        parts[0] = "hub";
+        parts[1] = destinationTenantCode;
+        return string.Join('.', parts);
+    }
+
+    /// <summary>
+    /// Returns the tenant subdomain segment from a request host, or null if the host
+    /// does not expose a tenant (e.g. localhost, internal IPs, generic environment hosts).
+    /// </summary>
+    internal static string? ExtractTenantFromHost(string host)
+    {
+        if (string.IsNullOrEmpty(host)) return null;
+        if (!host.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase)) return null;
+
+        var parts = host.Split('.');
+        if (parts.Length < 4) return null;
+
+        var candidate = parts[1];
+        return candidate is "staging" or "local" or "dev" ? null : candidate;
     }
 
     private static string EncryptClaims(string claims, string key)
@@ -658,6 +805,32 @@ public class AccountController(
             swEncrypt.Write(claims);
 
         return Convert.ToBase64String(msEncrypt.ToArray());
+    }
+
+    private static string DecryptClaims(string encryptedClaims, string key)
+    {
+        var fullCipherText = Convert.FromBase64String(encryptedClaims);
+        using var aesAlg = Aes.Create();
+        var keyBytes = Convert.FromBase64String(key);
+        aesAlg.Key = keyBytes;
+
+        // The IV was written at the beginning of the ciphertext during encryption.
+        var ivLength = aesAlg.BlockSize / 8;
+        if (fullCipherText.Length < ivLength)
+            throw new ArgumentException("Encrypted payload too short to contain an IV.", nameof(encryptedClaims));
+
+        var iv = new byte[ivLength];
+        Array.Copy(fullCipherText, 0, iv, 0, ivLength);
+        aesAlg.IV = iv;
+
+        var cipherTextWithoutIv = new byte[fullCipherText.Length - ivLength];
+        Array.Copy(fullCipherText, ivLength, cipherTextWithoutIv, 0, cipherTextWithoutIv.Length);
+
+        using var decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+        using var msDecrypt = new MemoryStream(cipherTextWithoutIv);
+        using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+        using var srDecrypt = new StreamReader(csDecrypt);
+        return srDecrypt.ReadToEnd();
     }
 
 

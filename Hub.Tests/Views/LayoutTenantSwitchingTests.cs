@@ -52,24 +52,31 @@ public class LayoutTenantSwitchingTests
     }
 
     [Fact]
-    public void Layout_ReloadsPage_AfterTenantSwitch()
+    public void Layout_FollowsRedirectUrl_WhenProvidedByBackend()
     {
-        // After a successful tenant switch the page must reload so the UI reflects
-        // the new tenant claims in the just-issued cookie. The previous code sometimes
-        // redirected to a different tenant subdomain via replaceTenantNameAndRefresh,
-        // but per-tenant Cookie.Domain scoping makes cross-subdomain redirects land
-        // on a destination with a stale cookie.
+        // Phase 2: the backend returns a redirectUrl pointing at the destination
+        // Hub's AcceptTenantSwitchToken endpoint. The frontend follows it.
+        var successHandler = ExtractBetween(_layoutJsContent, "if (data.success)", "} catch (");
+        Assert.Contains("data.redirectUrl", successHandler);
+        Assert.Contains("window.location.href = data.redirectUrl", successHandler);
+    }
+
+    [Fact]
+    public void Layout_ReloadsAsFallback_WhenNoRedirectUrl()
+    {
+        // If the backend doesn't return a redirectUrl (older backend or failure to
+        // compute destination), fall back to in-place reload so the page at least
+        // re-renders against the just-issued cookie on the current subdomain.
         var successHandler = ExtractBetween(_layoutJsContent, "if (data.success)", "} catch (");
         Assert.Contains("window.location.reload()", successHandler);
     }
 
     [Fact]
-    public void Layout_DoesNotRedirectAcrossSubdomains_AfterTenantSwitch()
+    public void Layout_DoesNotPerformClientSideSubdomainSwap()
     {
-        // The cross-subdomain redirect helpers were retired together with the
-        // cross-subdomain URL swap. Cookie scoping makes those redirects unsafe;
-        // a future cross-domain SSO flow can restore the URL-matches-tenant
-        // behaviour properly.
+        // Cross-subdomain redirection now happens server-side via the SSO redirect URL.
+        // Client-side URL-manipulation helpers (which would not carry the destination
+        // cookie due to per-tenant Cookie.Domain scoping) must not return.
         Assert.DoesNotContain("replaceTenantNameAndRefresh", _layoutJsContent);
         Assert.DoesNotContain("getCurrentTenantNameFromUrl", _layoutJsContent);
     }

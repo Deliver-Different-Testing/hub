@@ -56,10 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
 
-                        // Always reload in place. The new cookie issued for this subdomain
-                        // carries the chosen tenant's claims; a reload re-renders the page
-                        // (and any apps launched from it) against the updated session.
-                        window.location.reload();
+                        // Phase 2: when the backend returns a redirectUrl, follow it. The
+                        // destination Hub validates a short-lived SSO token and issues a
+                        // fresh cookie scoped to its own subdomain — restoring "URL matches
+                        // active tenant". Fall back to in-place reload if no redirectUrl
+                        // (older backend / failure to compute the destination).
+                        if (typeof data.redirectUrl === 'string' && data.redirectUrl.length > 0) {
+                            window.location.href = data.redirectUrl;
+                        } else {
+                            window.location.reload();
+                        }
                     } else {
                         console.error('Failed to update tenant');
                         setTenantLoading(false);
