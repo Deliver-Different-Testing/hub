@@ -1,4 +1,5 @@
 using Hub.Interfaces;
+using Hub.Repositories;
 using Hub.Services;
 
 namespace Hub.Extensions;
@@ -12,6 +13,7 @@ public static class AppServiceExtensions
         services.AddScoped<ITenantLogoService, TenantLogoService>();
         services.AddScoped<ITenantBrandingConfigService, TenantBrandingConfigService>();
         services.AddScoped<IPartnerDirectoryService, PartnerDirectoryService>();
+        services.AddScoped<IFuelSurchargeRepository, FuelSurchargeRepository>();
         services.AddSingleton<AuthDiagnostics>();
     }
 }
