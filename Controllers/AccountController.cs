@@ -169,7 +169,9 @@ public class AccountController(
                 TimeZone: masterUser.CurrentTenant.TimeZone,
                 TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
                 InternalTenantUser: user.UcctClient.UcclInternal,
-                AccountsMode: accountsMode
+                AccountsMode: accountsMode,
+                FirstName: user.UcctFirstname ?? string.Empty,
+                Surname: user.UcctSurname ?? string.Empty
             ));
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -274,7 +276,9 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: isCourier,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty
         ));
 
         await SignInUserAsync(claims, false);
@@ -365,7 +369,9 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty
         ));
 
         await SignInUserAsync(claims, false);
@@ -480,7 +486,9 @@ public class AccountController(
         bool InternalTenantUser,
         bool IsCourier = false,
         int? CourierId = null,
-        int? AccountsMode = null);
+        int? AccountsMode = null,
+        string FirstName = "",
+        string Surname = "");
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
     [
@@ -498,7 +506,9 @@ public class AccountController(
         new("Internal", input.InternalTenantUser.ToString()),
         new("IsCourier", input.IsCourier.ToString()),
         new("CourierID", input.CourierId?.ToString() ?? string.Empty),
-        new("AccountsMode", input.AccountsMode?.ToString() ?? "1")
+        new("AccountsMode", input.AccountsMode?.ToString() ?? "1"),
+        new("FirstName", input.FirstName ?? string.Empty),
+        new("Surname", input.Surname ?? string.Empty)
     ];
 
     private void SetTenantConnectionString(string dbConnection)
@@ -632,7 +642,9 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty
         ));
 
         await SignInUserAsync(claims, rememberMe);
@@ -742,7 +754,9 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty
         ));
 
         await SignInUserAsync(claims, false);
