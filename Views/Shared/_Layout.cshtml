@@ -9,7 +9,7 @@
     <title>@ViewData["Title"] - Deliver Different Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/dist/vendor.css"/>
     <link rel="stylesheet" href="~/css/site.css"/>
     <link rel="stylesheet"
@@ -50,6 +50,15 @@
         currentTenantCode = currentTenant?.Code ?? string.Empty;
         currentTenantCountry = currentTenant?.CountryCode ?? string.Empty;
     }
+
+    var userEmail = User.Identity?.Name ?? string.Empty;
+    var nameParts = (User.FindFirst("GivenName")?.Value ?? userEmail)
+        .Split('@')[0]
+        .Split([' ', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries)
+        .Select(p => p.Length > 0 ? char.ToUpper(p[0]) + p[1..].ToLower() : p)
+        .ToArray();
+    var displayFullName = string.Join(' ', nameParts);
+    var displayLabel = string.IsNullOrEmpty(displayFullName) ? userEmail : displayFullName;
 }
 <body id="@ViewBag.PageId" data-tenant-country="@currentTenantCountry" data-tenant-code="@currentTenantCode" data-has-tenants="@hasTenants.ToString().ToLower()">
 <meta name="request-token" content="@requestToken" />
@@ -94,16 +103,19 @@
                         <li class="nav-item me-3">
                             <div class="profile-dropdown">
                                 <div class="profile-icon-username">
-                                    <span class="material-symbols-outlined profile-icon">account_circle</span>
-                                    <span class="username">@User.Identity?.Name</span>
+                                    <span class="username">@displayLabel</span>
                                     <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
                                 </div>
                                 <div class="profile-menu">
+                                    <div class="profile-menu-header">
+                                        <span class="material-symbols-outlined profile-menu-header-icon">account_circle</span>
+                                        <span class="profile-menu-header-email" title="@userEmail">@userEmail</span>
+                                    </div>
+                                    <div class="profile-menu-divider"></div>
                                     <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
                                         <span class="material-symbols-outlined menu-icon">settings</span>
                                         Settings
                                     </a>
-                                    <div class="profile-menu-divider"></div>
                                     <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
                                         <span class="material-symbols-outlined menu-icon">logout</span>
                                         Logout
@@ -124,8 +136,11 @@
 </div>
 
 <footer class="footer">
-    <div class="container">
-        <div class="text text-center">&copy; @DateTime.Now.Year - Deliver Different</div>
+    <div class="container footer-row">
+        <div class="footer-meta">&copy; @DateTime.Now.Year Deliver Different</div>
+        <div class="footer-meta footer-support">
+            <a href="mailto:support@urgent.co.nz">Need help?</a>
+        </div>
     </div>
 </footer>
 

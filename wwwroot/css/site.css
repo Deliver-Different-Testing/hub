@@ -41,6 +41,9 @@
   --dd-warning: #FF9800;
   --dd-info: #2196F3;
 
+  /* State-layer base — defaults to primary; overridden to neutral for warm/yellow themes */
+  --dd-state-rgb: var(--dd-primary-rgb);
+
   /* Elevation — primary-tinted shadows */
   --elevation-1: 0 1px 3px rgba(var(--dd-primary-rgb), .06), 0 1px 2px rgba(0,0,0,.04);
   --elevation-2: 0 2px 6px rgba(var(--dd-primary-rgb), .08), 0 1px 3px rgba(0,0,0,.06);
@@ -49,8 +52,8 @@
   --elevation-5: 0 12px 32px rgba(var(--dd-primary-rgb), .14), 0 6px 12px rgba(0,0,0,.08);
 
   /* Typography */
-  --font-heading: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-sans: var(--font-body);
 
   /* Motion */
@@ -84,6 +87,8 @@ body[data-tenant-country]:not([data-tenant-country="US"]):not([data-tenant-count
   --dd-on-primary: #1c1917;
   --dd-on-primary-rgb: 28, 25, 23;
   --dd-on-primary-container: #a87614;
+  /* Neutral interaction tint — yellow primary stays for top-edge accent + focus only */
+  --dd-state-rgb: 28, 25, 23;
 }
 
 body#login[data-tenant-country]:not([data-tenant-country="US"]):not([data-tenant-country=""]) {
@@ -248,23 +253,65 @@ a.navbar-brand {
   background: var(--dd-surface-container);
   border-top: none;
   box-shadow: 0 -1px 3px rgba(0,0,0,.04);
-  padding: 0;
-  line-height: 52px;
-  white-space: nowrap;
+  padding: .75rem 0;
   margin-top: auto;
 }
 
-.footer .container {
+.footer .footer-row {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.footer .text {
-  color: #000 !important;
+  flex-wrap: wrap;
+  gap: 1.25rem;
   font-size: .8125rem;
   font-weight: 500;
   font-family: var(--font-body);
+  color: var(--dd-on-surface-secondary);
+}
+
+.footer .footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  white-space: nowrap;
+}
+
+.footer .footer-meta + .footer-meta {
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.footer .footer-meta + .footer-meta::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--dd-outline);
+  transform: translateY(-50%);
+}
+
+.footer .footer-meta code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--dd-on-surface);
+  background: var(--dd-surface-container-high);
+  padding: .075rem .4rem;
+  border-radius: 4px;
+  letter-spacing: .02em;
+}
+
+.footer .footer-support a {
+  color: var(--dd-primary-active);
+  font-weight: 600;
+}
+
+.footer .footer-support a:hover {
+  color: var(--dd-primary);
+  text-decoration: underline;
 }
 
 
@@ -513,24 +560,42 @@ a.navbar-brand {
 }
 
 .hub-header {
-  text-align: center;
-  padding: 2.5rem 0 .5rem;
+  text-align: left;
+  padding: 2.5rem 0 .25rem;
+  max-width: 880px;
+  margin: 0 auto;
   animation: fadeInUp .5s var(--ease-emphasized-decelerate) both;
   position: relative;
 }
 
-.hub-header .logo {
-  max-height: 144px;
-  margin-bottom: .75rem;
+.hub-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3.25rem;
+  width: 3px;
+  height: 2.5rem;
+  background: linear-gradient(180deg, var(--dd-primary), transparent);
+  border-radius: 3px;
 }
 
-.hub-header h4 {
-  color: var(--dd-primary);
+.hub-header .hub-greeting {
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 1.25rem;
-  letter-spacing: .02em;
-  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  letter-spacing: -.015em;
+  color: var(--dd-on-surface);
+  margin: 0 0 .25rem 1rem;
+  line-height: 1.15;
+}
+
+.hub-header .hub-subtitle {
+  font-family: var(--font-body);
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--dd-on-surface-secondary);
+  margin: 0 0 0 1rem;
+  letter-spacing: .01em;
 }
 
 .app-grid {
@@ -597,91 +662,139 @@ a.navbar-brand {
 }
 
 .app-card {
+  --card-accent-scale: 0;
+  --card-state-layer: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: .625rem;
-  background: var(--dd-surface-container-lowest);
+  justify-content: flex-start;
+  gap: .875rem;
+  background:
+    linear-gradient(180deg,
+      var(--dd-surface-container-lowest) 0%,
+      var(--dd-surface-container-low) 100%);
   border-radius: var(--radius-lg);
-  padding: 1.5rem .875rem;
+  padding: 1.625rem 1rem 1.375rem;
   cursor: pointer;
-  border: 1px solid rgba(var(--dd-primary-rgb), .06);
+  text-decoration: none;
+  color: var(--dd-on-surface);
+  border: 1px solid var(--dd-outline-variant);
   box-shadow: var(--elevation-1);
   transition: transform var(--duration-medium) var(--ease-emphasized),
               box-shadow var(--duration-medium) var(--ease-emphasized),
               border-color var(--duration-medium) var(--ease-standard);
   position: relative;
   overflow: hidden;
+  isolation: isolate;
   user-select: none;
-  animation: cardEntrance .5s var(--ease-emphasized-decelerate) both;
+  animation: cardEntrance .55s var(--ease-emphasized-decelerate) both;
 }
 
-/* Gradient overlay for depth */
+.app-card:hover,
+.app-card:focus,
+.app-card:active {
+  text-decoration: none;
+  color: var(--dd-on-surface);
+}
+
+/* Top-edge brand accent — scales in on hover (MD3 "expressive" detail) */
 .app-card::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--dd-primary-rgb), .03) 0%,
-    transparent 60%
-  );
-  border-radius: inherit;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(var(--dd-primary-rgb), .85) 30%,
+    rgba(var(--dd-primary-rgb), .85) 70%,
+    transparent 100%);
+  transform: scaleX(var(--card-accent-scale));
+  transform-origin: center;
+  transition: transform var(--duration-long) var(--ease-emphasized);
+  z-index: 3;
   pointer-events: none;
-  transition: opacity var(--duration-medium) var(--ease-standard);
 }
 
-/* MD3 state layer on hover */
+/* MD3 state layer */
 .app-card::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(var(--dd-primary-rgb), 0);
+  background: rgba(var(--dd-state-rgb), var(--card-state-layer));
   border-radius: inherit;
   pointer-events: none;
   transition: background var(--duration-medium) var(--ease-standard);
-}
-
-.app-card:hover::after {
-  background: rgba(var(--dd-primary-rgb), .05);
+  z-index: 1;
 }
 
 .app-card:hover {
-  transform: translateY(-3px);
+  --card-accent-scale: 1;
+  --card-state-layer: .05;
+  transform: translateY(-4px);
   box-shadow: var(--elevation-3);
-  border-color: rgba(var(--dd-primary-rgb), .12);
+  border-color: rgba(var(--dd-state-rgb), .14);
+}
+
+.app-card:focus-visible {
+  --card-accent-scale: 1;
+  outline: 2px solid var(--dd-primary);
+  outline-offset: 3px;
+  box-shadow: var(--elevation-2);
 }
 
 .app-card:active {
-  transform: translateY(-1px) scale(.985);
+  --card-state-layer: .08;
+  transform: translateY(-1px) scale(.99);
   box-shadow: var(--elevation-2);
   transition-duration: var(--duration-short);
 }
 
 .app-card-icon {
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--dd-primary-container);
+  background:
+    radial-gradient(120% 120% at 30% 20%,
+      rgba(255, 255, 255, .55) 0%,
+      transparent 55%),
+    linear-gradient(140deg,
+      var(--dd-primary-container) 0%,
+      rgba(var(--dd-primary-rgb), .10) 100%);
   border-radius: var(--radius-md);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--dd-primary-rgb), .08),
+    inset 0 1px 0 rgba(255, 255, 255, .4);
   transition: transform var(--duration-medium) var(--ease-spring),
-              background-color var(--duration-medium) var(--ease-standard);
+              box-shadow var(--duration-medium) var(--ease-standard);
+  position: relative;
+  z-index: 2;
+}
+
+.app-card:hover .app-card-icon {
+  transform: scale(1.06) translateY(-1px);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--dd-state-rgb), .14),
+    inset 0 1px 0 rgba(255, 255, 255, .5),
+    0 6px 14px rgba(var(--dd-state-rgb), .12);
+}
+
+.app-card-icon img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
   position: relative;
   z-index: 1;
 }
 
-.app-card:hover .app-card-icon {
-  transform: scale(1.04);
-  background-color: rgba(var(--dd-primary-rgb), .14);
-}
-
-.app-card-icon img {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
+.app-card-icon .material-symbols-outlined {
+  color: var(--dd-on-primary-container);
+  position: relative;
+  z-index: 1;
+  font-size: 36px !important;
 }
 
 .app-card-title {
@@ -691,16 +804,31 @@ a.navbar-brand {
   color: var(--dd-on-surface);
   text-align: center;
   line-height: 1.3;
+  letter-spacing: .005em;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  transition: color var(--duration-medium) var(--ease-standard);
 }
 
-/* Stagger entrance — scoped per grid so each section animates its own cards */
-.app-grid .app-card:nth-child(1) { animation-delay:   0ms; }
-.app-grid .app-card:nth-child(2) { animation-delay:  50ms; }
-.app-grid .app-card:nth-child(3) { animation-delay: 100ms; }
-.app-grid .app-card:nth-child(4) { animation-delay: 150ms; }
-.app-grid .app-card:nth-child(5) { animation-delay: 200ms; }
+.app-card:hover .app-card-title {
+  color: var(--dd-primary-active);
+}
+
+/* Stagger entrance — covers up to 14 tiles (largest internal grid) */
+.app-grid .app-card:nth-child(1)  { animation-delay:   0ms; }
+.app-grid .app-card:nth-child(2)  { animation-delay:  40ms; }
+.app-grid .app-card:nth-child(3)  { animation-delay:  80ms; }
+.app-grid .app-card:nth-child(4)  { animation-delay: 120ms; }
+.app-grid .app-card:nth-child(5)  { animation-delay: 160ms; }
+.app-grid .app-card:nth-child(6)  { animation-delay: 200ms; }
+.app-grid .app-card:nth-child(7)  { animation-delay: 240ms; }
+.app-grid .app-card:nth-child(8)  { animation-delay: 280ms; }
+.app-grid .app-card:nth-child(9)  { animation-delay: 320ms; }
+.app-grid .app-card:nth-child(10) { animation-delay: 360ms; }
+.app-grid .app-card:nth-child(11) { animation-delay: 400ms; }
+.app-grid .app-card:nth-child(12) { animation-delay: 440ms; }
+.app-grid .app-card:nth-child(13) { animation-delay: 480ms; }
+.app-grid .app-card:nth-child(14) { animation-delay: 520ms; }
 
 
 /* ── 11. Auth Pages ─────────────────────── */
@@ -951,9 +1079,39 @@ body#login .footer {
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-4);
   z-index: 1000;
-  min-width: 200px;
+  min-width: 240px;
   padding: .5rem;
   animation: menuReveal .2s var(--ease-emphasized-decelerate);
+}
+
+.profile-menu-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  cursor: default;
+}
+
+.profile-menu-header-icon {
+  color: var(--dd-on-primary-container);
+  background: var(--dd-primary-container);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px !important;
+  flex-shrink: 0;
+}
+
+.profile-menu-header-email {
+  font-family: var(--font-body);
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--dd-on-surface-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .profile-menu-item {
@@ -1145,17 +1303,22 @@ body#login .footer {
   }
 
   .app-card {
-    padding: 1.25rem .75rem;
+    padding: 1.375rem .75rem 1.125rem;
+    gap: .75rem;
   }
 
   .app-card-icon {
-    width: 52px;
-    height: 52px;
+    width: 56px;
+    height: 56px;
   }
 
   .app-card-icon img {
     width: 34px;
     height: 34px;
+  }
+
+  .app-card-icon .material-symbols-outlined {
+    font-size: 32px !important;
   }
 
   .app-card-title {
@@ -1166,6 +1329,38 @@ body#login .footer {
 @media (max-width: 380px) {
   .app-grid {
     grid-template-columns: 1fr;
+    gap: .625rem;
+  }
+
+  /* List-style row: icon left, title right, full-width tap target */
+  .app-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    padding: .875rem 1rem;
+    gap: 1rem;
+  }
+
+  .app-card-icon {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+  }
+
+  .app-card-icon img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .app-card-title {
+    text-align: left;
+    font-size: .9375rem;
+    flex: 1;
+  }
+
+  .app-card:hover {
+    transform: translateX(2px);
   }
 
   .auth-card {
