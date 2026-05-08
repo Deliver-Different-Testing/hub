@@ -142,21 +142,9 @@
     </main>
 </div>
 
-@{
-    var tenantCodeClaim = User.FindFirst("TenantCode")?.Value ?? string.Empty;
-    var isCourierFooter = bool.TryParse(User.FindFirst("IsCourier")?.Value, out var fc) && fc;
-    var showFuelLink = !isCourierFooter
-                       && string.Equals(tenantCodeClaim, "urgent", StringComparison.OrdinalIgnoreCase);
-}
 <footer class="footer">
     <div class="container footer-row">
         <div class="footer-meta">&copy; @DateTime.Now.Year Deliver Different</div>
-        @if (showFuelLink)
-        {
-            <nav class="footer-nav" aria-label="Footer">
-                <a class="footer-link" href="@Url.Action("Index", "FuelSurcharge")">Fuel surcharge</a>
-            </nav>
-        }
     </div>
 </footer>
 
