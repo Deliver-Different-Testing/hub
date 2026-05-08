@@ -21,6 +21,9 @@
     var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
     var bookingAppFullUrl = AppUrl("booking") + bookingAppPath;
 
+    var showFuelLink = !isCourier
+                       && string.Equals(tenantCode, "urgent", StringComparison.OrdinalIgnoreCase);
+
     var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 }
 <script>const ContactID = '@contactId';</script>
@@ -79,6 +82,13 @@
                     <div class="app-card-title">Route Viewer</div>
                 </a>
             }
+            @if (showFuelLink)
+            {
+                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-title">Fuel Surcharge</div>
+                </a>
+            }
         </div>
     }
     else
@@ -116,6 +126,13 @@
                 <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                 <div class="app-card-title">Dispatch</div>
             </a>
+            @if (showFuelLink)
+            {
+                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-title">Fuel Surcharge</div>
+                </a>
+            }
             <a class="app-card" href="@(AppUrl("integrationmanager") + "/auth/entry")" target="_blank" rel="noopener noreferrer">
                 <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="" /></div>
                 <div class="app-card-title">Integration Manager</div>
