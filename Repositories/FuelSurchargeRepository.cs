@@ -1,5 +1,4 @@
 using Hub.Interfaces;
-using Hub.Models;
 using Hub.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -8,12 +7,10 @@ namespace Hub.Repositories;
 
 public sealed class FuelSurchargeRepository(DynamicDespatchDbContext context) : IFuelSurchargeRepository
 {
-    public async Task<List<FuelSurchargeRow>> GetHistoryAsync(int? clientId, CancellationToken ct, int limit = 500)
+    public async Task<List<FuelSurchargeRow>> GetHistoryAsync(int? clientId, DateTime now, CancellationToken ct, int limit = 500)
     {
         try
         {
-            var now = DateTime.Now;
-
             var query = context.TblFuelSurcharges
                 .AsNoTracking()
                 .Include(f => f.Client)
@@ -29,7 +26,7 @@ public sealed class FuelSurchargeRepository(DynamicDespatchDbContext context) : 
                     Start = f.Start,
                     End = f.End,
                     Active = f.Active,
-                    IsCurrent = f.Active && f.Start <= now && (f.End == null || f.End >= now)
+                    IsCurrent = f.Active && f.Start <= now
                 });
 
             return await query.Take(limit).ToListAsync(ct);

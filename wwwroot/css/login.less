@@ -1,0 +1,76 @@
+@primary: var(--dd-primary);
+@primary-hover: var(--dd-primary-hover);
+@primary-active: var(--dd-primary-active);
+@outline: var(--dd-outline);
+
+#loginButton {
+  position: relative;
+  z-index: 1;
+  transition: none !important;
+
+  &:disabled {
+    opacity: .85;
+  }
+
+  .spinner-border,
+  .button-text {
+    position: relative;
+    z-index: 2;
+  }
+
+  .spinner-border {
+    color: #fff;
+    border-color: currentColor;
+    border-right-color: transparent;
+  }
+
+  &:hover,
+  &:focus,
+  &:focus-visible {
+    background-color: @primary-hover !important;
+    border-color: @primary-hover !important;
+    color: #fff !important;
+    outline: none !important;
+  }
+
+  &:active {
+    background-color: @primary-active !important;
+    border-color: @primary-active !important;
+    color: #fff !important;
+    outline: none !important;
+  }
+
+  * {
+    transition: none !important;
+  }
+}
+
+.was-validated #loginButton {
+  &,
+  &:disabled {
+    background-color: @primary !important;
+    border-color: @primary !important;
+  }
+}
+
+.valid-feedback,
+.invalid-feedback {
+  position: relative;
+  z-index: 0;
+  margin-bottom: .25rem;
+}
+
+#loginForm.submitting {
+  .valid-feedback,
+  .invalid-feedback {
+    display: none !important;
+  }
+
+  .form-control.is-valid,
+  .form-control.is-invalid,
+  .form-select.is-valid,
+  .form-select.is-invalid {
+    border-color: @outline !important;
+    background-image: none !important;
+  }
+}

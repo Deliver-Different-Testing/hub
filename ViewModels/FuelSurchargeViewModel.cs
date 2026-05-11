@@ -18,7 +18,6 @@ public sealed record FuelSurchargeCardViewModel
 {
     public bool HasData { get; init; }
     public FuelSurchargeRow? CurrentStandard { get; init; }
-    public FuelSurchargeRow? CurrentClientSpecific { get; init; }
     public IReadOnlyList<FuelSurchargeRow> History { get; init; } = [];
     public decimal? CurrentAverageRate { get; init; }
     public decimal? PumpPrice { get; init; }

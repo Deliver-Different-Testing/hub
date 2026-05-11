@@ -124,7 +124,7 @@ public class PartnerDirectoryServiceTests : IDisposable
             RequestingTenantId = 3, TargetTenantId = 1, Status = "Accepted",
             CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         var service = CreateService();
 
         var result = await service.GetActiveListingsAsync(viewingTenantId: 3);
@@ -142,7 +142,7 @@ public class PartnerDirectoryServiceTests : IDisposable
             RequestingTenantId = 1, TargetTenantId = 3, Status = "Pending",
             CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         var service = CreateService();
 
         var result = await service.GetActiveListingsAsync(viewingTenantId: 3);
@@ -160,7 +160,7 @@ public class PartnerDirectoryServiceTests : IDisposable
             RequestingTenantId = 1, TargetTenantId = 3, Status = "Accepted",
             CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         var service = CreateService();
 
         var result = await service.GetActiveListingsAsync();
