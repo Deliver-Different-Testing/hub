@@ -248,7 +248,7 @@ public class AuthenticationRepositoryTests
         await repo.SaveUserSetting(viewModel, 1, 1);
 
         var settings = await repo.GetUserSettings(1, 1);
-        Assert.Contains(settings, s => s.Name == "Language" && s.Value == "en");
+        Assert.Contains(settings, s => s is { Name: "Language", Value: "en" });
     }
 
     [Fact]

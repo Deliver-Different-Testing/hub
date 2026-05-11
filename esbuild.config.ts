@@ -1,5 +1,6 @@
 import * as esbuild from 'esbuild';
 import type { BuildOptions } from 'esbuild';
+import { lessLoader } from 'esbuild-plugin-less';
 
 const watch = process.argv.includes('--watch');
 
@@ -35,6 +36,14 @@ const configs: BuildOptions[] = [
       'src/reset-password.ts',
       'src/settings.ts',
     ],
+  },
+  {
+    ...shared,
+    entryPoints: [
+      'wwwroot/css/site.less',
+      'wwwroot/css/login.less',
+    ],
+    plugins: [lessLoader()],
   },
 ];
 

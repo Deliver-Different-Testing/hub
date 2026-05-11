@@ -5,7 +5,7 @@
     var nz = new System.Globalization.CultureInfo("en-NZ");
     var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 
-    string FormatPercent(decimal? value) => value.HasValue ? value.Value.ToString("0.00", nz) + "%" : "—";
+    string FormatPercent(decimal? value) => value.HasValue ? (value.Value * 100m).ToString("0.0", nz) + "%" : "—";
     string FormatPump(decimal? value) => value.HasValue ? value.Value.ToString("0.0000", nz) : "—";
     string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("d MMM yyyy", nz) : "Open";
 }
@@ -40,13 +40,6 @@
                         </span>
                     </div>
                     <div class="fuel-stat">
-                        <span class="fuel-stat-label">Client-specific</span>
-                        <span class="fuel-stat-value">@FormatPercent(Model.CurrentClientSpecific?.Rate)</span>
-                        <span class="fuel-stat-caption">
-                            @(Model.CurrentClientSpecific?.ClientName ?? "No client override active")
-                        </span>
-                    </div>
-                    <div class="fuel-stat">
                         <span class="fuel-stat-label">Pump price</span>
                         <span class="fuel-stat-value">@FormatPump(Model.PumpPrice)</span>
                         <span class="fuel-stat-caption">Latest current record</span>
@@ -70,39 +63,43 @@
                     <div class="fuel-history">
                         <div class="fuel-history-header">
                             <h3 class="fuel-history-title">Recent records</h3>
-                            <p class="fuel-history-subtitle">Standard and your client-specific surcharge records.</p>
+                            <p class="fuel-history-subtitle">Recent fuel surcharge records.</p>
                         </div>
                         <div class="table-responsive">
                             <table class="table fuel-history-table" data-fuel-page-size="@pageSize">
                                 <thead>
                                 <tr>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Scope</th>
-                                    <th scope="col">Client</th>
-                                    <th scope="col" class="text-end">Rate</th>
-                                    <th scope="col" class="text-end">Pump price</th>
-                                    <th scope="col">Start</th>
-                                    <th scope="col">End</th>
+                                    <th scope="col" data-fuel-sort="status" aria-sort="none">Status</th>
+                                    <th scope="col" data-fuel-sort="scope" aria-sort="none">Scope</th>
+                                    <th scope="col" class="text-end" data-fuel-sort="rate" aria-sort="none">Rate</th>
+                                    <th scope="col" class="text-end" data-fuel-sort="pump" aria-sort="none">Pump price</th>
+                                    <th scope="col" data-fuel-sort="start" aria-sort="none">Start</th>
+                                    <th scope="col" data-fuel-sort="end" aria-sort="none">End</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                @{ var rowIndex = 0; }
+                                @{
+                                    var rowIndex = 0;
+                                    var invariant = System.Globalization.CultureInfo.InvariantCulture;
+                                    string IsoDate(DateTime? d) => d.HasValue ? d.Value.ToString("yyyy-MM-dd", invariant) : "9999-12-31";
+                                    string DecimalSort(decimal? d) => d.HasValue ? d.Value.ToString("0.0000", invariant) : "";
+                                }
                                 @foreach (var row in Model.History)
                                 {
                                     var statusLabel = row.IsCurrent ? "Current" : row.Active ? "Active" : "Inactive";
                                     var statusClass = row.IsCurrent ? "fuel-chip fuel-chip-current"
                                         : row.Active ? "fuel-chip fuel-chip-active"
                                         : "fuel-chip fuel-chip-inactive";
+                                    var statusSort = row.IsCurrent ? "0" : row.Active ? "1" : "2";
                                     var hidden = rowIndex >= pageSize ? "fuel-row-hidden" : null;
                                     rowIndex++;
                                     <tr class="@hidden">
-                                        <td><span class="@statusClass">@statusLabel</span></td>
-                                        <td><span class="fuel-chip fuel-chip-scope">@row.ScopeLabel</span></td>
-                                        <td>@(row.ClientName ?? "—")</td>
-                                        <td class="text-end fw-semibold fuel-num">@FormatPercent(row.Rate)</td>
-                                        <td class="text-end fuel-num">@FormatPump(row.PumpPrice)</td>
-                                        <td class="fuel-num">@FormatDate(row.Start)</td>
-                                        <td class="fuel-num">@FormatDate(row.End)</td>
+                                        <td data-sort-value="@statusSort"><span class="@statusClass">@statusLabel</span></td>
+                                        <td data-sort-value="@row.ScopeLabel"><span class="fuel-chip fuel-chip-scope">@row.ScopeLabel</span></td>
+                                        <td class="text-end fw-semibold fuel-num" data-sort-value="@DecimalSort(row.Rate)">@FormatPercent(row.Rate)</td>
+                                        <td class="text-end fuel-num" data-sort-value="@DecimalSort(row.PumpPrice)">@FormatPump(row.PumpPrice)</td>
+                                        <td class="fuel-num" data-sort-value="@IsoDate(row.Start)">@FormatDate(row.Start)</td>
+                                        <td class="fuel-num" data-sort-value="@IsoDate(row.End)">@FormatDate(row.End)</td>
                                     </tr>
                                 }
                                 </tbody>
@@ -133,17 +130,19 @@
 
         <script>
             (function () {
-                const pagination = document.querySelector('[data-fuel-pagination]');
-                if (!pagination) return;
                 const table = document.querySelector('.fuel-history-table');
-                const rows = Array.from(table.querySelectorAll('tbody tr'));
-                const pageSize = parseInt(table.dataset.fuelPageSize, 10) || 10;
-                const totalPages = parseInt(pagination.dataset.totalPages, 10) || 1;
-                const totalRows = parseInt(pagination.dataset.totalRows, 10) || rows.length;
-                const status = pagination.querySelector('[data-fuel-status]');
-                const range = pagination.querySelector('[data-fuel-range]');
-                const prevBtn = pagination.querySelector('[data-fuel-prev]');
-                const nextBtn = pagination.querySelector('[data-fuel-next]');
+                if (!table) return;
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const totalRows = rows.length;
+                const pageSize = parseInt(table.dataset.fuelPageSize, 10) || totalRows || 1;
+                const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+
+                const pagination = document.querySelector('[data-fuel-pagination]');
+                const status = pagination?.querySelector('[data-fuel-status]');
+                const range = pagination?.querySelector('[data-fuel-range]');
+                const prevBtn = pagination?.querySelector('[data-fuel-prev]');
+                const nextBtn = pagination?.querySelector('[data-fuel-next]');
                 let page = 1;
 
                 function render() {
@@ -152,14 +151,60 @@
                     rows.forEach((row, i) => {
                         row.classList.toggle('fuel-row-hidden', i < start || i >= end);
                     });
-                    status.textContent = `Page ${page} of ${totalPages}`;
-                    if (range) range.textContent = `Showing ${start + 1}–${end} of ${totalRows}`;
-                    prevBtn.disabled = page === 1;
-                    nextBtn.disabled = page === totalPages;
+                    if (status) status.textContent = `Page ${page} of ${totalPages}`;
+                    if (range) range.textContent = totalRows === 0
+                        ? 'No records'
+                        : `Showing ${start + 1}–${end} of ${totalRows}`;
+                    if (prevBtn) prevBtn.disabled = page === 1;
+                    if (nextBtn) nextBtn.disabled = page === totalPages;
                 }
 
-                prevBtn.addEventListener('click', () => { if (page > 1) { page--; render(); } });
-                nextBtn.addEventListener('click', () => { if (page < totalPages) { page++; render(); } });
+                function cellSortValue(row, index) {
+                    const cell = row.children[index];
+                    if (!cell) return '';
+                    const raw = cell.dataset.sortValue ?? cell.textContent ?? '';
+                    return raw.trim();
+                }
+
+                function compareRows(columnIndex, direction) {
+                    const sign = direction === 'descending' ? -1 : 1;
+                    return (a, b) => {
+                        const av = cellSortValue(a, columnIndex);
+                        const bv = cellSortValue(b, columnIndex);
+                        const an = Number(av);
+                        const bn = Number(bv);
+                        const bothNumeric = av !== '' && bv !== '' && !Number.isNaN(an) && !Number.isNaN(bn);
+                        if (bothNumeric) return sign * (an - bn);
+                        return sign * av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
+                    };
+                }
+
+                const sortableHeaders = Array.from(table.querySelectorAll('thead th[data-fuel-sort]'));
+                sortableHeaders.forEach((th, index) => {
+                    th.addEventListener('click', () => {
+                        const current = th.getAttribute('aria-sort');
+                        const next = current === 'ascending' ? 'descending' : 'ascending';
+                        sortableHeaders.forEach(other => other.setAttribute('aria-sort', 'none'));
+                        th.setAttribute('aria-sort', next);
+                        rows.sort(compareRows(index, next));
+                        const frag = document.createDocumentFragment();
+                        rows.forEach(r => frag.appendChild(r));
+                        tbody.appendChild(frag);
+                        page = 1;
+                        render();
+                    });
+                    th.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            th.click();
+                        }
+                    });
+                    th.setAttribute('tabindex', '0');
+                    th.setAttribute('role', 'button');
+                });
+
+                if (prevBtn) prevBtn.addEventListener('click', () => { if (page > 1) { page--; render(); } });
+                if (nextBtn) nextBtn.addEventListener('click', () => { if (page < totalPages) { page++; render(); } });
             })();
         </script>
     }

@@ -1,4 +1,6 @@
-﻿using Hub.Controllers;
+﻿using System.Security.Cryptography;
+using System.Text.Json;
+using Hub.Controllers;
 using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
@@ -1060,5 +1062,269 @@ public class AccountControllerTests : IDisposable
             });
         controller.HttpContext.Request.ContentType = "application/x-www-form-urlencoded";
         controller.HttpContext.Request.Form = formCollection;
+    }
+
+    // AcceptTenantSwitchToken tests
+    private const string TestClaimsKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; // 32-byte base64
+
+    private static string EncryptTenantSwitchToken(int userId, int tenantId, long? expiresAt = null)
+    {
+        var token = JsonSerializer.Serialize(new
+        {
+            UserId = userId,
+            TenantId = tenantId,
+            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+        });
+        using var aes = Aes.Create();
+        aes.Key = Convert.FromBase64String(TestClaimsKey);
+        aes.GenerateIV();
+        using var ms = new MemoryStream();
+        ms.Write(aes.IV, 0, aes.IV.Length);
+        using (var encryptor = aes.CreateEncryptor())
+        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        using (var sw = new StreamWriter(cs))
+            sw.Write(token);
+        return Convert.ToBase64String(ms.ToArray());
+    }
+
+    private static (AccountController controller, MasterContext masterCtx) CreateForAccept(string host = "hub.test.deliverdifferent.com")
+    {
+        var (controller, masterCtx, _) = CreateController(ClaimsPrincipalFactory.CreateAnonymous());
+        controller.HttpContext.Request.Host = new HostString(host);
+        return (controller, masterCtx);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_EmptyToken_RedirectsToLogin()
+    {
+        var (controller, _) = CreateForAccept();
+
+        var result = await controller.AcceptTenantSwitchToken("");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_WhitespaceToken_RedirectsToLogin()
+    {
+        var (controller, _) = CreateForAccept();
+
+        var result = await controller.AcceptTenantSwitchToken("   ");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_GarbageCiphertext_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+
+            var result = await controller.AcceptTenantSwitchToken("not-base64!@#");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ZeroUserId_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 0, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ZeroTenantId_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 0);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ExpiredToken_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var expired = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds();
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1, expiresAt: expired);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_UserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 9999, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_HostDoesNotExposeTenant_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // localhost has no tenant segment -> ExtractTenantFromHost returns null
+            var (controller, _) = CreateForAccept(host: "localhost");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_HostTenantMismatch_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // user 1's current tenant code is "test"; host says "second"
+            var (controller, _) = CreateForAccept(host: "hub.second.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_TokenTenantMismatch_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // host matches "test" and so does the user's current tenant, but the token claims tenant 2
+            var (controller, _) = CreateForAccept(host: "hub.test.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 2);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_DespatchUserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, masterCtx) = CreateForAccept();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 50, Email = "ghost@test.com",
+                Password = "x", Salt = "x", CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 50, TenantId = 1, UserId = 50 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var token = EncryptTenantSwitchToken(userId: 50, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ValidToken_RedirectsToHomeIndex()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept(host: "hub.test.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+            Assert.Equal("Home", redirect.ControllerName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
     }
 }
