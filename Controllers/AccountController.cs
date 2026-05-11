@@ -195,16 +195,8 @@ public class AccountController(
     // GET: /Account/CreditCard
     [HttpGet]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    public async Task<ActionResult> CreditCard(string token)
+    public async Task<ActionResult> CreditCard()
     {
-        var expectedToken = Environment.GetEnvironmentVariable("CreditCardToken") ?? string.Empty;
-        if (string.IsNullOrEmpty(expectedToken) || token != expectedToken)
-        {
-            Log.Warning("CreditCard auto-login rejected: invalid or missing token");
-            return RedirectToAction("Login");
-        }
-
         var presetEmail = Environment.GetEnvironmentVariable("CreditCardEmail") ?? string.Empty;
         var presetPassword = Environment.GetEnvironmentVariable("CreditCardPassword") ?? string.Empty;
 
