@@ -28,8 +28,10 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />
   </ItemGroup>
-  <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="!Exists('node_modules')">
+  <Target Name="NpmInstall" BeforeTargets="NpmBuild"
+          Inputs="package-lock.json" Outputs="node_modules\.install-stamp">
     <Exec Command="npm install" />
+    <Touch Files="node_modules\.install-stamp" AlwaysCreate="true" />
   </Target>
   <Target Name="NpmBuild" BeforeTargets="BeforeBuild">
     <Exec Command="npm run build" />
