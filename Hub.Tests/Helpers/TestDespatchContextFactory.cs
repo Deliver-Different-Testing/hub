@@ -137,7 +137,25 @@ public static class TestDespatchContextFactory
             LastModifiedBy = "test"
         };
 
-        context.TucClientContacts.AddRange(activeContact, inactiveContact, staffContact, legacyContact);
+        var npContact = new TucClientContact
+        {
+            UcctId = 5,
+            UcctClientId = 1,
+            UcctFirstname = "Network",
+            UcctSurname = "Partner",
+            UcctEmail = "np@test.com",
+            UserName = "np@test.com",
+            Active = true,
+            HasEmail = true,
+            ValidatedEmail = true,
+            StaffId = 13,
+            Created = DateTime.Now,
+            CreatedBy = "test",
+            LastModified = DateTime.Now,
+            LastModifiedBy = "test"
+        };
+
+        context.TucClientContacts.AddRange(activeContact, inactiveContact, staffContact, legacyContact, npContact);
 
         var activeCourier = new TucCourier
         {

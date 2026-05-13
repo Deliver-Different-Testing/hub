@@ -169,7 +169,8 @@ public class AccountController(
                 TimeZone: masterUser.CurrentTenant.TimeZone,
                 TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
                 InternalTenantUser: user.UcctClient.UcclInternal,
-                AccountsMode: accountsMode
+                AccountsMode: accountsMode,
+                IsNetworkPartner: masterUser.IsNetworkPartner ?? false
             ));
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -274,7 +275,8 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: isCourier,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false
         ));
 
         await SignInUserAsync(claims, false);
@@ -365,7 +367,8 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false
         ));
 
         await SignInUserAsync(claims, false);
@@ -480,7 +483,8 @@ public class AccountController(
         bool InternalTenantUser,
         bool IsCourier = false,
         int? CourierId = null,
-        int? AccountsMode = null);
+        int? AccountsMode = null,
+        bool IsNetworkPartner = false);
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
     [
@@ -497,6 +501,7 @@ public class AccountController(
         new("RememberMe", input.RememberMe.ToString()),
         new("Internal", input.InternalTenantUser.ToString()),
         new("IsCourier", input.IsCourier.ToString()),
+        new("IsNetworkPartner", input.IsNetworkPartner.ToString()),
         new("CourierID", input.CourierId?.ToString() ?? string.Empty),
         new("AccountsMode", input.AccountsMode?.ToString() ?? "1")
     ];
@@ -632,7 +637,8 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false
         ));
 
         await SignInUserAsync(claims, rememberMe);
@@ -752,30 +758,62 @@ public class AccountController(
 
     private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt);
 
+    // The "stack" tenant used for end-to-end testing of the staging stack. Its DNS
+    // is special-cased to live at the bare staging hostname (hub.staging.deliverdifferent.com)
+    // rather than at hub.dfrnt.staging.deliverdifferent.com.
+    private const string StackTenantCode = "dfrnt";
+
     /// <summary>
-    /// Replaces the tenant segment in the current request host with the destination
-    /// tenant's code, returning the resulting Hub host. Expects the host to follow
-    /// the pattern app.tenant.[env.]deliverdifferent.com.
+    /// Builds the destination Hub host for a tenant switch.
+    /// Recognised host shapes (under deliverdifferent.com):
+    ///   prod   : app.tenant.deliverdifferent.com
+    ///   staging: app.tenant.staging.deliverdifferent.com   (regular tenant)
+    ///            app.staging.deliverdifferent.com          (dfrnt stack tenant)
+    ///   local  : app.local.deliverdifferent.com            (single-host, cookie-only)
+    /// Returns null when no cross-domain redirect is possible (local/dev, prod target
+    /// of dfrnt, or unrecognised host shape) — caller falls back to in-place reload.
     /// </summary>
-    internal static string? BuildDestinationHubHost(string requestHost, string destinationTenantCode)
+    public static string? BuildDestinationHubHost(string requestHost, string destinationTenantCode)
     {
         if (string.IsNullOrWhiteSpace(destinationTenantCode)) return null;
-        if (string.IsNullOrEmpty(requestHost)) return null;
-        if (!requestHost.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase)) return null;
+        if (ParseHost(requestHost) is not { } parsed) return null;
+        var env = parsed.Env;
+        if (env == "local" || env == "dev") return null;
 
-        var parts = requestHost.Split('.');
-        if (parts.Length < 4) return null;
+        var isStackTenant = string.Equals(destinationTenantCode, StackTenantCode, StringComparison.OrdinalIgnoreCase);
 
-        parts[0] = "hub";
-        parts[1] = destinationTenantCode;
-        return string.Join('.', parts);
+        // Stack tenant only exists in staging — prod has no env-bare equivalent.
+        if (isStackTenant && env == null) return null;
+
+        return (env, isStackTenant) switch
+        {
+            (null, _)        => $"hub.{destinationTenantCode}.deliverdifferent.com",
+            (_, true)        => $"hub.{env}.deliverdifferent.com",
+            (_, false)       => $"hub.{destinationTenantCode}.{env}.deliverdifferent.com"
+        };
     }
 
     /// <summary>
-    /// Returns the tenant subdomain segment from a request host, or null if the host
-    /// does not expose a tenant (e.g. localhost, internal IPs, generic environment hosts).
+    /// Returns the tenant code served by a request host, or null if the host has no
+    /// identifiable tenant (local/dev shared host, unrecognised shape).
     /// </summary>
-    internal static string? ExtractTenantFromHost(string host)
+    public static string? ExtractTenantFromHost(string host)
+    {
+        if (ParseHost(host) is not { } parsed) return null;
+        if (parsed.Env == "local" || parsed.Env == "dev") return null;
+        // Staging-bare host (hub.staging.deliverdifferent.com) serves the stack tenant.
+        if (parsed.Env == "staging" && parsed.Tenant == null) return StackTenantCode;
+        return parsed.Tenant;
+    }
+
+    /// <summary>
+    /// Parses a deliverdifferent.com host into (env, tenant) segments.
+    /// env is "staging"/"local"/"dev" or null for prod. tenant is the tenant code
+    /// or null when the env subdomain itself serves a default tenant (e.g. staging
+    /// stack, local dev). Returns null when the host doesn't match a known shape —
+    /// callers must distinguish that from a parsed-but-tenantless prod host.
+    /// </summary>
+    private static (string? Env, string? Tenant)? ParseHost(string host)
     {
         if (string.IsNullOrEmpty(host)) return null;
         if (!host.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase)) return null;
@@ -783,8 +821,19 @@ public class AccountController(
         var parts = host.Split('.');
         if (parts.Length < 4) return null;
 
-        var candidate = parts[1];
-        return candidate is "staging" or "local" or "dev" ? null : candidate;
+        // Layout: [app] . [tenant?] . [env?] . deliverdifferent . com
+        // Middle segments sit between parts[0] and the trailing "deliverdifferent.com" pair.
+        var middle = parts[1..^2];
+
+        static bool IsEnv(string s) => s.Equals("staging", StringComparison.OrdinalIgnoreCase)
+                                    || s.Equals("local", StringComparison.OrdinalIgnoreCase)
+                                    || s.Equals("dev", StringComparison.OrdinalIgnoreCase);
+
+        if (middle.Length == 1)
+            return IsEnv(middle[0]) ? (middle[0].ToLowerInvariant(), null) : (null, middle[0]);
+        if (middle.Length == 2 && IsEnv(middle[1]))
+            return (middle[1].ToLowerInvariant(), middle[0]);
+        return null;
     }
 
     private static string EncryptClaims(string claims, string key)

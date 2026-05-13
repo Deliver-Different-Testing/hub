@@ -59,6 +59,10 @@ public class AccountControllerTests : IDisposable
 #pragma warning restore CS0618
         legacyUser.Salt = "11111";
 
+        var npUser = masterCtx.Users.Find(5)!;
+        npUser.Password = PasswordHelper.HashPassword("NpPass1!", "55555");
+        npUser.Salt = "55555";
+
         masterCtx.SaveChanges();
 
         // Mock stored procedures
@@ -176,6 +180,51 @@ public class AccountControllerTests : IDisposable
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Index", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Login_Post_NetworkPartner_IssuesIsNetworkPartnerClaim()
+    {
+        var (controller, _, _) = CreateController();
+        var model = new LoginViewModel { Email = "np@test.com", Password = "NpPass1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, null!);
+
+        Assert.IsType<RedirectToActionResult>(result);
+
+        var authService = (Microsoft.AspNetCore.Authentication.IAuthenticationService)
+            controller.HttpContext.RequestServices.GetService(
+                typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService))!;
+
+        await authService.Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<System.Security.Claims.ClaimsPrincipal>(p =>
+                p.HasClaim("IsNetworkPartner", "True") &&
+                p.HasClaim("IsCourier", "False")),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_Post_StaffLogin_IsNetworkPartnerClaimIsFalse()
+    {
+        var (controller, _, _) = CreateController();
+        var model = new LoginViewModel { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, null!);
+
+        Assert.IsType<RedirectToActionResult>(result);
+
+        var authService = (Microsoft.AspNetCore.Authentication.IAuthenticationService)
+            controller.HttpContext.RequestServices.GetService(
+                typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService))!;
+
+        await authService.Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<System.Security.Claims.ClaimsPrincipal>(p =>
+                p.HasClaim("IsNetworkPartner", "False")),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
     }
 
     [Fact]

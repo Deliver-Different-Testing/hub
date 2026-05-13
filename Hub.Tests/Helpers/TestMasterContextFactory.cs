@@ -93,14 +93,27 @@ public static class TestMasterContextFactory
             IsCourier = false
         };
 
-        context.Users.AddRange(staffUser, courierUser, legacyUser, resetUser);
+        var npUser = new User
+        {
+            UserId = 5,
+            Email = "np@test.com",
+            Password = "NPPASSWORD",
+            Salt = "55555",
+            CurrentTenantId = 1,
+            IsLegacyHash = false,
+            IsCourier = false,
+            IsNetworkPartner = true
+        };
+
+        context.Users.AddRange(staffUser, courierUser, legacyUser, resetUser, npUser);
 
         context.TenantUsers.AddRange(
             new TenantUser { TenantUserId = 1, TenantId = 1, UserId = 1 },
             new TenantUser { TenantUserId = 2, TenantId = 2, UserId = 1 },
             new TenantUser { TenantUserId = 3, TenantId = 1, UserId = 2 },
             new TenantUser { TenantUserId = 4, TenantId = 1, UserId = 3 },
-            new TenantUser { TenantUserId = 5, TenantId = 1, UserId = 4 }
+            new TenantUser { TenantUserId = 5, TenantId = 1, UserId = 4 },
+            new TenantUser { TenantUserId = 6, TenantId = 1, UserId = 5 }
         );
 
         context.TenantUserSettings.Add(new TenantUserSetting

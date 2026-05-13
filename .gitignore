@@ -380,3 +380,5 @@ redis-tools/
 /REDIS-DEBUG-README.md
 /Reporting-Framework-Overview.pdf
 /reporting-overview.html
+/Reporting-Framework-Overview.md
+/database/001-add-isnetworkpartner-to-user.sql
