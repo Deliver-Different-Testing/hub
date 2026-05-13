@@ -318,4 +318,22 @@ public partial class TblSetting
     public int? DefaultBulkLabelId { get; set; }
 
     public string CountryCode { get; set; }
+
+    public int? MinFlightKms { get; set; }
+
+    public string InboundUrl { get; set; }
+
+    public int? CourierInvoiceBatchPaymentTermId { get; set; }
+
+    public string DirectDebitBankAuthorisationCode { get; set; }
+
+    public DateTime? ClientServiceProcessed { get; set; }
+
+    public string TrackingUrl { get; set; }
+
+    public int? OpenforceCommissionTypeId { get; set; }
+
+    public int? OpenforceDeductionTypeId { get; set; }
+
+    public bool OpenforceIsUat { get; set; }
 }

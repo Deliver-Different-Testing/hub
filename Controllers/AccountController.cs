@@ -170,6 +170,8 @@ public class AccountController(
                 TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
                 InternalTenantUser: user.UcctClient.UcclInternal,
                 AccountsMode: accountsMode,
+                FirstName: user.UcctFirstname ?? string.Empty,
+                Surname: user.UcctSurname ?? string.Empty,
                 IsNetworkPartner: masterUser.IsNetworkPartner ?? false
             ));
 
@@ -194,16 +196,8 @@ public class AccountController(
     // GET: /Account/CreditCard
     [HttpGet]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    public async Task<ActionResult> CreditCard(string token)
+    public async Task<ActionResult> CreditCard()
     {
-        var expectedToken = Environment.GetEnvironmentVariable("CreditCardToken") ?? string.Empty;
-        if (string.IsNullOrEmpty(expectedToken) || token != expectedToken)
-        {
-            Log.Warning("CreditCard auto-login rejected: invalid or missing token");
-            return RedirectToAction("Login");
-        }
-
         var presetEmail = Environment.GetEnvironmentVariable("CreditCardEmail") ?? string.Empty;
         var presetPassword = Environment.GetEnvironmentVariable("CreditCardPassword") ?? string.Empty;
 
@@ -276,6 +270,8 @@ public class AccountController(
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: isCourier,
             AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty,
             IsNetworkPartner: masterUser.IsNetworkPartner ?? false
         ));
 
@@ -368,6 +364,8 @@ public class AccountController(
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
             AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty,
             IsNetworkPartner: masterUser.IsNetworkPartner ?? false
         ));
 
@@ -484,6 +482,8 @@ public class AccountController(
         bool IsCourier = false,
         int? CourierId = null,
         int? AccountsMode = null,
+        string FirstName = "",
+        string Surname = "",
         bool IsNetworkPartner = false);
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
@@ -503,7 +503,9 @@ public class AccountController(
         new("IsCourier", input.IsCourier.ToString()),
         new("IsNetworkPartner", input.IsNetworkPartner.ToString()),
         new("CourierID", input.CourierId?.ToString() ?? string.Empty),
-        new("AccountsMode", input.AccountsMode?.ToString() ?? "1")
+        new("AccountsMode", input.AccountsMode?.ToString() ?? "1"),
+        new("FirstName", input.FirstName ?? string.Empty),
+        new("Surname", input.Surname ?? string.Empty)
     ];
 
     private void SetTenantConnectionString(string dbConnection)
@@ -638,6 +640,8 @@ public class AccountController(
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
             AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty,
             IsNetworkPartner: masterUser.IsNetworkPartner ?? false
         ));
 
@@ -748,7 +752,9 @@ public class AccountController(
             TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
             InternalTenantUser: user.UcctClient.UcclInternal,
             IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty
         ));
 
         await SignInUserAsync(claims, false);

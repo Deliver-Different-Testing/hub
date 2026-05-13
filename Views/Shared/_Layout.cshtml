@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/dist/vendor.css"/>
-    <link rel="stylesheet" href="~/css/site.css"/>
+    <link rel="stylesheet" href="~/dist/site.css" asp-append-version="true"/>
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
     <link rel="icon" type="image/svg+xml" href="~/images/favicon.svg?v=1">
@@ -41,23 +41,23 @@
     }
 
     var hasTenants = tenants != null && tenants.Any();
-
-    var currentTenantCode = string.Empty;
-    var currentTenantCountry = string.Empty;
-    if (hasTenants)
-    {
-        var currentTenant = tenants?.FirstOrDefault(t => t.Id == currentTenantId.Value);
-        currentTenantCode = currentTenant?.Code ?? string.Empty;
-        currentTenantCountry = currentTenant?.CountryCode ?? string.Empty;
-    }
+    var currentTenantCode = User.FindFirst("TenantCode")?.Value ?? string.Empty;
+    var currentTenantCountry = User.FindFirst("CountryCode")?.Value ?? string.Empty;
 
     var userEmail = User.Identity?.Name ?? string.Empty;
-    var nameParts = (User.FindFirst("GivenName")?.Value ?? userEmail)
-        .Split('@')[0]
-        .Split([' ', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries)
-        .Select(p => p.Length > 0 ? char.ToUpper(p[0]) + p[1..].ToLower() : p)
-        .ToArray();
-    var displayFullName = string.Join(' ', nameParts);
+    var firstNameClaim = User.FindFirst("FirstName")?.Value?.Trim() ?? string.Empty;
+    var surnameClaim = User.FindFirst("Surname")?.Value?.Trim() ?? string.Empty;
+    var displayFullName = string.Join(' ', new[] { firstNameClaim, surnameClaim }
+        .Where(p => !string.IsNullOrEmpty(p)));
+    if (string.IsNullOrEmpty(displayFullName))
+    {
+        var nameParts = userEmail
+            .Split('@')[0]
+            .Split([' ', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Length > 0 ? char.ToUpper(p[0]) + p[1..].ToLower() : p)
+            .ToArray();
+        displayFullName = string.Join(' ', nameParts);
+    }
     var displayLabel = string.IsNullOrEmpty(displayFullName) ? userEmail : displayFullName;
 }
 <body id="@ViewBag.PageId" data-tenant-country="@currentTenantCountry" data-tenant-code="@currentTenantCode" data-has-tenants="@hasTenants.ToString().ToLower()">
@@ -138,9 +138,6 @@
 <footer class="footer">
     <div class="container footer-row">
         <div class="footer-meta">&copy; @DateTime.Now.Year Deliver Different</div>
-        <div class="footer-meta footer-support">
-            <a href="mailto:support@urgent.co.nz">Need help?</a>
-        </div>
     </div>
 </footer>
 

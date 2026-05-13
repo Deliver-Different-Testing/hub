@@ -1,4 +1,6 @@
-﻿using Hub.Controllers;
+﻿using System.Security.Cryptography;
+using System.Text.Json;
+using Hub.Controllers;
 using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
@@ -629,54 +631,21 @@ public class AccountControllerTests : IDisposable
 
     // CreditCard tests
     [Fact]
-    public async Task CreditCard_MissingToken_RedirectsToLogin()
-    {
-        Environment.SetEnvironmentVariable("CreditCardToken", string.Empty);
-        var (controller, _, _) = CreateController();
-
-        var result = await controller.CreditCard("any-token");
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("Login", redirect.ActionName);
-    }
-
-    [Fact]
-    public async Task CreditCard_InvalidToken_RedirectsToLogin()
-    {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
-        try
-        {
-            var (controller, _, _) = CreateController();
-
-            var result = await controller.CreditCard("wrong-token");
-
-            var redirect = Assert.IsType<RedirectToActionResult>(result);
-            Assert.Equal("Login", redirect.ActionName);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
-        }
-    }
-
-    [Fact]
     public async Task CreditCard_MissingCredentials_RedirectsToLogin()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", string.Empty);
         Environment.SetEnvironmentVariable("CreditCardPassword", string.Empty);
         try
         {
             var (controller, _, _) = CreateController();
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectToActionResult>(result);
             Assert.Equal("Login", redirect.ActionName);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
         }
@@ -685,21 +654,19 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_UserNotFound_RedirectsToLogin()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "nobody@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "pass");
         try
         {
             var (controller, _, _) = CreateController();
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectToActionResult>(result);
             Assert.Equal("Login", redirect.ActionName);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
         }
@@ -708,7 +675,6 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_NullTenant_RedirectsToLogin()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "notenant@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "Pass1!");
         try
@@ -722,14 +688,13 @@ public class AccountControllerTests : IDisposable
             });
             await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectToActionResult>(result);
             Assert.Equal("Login", redirect.ActionName);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
         }
@@ -738,21 +703,19 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_WrongPassword_RedirectsToLogin()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "WrongPassword!");
         try
         {
             var (controller, _, _) = CreateController();
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectToActionResult>(result);
             Assert.Equal("Login", redirect.ActionName);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
         }
@@ -761,7 +724,6 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_DespatchUserNotFound_RedirectsToLogin()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "nodespatch@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "Pass1!");
         try
@@ -776,14 +738,13 @@ public class AccountControllerTests : IDisposable
             masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 31, TenantId = 1, UserId = 31 });
             await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectToActionResult>(result);
             Assert.Equal("Login", redirect.ActionName);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
         }
@@ -792,7 +753,6 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_ValidLogin_NoTenantUrl_RedirectsToHome()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "TestPassword1!");
         Environment.SetEnvironmentVariable("TenantURL", string.Empty);
@@ -800,7 +760,7 @@ public class AccountControllerTests : IDisposable
         {
             var (controller, _, _) = CreateController();
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectToActionResult>(result);
             Assert.Equal("Index", redirect.ActionName);
@@ -808,7 +768,6 @@ public class AccountControllerTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
             Environment.SetEnvironmentVariable("TenantURL", null);
@@ -818,7 +777,6 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_ValidLogin_WithTenantUrl_RedirectsToBooking()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "TestPassword1!");
         Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
@@ -826,14 +784,13 @@ public class AccountControllerTests : IDisposable
         {
             var (controller, _, _) = CreateController();
 
-            var result = await controller.CreditCard("valid-token");
+            var result = await controller.CreditCard();
 
             var redirect = Assert.IsType<RedirectResult>(result);
             Assert.Contains("booking", redirect.Url);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
             Environment.SetEnvironmentVariable("TenantURL", null);
@@ -843,7 +800,6 @@ public class AccountControllerTests : IDisposable
     [Fact]
     public async Task CreditCard_LegacyHash_UpgradesPassword()
     {
-        Environment.SetEnvironmentVariable("CreditCardToken", "valid-token");
         Environment.SetEnvironmentVariable("CreditCardEmail", "legacy@test.com");
         Environment.SetEnvironmentVariable("CreditCardPassword", "LegacyPass1!");
         Environment.SetEnvironmentVariable("TenantURL", string.Empty);
@@ -851,14 +807,13 @@ public class AccountControllerTests : IDisposable
         {
             var (controller, masterCtx, _) = CreateController();
 
-            await controller.CreditCard("valid-token");
+            await controller.CreditCard();
 
             var user = (await masterCtx.Users.FindAsync([3], TestContext.Current.CancellationToken))!;
             Assert.False(user.IsLegacyHash);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CreditCardToken", null);
             Environment.SetEnvironmentVariable("CreditCardEmail", null);
             Environment.SetEnvironmentVariable("CreditCardPassword", null);
             Environment.SetEnvironmentVariable("TenantURL", null);
@@ -1156,5 +1111,269 @@ public class AccountControllerTests : IDisposable
             });
         controller.HttpContext.Request.ContentType = "application/x-www-form-urlencoded";
         controller.HttpContext.Request.Form = formCollection;
+    }
+
+    // AcceptTenantSwitchToken tests
+    private const string TestClaimsKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; // 32-byte base64
+
+    private static string EncryptTenantSwitchToken(int userId, int tenantId, long? expiresAt = null)
+    {
+        var token = JsonSerializer.Serialize(new
+        {
+            UserId = userId,
+            TenantId = tenantId,
+            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+        });
+        using var aes = Aes.Create();
+        aes.Key = Convert.FromBase64String(TestClaimsKey);
+        aes.GenerateIV();
+        using var ms = new MemoryStream();
+        ms.Write(aes.IV, 0, aes.IV.Length);
+        using (var encryptor = aes.CreateEncryptor())
+        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        using (var sw = new StreamWriter(cs))
+            sw.Write(token);
+        return Convert.ToBase64String(ms.ToArray());
+    }
+
+    private static (AccountController controller, MasterContext masterCtx) CreateForAccept(string host = "hub.test.deliverdifferent.com")
+    {
+        var (controller, masterCtx, _) = CreateController(ClaimsPrincipalFactory.CreateAnonymous());
+        controller.HttpContext.Request.Host = new HostString(host);
+        return (controller, masterCtx);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_EmptyToken_RedirectsToLogin()
+    {
+        var (controller, _) = CreateForAccept();
+
+        var result = await controller.AcceptTenantSwitchToken("");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_WhitespaceToken_RedirectsToLogin()
+    {
+        var (controller, _) = CreateForAccept();
+
+        var result = await controller.AcceptTenantSwitchToken("   ");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_GarbageCiphertext_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+
+            var result = await controller.AcceptTenantSwitchToken("not-base64!@#");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ZeroUserId_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 0, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ZeroTenantId_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 0);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ExpiredToken_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var expired = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds();
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1, expiresAt: expired);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_UserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 9999, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_HostDoesNotExposeTenant_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // localhost has no tenant segment -> ExtractTenantFromHost returns null
+            var (controller, _) = CreateForAccept(host: "localhost");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_HostTenantMismatch_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // user 1's current tenant code is "test"; host says "second"
+            var (controller, _) = CreateForAccept(host: "hub.second.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_TokenTenantMismatch_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // host matches "test" and so does the user's current tenant, but the token claims tenant 2
+            var (controller, _) = CreateForAccept(host: "hub.test.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 2);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_DespatchUserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, masterCtx) = CreateForAccept();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 50, Email = "ghost@test.com",
+                Password = "x", Salt = "x", CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 50, TenantId = 1, UserId = 50 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var token = EncryptTenantSwitchToken(userId: 50, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ValidToken_RedirectsToHomeIndex()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept(host: "hub.test.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+            Assert.Equal("Home", redirect.ControllerName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
     }
 }

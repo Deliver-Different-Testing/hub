@@ -21,25 +21,19 @@
     var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
     var bookingAppFullUrl = AppUrl("booking") + bookingAppPath;
 
-    var rawName = User.FindFirst("GivenName")?.Value
-                  ?? User.Identity?.Name
-                  ?? string.Empty;
-    var firstName = rawName.Split('@')[0]
-                           .Split([' ', '.', '-', '_'], StringSplitOptions.RemoveEmptyEntries)
-                           .FirstOrDefault()?.Trim() ?? string.Empty;
-    if (firstName.Length > 0)
-    {
-        firstName = char.ToUpper(firstName[0]) + firstName[1..].ToLower();
-    }
-    var hour = DateTime.Now.Hour;
-    var greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    var showFuelLink = !isCourier
+                       && string.Equals(tenantCode, "urgent", StringComparison.OrdinalIgnoreCase);
+
     var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 }
 <script>const ContactID = '@contactId';</script>
 
 <div id="urgent-hub">
     <div class="hub-header">
-        <h1 class="hub-greeting">@greeting@(string.IsNullOrEmpty(firstName) ? "" : ", " + firstName)</h1>
+        <div class="hub-brand">
+            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver Different" })
+            <span class="hub-eyebrow">App Hub</span>
+        </div>
         <p class="hub-subtitle">@dateLabel</p>
     </div>
 
@@ -88,6 +82,13 @@
                     <div class="app-card-title">Route Viewer</div>
                 </a>
             }
+            @if (showFuelLink)
+            {
+                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-title">Fuel Surcharge</div>
+                </a>
+            }
         </div>
     }
     else
@@ -125,6 +126,13 @@
                 <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                 <div class="app-card-title">Dispatch</div>
             </a>
+            @if (showFuelLink)
+            {
+                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-title">Fuel Surcharge</div>
+                </a>
+            }
             <a class="app-card" href="@(AppUrl("integrationmanager") + "/auth/entry")" target="_blank" rel="noopener noreferrer">
                 <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="" /></div>
                 <div class="app-card-title">Integration Manager</div>
