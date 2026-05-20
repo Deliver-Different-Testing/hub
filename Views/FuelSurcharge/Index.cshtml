@@ -5,7 +5,7 @@
     var nz = new System.Globalization.CultureInfo("en-NZ");
     var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 
-    string FormatPercent(decimal? value) => value.HasValue ? (value.Value * 100m).ToString("0.0", nz) + "%" : "—";
+    string FormatPercent(decimal? value) => value.HasValue ? (value.Value * 100m).ToString("0.00", nz) + "%" : "—";
     string FormatPump(decimal? value) => value.HasValue ? value.Value.ToString("0.0000", nz) : "—";
     string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("d MMM yyyy", nz) : "Open";
 }

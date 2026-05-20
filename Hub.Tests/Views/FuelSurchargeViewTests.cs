@@ -90,13 +90,13 @@ public class FuelSurchargeViewTests
     }
 
     [Fact]
-    public void FormatPercent_ScalesFractionToPercent_WithOneDecimal()
+    public void FormatPercent_ScalesFractionToPercent_WithTwoDecimals()
     {
-        // Rates are stored in the DB as fractions (e.g. 0.132 = 13.2%). The
-        // formatter must multiply by 100 and use one decimal place so 0.132
-        // renders as "13.2%", not ".13%".
-        Assert.Contains("(value.Value * 100m).ToString(\"0.0\", nz) + \"%\"", _viewContent);
-        Assert.DoesNotContain("value.Value.ToString(\"0.00\", nz) + \"%\"", _viewContent);
+        // Rates are stored in the DB as fractions (e.g. 0.132 = 13.20%). The
+        // formatter must multiply by 100 and use two decimal places so 0.132
+        // renders as "13.20%", not "13.2%".
+        Assert.Contains("(value.Value * 100m).ToString(\"0.00\", nz) + \"%\"", _viewContent);
+        Assert.DoesNotContain("(value.Value * 100m).ToString(\"0.0\", nz) + \"%\"", _viewContent);
     }
 
     [Fact]
