@@ -172,7 +172,8 @@ public class AccountController(
                 AccountsMode: accountsMode,
                 FirstName: user.UcctFirstname ?? string.Empty,
                 Surname: user.UcctSurname ?? string.Empty,
-                IsNetworkPartner: masterUser.IsNetworkPartner ?? false
+                IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
+                ContactRoleId: user.ContactRoleId
             ));
 
             await SignInUserAsync(claims, model.RememberMe);
@@ -272,7 +273,8 @@ public class AccountController(
             AccountsMode: accountsMode,
             FirstName: user.UcctFirstname ?? string.Empty,
             Surname: user.UcctSurname ?? string.Empty,
-            IsNetworkPartner: masterUser.IsNetworkPartner ?? false
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
+            ContactRoleId: user.ContactRoleId
         ));
 
         await SignInUserAsync(claims, false);
@@ -366,7 +368,8 @@ public class AccountController(
             AccountsMode: accountsMode,
             FirstName: user.UcctFirstname ?? string.Empty,
             Surname: user.UcctSurname ?? string.Empty,
-            IsNetworkPartner: masterUser.IsNetworkPartner ?? false
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
+            ContactRoleId: user.ContactRoleId
         ));
 
         await SignInUserAsync(claims, false);
@@ -484,7 +487,13 @@ public class AccountController(
         int? AccountsMode = null,
         string FirstName = "",
         string Surname = "",
-        bool IsNetworkPartner = false);
+        bool IsNetworkPartner = false,
+        // Phase 5+28a §B.1 — tucClientContact.ContactRoleId for NP users.
+        // Emitted as the `NpRoleId` claim so consuming apps
+        // (DfrntDriveConfigurator's authorization policies) can gate
+        // surfaces by role. Null for non-NP users / users without an
+        // assigned contact role.
+        int? ContactRoleId = null);
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
     [
@@ -505,7 +514,13 @@ public class AccountController(
         new("CourierID", input.CourierId?.ToString() ?? string.Empty),
         new("AccountsMode", input.AccountsMode?.ToString() ?? "1"),
         new("FirstName", input.FirstName ?? string.Empty),
-        new("Surname", input.Surname ?? string.Empty)
+        new("Surname", input.Surname ?? string.Empty),
+        // Phase 5+28a §B.1 — see ClaimsInput.ContactRoleId. Emitting the
+        // raw ID rather than a friendly name keeps Hub agnostic to the
+        // tenant-DB tblContactRole table (seeded 1=NpAdmin / 2=NpDispatcher
+        // / 3=NpReadOnly by 20260513123935_NPMarketplaceAndQuotes.sql);
+        // consuming apps map ID → friendly name themselves.
+        new("NpRoleId", input.ContactRoleId?.ToString() ?? string.Empty)
     ];
 
     private void SetTenantConnectionString(string dbConnection)
@@ -642,7 +657,8 @@ public class AccountController(
             AccountsMode: accountsMode,
             FirstName: user.UcctFirstname ?? string.Empty,
             Surname: user.UcctSurname ?? string.Empty,
-            IsNetworkPartner: masterUser.IsNetworkPartner ?? false
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
+            ContactRoleId: user.ContactRoleId
         ));
 
         await SignInUserAsync(claims, rememberMe);
@@ -754,7 +770,8 @@ public class AccountController(
             IsCourier: masterUser.IsCourier ?? false,
             AccountsMode: accountsMode,
             FirstName: user.UcctFirstname ?? string.Empty,
-            Surname: user.UcctSurname ?? string.Empty
+            Surname: user.UcctSurname ?? string.Empty,
+            ContactRoleId: user.ContactRoleId
         ));
 
         await SignInUserAsync(claims, false);

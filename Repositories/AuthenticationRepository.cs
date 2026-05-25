@@ -129,4 +129,35 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             return false;
         }
     }
+
+    public async Task<User?> CreateNpUserAsync(string email, int currentTenantId)
+    {
+        // 409-shape: don't insert if email already exists in Master.User.
+        // Caller surfaces this to the operator as "user already exists in
+        // Hub — manual remediation needed". Re-invite-existing is a
+        // separate slice (idempotency Open Question #3 in the brief).
+        var existing = await context.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.Email == email);
+        if (existing) return null;
+
+        var user = new User
+        {
+            Email = email,
+            // Password / Salt are empty until the invitee sets their
+            // password via the reset-key flow. IsLegacyHash=false marks
+            // this row as PBKDF2/SHA256-ready when the password gets set.
+            Password = string.Empty,
+            Salt = string.Empty,
+            IsLegacyHash = false,
+            ResetKey = Guid.NewGuid().ToString(),
+            CurrentTenantId = currentTenantId,
+            IsNetworkPartner = true,
+            IsCourier = false,
+        };
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        return user;
+    }
 }
