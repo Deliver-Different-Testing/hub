@@ -8,6 +8,12 @@
 
     var clientInternal = bool.TryParse(Model.ClientInternal, out var ci) && ci;
     var isCourier = bool.TryParse(User.FindFirst("IsCourier")?.Value, out var c) && c;
+    // Phase 5+28c §D — Network Partner gets a dedicated tile set
+    // (Configurator / Dispatch / Route Viewer). Slotted between the
+    // isCourier branch and the customer / internal-staff branches below.
+    // CourierManager intentionally NOT included — superseded by the
+    // configurator's NP view per the NP-VISIBILITY-MATRIX.
+    var isNetworkPartner = bool.TryParse(User.FindFirst("IsNetworkPartner")?.Value, out var inp) && inp;
     var bulkUploadPermission = Model.BulkUploadPermission;
 
     var isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
@@ -50,6 +56,29 @@
             <a class="app-card" href="@AppUrl("courierportal")" target="_blank" rel="noopener noreferrer">
                 <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
                 <div class="app-card-title">Courier Portal</div>
+            </a>
+        </div>
+    }
+    else if (isNetworkPartner)
+    {
+        // Phase 5+28c §D — Network Partner tile set: Configurator (NP view of
+        // the configurator app, role-switched server-side via the
+        // IsNetworkPartner claim) + Dispatch (filtered to the NP's jobs via
+        // NpScopeResolver) + Route Viewer (read-only). Booking, Bulk Import,
+        // Job Search, Print, Fuel intentionally excluded — those are
+        // customer-facing surfaces the NP user doesn't operate from.
+        <div class="app-grid">
+            <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                <div class="app-card-title">DFRNT Drive</div>
+            </a>
+            <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                <div class="app-card-title">Dispatch</div>
+            </a>
+            <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                <div class="app-card-title">Route Viewer</div>
             </a>
         </div>
     }
