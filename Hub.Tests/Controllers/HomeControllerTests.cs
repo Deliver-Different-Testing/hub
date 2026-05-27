@@ -45,7 +45,17 @@ public class HomeControllerTests : IDisposable
             ]);
         context.Procedures = mockProcs;
 
-        var controller = new HomeController(connectionStringManager, repo);
+        // Phase 5+31 R2 §2 — HomeController.Index now resolves the user's
+        // visible-feature set via IFeatureResolver before populating the
+        // ViewModel. These tests don't exercise tile rendering (controller
+        // returns ViewResult; the Razor view isn't executed), so the mock
+        // can return an empty set safely. Returning null would NRE on the
+        // ViewModel assignment.
+        var featureResolver = Substitute.For<IFeatureResolver>();
+        featureResolver.ResolveForClientAsync(Arg.Any<int?>(), Arg.Any<bool>())
+            .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
+        var controller = new HomeController(connectionStringManager, repo, featureResolver);
         ControllerTestBase.SetupHttpContext(controller, user);
 
         return controller;

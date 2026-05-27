@@ -10,7 +10,8 @@ namespace Hub.Controllers;
 [Authorize]
 public class HomeController(
     IConnectionStringManager connectionStringManager,
-    IDespatchRepository despatchRepository)
+    IDespatchRepository despatchRepository,
+    IFeatureResolver featureResolver)
     : Controller
 {
     public async Task<IActionResult> Index()
@@ -28,6 +29,19 @@ public class HomeController(
         var contactId = int.Parse(cid);
         var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissions(contactId);
 
+        // Phase 5+31 R2 §2 — resolve the user's visible hub-tile-* feature
+        // keys against the ClientType × Feature matrix. Drives the
+        // non-courier non-internal-staff tile rendering in Index.cshtml.
+        // Internal-staff branch (clientInternal=true) ignores this set and
+        // shows all tiles unconditionally for R2 closeout; matrix-driving
+        // internal too is future work after the seed gains keys for the
+        // ~10 unkeyed tiles (Accounts, AdminManager, Bulk Import, etc.).
+        var clientIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
+        var userGroupClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserGroupID")?.Value;
+        int? clientId = int.TryParse(clientIdClaim, out var ci) && ci > 0 ? ci : null;
+        var isDfAdmin = userGroupClaim == "1";
+        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId, isDfAdmin);
+
         var model = new HomeViewModel
         {
             ContactId = contactId,
@@ -38,7 +52,8 @@ public class HomeController(
             UserEmail = userEmail,
             TenantCode = tenantCode,
             ClientInternal = internalTenantUser,
-            ShowAfterHours = await IsAfterHoursAuthorizedAsync()
+            ShowAfterHours = await IsAfterHoursAuthorizedAsync(),
+            VisibleFeatures = visibleFeatures
         };
 
         return View(model);

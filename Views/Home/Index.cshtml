@@ -61,34 +61,53 @@
     }
     else if (isNetworkPartner)
     {
-        // Phase 5+28c §D — Network Partner tile set: Configurator (NP view of
-        // the configurator app, role-switched server-side via the
-        // IsNetworkPartner claim) + Dispatch (filtered to the NP's jobs via
-        // NpScopeResolver) + Route Viewer (read-only). Booking, Bulk Import,
-        // Job Search, Print, Fuel intentionally excluded — those are
-        // customer-facing surfaces the NP user doesn't operate from.
+        // Phase 5+31 R2 §2 — was 5+28c §D's hardcoded 3-tile NP branch
+        // (Configurator + Dispatch + Route Viewer); each tile now gates on
+        // the matrix-driven Model.VisibleFeatures set, so admins can flip
+        // any of them off for NP via the Settings → Feature Matrix UI in
+        // configurator without a code change. Default seed matches the
+        // pre-§2 hardcoded set (3 tiles visible for NP).
         <div class="app-grid">
-            <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
-                <div class="app-card-title">DFRNT Drive</div>
-            </a>
-            <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
-                <div class="app-card-title">Dispatch</div>
-            </a>
-            <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
-                <div class="app-card-title">Route Viewer</div>
-            </a>
+            @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
+            {
+                <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                    <div class="app-card-title">DFRNT Drive</div>
+                </a>
+            }
+            @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
+            {
+                <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                    <div class="app-card-title">Dispatch</div>
+                </a>
+            }
+            @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
+            {
+                <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                    <div class="app-card-title">Route Viewer</div>
+                </a>
+            }
         </div>
     }
     else if (!clientInternal)
     {
+        // Phase 5+31 R2 §2 — Customer branch (ClientType=2 or NULL via
+        // resolver fallback). The three keyed tiles (Booking, Job Search,
+        // Route Viewer) now matrix-gate; the unkeyed tiles (Bulk Import,
+        // Print, Fuel Surcharge) keep their existing per-permission /
+        // per-flag conditionals because the matrix seed doesn't have keys
+        // for them yet — future iteration extends the seed + collapses
+        // those into the matrix.
         <div class="app-grid">
-            <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
-                <div class="app-card-title">Booking/Job List</div>
-            </a>
+            @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
+            {
+                <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
+                    <div class="app-card-title">Booking/Job List</div>
+                </a>
+            }
             @if (bulkUploadPermission)
             {
                 <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
@@ -96,20 +115,26 @@
                     <div class="app-card-title">Bulk Import</div>
                 </a>
             }
-            <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
-                <div class="app-card-title">Job Search</div>
-            </a>
+            @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
+            {
+                <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
+                    <div class="app-card-title">Job Search</div>
+                </a>
+            }
             @if (!isUrgentAsureUser)
             {
                 <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
                     <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
                     <div class="app-card-title">Print</div>
                 </a>
-                <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
-                    <div class="app-card-title">Route Viewer</div>
-                </a>
+                @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
+                {
+                    <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
+                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                        <div class="app-card-title">Route Viewer</div>
+                    </a>
+                }
             }
             @if (showFuelLink)
             {
