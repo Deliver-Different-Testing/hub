@@ -32,6 +32,21 @@ public static class TestDespatchContextFactory
 
     private static void SeedData(DynamicDespatchDbContext context)
     {
+        // Phase 5+31 R2 §2 — Hub's EF regen made tucClient.ClientTypeId
+        // non-nullable with FK -> ClientType.Id. Without these ClientType
+        // rows the SQLite test DB hits "FOREIGN KEY constraint failed" on
+        // every TucClient INSERT (ClientTypeId defaults to 0 with no
+        // matching ClientType row). Seeding the production set so any
+        // future test that needs a specific type can reference it by Id.
+        context.ClientTypes.AddRange(
+            new ClientType { Id = 1, Name = "Internal" },
+            new ClientType { Id = 2, Name = "Customer" },
+            new ClientType { Id = 3, Name = "NetworkPartner" },
+            new ClientType { Id = 4, Name = "Tenant" },
+            new ClientType { Id = 5, Name = "DFRNTAdmin" },
+            new ClientType { Id = 6, Name = "ConnectedTenant" }
+        );
+
         var client = new TucClient
         {
             UcclId = 1,
@@ -41,6 +56,7 @@ public static class TestDespatchContextFactory
             UcclInternal = false,
             UcclActive = true,
             UcclGroupId = 0,
+            ClientTypeId = 2, // Customer — see ClientType seed above
             Smsname = "TestSMS",
             Created = DateTime.Now,
             CreatedBy = "test",
@@ -57,6 +73,7 @@ public static class TestDespatchContextFactory
             UcclInternal = false,
             UcclActive = true,
             UcclGroupId = 1,
+            ClientTypeId = 2, // Customer — see ClientType seed above
             Smsname = "SubSMS",
             Created = DateTime.Now,
             CreatedBy = "test",

@@ -14,6 +14,7 @@ public static class AppServiceExtensions
         services.AddScoped<ITenantBrandingConfigService, TenantBrandingConfigService>();
         services.AddScoped<IPartnerDirectoryService, PartnerDirectoryService>();
         services.AddScoped<IFuelSurchargeRepository, FuelSurchargeRepository>();
+        services.AddScoped<IFeatureResolver, FeatureResolver>();
         services.AddSingleton<AuthDiagnostics>();
     }
 }

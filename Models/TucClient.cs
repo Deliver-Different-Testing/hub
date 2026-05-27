@@ -583,6 +583,12 @@ public partial class TucClient
 
     public string DefaultJobListFilter { get; set; }
 
+    public int ClientTypeId { get; set; }
+
+    public int? NpAgentId { get; set; }
+
+    public virtual ClientType ClientType { get; set; }
+
     public virtual ICollection<TblFuelSurcharge> TblFuelSurcharges { get; set; } = new List<TblFuelSurcharge>();
 
     public virtual ICollection<TucClientContact> TucClientContacts { get; set; } = new List<TucClientContact>();

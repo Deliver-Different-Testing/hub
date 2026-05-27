@@ -5,7 +5,7 @@
    "FilterSchemas": false,
    "IncludeConnectionString": false,
    "IrregularWords": null,
-   "MinimumProductVersion": "2.6.1248",
+   "MinimumProductVersion": "2.6.1378",
    "ModelNamespace": null,
    "OutputContextPath": null,
    "OutputPath": "Models",
@@ -18,6 +18,18 @@
    "SingularRules": null,
    "T4TemplatePath": null,
    "Tables": [
+      {
+         "Name": "[dbo].[ClientType]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ClientTypeFeature]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Feature]",
+         "ObjectType": 0
+      },
       {
          "Name": "[dbo].[tblAfterhoursCourier]",
          "ObjectType": 0
@@ -89,5 +101,6 @@
    "UseSchemaNamespaces": false,
    "UseSpatial": false,
    "UseT4": false,
-   "UseT4Split": false
+   "UseT4Split": false,
+   "UseTypedTvpParameters": true
 }
