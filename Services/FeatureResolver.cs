@@ -23,24 +23,9 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<HashSet<string>> ResolveForClientAsync(int? clientId, bool isDfAdmin)
+    public async Task<HashSet<string>> ResolveForClientAsync(int? clientId)
     {
-        if (isDfAdmin)
-        {
-            // Union of every visible feature key across all ClientTypes.
-            // Defensive cover for any DF admin still on a legacy Internal (1)
-            // or NULL ClientType row that hasn't been reparented to
-            // DFRNTAdmin (5) yet — they see everything visible anywhere.
-            var allKeys = await context.ClientTypeFeatures
-                .AsNoTracking()
-                .Where(ctf => ctf.Visible)
-                .Select(ctf => ctf.FeatureKey)
-                .Distinct()
-                .ToListAsync();
-            return new HashSet<string>(allKeys, StringComparer.OrdinalIgnoreCase);
-        }
-
-        // Non-admin: look up tucClient.ClientTypeId, then resolve.
+        // Look up the user's ClientType from their client.
         int? clientTypeId = null;
         if (clientId is > 0)
         {
@@ -49,6 +34,22 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
                 .Where(c => c.UcclId == clientId.Value)
                 .Select(c => c.ClientTypeId)
                 .FirstOrDefaultAsync();
+        }
+
+        // DF Admin bypass — ClientType=5 (DFRNTAdmin) sees the union of every
+        // visible feature key across all ClientTypes. Keyed on ClientType so a
+        // tenant Administrator (UserGroupID=1 on a ClientTypeId=4 client) is NOT
+        // treated as a DF admin — was a caller-supplied isDfAdmin bool keyed on
+        // UserGroupID==1; switched to match the configurator's signal.
+        if (clientTypeId == 5)
+        {
+            var allKeys = await context.ClientTypeFeatures
+                .AsNoTracking()
+                .Where(ctf => ctf.Visible)
+                .Select(ctf => ctf.FeatureKey)
+                .Distinct()
+                .ToListAsync();
+            return new HashSet<string>(allKeys, StringComparer.OrdinalIgnoreCase);
         }
 
         return await ResolveVisibleFeaturesAsync(clientTypeId);

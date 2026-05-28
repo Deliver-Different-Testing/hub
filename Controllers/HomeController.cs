@@ -37,10 +37,10 @@ public class HomeController(
         // internal too is future work after the seed gains keys for the
         // ~10 unkeyed tiles (Accounts, AdminManager, Bulk Import, etc.).
         var clientIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
-        var userGroupClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserGroupID")?.Value;
         int? clientId = int.TryParse(clientIdClaim, out var ci) && ci > 0 ? ci : null;
-        var isDfAdmin = userGroupClaim == "1";
-        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId, isDfAdmin);
+        // DF-admin (ClientType=5) bypass is determined inside the resolver from
+        // the client's ClientType — no longer the legacy UserGroupID==1 check.
+        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId);
 
         var model = new HomeViewModel
         {
