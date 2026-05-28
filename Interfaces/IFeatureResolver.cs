@@ -7,13 +7,14 @@ namespace Hub.Interfaces;
 // per-request DynamicDespatchDbContext lifecycle (no IDbContextFactory; the
 // context is already tenant-scoped via Hub's connection-string switching).
 //
-// HomeController.Index calls ResolveForClientAsync(clientId, isDfAdmin) on
-// each request to derive the user's visible-feature set, which the Razor
-// view then consults to decide which hub tiles to render.
+// HomeController.Index calls ResolveForClientAsync(clientId) on each request
+// to derive the user's visible-feature set, which the Razor view then
+// consults to decide which hub tiles to render.
 //
-// DF Admin (UserGroupID=1) bypass returns the union of every visible key
-// across all ClientTypes. Belt + braces for any DF admin who hasn't been
-// reparented to ClientType=5 yet (still on a legacy Internal or NULL).
+// DF Admin (ClientType=5, DFRNTAdmin) bypass returns the union of every
+// visible key across all ClientTypes. Keyed on ClientType so a tenant
+// Administrator (UserGroupID=1 on a ClientTypeId=4 client) is NOT treated as
+// a DF admin — matches the configurator's DF-admin-by-ClientType signal.
 //
 // Sibling-by-purpose to configurator's resolver — same behaviour but each
 // app keeps its own implementation since the EF entities/contexts don't
@@ -29,8 +30,8 @@ public interface IFeatureResolver
     /// <summary>
     /// Resolves the visible feature keys for a request: looks up the
     /// supplied client's ClientTypeId, applies the NULL→Customer rule,
-    /// and returns the matching matrix slice. DF Admin (isDfAdmin=true)
-    /// bypass returns the union of every visible key across all ClientTypes.
+    /// and returns the matching matrix slice. ClientType=5 (DFRNTAdmin)
+    /// bypasses to the union of every visible key across all ClientTypes.
     /// </summary>
-    Task<HashSet<string>> ResolveForClientAsync(int? clientId, bool isDfAdmin);
+    Task<HashSet<string>> ResolveForClientAsync(int? clientId);
 }

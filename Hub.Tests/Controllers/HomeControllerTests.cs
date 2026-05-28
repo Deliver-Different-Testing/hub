@@ -52,7 +52,7 @@ public class HomeControllerTests : IDisposable
         // can return an empty set safely. Returning null would NRE on the
         // ViewModel assignment.
         var featureResolver = Substitute.For<IFeatureResolver>();
-        featureResolver.ResolveForClientAsync(Arg.Any<int?>(), Arg.Any<bool>())
+        featureResolver.ResolveForClientAsync(Arg.Any<int?>())
             .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
         var controller = new HomeController(connectionStringManager, repo, featureResolver);
