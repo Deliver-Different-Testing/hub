@@ -21,7 +21,9 @@ public static class ClaimsPrincipalFactory
         bool isCourier = false,
         int? courierId = null,
         int? accountsMode = 1,
-        bool isNetworkPartner = false)
+        bool isNetworkPartner = false,
+        string clientTypeId = "2",
+        string npAgentId = "")
     {
         var claims = new List<Claim>
         {
@@ -40,7 +42,9 @@ public static class ClaimsPrincipalFactory
             new("IsCourier", isCourier.ToString()),
             new("IsNetworkPartner", isNetworkPartner.ToString()),
             new("CourierID", courierId?.ToString() ?? string.Empty),
-            new("AccountsMode", accountsMode?.ToString() ?? "1")
+            new("AccountsMode", accountsMode?.ToString() ?? "1"),
+            new("ClientTypeId", clientTypeId),
+            new("NpAgentId", npAgentId)
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

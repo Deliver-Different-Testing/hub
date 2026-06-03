@@ -81,7 +81,28 @@ public static class TestDespatchContextFactory
             LastModifiedBy = "test"
         };
 
-        context.TucClients.AddRange(client, subClient);
+        // NetworkPartner client (ClientType 3) carrying an NpAgentId — the
+        // login flow stamps these onto the ClientTypeId + NpAgentId claims, so
+        // a test can assert the NP data-scope signals are issued correctly.
+        var npClient = new TucClient
+        {
+            UcclId = 3,
+            UcclName = "NP Client",
+            UcclLegalName = "NP Client Ltd",
+            UcclCode = "NP001",
+            UcclInternal = false,
+            UcclActive = true,
+            UcclGroupId = 0,
+            ClientTypeId = 3, // NetworkPartner — see ClientType seed above
+            NpAgentId = 777,
+            Smsname = "NpSMS",
+            Created = DateTime.Now,
+            CreatedBy = "test",
+            LastModified = DateTime.Now,
+            LastModifiedBy = "test"
+        };
+
+        context.TucClients.AddRange(client, subClient, npClient);
 
         var activeContact = new TucClientContact
         {
@@ -157,7 +178,7 @@ public static class TestDespatchContextFactory
         var npContact = new TucClientContact
         {
             UcctId = 5,
-            UcctClientId = 1,
+            UcctClientId = 3, // NP client (ClientType 3, NpAgentId 777)
             UcctFirstname = "Network",
             UcctSurname = "Partner",
             UcctEmail = "np@test.com",

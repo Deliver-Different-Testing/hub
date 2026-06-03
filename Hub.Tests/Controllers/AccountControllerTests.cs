@@ -203,7 +203,11 @@ public class AccountControllerTests : IDisposable
             Arg.Any<string>(),
             Arg.Is<System.Security.Claims.ClaimsPrincipal>(p =>
                 p.HasClaim("IsNetworkPartner", "True") &&
-                p.HasClaim("IsCourier", "False")),
+                p.HasClaim("IsCourier", "False") &&
+                // Data-scope claims: NP contact sits on the NetworkPartner
+                // client (ClientType 3, NpAgentId 777) seeded in the factory.
+                p.HasClaim("ClientTypeId", "3") &&
+                p.HasClaim("NpAgentId", "777")),
             Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
     }
 
@@ -225,7 +229,11 @@ public class AccountControllerTests : IDisposable
             Arg.Any<HttpContext>(),
             Arg.Any<string>(),
             Arg.Is<System.Security.Claims.ClaimsPrincipal>(p =>
-                p.HasClaim("IsNetworkPartner", "False")),
+                p.HasClaim("IsNetworkPartner", "False") &&
+                // staff@test.com sits on the Customer client (ClientType 2,
+                // no NpAgentId) — the data-scope claims reflect that.
+                p.HasClaim("ClientTypeId", "2") &&
+                p.HasClaim("NpAgentId", "")),
             Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
     }
 

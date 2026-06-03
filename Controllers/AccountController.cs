@@ -156,25 +156,8 @@ public class AccountController(
 
             await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe, masterUser.CurrentTenant.TenantId);
 
-            var claims = GenerateClaims(new ClaimsInput(
-                Email: model.Email,
-                UserId: masterUser.UserId,
-                CurrentTenantId: masterUser.CurrentTenant.TenantId,
-                ContactId: user.UcctId.ToString(),
-                ClientId: user.UcctClientId?.ToString() ?? "0",
-                StaffId: user.StaffId?.ToString() ?? string.Empty,
-                Connection: masterUser.CurrentTenant.Dbconnection,
-                RememberMe: model.RememberMe,
-                CountryCode: masterUser.CurrentTenant.CountryCode,
-                TimeZone: masterUser.CurrentTenant.TimeZone,
-                TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
-                InternalTenantUser: user.UcctClient.UcclInternal,
-                AccountsMode: accountsMode,
-                FirstName: user.UcctFirstname ?? string.Empty,
-                Surname: user.UcctSurname ?? string.Empty,
-                IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
-                ContactRoleId: user.ContactRoleId
-            ));
+            var claims = GenerateClaims(
+                BuildStaffClaimsInput(masterUser, user, accountsMode, model.RememberMe, model.Email));
 
             await SignInUserAsync(claims, model.RememberMe);
 
@@ -244,7 +227,6 @@ public class AccountController(
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
-        var isCourier = masterUser.IsCourier ?? false;
 
         var user = await despatchRepository.FetchUserByUsername(model.Email);
 
@@ -256,26 +238,8 @@ public class AccountController(
 
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
-        var claims = GenerateClaims(new ClaimsInput(
-            Email: model.Email,
-            UserId: masterUser.UserId,
-            CurrentTenantId: masterUser.CurrentTenant.TenantId,
-            ContactId: user.UcctId.ToString(),
-            ClientId: user.UcctClientId?.ToString() ?? "0",
-            StaffId: user.StaffId?.ToString() ?? string.Empty,
-            Connection: masterUser.CurrentTenant.Dbconnection,
-            RememberMe: false,
-            CountryCode: masterUser.CurrentTenant.CountryCode,
-            TimeZone: masterUser.CurrentTenant.TimeZone,
-            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
-            InternalTenantUser: user.UcctClient.UcclInternal,
-            IsCourier: isCourier,
-            AccountsMode: accountsMode,
-            FirstName: user.UcctFirstname ?? string.Empty,
-            Surname: user.UcctSurname ?? string.Empty,
-            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
-            ContactRoleId: user.ContactRoleId
-        ));
+        var claims = GenerateClaims(
+            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, model.Email));
 
         await SignInUserAsync(claims, false);
 
@@ -351,26 +315,8 @@ public class AccountController(
 
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
-        var claims = GenerateClaims(new ClaimsInput(
-            Email: model.Email,
-            UserId: masterUser.UserId,
-            CurrentTenantId: masterUser.CurrentTenant.TenantId,
-            ContactId: user.UcctId.ToString(),
-            ClientId: user.UcctClientId?.ToString() ?? "0",
-            StaffId: user.StaffId?.ToString() ?? string.Empty,
-            Connection: masterUser.CurrentTenant.Dbconnection,
-            RememberMe: false,
-            CountryCode: masterUser.CurrentTenant.CountryCode,
-            TimeZone: masterUser.CurrentTenant.TimeZone,
-            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
-            InternalTenantUser: user.UcctClient.UcclInternal,
-            IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode,
-            FirstName: user.UcctFirstname ?? string.Empty,
-            Surname: user.UcctSurname ?? string.Empty,
-            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
-            ContactRoleId: user.ContactRoleId
-        ));
+        var claims = GenerateClaims(
+            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, model.Email));
 
         await SignInUserAsync(claims, false);
 
@@ -493,7 +439,15 @@ public class AccountController(
         // (DfrntDriveConfigurator's authorization policies) can gate
         // surfaces by role. Null for non-NP users / users without an
         // assigned contact role.
-        int? ContactRoleId = null);
+        int? ContactRoleId = null,
+        // Phase 5+ data-scope (CLIENT-TYPE-FILTERING) — tucClient.ClientTypeId.
+        // Drives the per-request scope-predicate branch in consuming apps. Null
+        // for couriers (no tucClient).
+        int? ClientTypeId = null,
+        // Phase 5+ data-scope — tucClient.NpAgentId. The NP's Agent reference;
+        // consuming apps filter scoped tables by it for NetworkPartner users.
+        // Null for non-NP users / couriers.
+        int? NpAgentId = null);
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
     [
@@ -520,8 +474,54 @@ public class AccountController(
         // tenant-DB tblContactRole table (seeded 1=NpAdmin / 2=NpDispatcher
         // / 3=NpReadOnly by 20260513123935_NPMarketplaceAndQuotes.sql);
         // consuming apps map ID → friendly name themselves.
-        new("NpRoleId", input.ContactRoleId?.ToString() ?? string.Empty)
+        new("NpRoleId", input.ContactRoleId?.ToString() ?? string.Empty),
+        // Phase 5+ data-scope (CLIENT-TYPE-FILTERING) — see ClaimsInput.ClientTypeId.
+        // The single signal that downstream apps branch on to build the row-level
+        // scope predicate: Customer/Internal → ucjbClientID; NetworkPartner (3) →
+        // NpAgentId; DFRNTAdmin (5) → bypass; ConnectedTenant (6) → reject at auth.
+        // Consuming apps derive "DF admin" from ClientTypeId == 5 — no separate
+        // dfrnt_admin claim. Empty for couriers (gated at the Courier Portal API).
+        new("ClientTypeId", input.ClientTypeId?.ToString() ?? string.Empty),
+        // Phase 5+ data-scope — see ClaimsInput.NpAgentId. Lets NP-scoped apps
+        // apply WHERE NpAgentId = <claim> without a per-request tucClient lookup.
+        new("NpAgentId", input.NpAgentId?.ToString() ?? string.Empty)
     ];
+
+    // Single source of truth for STAFF (non-courier) login claims. Every staff
+    // auth path — Login, CreditCard, ResetPassword, UpdateCurrentTenant,
+    // AcceptTenantSwitchToken — funnels through here so the claim set can't
+    // drift between them. (It previously had: AcceptTenantSwitchToken silently
+    // omitted IsNetworkPartner.) The courier path builds its own minimal
+    // ClaimsInput inline since couriers have no tucClient / ClientType.
+    // ClientTypeId + NpAgentId come straight off the already-Included UcctClient
+    // nav, so this adds zero extra DB queries.
+    private static ClaimsInput BuildStaffClaimsInput(
+        Models.Master.User masterUser,
+        Models.TucClientContact user,
+        int? accountsMode,
+        bool rememberMe,
+        string email) =>
+        new(
+            Email: email,
+            UserId: masterUser.UserId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
+            ContactId: user.UcctId.ToString(),
+            ClientId: user.UcctClientId?.ToString() ?? "0",
+            StaffId: user.StaffId?.ToString() ?? string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: rememberMe,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: user.UcctClient.UcclInternal,
+            IsCourier: masterUser.IsCourier ?? false,
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty,
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
+            ContactRoleId: user.ContactRoleId,
+            ClientTypeId: user.UcctClient.ClientTypeId,
+            NpAgentId: user.UcctClient.NpAgentId);
 
     private void SetTenantConnectionString(string dbConnection)
     {
@@ -640,26 +640,9 @@ public class AccountController(
         Log.Debug("About to write Claim details. Connection: {CurrentTenantDbconnection}",
             masterUser.CurrentTenant.Dbconnection);
 
-        var claims = GenerateClaims(new ClaimsInput(
-            Email: User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
-            UserId: masterUser.UserId,
-            CurrentTenantId: masterUser.CurrentTenant.TenantId,
-            ContactId: user.UcctId.ToString(),
-            ClientId: user.UcctClientId?.ToString() ?? "0",
-            StaffId: user.StaffId?.ToString() ?? string.Empty,
-            Connection: masterUser.CurrentTenant.Dbconnection,
-            RememberMe: rememberMe,
-            CountryCode: masterUser.CurrentTenant.CountryCode,
-            TimeZone: masterUser.CurrentTenant.TimeZone,
-            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
-            InternalTenantUser: user.UcctClient.UcclInternal,
-            IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode,
-            FirstName: user.UcctFirstname ?? string.Empty,
-            Surname: user.UcctSurname ?? string.Empty,
-            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
-            ContactRoleId: user.ContactRoleId
-        ));
+        var claims = GenerateClaims(BuildStaffClaimsInput(
+            masterUser, user, accountsMode, rememberMe,
+            User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty));
 
         await SignInUserAsync(claims, rememberMe);
 
@@ -754,25 +737,8 @@ public class AccountController(
 
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
-        var claims = GenerateClaims(new ClaimsInput(
-            Email: masterUser.Email,
-            UserId: masterUser.UserId,
-            CurrentTenantId: masterUser.CurrentTenant.TenantId,
-            ContactId: user.UcctId.ToString(),
-            ClientId: user.UcctClientId?.ToString() ?? "0",
-            StaffId: user.StaffId?.ToString() ?? string.Empty,
-            Connection: masterUser.CurrentTenant.Dbconnection,
-            RememberMe: false,
-            CountryCode: masterUser.CurrentTenant.CountryCode,
-            TimeZone: masterUser.CurrentTenant.TimeZone,
-            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
-            InternalTenantUser: user.UcctClient.UcclInternal,
-            IsCourier: masterUser.IsCourier ?? false,
-            AccountsMode: accountsMode,
-            FirstName: user.UcctFirstname ?? string.Empty,
-            Surname: user.UcctSurname ?? string.Empty,
-            ContactRoleId: user.ContactRoleId
-        ));
+        var claims = GenerateClaims(
+            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, masterUser.Email));
 
         await SignInUserAsync(claims, false);
 
