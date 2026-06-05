@@ -207,7 +207,11 @@ public class AccountControllerTests : IDisposable
                 // Data-scope claims: NP contact sits on the NetworkPartner
                 // client (ClientType 3, NpAgentId 777) seeded in the factory.
                 p.HasClaim("ClientTypeId", "3") &&
-                p.HasClaim("NpAgentId", "777")),
+                p.HasClaim("NpAgentId", "777") &&
+                // Unified Permissions §5 — RoleId is a transitional dual-write
+                // of the same value as NpRoleId (NpAdmin = 1 from the factory).
+                p.HasClaim("NpRoleId", "1") &&
+                p.HasClaim("RoleId", "1")),
             Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
     }
 
@@ -233,7 +237,10 @@ public class AccountControllerTests : IDisposable
                 // staff@test.com sits on the Customer client (ClientType 2,
                 // no NpAgentId) — the data-scope claims reflect that.
                 p.HasClaim("ClientTypeId", "2") &&
-                p.HasClaim("NpAgentId", "")),
+                p.HasClaim("NpAgentId", "") &&
+                // Unified Permissions §5 — staff contact has no role; RoleId
+                // dual-writes the same empty value as NpRoleId.
+                p.HasClaim("RoleId", "")),
             Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
     }
 
