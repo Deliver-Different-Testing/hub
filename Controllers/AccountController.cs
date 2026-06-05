@@ -475,6 +475,15 @@ public class AccountController(
         // / 3=NpReadOnly by 20260513123935_NPMarketplaceAndQuotes.sql);
         // consuming apps map ID → friendly name themselves.
         new("NpRoleId", input.ContactRoleId?.ToString() ?? string.Empty),
+        // Unified Permissions (spec v1.1 §5) — RoleId supersedes NpRoleId as
+        // the role claim for ALL contact types (not just NP). Emitted as a
+        // TRANSITIONAL DUAL-WRITE: same value as NpRoleId so already-issued
+        // cookies keep working while consumers migrate to read `RoleId ??
+        // NpRoleId`. NpRoleId is dropped once all sessions have refreshed.
+        // (Role STACKING — a contact holding multiple roles — is resolved
+        // downstream from the existing `ContactID` claim = tucClientContact
+        // PK, which already keys tblContactContactRole; no extra claim needed.)
+        new("RoleId", input.ContactRoleId?.ToString() ?? string.Empty),
         // Phase 5+ data-scope (CLIENT-TYPE-FILTERING) — see ClaimsInput.ClientTypeId.
         // The single signal that downstream apps branch on to build the row-level
         // scope predicate: Customer/Internal → ucjbClientID; NetworkPartner (3) →

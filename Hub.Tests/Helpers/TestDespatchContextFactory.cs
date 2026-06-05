@@ -187,6 +187,7 @@ public static class TestDespatchContextFactory
             HasEmail = true,
             ValidatedEmail = true,
             StaffId = 13,
+            ContactRoleId = 1, // NpAdmin — drives the NpRoleId/RoleId dual-write claims
             Created = DateTime.Now,
             CreatedBy = "test",
             LastModified = DateTime.Now,
