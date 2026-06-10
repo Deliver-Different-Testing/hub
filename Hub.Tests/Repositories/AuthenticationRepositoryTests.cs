@@ -214,6 +214,62 @@ public class AuthenticationRepositoryTests
         Assert.False(result);
     }
 
+    // IsUserAssociatedWithTenantAsync tests
+    [Fact]
+    public async Task IsUserAssociatedWithTenantAsync_Associated_ReturnsTrue()
+    {
+        var repo = CreateRepo();
+
+        // User 1 (staff) is associated with both tenant 1 and tenant 2
+        Assert.True(await repo.IsUserAssociatedWithTenantAsync(1, 2));
+    }
+
+    [Fact]
+    public async Task IsUserAssociatedWithTenantAsync_NotAssociated_ReturnsFalse()
+    {
+        var repo = CreateRepo();
+
+        // User 2 (courier) is only associated with tenant 1, not tenant 2
+        Assert.False(await repo.IsUserAssociatedWithTenantAsync(2, 2));
+    }
+
+    // CreateUserAsync tests
+    [Fact]
+    public async Task CreateUserAsync_TenantUser_SetsIsNetworkPartnerFalseWithResetKey()
+    {
+        var repo = CreateRepo();
+
+        var user = await repo.CreateUserAsync("newtenant@test.com", 1, isNetworkPartner: false);
+
+        Assert.NotNull(user);
+        Assert.False(user!.IsNetworkPartner!.Value);
+        Assert.False(user.IsCourier ?? false);
+        Assert.False(string.IsNullOrEmpty(user.ResetKey));
+        Assert.Equal(1, user.CurrentTenantId);
+    }
+
+    [Fact]
+    public async Task CreateUserAsync_ExistingEmail_ReturnsNull()
+    {
+        var repo = CreateRepo();
+
+        // staff@test.com already exists in Master.User (seed UserId 1).
+        var user = await repo.CreateUserAsync("staff@test.com", 1, isNetworkPartner: false);
+
+        Assert.Null(user);
+    }
+
+    [Fact]
+    public async Task CreateNpUserAsync_StillSetsIsNetworkPartnerTrue()
+    {
+        var repo = CreateRepo();
+
+        var user = await repo.CreateNpUserAsync("newnp@test.com", 1);
+
+        Assert.NotNull(user);
+        Assert.True(user!.IsNetworkPartner!.Value);
+    }
+
     // GetUserSettings tests
     [Fact]
     public async Task GetUserSettings_WithSettings_ReturnsSettings()

@@ -522,15 +522,17 @@ public class AccountControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateCurrentTenant_UpdateFails_ReturnsFailure()
+    public async Task UpdateCurrentTenant_NotAssociated_ReturnsFailure()
     {
         var user = ClaimsPrincipalFactory.Create(userId: 2);
         var (controller, _, _) = CreateController(user);
 
-        // User 2 not associated with tenant 2
+        // User 2 not associated with tenant 2 — blocked at the master-side access gate
+        // before any DB write or Despatch lookup is attempted.
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
 
-        AssertHelper.JsonEquivalent(new { success = false, message = "Update database failed" }, result!.Value);
+        AssertHelper.JsonEquivalent(
+            new { success = false, message = "You don't have access to that tenant." }, result!.Value);
     }
 
     [Fact]
@@ -1088,33 +1090,46 @@ public class AccountControllerTests : IDisposable
         }
     }
 
-    // UpdateCurrentTenant - CurrentTenant null after update
+    // UpdateCurrentTenant - associated with a tenant that has no DB connection
     [Fact]
-    public async Task UpdateCurrentTenant_TenantNotInDb_ReturnsFailure()
+    public async Task UpdateCurrentTenant_TenantHasNoConnection_ReturnsFailureWithoutWriting()
     {
         var user = ClaimsPrincipalFactory.Create(userId: 1, email: "staff@test.com");
         var (controller, masterCtx, _) = CreateController(user);
-        // Add tenant-user link for non-existent tenant
+        // Associate the user with a tenant id that has no Tenant row (no Dbconnection).
         masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 40, TenantId = 999, UserId = 1 });
         await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 999 }) as JsonResult;
 
         AssertHelper.JsonEquivalent(
-            new { success = false, message = "Current Tenant Not Set for user 1" }, result!.Value);
+            new { success = false,
+                message = "That tenant isn't fully configured (no database connection). Contact an administrator." },
+            result!.Value);
+        // Validate-before-write: the bad switch must not have been persisted.
+        var persisted = masterCtx.Users.Find(1)!;
+        Assert.Equal(1, persisted.CurrentTenantId);
     }
 
-    // UpdateCurrentTenant - Despatch user not found
+    // UpdateCurrentTenant - associated in Master but no Despatch contact in the target tenant.
+    // This is the provisioning-gap that previously stranded users (e.g. Eve on dfrnt):
+    // the switch must be refused AND CurrentTenant left unchanged.
     [Fact]
-    public async Task UpdateCurrentTenant_DespatchUserNotFound_ReturnsFailure()
+    public async Task UpdateCurrentTenant_NoDespatchContact_ReturnsFailureWithoutWriting()
     {
         var user = ClaimsPrincipalFactory.Create(userId: 1, email: "nodespatch@test.com");
-        var (controller, _, _) = CreateController(user);
+        var (controller, masterCtx, _) = CreateController(user);
 
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
 
         AssertHelper.JsonEquivalent(
-            new { success = false, message = "Despatch User not found" }, result!.Value);
+            new { success = false,
+                message = "Your account isn't set up in that tenant yet — there's no operator record for "
+                        + "nodespatch@test.com there. Ask an administrator to add you to that tenant before switching." },
+            result!.Value);
+        // The corrupting write that caused the original incident must not happen.
+        var persisted = masterCtx.Users.Find(1)!;
+        Assert.Equal(1, persisted.CurrentTenantId);
     }
 
     private static void SetFormValues(AccountController controller, string reCaptchaToken)

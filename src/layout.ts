@@ -21,6 +21,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Surface a tenant-switch failure to the user. The backend returns an
+    // actionable `message` (e.g. "no operator record in that tenant — ask an
+    // administrator"); previously it was discarded to console only, so the
+    // switcher just stopped spinning with no explanation. Render it as a
+    // dismissible, auto-expiring Bootstrap alert pinned top-right.
+    function showTenantSwitchError(message: string): void {
+        let alert = document.getElementById('tenantSwitchError');
+        if (!alert) {
+            alert = document.createElement('div');
+            alert.id = 'tenantSwitchError';
+            alert.setAttribute('role', 'alert');
+            alert.className = 'alert alert-danger position-fixed top-0 end-0 m-3 shadow';
+            alert.style.zIndex = '1080';
+            alert.style.maxWidth = '420px';
+            document.body.appendChild(alert);
+        }
+        alert.textContent = message;
+        window.clearTimeout((alert as HTMLElement & { _hideTimer?: number })._hideTimer);
+        (alert as HTMLElement & { _hideTimer?: number })._hideTimer = window.setTimeout(() => {
+            alert?.remove();
+        }, 8000);
+    }
+
     if (dropdownMenu) {
         dropdownMenu.addEventListener('click', async e => {
             const target = e.target as HTMLElement;
@@ -67,7 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             window.location.reload();
                         }
                     } else {
-                        console.error('Failed to update tenant');
+                        const message = typeof data.message === 'string' && data.message.length > 0
+                            ? data.message
+                            : 'Could not switch tenant. Please try again.';
+                        console.error('Failed to update tenant:', message);
+                        showTenantSwitchError(message);
                         setTenantLoading(false);
                     }
                 } catch (error) {

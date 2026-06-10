@@ -30,10 +30,27 @@ public class AdminUsersController(
 
     public record CreateNpUserResponse(int UserId, string Email, bool InviteEmailSent);
 
+    // Network Partner provisioning — the original §B.1 cascade. Stamps
+    // IsNetworkPartner=true. Left on the bare POST route for back-compat with
+    // the existing configurator NP cascade.
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromHeader(Name = "X-Api-Key")] string? apiKey,
         [FromBody] CreateNpUserRequest request)
+        => await ProvisionAsync(apiKey, request, isNetworkPartner: true, kind: "CreateNpUser");
+
+    // Tenant-user provisioning — called by the configurator's Team-page create
+    // cascade. Same flow as the NP path but IsNetworkPartner=false. This closes
+    // the gap where tenant users got a tucClientContact + role rows but NO
+    // Master.User, leaving them unable to log in or reset their password.
+    [HttpPost("tenant")]
+    public async Task<IActionResult> CreateTenantUser(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromBody] CreateNpUserRequest request)
+        => await ProvisionAsync(apiKey, request, isNetworkPartner: false, kind: "CreateTenantUser");
+
+    private async Task<IActionResult> ProvisionAsync(
+        string? apiKey, CreateNpUserRequest request, bool isNetworkPartner, string kind)
     {
         if (!IsApiKeyValid(apiKey))
             return Unauthorized();
@@ -48,10 +65,11 @@ public class AdminUsersController(
         try
         {
             // Step 1 — Master DB user row + ResetKey.
-            var user = await authenticationRepository.CreateNpUserAsync(request.Email, request.CurrentTenantId);
+            var user = await authenticationRepository.CreateUserAsync(
+                request.Email, request.CurrentTenantId, isNetworkPartner);
             if (user is null)
             {
-                Log.Warning("CreateNpUser: email {Email} already exists in Master.User", request.Email);
+                Log.Warning("{Kind}: email {Email} already exists in Master.User", kind, request.Email);
                 return Conflict(new { error = $"A Hub user with email \"{request.Email}\" already exists." });
             }
 
@@ -64,8 +82,8 @@ public class AdminUsersController(
                 // Master.User is now created but tenant lookup failed —
                 // surface partial state to caller per the partial-failure
                 // UX decision (no rollback; caller surfaces + retries).
-                Log.Error("CreateNpUser: created Master.User {UserId} but tenant {TenantId} has no connection string; invite email NOT sent.",
-                    user.UserId, request.CurrentTenantId);
+                Log.Error("{Kind}: created Master.User {UserId} but tenant {TenantId} has no connection string; invite email NOT sent.",
+                    kind, user.UserId, request.CurrentTenantId);
                 return Ok(new CreateNpUserResponse(user.UserId, user.Email, InviteEmailSent: false));
             }
             SetTenantConnectionString(tenantConnection);
@@ -73,8 +91,8 @@ public class AdminUsersController(
             var contact = await despatchRepository.FetchUserByUsername(request.Email);
             if (contact is null)
             {
-                Log.Error("CreateNpUser: Master.User {UserId} created, but no tucClientContact with UserName={Email} on tenant {TenantId}; invite email NOT sent.",
-                    user.UserId, request.Email, request.CurrentTenantId);
+                Log.Error("{Kind}: Master.User {UserId} created, but no tucClientContact with UserName={Email} on tenant {TenantId}; invite email NOT sent.",
+                    kind, user.UserId, request.Email, request.CurrentTenantId);
                 return Ok(new CreateNpUserResponse(user.UserId, user.Email, InviteEmailSent: false));
             }
 
@@ -91,8 +109,8 @@ public class AdminUsersController(
             try
             {
                 await despatchRepository.InitiatePasswordReset(contact.UcctId, request.Email, reply, link);
-                Log.Information("CreateNpUser: provisioned Master.User {UserId} ({Email}) on tenant {TenantId}; invite email dispatched via tenant proc.",
-                    user.UserId, request.Email, request.CurrentTenantId);
+                Log.Information("{Kind}: provisioned Master.User {UserId} ({Email}) on tenant {TenantId}; invite email dispatched via tenant proc.",
+                    kind, user.UserId, request.Email, request.CurrentTenantId);
                 return CreatedAtAction(nameof(Create), null,
                     new CreateNpUserResponse(user.UserId, user.Email, InviteEmailSent: true));
             }
@@ -102,15 +120,15 @@ public class AdminUsersController(
                 // the email-send fell over. Configurator surfaces this
                 // to the operator with a retry-invite affordance.
                 Log.Error(emailEx,
-                    "CreateNpUser: Master.User {UserId} created but invite-email send failed for tenant {TenantId}.",
-                    user.UserId, request.CurrentTenantId);
+                    "{Kind}: Master.User {UserId} created but invite-email send failed for tenant {TenantId}.",
+                    kind, user.UserId, request.CurrentTenantId);
                 return Ok(new CreateNpUserResponse(user.UserId, user.Email, InviteEmailSent: false));
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "CreateNpUser unexpected failure for {Email} on tenant {TenantId}",
-                request?.Email, request?.CurrentTenantId);
+            Log.Error(ex, "{Kind} unexpected failure for {Email} on tenant {TenantId}",
+                kind, request?.Email, request?.CurrentTenantId);
             return StatusCode(500);
         }
     }

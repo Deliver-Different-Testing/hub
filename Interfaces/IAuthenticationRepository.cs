@@ -13,6 +13,7 @@ public interface IAuthenticationRepository
     Task<User?> GetUserByResetKey(string resetKey);
     Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId);
     Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId);
+    Task<bool> IsUserAssociatedWithTenantAsync(int userId, int tenantId);
     Task<string?> GetTenantTimeZoneAsync(int tenantId);
     Task<string?> GetTenantConnectionStringAsync(int tenantId);
 
@@ -28,4 +29,10 @@ public interface IAuthenticationRepository
     // (the caller should surface that as a 409 — re-invite-existing is a
     // separate slice).
     Task<User?> CreateNpUserAsync(string email, int currentTenantId);
+
+    // Generalised provisioning shared by the NP cascade and the configurator's
+    // tenant-user (Team page) cascade. Creates a Master DB User row with an empty
+    // password and a fresh ResetKey for the invite-email link; isNetworkPartner
+    // toggles only the data-scope flag. Returns null when the email already exists.
+    Task<User?> CreateUserAsync(string email, int currentTenantId, bool isNetworkPartner);
 }

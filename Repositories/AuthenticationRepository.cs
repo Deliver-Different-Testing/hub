@@ -103,6 +103,10 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             .Select(t => t.Dbconnection)
             .FirstOrDefaultAsync();
 
+    public async Task<bool> IsUserAssociatedWithTenantAsync(int userId, int tenantId) =>
+        await context.TenantUsers
+            .AnyAsync(tu => tu.UserId == userId && tu.TenantId == tenantId);
+
     public async Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId)
     {
         var user = await context.Users.FindAsync(userId);
@@ -110,10 +114,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
         if (user == null) return false;
 
         // Check if the user is associated with the tenant
-        var isAssociated = await context.TenantUsers
-            .AnyAsync(tu => tu.UserId == userId && tu.TenantId == tenantId);
-
-        if (!isAssociated)
+        if (!await IsUserAssociatedWithTenantAsync(userId, tenantId))
             return false;
 
         user.CurrentTenantId = tenantId;
@@ -130,7 +131,10 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
         }
     }
 
-    public async Task<User?> CreateNpUserAsync(string email, int currentTenantId)
+    public async Task<User?> CreateNpUserAsync(string email, int currentTenantId) =>
+        await CreateUserAsync(email, currentTenantId, isNetworkPartner: true);
+
+    public async Task<User?> CreateUserAsync(string email, int currentTenantId, bool isNetworkPartner)
     {
         // 409-shape: don't insert if email already exists in Master.User.
         // Caller surfaces this to the operator as "user already exists in
@@ -152,7 +156,10 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             IsLegacyHash = false,
             ResetKey = Guid.NewGuid().ToString(),
             CurrentTenantId = currentTenantId,
-            IsNetworkPartner = true,
+            // Tenant users (configurator Team page) and Network Partners share
+            // this provisioning path; only the IsNetworkPartner data-scope flag
+            // differs. Neither is a courier.
+            IsNetworkPartner = isNetworkPartner,
             IsCourier = false,
         };
 

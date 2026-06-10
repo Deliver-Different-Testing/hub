@@ -598,11 +598,49 @@ public class AccountController(
         if (model == null || model.TenantId == 0)
             return Json(new { success = false, message = "Invalid tenant ID" });
 
-        var success = await authenticationRepository.UpdateCurrentTenantIdAsync(int.Parse(userId), model.TenantId);
+        var userIdInt = int.Parse(userId);
+        var email = User.Identity?.Name ?? string.Empty;
+
+        // Master-side access gate: the user must be linked to the target tenant.
+        if (!await authenticationRepository.IsUserAssociatedWithTenantAsync(userIdInt, model.TenantId))
+            return Json(new { success = false, message = "You don't have access to that tenant." });
+
+        // Resolve the target tenant's Despatch DB WITHOUT persisting the switch yet.
+        var tenantConnection = await authenticationRepository.GetTenantConnectionStringAsync(model.TenantId);
+        if (string.IsNullOrEmpty(tenantConnection))
+        {
+            Log.Error("Tenant switch blocked: tenant {TenantId} has no database connection (user {UserId}).",
+                model.TenantId, userId);
+            return Json(new { success = false,
+                message = "That tenant isn't fully configured (no database connection). Contact an administrator." });
+        }
+
+        // Validate-before-write: confirm the user actually has an active operator
+        // record (tucClientContact) in the target tenant's Despatch DB BEFORE we
+        // commit CurrentTenantId. Persisting first and only then discovering the
+        // missing contact is what used to strand users on an unusable tenant —
+        // CurrentTenant pointed at a DB with no contact, silently breaking both
+        // login and password-reset until the row was corrected by hand.
+        SetTenantConnectionString(tenantConnection);
+        var user = await despatchRepository.FetchUserByUsername(email);
+
+        if (user == null)
+        {
+            Log.Warning(
+                "Tenant switch blocked: user {UserId} ({Email}) is associated with tenant {TenantId} in Master "
+                + "but has no active tucClientContact there — provisioning gap; CurrentTenant left unchanged.",
+                userIdInt, email, model.TenantId);
+            return Json(new { success = false,
+                message = $"Your account isn't set up in that tenant yet — there's no operator record for {email} "
+                        + "there. Ask an administrator to add you to that tenant before switching." });
+        }
+
+        // Contact verified — now it's safe to persist the tenant switch.
+        var success = await authenticationRepository.UpdateCurrentTenantIdAsync(userIdInt, model.TenantId);
 
         if (!success) return Json(new { success = false, message = "Update database failed" });
 
-        var masterUser = await authenticationRepository.GetUserById(int.Parse(userId));
+        var masterUser = await authenticationRepository.GetUserById(userIdInt);
 
         if (masterUser == null)
         {
@@ -633,15 +671,6 @@ public class AccountController(
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
-
-        var email = User.Identity?.Name ?? string.Empty;
-        var user = await despatchRepository.FetchUserByUsername(email);
-
-        if (user == null)
-        {
-            Log.Debug("Failed to authenticate Despatch User {IdentityName}. Invalid username.", email);
-            return Json(new { success = false, message = "Despatch User not found" });
-        }
 
         var rememberMe = bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe, masterUser.CurrentTenant.TenantId);
