@@ -14,6 +14,11 @@
     // CourierManager intentionally NOT included — superseded by the
     // configurator's NP view per the NP-VISIBILITY-MATRIX.
     var isNetworkPartner = bool.TryParse(User.FindFirst("IsNetworkPartner")?.Value, out var inp) && inp;
+    // Phase 5+31 R2 §2 follow-up — Tenant (ClientType=4) is a first-class tile
+    // branch below. The ClientTypeId claim already rides the cookie
+    // (AccountController:493), so we read it here like the courier / NP flags.
+    var clientTypeId = int.TryParse(User.FindFirst("ClientTypeId")?.Value, out var ctid) ? (int?)ctid : null;
+    var isTenant = clientTypeId == 4;
     var bulkUploadPermission = Model.BulkUploadPermission;
 
     var isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
@@ -87,6 +92,85 @@
                 <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
                     <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
                     <div class="app-card-title">Route Viewer</div>
+                </a>
+            }
+        </div>
+    }
+    else if (isTenant && !clientInternal)
+    {
+        // Phase 5+31 R2 §2 follow-up — Tenant (ClientType=4) tile set.
+        // Tenant staff were previously misrouted into the Customer branch
+        // (no Tenant branch existed) and so never saw Dispatch / Workflows,
+        // even though the ClientType×Feature matrix marks them visible for
+        // CT4 (seed 20260527090000_FeatureAndClientTypeFeatureMatrix). Each
+        // tile gates on the matrix-resolved Model.VisibleFeatures so admins
+        // tune the tenant set in the configurator Feature Matrix without a
+        // code change. Legacy UcclInternal=1 "internal" users still fall
+        // through to the all-tiles internal-staff branch below (the
+        // isTenant guard requires !clientInternal), so existing internal
+        // staff are not regressed.
+        <div class="app-grid">
+            @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
+            {
+                <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
+                    <div class="app-card-title">Booking/Job List</div>
+                </a>
+            }
+            @if (bulkUploadPermission)
+            {
+                <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
+                    <div class="app-card-title">Bulk Import</div>
+                </a>
+            }
+            @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
+            {
+                <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
+                    <div class="app-card-title">Job Search</div>
+                </a>
+            }
+            @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
+            {
+                <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                    <div class="app-card-title">Dispatch</div>
+                </a>
+            }
+            @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
+            {
+                <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                    <div class="app-card-title">Workflows</div>
+                </a>
+            }
+            @if (Model.VisibleFeatures.Contains("hub-tile-couriermanager"))
+            {
+                <a class="app-card" href="@AppUrl("couriermanager")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
+                    <div class="app-card-title">Courier Manager</div>
+                </a>
+            }
+            @if (!isUrgentAsureUser)
+            {
+                <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
+                    <div class="app-card-title">Print</div>
+                </a>
+                @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
+                {
+                    <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
+                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                        <div class="app-card-title">Route Viewer</div>
+                    </a>
+                }
+            }
+            @if (showFuelLink)
+            {
+                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-title">Fuel Surcharge</div>
                 </a>
             }
         </div>
