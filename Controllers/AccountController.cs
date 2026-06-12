@@ -70,7 +70,8 @@ public class AccountController(
                 model.IsCourierLogin);
             ViewBag.LoginFailed = true;
             var loginTypeText = model.IsCourierLogin ? "Courier Login" : "Staff Login";
-            ModelState.AddModelError(string.Empty, $"Invalid login attempt. No {loginTypeText} account found for this email.");
+            ModelState.AddModelError(string.Empty,
+                $"Invalid login attempt. No {loginTypeText} account found for this email.");
             return View(model);
         }
 
@@ -110,7 +111,8 @@ public class AccountController(
                     "User {ModelEmail} is marked as courier but no active tucCourier record found in Despatch DB",
                     model.Email);
                 ViewBag.LoginFailed = true;
-                ModelState.AddModelError(string.Empty, "Invalid login attempt. Courier account not properly configured.");
+                ModelState.AddModelError(string.Empty,
+                    "Invalid login attempt. Courier account not properly configured.");
                 return View(model);
             }
 
@@ -154,7 +156,8 @@ public class AccountController(
                 return View(model);
             }
 
-            await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe, masterUser.CurrentTenant.TenantId);
+            await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe,
+                masterUser.CurrentTenant.TenantId);
 
             var claims = GenerateClaims(
                 BuildStaffClaimsInput(masterUser, user, accountsMode, model.RememberMe, model.Email));
@@ -467,8 +470,8 @@ public class AccountController(
         new("IsNetworkPartner", input.IsNetworkPartner.ToString()),
         new("CourierID", input.CourierId?.ToString() ?? string.Empty),
         new("AccountsMode", input.AccountsMode?.ToString() ?? "1"),
-        new("FirstName", input.FirstName ?? string.Empty),
-        new("Surname", input.Surname ?? string.Empty),
+        new("FirstName", input.FirstName),
+        new("Surname", input.Surname),
         // Phase 5+28a §B.1 — see ClaimsInput.ContactRoleId. Emitting the
         // raw ID rather than a friendly name keeps Hub agnostic to the
         // tenant-DB tblContactRole table (seeded 1=NpAdmin / 2=NpDispatcher
@@ -540,7 +543,8 @@ public class AccountController(
         connectionStringManager.SetConnectionString(dbConnection + credentials);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Obsolete", "CS0618", Justification = "Legacy hash needed to verify users not yet upgraded")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Obsolete", "CS0618",
+        Justification = "Legacy hash needed to verify users not yet upgraded")]
     private static bool VerifyPassword(string password, string salt, string storedHash, bool isLegacy)
     {
         var hash = isLegacy
@@ -611,8 +615,11 @@ public class AccountController(
         {
             Log.Error("Tenant switch blocked: tenant {TenantId} has no database connection (user {UserId}).",
                 model.TenantId, userId);
-            return Json(new { success = false,
-                message = "That tenant isn't fully configured (no database connection). Contact an administrator." });
+            return Json(new
+            {
+                success = false,
+                message = "That tenant isn't fully configured (no database connection). Contact an administrator."
+            });
         }
 
         // Validate-before-write: confirm the user actually has an active operator
@@ -630,9 +637,12 @@ public class AccountController(
                 "Tenant switch blocked: user {UserId} ({Email}) is associated with tenant {TenantId} in Master "
                 + "but has no active tucClientContact there — provisioning gap; CurrentTenant left unchanged.",
                 userIdInt, email, model.TenantId);
-            return Json(new { success = false,
+            return Json(new
+            {
+                success = false,
                 message = $"Your account isn't set up in that tenant yet — there's no operator record for {email} "
-                        + "there. Ask an administrator to add you to that tenant before switching." });
+                          + "there. Ask an administrator to add you to that tenant before switching."
+            });
         }
 
         // Contact verified — now it's safe to persist the tenant switch.
@@ -688,7 +698,8 @@ public class AccountController(
         // The frontend redirects the browser there; the destination Hub validates the
         // token and issues a fresh cookie scoped to its own subdomain. This restores
         // "URL matches active tenant" once the user lands.
-        var destHost = BuildDestinationHubHost(HttpContext.Request.Host.Host, masterUser.CurrentTenant.Code ?? string.Empty);
+        var destHost =
+            BuildDestinationHubHost(HttpContext.Request.Host.Host, masterUser.CurrentTenant.Code ?? string.Empty);
         if (destHost == null)
         {
             // Couldn't infer destination — return success without a redirectUrl so
@@ -698,12 +709,13 @@ public class AccountController(
 
         var token = JsonSerializer.Serialize(new
         {
-            UserId = masterUser.UserId,
-            TenantId = masterUser.CurrentTenant.TenantId,
+            masterUser.UserId,
+            masterUser.CurrentTenant.TenantId,
             ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
         });
         var encryptedToken = EncryptClaims(token, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
-        var redirectUrl = $"https://{destHost}/Account/AcceptTenantSwitchToken?t={Uri.EscapeDataString(encryptedToken)}";
+        var redirectUrl =
+            $"https://{destHost}/Account/AcceptTenantSwitchToken?t={Uri.EscapeDataString(encryptedToken)}";
 
         return Json(new { success = true, redirectUrl });
     }
@@ -758,7 +770,8 @@ public class AccountController(
             !string.Equals(hostTenant, masterUser.CurrentTenant.Code, StringComparison.OrdinalIgnoreCase) ||
             masterUser.CurrentTenant.TenantId != payload.TenantId)
         {
-            Log.Warning("AcceptTenantSwitchToken: token tenant {TokenTenant}/{TokenCode} does not match host {HostTenant} (user {UserId})",
+            Log.Warning(
+                "AcceptTenantSwitchToken: token tenant {TokenTenant}/{TokenCode} does not match host {HostTenant} (user {UserId})",
                 payload.TenantId, masterUser.CurrentTenant.Code, hostTenant, payload.UserId);
             return RedirectToAction("Login");
         }
@@ -805,7 +818,7 @@ public class AccountController(
         if (string.IsNullOrWhiteSpace(destinationTenantCode)) return null;
         if (ParseHost(requestHost) is not { } parsed) return null;
         var env = parsed.Env;
-        if (env == "local" || env == "dev") return null;
+        if (env is "local" or "dev") return null;
 
         var isStackTenant = string.Equals(destinationTenantCode, StackTenantCode, StringComparison.OrdinalIgnoreCase);
 
@@ -814,9 +827,9 @@ public class AccountController(
 
         return (env, isStackTenant) switch
         {
-            (null, _)        => $"hub.{destinationTenantCode}.deliverdifferent.com",
-            (_, true)        => $"hub.{env}.deliverdifferent.com",
-            (_, false)       => $"hub.{destinationTenantCode}.{env}.deliverdifferent.com"
+            (null, _) => $"hub.{destinationTenantCode}.deliverdifferent.com",
+            (_, true) => $"hub.{env}.deliverdifferent.com",
+            (_, false) => $"hub.{destinationTenantCode}.{env}.deliverdifferent.com"
         };
     }
 
@@ -827,10 +840,11 @@ public class AccountController(
     public static string? ExtractTenantFromHost(string host)
     {
         if (ParseHost(host) is not { } parsed) return null;
-        if (parsed.Env == "local" || parsed.Env == "dev") return null;
+        if (parsed.Env is "local" or "dev") return null;
         // Staging-bare host (hub.staging.deliverdifferent.com) serves the stack tenant.
-        if (parsed.Env == "staging" && parsed.Tenant == null) return StackTenantCode;
-        return parsed.Tenant;
+        return parsed is { Env: "staging", Tenant: null }
+            ? StackTenantCode
+            : parsed.Tenant;
     }
 
     /// <summary>
@@ -852,15 +866,16 @@ public class AccountController(
         // Middle segments sit between parts[0] and the trailing "deliverdifferent.com" pair.
         var middle = parts[1..^2];
 
-        static bool IsEnv(string s) => s.Equals("staging", StringComparison.OrdinalIgnoreCase)
-                                    || s.Equals("local", StringComparison.OrdinalIgnoreCase)
-                                    || s.Equals("dev", StringComparison.OrdinalIgnoreCase);
+        return middle.Length switch
+        {
+            1 => IsEnv(middle[0]) ? (middle[0].ToLowerInvariant(), null) : (null, middle[0]),
+            2 when IsEnv(middle[1]) => (middle[1].ToLowerInvariant(), middle[0]),
+            _ => null
+        };
 
-        if (middle.Length == 1)
-            return IsEnv(middle[0]) ? (middle[0].ToLowerInvariant(), null) : (null, middle[0]);
-        if (middle.Length == 2 && IsEnv(middle[1]))
-            return (middle[1].ToLowerInvariant(), middle[0]);
-        return null;
+        static bool IsEnv(string s) => s.Equals("staging", StringComparison.OrdinalIgnoreCase)
+                                       || s.Equals("local", StringComparison.OrdinalIgnoreCase)
+                                       || s.Equals("dev", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string EncryptClaims(string claims, string key)
