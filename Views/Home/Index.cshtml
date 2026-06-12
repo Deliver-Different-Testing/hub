@@ -1,6 +1,7 @@
 @model Hub.ViewModels.HomeViewModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "App Hub";
+    ViewBag.PageId = "home";
 
     var contactId = Model.ContactId;
     var userEmail = Model.UserEmail;
@@ -37,12 +38,10 @@
 
     var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 }
-<script>const ContactID = '@contactId';</script>
-
-<div id="urgent-hub">
+<div id="urgent-hub" class="hub-surface" data-contact-id="@contactId">
     <div class="hub-header">
         <div class="hub-brand">
-            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver Different" })
+            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver DFRNT" })
             <span class="hub-eyebrow">App Hub</span>
         </div>
         <p class="hub-subtitle">@dateLabel</p>
@@ -298,3 +297,7 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="~/dist/home.js" asp-append-version="true"></script>
+}

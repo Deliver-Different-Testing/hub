@@ -66,6 +66,7 @@ public partial class EmailValidationRegexTests
     [InlineData("@missing-local.com")]
     [InlineData("missing-domain@")]
     public void LoginRegex_RejectsInvalidEmails(string email) => Assert.DoesNotMatch(_loginRegex, email);
-    [GeneratedRegex(@"const re = /(.+)/;")]
+    // Accept either name — login.ts uses EMAIL_REGEX; forgot-password.ts still uses `re`.
+    [GeneratedRegex(@"const (?:re|EMAIL_REGEX) = /(.+)/;")]
     private static partial Regex MyRegex();
 }
