@@ -1,5 +1,4 @@
 using Hub.Interfaces;
-using Hub.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Services;
@@ -41,17 +40,15 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         // tenant Administrator (UserGroupID=1 on a ClientTypeId=4 client) is NOT
         // treated as a DF admin — was a caller-supplied isDfAdmin bool keyed on
         // UserGroupID==1; switched to match the configurator's signal.
-        if (clientTypeId == 5)
-        {
-            var allKeys = await context.ClientTypeFeatures
-                .AsNoTracking()
-                .Where(ctf => ctf.Visible)
-                .Select(ctf => ctf.FeatureKey)
-                .Distinct()
-                .ToListAsync();
-            return new HashSet<string>(allKeys, StringComparer.OrdinalIgnoreCase);
-        }
-
-        return await ResolveVisibleFeaturesAsync(clientTypeId);
+        if (clientTypeId != 5) return await ResolveVisibleFeaturesAsync(clientTypeId);
+ 
+        var allKeys = await context.ClientTypeFeatures
+            .AsNoTracking()
+            .Where(ctf => ctf.Visible)
+            .Select(ctf => ctf.FeatureKey)
+            .Distinct()
+            .ToListAsync();
+        
+        return new HashSet<string>(allKeys, StringComparer.OrdinalIgnoreCase);
     }
 }

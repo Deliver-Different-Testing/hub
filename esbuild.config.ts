@@ -35,6 +35,8 @@ const configs: BuildOptions[] = [
       'src/forgot-password.ts',
       'src/reset-password.ts',
       'src/settings.ts',
+      'src/home.ts',
+      'src/fuel-surcharge.ts',
     ],
   },
   {

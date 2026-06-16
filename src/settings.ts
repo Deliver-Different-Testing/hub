@@ -1,50 +1,42 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const generateButton = document.getElementById('generateApiKey');
-    if (generateButton) {
-        generateButton.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/Account/GenerateAPIKey', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': (document.querySelector('input[name="__RequestVerificationToken"]') as HTMLInputElement).value
-                    }
-                });
+interface GenerateApiKeyResponse {
+    success: boolean;
+    apiKey?: string;
+    message?: string;
+}
 
-                if (!response.ok) {
-                    document.getElementById('apiKeyError')!.textContent = 'Failed to generate API key';
-                    document.getElementById('ApiKey')!.classList.add('is-invalid');
-                    return;
-                }
+const COPIED_RESET_DELAY_MS = 2000;
 
-                const result = await response.json();
-                if (result.success) {
-                    (document.getElementById('ApiKey') as HTMLInputElement).value = result.apiKey;
-                    const copyButton = document.createElement('button');
-                    copyButton.type = 'button';
-                    copyButton.className = 'btn btn-outline-secondary';
-                    copyButton.id = 'copyApiKey';
-                    copyButton.title = 'Copy to clipboard';
-                    copyButton.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">content_copy</span> Copy';
-                    copyButton.addEventListener('click', copyApiKeyToClipboard);
-                    generateButton.parentNode!.replaceChild(copyButton, generateButton);
-                } else {
-                    document.getElementById('apiKeyError')!.textContent = result.message || 'Failed to generate API key';
-                    document.getElementById('ApiKey')!.classList.add('is-invalid');
-                }
-            } catch (error) {
-                document.getElementById('apiKeyError')!.textContent = 'An error occurred while generating the API key';
-                document.getElementById('ApiKey')!.classList.add('is-invalid');
-                console.error('Error:', error);
-            }
-        });
-    }
+function getRequestVerificationToken(): string {
+    return document.querySelector<HTMLInputElement>('input[name="__RequestVerificationToken"]')!.value;
+}
 
-    const copyButton = document.getElementById('copyApiKey');
-    if (copyButton) {
-        copyButton.addEventListener('click', copyApiKeyToClipboard);
-    }
-});
+function showApiKeyError(message: string): void {
+    const errorEl = document.getElementById('apiKeyError');
+    const inputEl = document.getElementById('ApiKey');
+    if (errorEl) errorEl.textContent = message;
+    if (inputEl) inputEl.classList.add('is-invalid');
+}
+
+function setButtonIcon(btn: HTMLButtonElement, iconName: string, label: string): void {
+    btn.replaceChildren();
+    const span = document.createElement('span');
+    span.className = 'material-symbols-outlined';
+    span.style.fontSize = '18px';
+    span.style.verticalAlign = 'middle';
+    span.textContent = iconName;
+    btn.append(span, ` ${label}`);
+}
+
+function createCopyButton(): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline-secondary';
+    btn.id = 'copyApiKey';
+    btn.title = 'Copy to clipboard';
+    setButtonIcon(btn, 'content_copy', 'Copy');
+    btn.addEventListener('click', copyApiKeyToClipboard);
+    return btn;
+}
 
 async function copyApiKeyToClipboard(): Promise<void> {
     const apiKeyInput = document.getElementById('ApiKey') as HTMLInputElement;
@@ -52,15 +44,51 @@ async function copyApiKeyToClipboard(): Promise<void> {
 
     try {
         await navigator.clipboard.writeText(apiKeyInput.value);
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">check</span> Copied!';
+        setButtonIcon(btn, 'check', 'Copied!');
         btn.classList.replace('btn-outline-secondary', 'btn-success');
 
         setTimeout(() => {
-            btn.innerHTML = originalContent;
+            setButtonIcon(btn, 'content_copy', 'Copy');
             btn.classList.replace('btn-success', 'btn-outline-secondary');
-        }, 2000);
+        }, COPIED_RESET_DELAY_MS);
     } catch (err) {
         console.error('Failed to copy text:', err);
     }
 }
+
+async function generateApiKey(): Promise<void> {
+    try {
+        const response = await fetch('/Account/GenerateAPIKey', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getRequestVerificationToken(),
+            },
+        });
+
+        if (!response.ok) {
+            showApiKeyError('Failed to generate API key');
+            return;
+        }
+
+        const result = await response.json() as GenerateApiKeyResponse;
+        if (!result.success) {
+            showApiKeyError(result.message ?? 'Failed to generate API key');
+            return;
+        }
+
+        const apiKeyInput = document.getElementById('ApiKey') as HTMLInputElement;
+        apiKeyInput.value = result.apiKey ?? '';
+
+        const generateButton = document.getElementById('generateApiKey');
+        generateButton?.parentNode?.replaceChild(createCopyButton(), generateButton);
+    } catch (error) {
+        showApiKeyError('An error occurred while generating the API key');
+        console.error('Error:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('generateApiKey')?.addEventListener('click', generateApiKey);
+    document.getElementById('copyApiKey')?.addEventListener('click', copyApiKeyToClipboard);
+});

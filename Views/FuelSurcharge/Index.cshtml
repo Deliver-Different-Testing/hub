@@ -13,7 +13,7 @@
 <div id="urgent-hub">
     <div class="hub-header">
         <div class="hub-brand">
-            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver Different" })
+            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver DFRNT" })
             <span class="hub-eyebrow">Fuel Surcharge</span>
         </div>
         <p class="hub-subtitle">@dateLabel</p>
@@ -127,85 +127,9 @@
                 }
             </div>
         </section>
-
-        <script>
-            (function () {
-                const table = document.querySelector('.fuel-history-table');
-                if (!table) return;
-                const tbody = table.querySelector('tbody');
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                const totalRows = rows.length;
-                const pageSize = parseInt(table.dataset.fuelPageSize, 10) || totalRows || 1;
-                const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-
-                const pagination = document.querySelector('[data-fuel-pagination]');
-                const status = pagination?.querySelector('[data-fuel-status]');
-                const range = pagination?.querySelector('[data-fuel-range]');
-                const prevBtn = pagination?.querySelector('[data-fuel-prev]');
-                const nextBtn = pagination?.querySelector('[data-fuel-next]');
-                let page = 1;
-
-                function render() {
-                    const start = (page - 1) * pageSize;
-                    const end = Math.min(start + pageSize, totalRows);
-                    rows.forEach((row, i) => {
-                        row.classList.toggle('fuel-row-hidden', i < start || i >= end);
-                    });
-                    if (status) status.textContent = `Page ${page} of ${totalPages}`;
-                    if (range) range.textContent = totalRows === 0
-                        ? 'No records'
-                        : `Showing ${start + 1}–${end} of ${totalRows}`;
-                    if (prevBtn) prevBtn.disabled = page === 1;
-                    if (nextBtn) nextBtn.disabled = page === totalPages;
-                }
-
-                function cellSortValue(row, index) {
-                    const cell = row.children[index];
-                    if (!cell) return '';
-                    const raw = cell.dataset.sortValue ?? cell.textContent ?? '';
-                    return raw.trim();
-                }
-
-                function compareRows(columnIndex, direction) {
-                    const sign = direction === 'descending' ? -1 : 1;
-                    return (a, b) => {
-                        const av = cellSortValue(a, columnIndex);
-                        const bv = cellSortValue(b, columnIndex);
-                        const an = Number(av);
-                        const bn = Number(bv);
-                        const bothNumeric = av !== '' && bv !== '' && !Number.isNaN(an) && !Number.isNaN(bn);
-                        if (bothNumeric) return sign * (an - bn);
-                        return sign * av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
-                    };
-                }
-
-                const sortableHeaders = Array.from(table.querySelectorAll('thead th[data-fuel-sort]'));
-                sortableHeaders.forEach((th, index) => {
-                    th.addEventListener('click', () => {
-                        const current = th.getAttribute('aria-sort');
-                        const next = current === 'ascending' ? 'descending' : 'ascending';
-                        sortableHeaders.forEach(other => other.setAttribute('aria-sort', 'none'));
-                        th.setAttribute('aria-sort', next);
-                        rows.sort(compareRows(index, next));
-                        const frag = document.createDocumentFragment();
-                        rows.forEach(r => frag.appendChild(r));
-                        tbody.appendChild(frag);
-                        page = 1;
-                        render();
-                    });
-                    th.addEventListener('keydown', (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            th.click();
-                        }
-                    });
-                    th.setAttribute('tabindex', '0');
-                    th.setAttribute('role', 'button');
-                });
-
-                if (prevBtn) prevBtn.addEventListener('click', () => { if (page > 1) { page--; render(); } });
-                if (nextBtn) nextBtn.addEventListener('click', () => { if (page < totalPages) { page++; render(); } });
-            })();
-        </script>
     }
 </div>
+
+@section Scripts {
+    <script src="~/dist/fuel-surcharge.js" asp-append-version="true"></script>
+}
