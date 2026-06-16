@@ -62,6 +62,19 @@
                 <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </a>
+            @* Courier-portal cutover: the new React portal is served by the
+               configurator (dfrntdriveconfig) at /drive/{slug}. We ADD it
+               alongside the legacy Courier Portal tile rather than swapping,
+               so couriers can use either while the new portal is validated on
+               staging. The configurator auto-redirects a courier landing at
+               its root into /drive/{slug}/dashboard (App.tsx), so we point at
+               the root and let the SPA derive the (cosmetic) tenant slug —
+               no slug logic duplicated here. Swap out the legacy tile once
+               cutover completes. *@
+            <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                <div class="app-card-title">DFRNT Drive</div>
+            </a>
         </div>
     }
     else if (isNetworkPartner)
