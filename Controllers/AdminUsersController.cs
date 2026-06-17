@@ -1,4 +1,5 @@
 using Hub.Interfaces;
+using Hub.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -48,6 +49,132 @@ public class AdminUsersController(
         [FromHeader(Name = "X-Api-Key")] string? apiKey,
         [FromBody] CreateNpUserRequest request)
         => await ProvisionAsync(apiKey, request, isNetworkPartner: false, kind: "CreateTenantUser");
+
+    // ── Staff password management (configurator Team & Users → Access tab) ───
+    // Item 7b — let a DF-admin reset/set a staff user's Hub password directly,
+    // or trigger the standard reset-email flow, from the configurator. Same
+    // X-Api-Key trust boundary as the provisioning endpoints above. Both look
+    // up the staff (non-courier) Master.User by email; courier logins are a
+    // separate scheme and are explicitly NOT touched here.
+
+    public record SetPasswordRequest(string Email, string Password);
+    public record SetPasswordResponse(int UserId, string Email);
+
+    public record SendResetRequest(string Email);
+    public record SendResetResponse(int UserId, string Email, bool ResetEmailSent);
+
+    // Direct set — hashes and stores the password immediately (operator hands it
+    // to the user out-of-band). Master-DB only; no tenant proc / email involved.
+    [HttpPost("set-password")]
+    public async Task<IActionResult> SetPassword(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromBody] SetPasswordRequest request)
+    {
+        if (!IsApiKeyValid(apiKey))
+            return Unauthorized();
+
+        if (request is null
+            || string.IsNullOrWhiteSpace(request.Email)
+            || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new { error = "Email and Password are required." });
+        }
+        if (request.Password.Trim().Length < 8)
+            return BadRequest(new { error = "Password must be at least 8 characters." });
+
+        try
+        {
+            var user = await authenticationRepository.GetUserByEmail(request.Email.Trim(), isCourier: false);
+            if (user is null)
+            {
+                Log.Warning("SetPassword: no staff Master.User for {Email}", request.Email);
+                return NotFound(new { error = $"No Hub login exists for \"{request.Email}\". Invite the user first." });
+            }
+
+            var hashed = PasswordHelper.SaltHashNewPassword(request.Password.Trim());
+            user.Password = hashed.Hashed;
+            user.Salt = hashed.Salt;
+            user.IsLegacyHash = false;     // freshly hashed with the modern scheme
+            user.ResetKey = null;          // any outstanding reset link is now void
+            await authenticationRepository.SaveAsync();
+
+            Log.Information("SetPassword: set password for Master.User {UserId} ({Email}).", user.UserId, user.Email);
+            return Ok(new SetPasswordResponse(user.UserId, user.Email));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "SetPassword unexpected failure for {Email}", request?.Email);
+            return StatusCode(500);
+        }
+    }
+
+    // Reset email — generates a fresh ResetKey and re-uses the tenant-DB
+    // NET_stpContact_ResetPassword proc (same mechanism as ForgotPassword and
+    // the invite cascade) to email the user a link to set their own password.
+    // Partial-success contract: 200 with ResetEmailSent=false when the key was
+    // stored but the email couldn't be dispatched.
+    [HttpPost("send-reset")]
+    public async Task<IActionResult> SendReset(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromBody] SendResetRequest request)
+    {
+        if (!IsApiKeyValid(apiKey))
+            return Unauthorized();
+
+        if (request is null || string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(new { error = "Email is required." });
+
+        var email = request.Email.Trim();
+        try
+        {
+            var user = await authenticationRepository.GetUserByEmail(email, isCourier: false);
+            if (user is null)
+            {
+                Log.Warning("SendReset: no staff Master.User for {Email}", email);
+                return NotFound(new { error = $"No Hub login exists for \"{email}\". Invite the user first." });
+            }
+
+            user.ResetKey = Guid.NewGuid().ToString();
+            await authenticationRepository.SaveAsync();
+
+            var dbConnection = user.CurrentTenant?.Dbconnection;
+            if (string.IsNullOrEmpty(dbConnection))
+            {
+                Log.Error("SendReset: Master.User {UserId} has no CurrentTenant connection; reset email NOT sent.", user.UserId);
+                return Ok(new SendResetResponse(user.UserId, user.Email, ResetEmailSent: false));
+            }
+            SetTenantConnectionString(dbConnection);
+
+            var contact = await despatchRepository.FetchUserByUsername(email);
+            if (contact is null)
+            {
+                Log.Error("SendReset: Master.User {UserId} reset key set, but no tucClientContact UserName={Email}; reset email NOT sent.",
+                    user.UserId, email);
+                return Ok(new SendResetResponse(user.UserId, user.Email, ResetEmailSent: false));
+            }
+
+            var reply = Environment.GetEnvironmentVariable("ReplyEmail") ?? string.Empty;
+            var baseLink = Environment.GetEnvironmentVariable("ResetBaseLink") ?? string.Empty;
+            var link = $"{baseLink}?code={user.ResetKey}";
+
+            try
+            {
+                await despatchRepository.InitiatePasswordReset(contact.UcctId, email, reply, link);
+                Log.Information("SendReset: dispatched reset email for Master.User {UserId} ({Email}).", user.UserId, user.Email);
+                return Ok(new SendResetResponse(user.UserId, user.Email, ResetEmailSent: true));
+            }
+            catch (Exception emailEx)
+            {
+                Log.Error(emailEx, "SendReset: reset email send failed for Master.User {UserId}.", user.UserId);
+                return Ok(new SendResetResponse(user.UserId, user.Email, ResetEmailSent: false));
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "SendReset unexpected failure for {Email}", email);
+            return StatusCode(500);
+        }
+    }
 
     private async Task<IActionResult> ProvisionAsync(
         string? apiKey, CreateNpUserRequest request, bool isNetworkPartner, string kind)
