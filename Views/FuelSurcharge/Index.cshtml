@@ -47,11 +47,6 @@
                     <div class="fuel-stat">
                         <span class="fuel-stat-label">Visible records</span>
                         <span class="fuel-stat-value">@Model.History.Count</span>
-                        <span class="fuel-stat-caption">
-                            @(Model.CurrentAverageRate.HasValue
-                                ? "Avg current " + FormatPercent(Model.CurrentAverageRate)
-                                : "No current rates")
-                        </span>
                     </div>
                 </div>
 
