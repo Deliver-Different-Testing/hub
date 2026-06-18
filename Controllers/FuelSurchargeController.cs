@@ -67,8 +67,6 @@ public class FuelSurchargeController(
         currentStandard = currentStandard is null ? null : currentStandard with { IsCurrent = true };
         currentClientSpecific = currentClientSpecific is null ? null : currentClientSpecific with { IsCurrent = true };
 
-        var currentRows = historyRows.Where(r => r.IsCurrent).ToList();
-        var averageRate = currentRows.Count > 0 ? currentRows.Average(r => r.Rate) : (decimal?)null;
         var pumpPrice = currentClientSpecific?.PumpPrice ?? currentStandard?.PumpPrice;
 
         return new FuelSurchargeCardViewModel
@@ -76,7 +74,6 @@ public class FuelSurchargeController(
             HasData = true,
             CurrentStandard = currentStandard,
             History = historyRows,
-            CurrentAverageRate = averageRate,
             PumpPrice = pumpPrice
         };
     }
