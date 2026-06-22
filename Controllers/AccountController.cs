@@ -948,6 +948,12 @@ public class AccountController(
                 return Json(new { success = false, message = "Failed to generate API key" });
             }
 
+            // This is a standalone request: the scoped ConnectionStringManager is
+            // empty (it's only populated inside the login/tenant-switch actions).
+            // FetchSubAccountsAsync hits the tenant Despatch DB, so rehydrate the
+            // connection from the Connection claim first, like the auth paths do.
+            SetTenantConnectionString(connection);
+
             var subAccounts = await despatchRepository.FetchSubAccountsAsync(int.Parse(clientId));
 
             var token = CreateApiToken(email, int.Parse(clientId), int.Parse(contactId), subAccounts,
