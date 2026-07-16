@@ -299,6 +299,15 @@
                 <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="" /></div>
                 <div class="app-card-title">Route Builder</div>
             </a>
+            @* Routed Operations - the RunBuilder successor (Stage 1 = Route
+               Builder parity). Added alongside the legacy Route Builder tile
+               so internal staff can use either while parity is validated;
+               swap out the legacy tile once cutover completes. Hostname is
+               routedoperations.{tenant} per its per-tenant CI deploy vars. *@
+            <a class="app-card" href="@AppUrl("routedoperations")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="" /></div>
+                <div class="app-card-title">Routed Operations</div>
+            </a>
             <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
                 <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
                 <div class="app-card-title">Route Viewer</div>
