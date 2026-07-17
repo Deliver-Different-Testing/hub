@@ -40,8 +40,11 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         // tenant Administrator (UserGroupID=1 on a ClientTypeId=4 client) is NOT
         // treated as a DF admin — was a caller-supplied isDfAdmin bool keyed on
         // UserGroupID==1; switched to match the configurator's signal.
-        if (clientTypeId != 5) return await ResolveVisibleFeaturesAsync(clientTypeId);
- 
+        if (clientTypeId != 5)
+        {
+            return await ResolveVisibleFeaturesAsync(clientTypeId);
+        }
+
         var allKeys = await context.ClientTypeFeatures
             .AsNoTracking()
             .Where(ctf => ctf.Visible)

@@ -40,6 +40,30 @@ public class TenantLogoViewComponentTests
     }
 
     [Fact]
+    public async Task InvokeAsync_LocalLogo_DerivesDarkVariantUrl()
+    {
+        _mockLogoService.GetLogoUrlAsync().Returns("/images/logo.png");
+
+        var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
+
+        var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
+        // Local logos ship a "_dark" light-wordmark variant for the dark theme swap.
+        Assert.Equal("/images/logo_dark.png", model!.DarkLogoUrl);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_S3Logo_HasNoDarkVariant()
+    {
+        _mockLogoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/bucket/logo.png");
+
+        var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
+
+        var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
+        // Arbitrary third-party art can't be recoloured, so no swap variant exists.
+        Assert.Null(model!.DarkLogoUrl);
+    }
+
+    [Fact]
     public async Task InvokeAsync_NullLogo_UsesFallback()
     {
         _mockLogoService.GetLogoUrlAsync().Returns((string)null!);

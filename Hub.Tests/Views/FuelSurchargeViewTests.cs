@@ -11,7 +11,10 @@ public class FuelSurchargeViewTests
     {
         var viewPath = FindFile("Views", "FuelSurcharge", "Index.cshtml");
         if (viewPath is null)
+        {
             Assert.Skip("Views/FuelSurcharge/Index.cshtml not found relative to test output directory");
+        }
+
         _viewContent = File.ReadAllText(viewPath);
 
         var cssPath = FindFile("wwwroot", "css", "site.less");
@@ -22,7 +25,11 @@ public class FuelSurchargeViewTests
     {
         var marker = selector + " {";
         var start = css.IndexOf(marker, StringComparison.Ordinal);
-        if (start < 0) return string.Empty;
+        if (start < 0)
+        {
+            return string.Empty;
+        }
+
         var depth = 0;
         for (var i = start + marker.Length - 1; i < css.Length; i++)
         {
@@ -45,7 +52,10 @@ public class FuelSurchargeViewTests
         {
             var candidate = Path.Combine([dir.FullName, .. pathSegments]);
             if (File.Exists(candidate))
+            {
                 return candidate;
+            }
+
             dir = dir.Parent;
         }
         return null;
@@ -133,7 +143,9 @@ public class FuelSurchargeViewTests
         // padding, and the chevron should reserve a fixed width so the gap
         // doesn't change between ↕/↑/↓ glyphs.
         if (string.IsNullOrEmpty(_siteCss))
+        {
             Assert.Skip("wwwroot/css/site.less not found relative to test output directory");
+        }
 
         var tableRule = ExtractRule(_siteCss, ".fuel-history-table");
         Assert.Equal(2, CountOccurrences(tableRule, "padding: .65rem 1rem;"));
@@ -144,7 +156,9 @@ public class FuelSurchargeViewTests
     public void SortableHeaders_HaveChevronStyles()
     {
         if (string.IsNullOrEmpty(_siteCss))
+        {
             Assert.Skip("wwwroot/css/site.less not found relative to test output directory");
+        }
 
         Assert.Contains("th[data-fuel-sort]", _siteCss);
         Assert.Contains("th[aria-sort='ascending']", _siteCss);
@@ -170,7 +184,9 @@ public class FuelSurchargeViewTests
         // anchoring the remaining 3 cards to the left. The layout should match the
         // actual card count and center each card's text so the row reads balanced.
         if (string.IsNullOrEmpty(_siteCss))
+        {
             Assert.Skip("wwwroot/css/site.less not found relative to test output directory");
+        }
 
         var statsRule = ExtractRule(_siteCss, ".fuel-surcharge-stats");
         Assert.Contains("grid-template-columns: repeat(3, minmax(0, 1fr));", statsRule);

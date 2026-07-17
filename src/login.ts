@@ -4,44 +4,80 @@ function isValidEmail(email: string): boolean {
     return EMAIL_REGEX.test(email.toLowerCase());
 }
 
+// @material/web surfaces driven imperatively. Text fields are form-associated,
+// so `required` participates in form.checkValidity()/reportValidity() and the
+// value is submitted under the field's `name`.
+interface MdTextField extends HTMLElement {
+    value: string;
+    error: boolean;
+    errorText: string;
+}
+
+interface MdButton extends HTMLElement {
+    disabled: boolean;
+}
+
+const EMAIL_ERROR = 'Please enter a valid email address.';
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loginForm') as HTMLFormElement;
-    const button = document.getElementById('loginButton') as HTMLButtonElement;
-    const spinner = button.querySelector('.spinner-border') as HTMLElement;
-    const buttonText = button.querySelector('.button-text') as HTMLElement;
-    const emailInput = document.getElementById('Email') as HTMLInputElement;
-    const emailFeedback = emailInput.nextElementSibling as HTMLElement;
+    const button = document.getElementById('loginButton') as MdButton;
+    const label = button.querySelector<HTMLElement>('.button-label');
+    const progress = document.getElementById('loginProgress');
+    const emailField = document.getElementById('Email') as MdTextField;
     const loginFailed = document.querySelector<HTMLElement>('.auth-wrapper')?.dataset.loginFailed === 'true';
 
+    // Updates the label span (not button.textContent) so the slotted md-icon
+    // survives; drives the indeterminate linear progress bar at the card top.
     function setSubmitting(isSubmitting: boolean): void {
         form.classList.toggle('submitting', isSubmitting);
         button.disabled = isSubmitting;
-        spinner.classList.toggle('d-none', !isSubmitting);
-        buttonText.textContent = isSubmitting ? 'Logging in...' : 'Log in';
+        if (label) label.textContent = isSubmitting ? 'Logging in...' : 'Log in';
+        progress?.classList.toggle('active', isSubmitting);
+        progress?.setAttribute('aria-hidden', String(!isSubmitting));
     }
 
-    function updateEmailValidationUI(): void {
-        if (!emailInput.value) {
-            emailInput.classList.remove('is-valid', 'is-invalid');
-            emailFeedback.style.display = 'none';
-            return;
+    // Returns whether the email is valid; only surfaces an error once the user
+    // has typed something (empty is left to the required-field check on submit).
+    function validateEmailUI(): boolean {
+        if (!emailField.value) {
+            emailField.error = false;
+            emailField.errorText = '';
+            return false;
         }
-        const valid = isValidEmail(emailInput.value);
-        emailInput.classList.toggle('is-valid', valid);
-        emailInput.classList.toggle('is-invalid', !valid);
-        emailFeedback.style.display = valid ? 'none' : 'block';
+        const valid = isValidEmail(emailField.value);
+        emailField.error = !valid;
+        emailField.errorText = valid ? '' : EMAIL_ERROR;
+        return valid;
     }
 
     if (loginFailed) setSubmitting(false);
 
-    form.addEventListener('submit', e => {
-        const valid = form.checkValidity() && isValidEmail(emailInput.value);
-        form.classList.add('was-validated');
+    // The mascot plays once on load, and only when the visitor hasn't asked for
+    // reduced motion. Without `autoplay`/`loop` in the markup the player just
+    // holds its first frame, so reduced-motion users get a still illustration.
+    // Two variants are rendered (light/dark, theme-toggled by CSS); play the one
+    // that's actually visible so we don't animate a display:none player.
+    type LottiePlayer = HTMLElement & { play?: () => void };
+    const players = Array.from(document.querySelectorAll<LottiePlayer>('.auth-lottie'));
+    const lottie = players.find(p => p.offsetParent !== null) ?? players[0] ?? null;
+    if (lottie && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const playOnce = (): void => lottie.play?.();
+        if (typeof lottie.play === 'function') playOnce();
+        else lottie.addEventListener('ready', playOnce, { once: true });
+    }
 
-        if (!valid) {
+    form.addEventListener('submit', e => {
+        // Native constraint validation covers the required password / select;
+        // the regex adds stricter email checking on top.
+        const nativeValid = form.checkValidity();
+        const emailValid = isValidEmail(emailField.value);
+        validateEmailUI();
+
+        if (!nativeValid || !emailValid) {
             e.preventDefault();
             e.stopPropagation();
-            updateEmailValidationUI();
+            form.reportValidity();
             return;
         }
 
@@ -52,16 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setSubmitting(true);
     });
 
-    emailInput.addEventListener('input', updateEmailValidationUI);
-    emailInput.addEventListener('blur', updateEmailValidationUI);
-
-    form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach(element => {
-        const clearValidation = (): void => {
-            if (element !== emailInput && form.classList.contains('was-validated')) {
-                form.classList.remove('was-validated');
-            }
-        };
-        element.addEventListener('input', clearValidation);
-        element.addEventListener('change', clearValidation);
-    });
+    emailField.addEventListener('input', validateEmailUI);
+    emailField.addEventListener('blur', validateEmailUI);
 });
+
+export {};

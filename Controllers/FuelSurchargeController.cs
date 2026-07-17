@@ -20,11 +20,17 @@ public class FuelSurchargeController(
         var clientIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
         var isCourierClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "IsCourier")?.Value;
 
-        if (connectionString == null) return RedirectToAction("Login", "Account");
+        if (connectionString == null)
+        {
+            return RedirectToAction("Login", "Account");
+        }
 
         var isCourier = bool.TryParse(isCourierClaim, out var c) && c;
         var isUrgentTenant = string.Equals(tenantCode, "urgent", StringComparison.OrdinalIgnoreCase);
-        if (isCourier || !isUrgentTenant) return RedirectToAction("Index", "Home");
+        if (isCourier || !isUrgentTenant)
+        {
+            return RedirectToAction("Index", "Home");
+        }
 
         SetTenantConnectionString(connectionString);
 
@@ -42,7 +48,10 @@ public class FuelSurchargeController(
 
     private static FuelSurchargeCardViewModel BuildViewModel(List<FuelSurchargeRow> rows, DateTime now)
     {
-        if (rows.Count == 0) return new FuelSurchargeCardViewModel();
+        if (rows.Count == 0)
+        {
+            return new FuelSurchargeCardViewModel();
+        }
 
         // "Current" per scope = most-recently-started active record whose Start has passed.
         // We intentionally ignore End so a stale End date doesn't blank the stat cards —
@@ -55,8 +64,15 @@ public class FuelSurchargeController(
             .MaxBy(r => r.Start);
 
         var currentIds = new HashSet<int>();
-        if (currentStandard != null) currentIds.Add(currentStandard.FuelSurchargeId);
-        if (currentClientSpecific != null) currentIds.Add(currentClientSpecific.FuelSurchargeId);
+        if (currentStandard != null)
+        {
+            currentIds.Add(currentStandard.FuelSurchargeId);
+        }
+
+        if (currentClientSpecific != null)
+        {
+            currentIds.Add(currentClientSpecific.FuelSurchargeId);
+        }
 
         var historyRows = rows
             .Select(r => r with { IsCurrent = currentIds.Contains(r.FuelSurchargeId) })
@@ -82,7 +98,10 @@ public class FuelSurchargeController(
     {
         var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
         if (string.IsNullOrEmpty(credentials))
+        {
             throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
         connectionStringManager.SetConnectionString(dbConnection + credentials);
     }
 }

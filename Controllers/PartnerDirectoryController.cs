@@ -18,7 +18,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromQuery] int? tenantId = null)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -38,7 +40,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         int tenantId)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -58,7 +62,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromBody] PartnerDirectoryListingRequest request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -79,7 +85,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromBody] PartnerDirectoryListingRequest request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -99,7 +107,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         int tenantId)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -122,7 +132,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         int tenantId)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -145,7 +157,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromBody] LinkRequestCreateRequest request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -170,7 +184,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromQuery] int tenantId)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -190,7 +206,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         int requestId)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -211,7 +229,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromBody] DeclineLinkRequestRequest? request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -232,7 +252,9 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
         [FromBody] DeclineLinkRequestRequest? request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
@@ -250,7 +272,11 @@ public class PartnerDirectoryController(IPartnerDirectoryService partnerDirector
     {
         var expectedKey = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey") ?? string.Empty;
         if (!string.IsNullOrEmpty(expectedKey) &&
-            string.Equals(apiKey, expectedKey, StringComparison.Ordinal)) return true;
+            string.Equals(apiKey, expectedKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         Log.Warning("Partner directory request rejected: invalid or missing API key");
         return false;
     }

@@ -13,7 +13,6 @@ public sealed class FuelSurchargeRepository(DynamicDespatchDbContext context) : 
         {
             var query = context.TblFuelSurcharges
                 .AsNoTracking()
-                .Include(f => f.Client)
                 .Where(f => f.ClientId == null || clientId != null && f.ClientId == clientId)
                 .OrderByDescending(f => f.Start)
                 .Select(f => new FuelSurchargeRow

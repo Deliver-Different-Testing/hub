@@ -5,12 +5,12 @@ namespace Hub.Interfaces;
 
 public interface IAuthenticationRepository
 {
-    Task<User?> GetUserByEmail(string email, bool? isCourier = null);
-    Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId);
-    Task SaveUserSetting(TenantUserSettingViewModel viewModel, int tenantId, int userId);
+    Task<User?> GetUserByEmailAsync(string email, bool? isCourier = null);
+    Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettingsAsync(int tenantId, int userId);
+    Task SaveUserSettingAsync(TenantUserSettingViewModel viewModel, int tenantId, int userId);
     Task SaveAsync();
-    Task<User?> GetUserById(int id);
-    Task<User?> GetUserByResetKey(string resetKey);
+    Task<User?> GetUserByIdAsync(int id);
+    Task<User?> GetUserByResetKeyAsync(string resetKey);
     Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId);
     Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId);
     Task<bool> IsUserAssociatedWithTenantAsync(int userId, int tenantId);

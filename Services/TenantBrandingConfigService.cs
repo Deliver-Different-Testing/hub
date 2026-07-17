@@ -21,7 +21,9 @@ public sealed class TenantBrandingConfigService(
             .FirstOrDefaultAsync();
 
         if (result == null)
+        {
             return null;
+        }
 
         var branding = result.Branding;
         var tenant = result.Tenant;

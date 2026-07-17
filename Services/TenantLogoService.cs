@@ -23,7 +23,10 @@ public sealed class TenantLogoService : ITenantLogoService
         _cache = cache;
         _bucketName = Environment.GetEnvironmentVariable("S3BucketBulk");
 
-        if (string.IsNullOrEmpty(_bucketName)) Log.Warning("S3BucketBulk environment variable not set");
+        if (string.IsNullOrEmpty(_bucketName))
+        {
+            Log.Warning("S3BucketBulk environment variable not set");
+        }
     }
 
     public async Task<string?> GetLogoUrlAsync()

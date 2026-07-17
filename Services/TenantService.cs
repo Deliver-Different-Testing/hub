@@ -14,7 +14,9 @@ public sealed class TenantService(IAuthenticationRepository authenticationReposi
     {
         const string defaultLogo = "~/images/DFRNT_HorizLogo_RGB.png"; // Default logo
         if (string.IsNullOrEmpty(tenantCode))
+        {
             return defaultLogo;
+        }
 
 
         var tenantLogoPath = $"~/images/{tenantCode}Logo.png";

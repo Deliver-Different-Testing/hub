@@ -8,7 +8,7 @@ namespace Hub.Repositories;
 
 public sealed class AuthenticationRepository(MasterContext context) : IAuthenticationRepository
 {
-    public async Task<User?> GetUserByEmail(string email, bool? isCourier = null)
+    public async Task<User?> GetUserByEmailAsync(string email, bool? isCourier = null)
     {
         var query = context.Users
             .Include(u => u.CurrentTenant)
@@ -28,7 +28,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
         return await query.FirstOrDefaultAsync();
     }
 
-    public async Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId) =>
+    public async Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettingsAsync(int tenantId, int userId) =>
         await context.TenantUserSettings
             .AsNoTracking()
             .Where(tus => tus.TenantId == tenantId && tus.UserId == userId)
@@ -40,7 +40,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             })
             .ToListAsync();
 
-    public async Task SaveUserSetting(TenantUserSettingViewModel viewModel, int tenantId, int userId)
+    public async Task SaveUserSettingAsync(TenantUserSettingViewModel viewModel, int tenantId, int userId)
     {
         // Check if setting already exists
         var existingSetting = await context.TenantUserSettings
@@ -73,13 +73,13 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
 
     public async Task SaveAsync() => await context.SaveChangesAsync();
 
-    public async Task<User?> GetUserById(int id) =>
+    public async Task<User?> GetUserByIdAsync(int id) =>
         await context.Users
             .AsNoTracking()
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.UserId == id);
 
-    public async Task<User?> GetUserByResetKey(string resetKey) =>
+    public async Task<User?> GetUserByResetKeyAsync(string resetKey) =>
         await context.Users
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.ResetKey == resetKey);
@@ -111,11 +111,16 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
     {
         var user = await context.Users.FindAsync(userId);
 
-        if (user == null) return false;
+        if (user == null)
+        {
+            return false;
+        }
 
         // Check if the user is associated with the tenant
         if (!await IsUserAssociatedWithTenantAsync(userId, tenantId))
+        {
             return false;
+        }
 
         user.CurrentTenantId = tenantId;
 
@@ -143,7 +148,11 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
         var existing = await context.Users
             .AsNoTracking()
             .AnyAsync(u => u.Email == email);
-        if (existing) return null;
+     
+        if (existing)
+        {
+            return null;
+        }
 
         var user = new User
         {
@@ -160,10 +169,10 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             // this provisioning path; only the IsNetworkPartner data-scope flag
             // differs. Neither is a courier.
             IsNetworkPartner = isNetworkPartner,
-            IsCourier = false,
+            IsCourier = false
         };
 
-        context.Users.Add(user);
+        await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
         return user;
     }

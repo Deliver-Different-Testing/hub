@@ -22,12 +22,16 @@ public class HomeController(
         var userEmail = HttpContext.User.Claims.FirstOrDefault(x => x.Type == System.Security.Claims.ClaimTypes.Name)
             ?.Value;
         var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
-        if (cid == null || connectionString == null) return RedirectToAction("Login", "Account");
+        if (cid == null || connectionString == null)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
         Log.Debug("Found Identity for ContactID:{Cid}", cid);
         SetTenantConnectionString(connectionString);
 
         var contactId = int.Parse(cid);
-        var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissions(contactId);
+        var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissionsAsync(contactId);
 
         // Phase 5+31 R2 §2 — resolve the user's visible hub-tile-* feature
         // keys against the ClientType × Feature matrix. Drives the
@@ -63,7 +67,10 @@ public class HomeController(
     {
         var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
         if (string.IsNullOrEmpty(credentials))
+        {
             throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
         connectionStringManager.SetConnectionString(dbConnection + credentials);
     }
 
@@ -81,9 +88,11 @@ public class HomeController(
                             bool.TryParse(isCourierClaim, out var courierFlag) && courierFlag;
 
             if (!isCourier || string.IsNullOrEmpty(courierIdClaim) || !int.TryParse(courierIdClaim, out var courierId))
+            {
                 return false;
+            }
 
-            var isAuthorized = await despatchRepository.IsAfterHoursAuthorized(courierId);
+            var isAuthorized = await despatchRepository.IsAfterHoursAuthorizedAsync(courierId);
 
             Log.Information("AfterHours authorization check for courier {CourierId}: {IsAuthorized}",
                 courierId, isAuthorized);

@@ -6,13 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Models;
 
-public partial class DespatchContext : DbContext
+public partial class DespatchContext(DbContextOptions<DespatchContext> options) : DbContext(options)
 {
-    public DespatchContext(DbContextOptions<DespatchContext> options)
-        : base(options)
-    {
-    }
-
     public virtual DbSet<ClientType> ClientTypes { get; set; }
 
     public virtual DbSet<ClientTypeFeature> ClientTypeFeatures { get; set; }

@@ -18,7 +18,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("staff@test.com", false);
+        var user = await repo.GetUserByEmailAsync("staff@test.com", false);
 
         Assert.NotNull(user);
         Assert.Equal("staff@test.com", user.Email);
@@ -30,7 +30,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("courier@test.com", true);
+        var user = await repo.GetUserByEmailAsync("courier@test.com", true);
 
         Assert.NotNull(user);
         Assert.Equal("courier@test.com", user.Email);
@@ -42,7 +42,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("staff@test.com");
+        var user = await repo.GetUserByEmailAsync("staff@test.com");
 
         Assert.NotNull(user);
         Assert.Equal("staff@test.com", user.Email);
@@ -53,7 +53,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("staff@test.com");
+        var user = await repo.GetUserByEmailAsync("staff@test.com");
 
         Assert.NotNull(user);
         Assert.NotNull(user.CurrentTenant);
@@ -65,7 +65,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("nonexistent@test.com");
+        var user = await repo.GetUserByEmailAsync("nonexistent@test.com");
 
         Assert.Null(user);
     }
@@ -75,7 +75,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("courier@test.com", false);
+        var user = await repo.GetUserByEmailAsync("courier@test.com", false);
 
         Assert.Null(user);
     }
@@ -86,7 +86,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserById(1);
+        var user = await repo.GetUserByIdAsync(1);
 
         Assert.NotNull(user);
         Assert.Equal("staff@test.com", user.Email);
@@ -97,7 +97,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserById(1);
+        var user = await repo.GetUserByIdAsync(1);
 
         Assert.NotNull(user!.CurrentTenant);
     }
@@ -107,7 +107,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserById(999);
+        var user = await repo.GetUserByIdAsync(999);
 
         Assert.Null(user);
     }
@@ -118,7 +118,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByResetKey("valid-reset-key");
+        var user = await repo.GetUserByResetKeyAsync("valid-reset-key");
 
         Assert.NotNull(user);
         Assert.Equal("reset@test.com", user.Email);
@@ -129,7 +129,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var user = await repo.GetUserByResetKey("invalid-key");
+        var user = await repo.GetUserByResetKeyAsync("invalid-key");
 
         Assert.Null(user);
     }
@@ -173,7 +173,7 @@ public class AuthenticationRepositoryTests
 
         await repo.UpdateCurrentTenantIdAsync(1, 2);
 
-        var user = await repo.GetUserById(1);
+        var user = await repo.GetUserByIdAsync(1);
         Assert.Equal(2, user!.CurrentTenantId);
     }
 
@@ -187,7 +187,7 @@ public class AuthenticationRepositoryTests
 
         await repo.UpdateCurrentTenantIdAsync(1, 2);
 
-        var user = await repo.GetUserById(1);
+        var user = await repo.GetUserByIdAsync(1);
         Assert.NotNull(user!.CurrentTenant);
         Assert.Equal(2, user.CurrentTenant!.TenantId);
         Assert.Equal("second", user.CurrentTenant.Code);
@@ -242,7 +242,7 @@ public class AuthenticationRepositoryTests
         var user = await repo.CreateUserAsync("newtenant@test.com", 1, isNetworkPartner: false);
 
         Assert.NotNull(user);
-        Assert.False(user!.IsNetworkPartner!.Value);
+        Assert.False(user.IsNetworkPartner!.Value);
         Assert.False(user.IsCourier ?? false);
         Assert.False(string.IsNullOrEmpty(user.ResetKey));
         Assert.Equal(1, user.CurrentTenantId);
@@ -267,7 +267,7 @@ public class AuthenticationRepositoryTests
         var user = await repo.CreateNpUserAsync("newnp@test.com", 1);
 
         Assert.NotNull(user);
-        Assert.True(user!.IsNetworkPartner!.Value);
+        Assert.True(user.IsNetworkPartner!.Value);
     }
 
     // GetUserSettings tests
@@ -276,7 +276,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var settings = await repo.GetUserSettings(1, 1);
+        var settings = await repo.GetUserSettingsAsync(1, 1);
 
         var tenantUserSettingViewModels = settings as TenantUserSettingViewModel[] ?? settings.ToArray();
         Assert.Single(tenantUserSettingViewModels);
@@ -289,7 +289,7 @@ public class AuthenticationRepositoryTests
     {
         var repo = CreateRepo();
 
-        var settings = await repo.GetUserSettings(2, 2);
+        var settings = await repo.GetUserSettingsAsync(2, 2);
 
         Assert.Empty(settings);
     }
@@ -301,9 +301,9 @@ public class AuthenticationRepositoryTests
         var repo = CreateRepo();
         var viewModel = new TenantUserSettingViewModel { Name = "Language", Value = "en" };
 
-        await repo.SaveUserSetting(viewModel, 1, 1);
+        await repo.SaveUserSettingAsync(viewModel, 1, 1);
 
-        var settings = await repo.GetUserSettings(1, 1);
+        var settings = await repo.GetUserSettingsAsync(1, 1);
         Assert.Contains(settings, s => s is { Name: "Language", Value: "en" });
     }
 
@@ -313,9 +313,9 @@ public class AuthenticationRepositoryTests
         var repo = CreateRepo();
         var viewModel = new TenantUserSettingViewModel { Name = "Theme", Value = "Light" };
 
-        await repo.SaveUserSetting(viewModel, 1, 1);
+        await repo.SaveUserSettingAsync(viewModel, 1, 1);
 
-        var settings = await repo.GetUserSettings(1, 1);
+        var settings = await repo.GetUserSettingsAsync(1, 1);
         Assert.Single(settings, s => s.Name == "Theme");
         Assert.Equal("Light", settings.First(s => s.Name == "Theme").Value);
     }
@@ -327,9 +327,9 @@ public class AuthenticationRepositoryTests
         // load existing settings as untracked entities, so modifications were never saved.
         var repo = CreateRepo();
 
-        await repo.SaveUserSetting(new TenantUserSettingViewModel { Name = "Theme", Value = "Blue" }, 1, 1);
+        await repo.SaveUserSettingAsync(new TenantUserSettingViewModel { Name = "Theme", Value = "Blue" }, 1, 1);
         // Read again to confirm persistence (not just in-memory)
-        var settings = await repo.GetUserSettings(1, 1);
+        var settings = await repo.GetUserSettingsAsync(1, 1);
 
         Assert.Equal("Blue", settings.First(s => s.Name == "Theme").Value);
     }

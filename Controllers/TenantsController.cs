@@ -18,13 +18,17 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
         int tenantId)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         try
         {
             var connectionString = await authenticationRepository.GetTenantConnectionStringAsync(tenantId);
             if (string.IsNullOrEmpty(connectionString))
+            {
                 return NotFound();
+            }
 
             return Ok(new TenantConnectionStringResponse
             {
@@ -43,7 +47,11 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
     {
         var expectedKey = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey") ?? string.Empty;
         if (!string.IsNullOrEmpty(expectedKey) &&
-            string.Equals(apiKey, expectedKey, StringComparison.Ordinal)) return true;
+            string.Equals(apiKey, expectedKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         Log.Warning("Tenant connection-string request rejected: invalid or missing API key");
         return false;
     }

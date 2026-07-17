@@ -3,6 +3,48 @@
 @primary-active: var(--dd-primary-active);
 @outline: var(--dd-outline);
 
+// Indeterminate MD3 linear progress pinned to the top edge of the auth card.
+// The card gets position:relative here (login page only) so the bar can anchor
+// to its top. A dedicated clipping wrapper rounds the bar to the card's top
+// corners WITHOUT setting overflow:hidden on the card itself — that would clip
+// the md-filled-select popover menu.
+.auth-card {
+  position: relative;
+}
+
+// The mascot illustration above the heading. Sizing lives here (not inline) so
+// it can flex; playback is gated on prefers-reduced-motion from login.ts.
+.auth-lottie {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+.auth-progress {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .2s var(--ease-standard, ease);
+  pointer-events: none;
+
+  md-linear-progress {
+    display: block;
+    width: 100%;
+    --md-linear-progress-active-indicator-height: 4px;
+    --md-linear-progress-track-height: 4px;
+    --md-linear-progress-track-color: transparent;
+  }
+
+  &.active {
+    opacity: 1;
+  }
+}
+
 #loginButton {
   position: relative;
   z-index: 1;
@@ -13,13 +55,14 @@
   }
 
   .spinner-border,
-  .button-text {
+  .button-text,
+  .button-label {
     position: relative;
     z-index: 2;
   }
 
   .spinner-border {
-    color: #fff;
+    color: var(--dd-on-primary);
     border-color: currentColor;
     border-right-color: transparent;
   }
@@ -29,14 +72,14 @@
   &:focus-visible {
     background-color: @primary-hover !important;
     border-color: @primary-hover !important;
-    color: #fff !important;
+    color: var(--dd-on-primary) !important;
     outline: none !important;
   }
 
   &:active {
     background-color: @primary-active !important;
     border-color: @primary-active !important;
-    color: #fff !important;
+    color: var(--dd-on-primary) !important;
     outline: none !important;
   }
 
@@ -73,4 +116,19 @@
     border-color: @outline !important;
     background-image: none !important;
   }
+}
+
+// "Remember me" — a single tappable MD3 row: the wrapping <label> toggles the
+// md-checkbox, MD3 body typography + on-surface colour. Centred under the fields
+// via .text-center on its wrapper (the inline-flex label is an inline-level box,
+// so it honours the parent's text-align).
+.remember-me {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-body);
+  font-size: .9375rem;
+  color: var(--dd-on-surface);
 }

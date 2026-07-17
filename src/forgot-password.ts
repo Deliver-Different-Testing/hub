@@ -3,12 +3,25 @@ declare const grecaptcha: {
     execute(siteKey: string, options: { action: string }): Promise<string>;
 };
 
+// @material/web field/button surfaces we drive imperatively. They are
+// form-associated, so `name`/value participate in FormData and form.reset().
+interface MdTextField extends HTMLElement {
+    value: string;
+    error: boolean;
+    errorText: string;
+}
+
+interface MdButton extends HTMLElement {
+    disabled: boolean;
+}
+
+const EMAIL_ERROR = 'Please enter a valid email address.';
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('forgot-password-form') as HTMLFormElement;
     const messageArea = document.getElementById('messageArea') as HTMLElement;
-    const emailInput = document.getElementById('Email') as HTMLInputElement;
-    const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
-    const spinner = submitButton.querySelector('.spinner-border') as HTMLElement;
+    const emailField = document.getElementById('Email') as MdTextField;
+    const submitButton = document.getElementById('submitButton') as MdButton;
     const recaptchaSiteKey = document.querySelector<HTMLMetaElement>('meta[name="recaptcha-site-key"]')?.content;
 
     function showMessage(message: string, isError = false): void {
@@ -22,35 +35,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return re.test(String(email).toLowerCase());
     }
 
-    function setLoading(isLoading: boolean): void {
-        submitButton.disabled = isLoading;
-        spinner.classList.toggle('d-none', !isLoading);
-        const btnText = submitButton.querySelector('.button-text');
-        if (btnText) btnText.textContent = isLoading ? 'Processing...' : 'Reset Password';
+    function setEmailError(hasError: boolean): void {
+        emailField.error = hasError;
+        emailField.errorText = hasError ? EMAIL_ERROR : '';
     }
 
-    emailInput.addEventListener('input', function (this: HTMLInputElement) {
-        if (validateEmail(this.value)) {
-            this.classList.remove('is-invalid');
-            this.classList.add('is-valid');
-        } else {
-            this.classList.remove('is-valid');
-            this.classList.add('is-invalid');
-        }
+    // Update the label span (not button.textContent) so the slotted md-icon
+    // survives — the same pattern the login button uses.
+    function setLoading(isLoading: boolean): void {
+        submitButton.disabled = isLoading;
+        const label = submitButton.querySelector<HTMLElement>('.button-label');
+        if (label) label.textContent = isLoading ? 'Processing...' : 'Reset Password';
+    }
+
+    emailField.addEventListener('input', () => {
+        setEmailError(emailField.value.length > 0 && !validateEmail(emailField.value));
     });
 
     form.addEventListener('submit', async e => {
         e.preventDefault();
 
-        if (!validateEmail(emailInput.value)) {
-            emailInput.classList.add('is-invalid');
+        if (!validateEmail(emailField.value)) {
+            setEmailError(true);
             return;
         }
 
         setLoading(true);
 
         await new Promise<void>(resolve => grecaptcha.ready(resolve));
-        (document.getElementById('g-recaptcha-response') as HTMLInputElement).value = await grecaptcha.execute(recaptchaSiteKey!, {action: 'forgot_password'});
+        (document.getElementById('g-recaptcha-response') as HTMLInputElement).value =
+            await grecaptcha.execute(recaptchaSiteKey!, {action: 'forgot_password'});
         await submitForm();
     });
 
@@ -66,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 showMessage(data.message);
                 form.reset();
-                emailInput.classList.remove('is-valid');
+                emailField.value = '';
+                setEmailError(false);
             } else {
                 showMessage(data.message, true);
             }
@@ -76,3 +91,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+export {};

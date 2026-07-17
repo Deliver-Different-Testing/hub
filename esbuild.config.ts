@@ -7,7 +7,8 @@ const watch = process.argv.includes('--watch');
 const shared: BuildOptions = {
   bundle: true,
   minify: true,
-  sourcemap: false,
+  sourcemap: watch,
+  target: ['es2020'],
   outdir: 'wwwroot/dist',
   logLevel: 'error',
 };
@@ -33,17 +34,29 @@ const configs: BuildOptions[] = [
       'src/layout.ts',
       'src/login.ts',
       'src/forgot-password.ts',
-      'src/reset-password.ts',
       'src/settings.ts',
       'src/home.ts',
       'src/fuel-surcharge.ts',
+      'src/material.ts',
     ],
+  },
+  {
+    // reset-password lazy-loads zxcvbn-ts (the English dictionary is heavy) via
+    // dynamic import(). Code splitting requires ESM output, so this entry is
+    // built separately and the view loads it with <script type="module">. The
+    // dictionary lands in its own content-hashed chunk fetched on demand.
+    ...shared,
+    entryPoints: ['src/reset-password.ts'],
+    format: 'esm',
+    splitting: true,
+    chunkNames: '[name]-[hash]',
   },
   {
     ...shared,
     entryPoints: [
       'wwwroot/css/site.less',
       'wwwroot/css/login.less',
+      'wwwroot/css/material-theme.less',
     ],
     plugins: [lessLoader()],
   },

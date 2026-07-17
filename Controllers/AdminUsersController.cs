@@ -71,7 +71,9 @@ public class AdminUsersController(
         [FromBody] SetPasswordRequest request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         if (request is null
             || string.IsNullOrWhiteSpace(request.Email)
@@ -80,11 +82,13 @@ public class AdminUsersController(
             return BadRequest(new { error = "Email and Password are required." });
         }
         if (request.Password.Trim().Length < 8)
+        {
             return BadRequest(new { error = "Password must be at least 8 characters." });
+        }
 
         try
         {
-            var user = await authenticationRepository.GetUserByEmail(request.Email.Trim(), isCourier: false);
+            var user = await authenticationRepository.GetUserByEmailAsync(request.Email.Trim(), isCourier: false);
             if (user is null)
             {
                 Log.Warning("SetPassword: no staff Master.User for {Email}", request.Email);
@@ -119,15 +123,19 @@ public class AdminUsersController(
         [FromBody] SendResetRequest request)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         if (request is null || string.IsNullOrWhiteSpace(request.Email))
+        {
             return BadRequest(new { error = "Email is required." });
+        }
 
         var email = request.Email.Trim();
         try
         {
-            var user = await authenticationRepository.GetUserByEmail(email, isCourier: false);
+            var user = await authenticationRepository.GetUserByEmailAsync(email, isCourier: false);
             if (user is null)
             {
                 Log.Warning("SendReset: no staff Master.User for {Email}", email);
@@ -145,7 +153,7 @@ public class AdminUsersController(
             }
             SetTenantConnectionString(dbConnection);
 
-            var contact = await despatchRepository.FetchUserByUsername(email);
+            var contact = await despatchRepository.FetchUserByUsernameAsync(email);
             if (contact is null)
             {
                 Log.Error("SendReset: Master.User {UserId} reset key set, but no tucClientContact UserName={Email}; reset email NOT sent.",
@@ -159,7 +167,7 @@ public class AdminUsersController(
 
             try
             {
-                await despatchRepository.InitiatePasswordReset(contact.UcctId, email, reply, link);
+                await despatchRepository.InitiatePasswordResetAsync(contact.UcctId, email, reply, link);
                 Log.Information("SendReset: dispatched reset email for Master.User {UserId} ({Email}).", user.UserId, user.Email);
                 return Ok(new SendResetResponse(user.UserId, user.Email, ResetEmailSent: true));
             }
@@ -180,7 +188,9 @@ public class AdminUsersController(
         string? apiKey, CreateNpUserRequest request, bool isNetworkPartner, string kind)
     {
         if (!IsApiKeyValid(apiKey))
+        {
             return Unauthorized();
+        }
 
         if (request is null
             || string.IsNullOrWhiteSpace(request.Email)
@@ -215,7 +225,7 @@ public class AdminUsersController(
             }
             SetTenantConnectionString(tenantConnection);
 
-            var contact = await despatchRepository.FetchUserByUsername(request.Email);
+            var contact = await despatchRepository.FetchUserByUsernameAsync(request.Email);
             if (contact is null)
             {
                 Log.Error("{Kind}: Master.User {UserId} created, but no tucClientContact with UserName={Email} on tenant {TenantId}; invite email NOT sent.",
@@ -235,7 +245,7 @@ public class AdminUsersController(
 
             try
             {
-                await despatchRepository.InitiatePasswordReset(contact.UcctId, request.Email, reply, link);
+                await despatchRepository.InitiatePasswordResetAsync(contact.UcctId, request.Email, reply, link);
                 Log.Information("{Kind}: provisioned Master.User {UserId} ({Email}) on tenant {TenantId}; invite email dispatched via tenant proc.",
                     kind, user.UserId, request.Email, request.CurrentTenantId);
                 return CreatedAtAction(nameof(Create), null,
@@ -264,7 +274,10 @@ public class AdminUsersController(
     {
         var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
         if (string.IsNullOrEmpty(credentials))
+        {
             throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
         connectionStringManager.SetConnectionString(dbConnection + credentials);
     }
 
@@ -273,7 +286,10 @@ public class AdminUsersController(
         var expectedKey = Environment.GetEnvironmentVariable("ConfiguratorApiKey") ?? string.Empty;
         if (!string.IsNullOrEmpty(expectedKey) &&
             string.Equals(apiKey, expectedKey, StringComparison.Ordinal))
+        {
             return true;
+        }
+
         Log.Warning("Admin user-create request rejected: invalid or missing ConfiguratorApiKey");
         return false;
     }
