@@ -4,41 +4,39 @@ interface UpdateTenantResponse {
     message?: string;
 }
 
+// @material/web md-menu surface we toggle imperatively.
+interface MdMenu extends HTMLElement {
+    open: boolean;
+}
+
 function getRequestToken(): string {
     return document.querySelector<HTMLMetaElement>('meta[name="request-token"]')?.content ?? '';
 }
 
 function initTenantSwitcher(): void {
-    const dropdownMenu = document.querySelector('.dropdown-menu');
-    const tenantDropdown = document.getElementById('tenantDropdown') as HTMLButtonElement | null;
-    if (!dropdownMenu) return;
+    const menu = document.getElementById('tenantMenu') as MdMenu | null;
+    const button = document.getElementById('tenantDropdown') as (HTMLElement & { disabled: boolean }) | null;
+    if (!menu || !button) return;
+
+    const label = button.querySelector<HTMLElement>('.tenant-name');
+
+    button.addEventListener('click', event => {
+        event.stopPropagation();
+        menu.open = !menu.open;
+    });
 
     function setTenantLoading(isLoading: boolean): void {
-        if (!tenantDropdown) return;
-        tenantDropdown.disabled = isLoading;
-        tenantDropdown.querySelector('.spinner-border')?.classList.toggle('d-none', !isLoading);
+        button!.disabled = isLoading;
     }
 
-    function setTenantDropdownLabel(label: string): void {
-        if (!tenantDropdown) return;
-        const spinner = tenantDropdown.querySelector('.spinner-border');
-        tenantDropdown.textContent = `${label} `;
-        if (spinner) tenantDropdown.appendChild(spinner);
-    }
-
-    function closeMenus(): void {
-        dropdownMenu!.classList.remove('show');
-        if (tenantDropdown) {
-            tenantDropdown.classList.remove('show');
-            tenantDropdown.setAttribute('aria-expanded', 'false');
-        }
+    function setTenantDropdownLabel(name: string): void {
+        if (label) label.textContent = name;
     }
 
     // Surface a tenant-switch failure to the user. The backend returns an
     // actionable `message` (e.g. "no operator record in that tenant — ask an
-    // administrator"); previously it was discarded to console only, so the
-    // switcher just stopped spinning with no explanation. Render it as a
-    // dismissible, auto-expiring Bootstrap alert pinned top-right.
+    // administrator"); render it as a dismissible, auto-expiring alert pinned
+    // top-right.
     function showTenantSwitchError(message: string): void {
         type AlertWithTimer = HTMLElement & { _hideTimer?: number };
         let alert = document.getElementById('tenantSwitchError') as AlertWithTimer | null;
@@ -81,11 +79,9 @@ function initTenantSwitcher(): void {
 
             setTenantDropdownLabel(tenantName);
 
-            // Phase 2: when the backend returns a redirectUrl, follow it. The
-            // destination Hub validates a short-lived SSO token and issues a
-            // fresh cookie scoped to its own subdomain — restoring "URL matches
-            // active tenant". Fall back to in-place reload if no redirectUrl
-            // (older backend / failure to compute the destination).
+            // When the backend returns a redirectUrl, follow it (the destination
+            // Hub validates a short-lived SSO token and issues a fresh cookie);
+            // otherwise reload in place.
             if (typeof data.redirectUrl === 'string' && data.redirectUrl.length > 0) {
                 window.location.href = data.redirectUrl;
             } else {
@@ -97,39 +93,103 @@ function initTenantSwitcher(): void {
         }
     }
 
-    dropdownMenu.addEventListener('click', event => {
-        const target = event.target as HTMLElement | null;
-        if (target?.nodeName !== 'A') return;
-        event.preventDefault();
-        closeMenus();
-        const tenantId = Number.parseInt(target.dataset.tenantId ?? '0', 10);
-        void switchTenant(tenantId, target.textContent ?? '');
+    menu.addEventListener('click', event => {
+        const item = (event.target as HTMLElement).closest('md-menu-item');
+        if (!item) return;
+        const tenantId = Number.parseInt(item.getAttribute('data-tenant-id') ?? '0', 10);
+        void switchTenant(tenantId, item.textContent?.trim() ?? '');
     });
 }
 
 function initProfileDropdown(): void {
-    const profileDropdown = document.querySelector('.profile-dropdown');
-    const profileIconUsername = document.querySelector('.profile-icon-username');
-    const profileMenu = document.querySelector<HTMLElement>('.profile-menu');
-    if (!profileDropdown || !profileIconUsername || !profileMenu) return;
+    const trigger = document.getElementById('profileTrigger');
+    const menu = document.getElementById('profileMenu') as MdMenu | null;
+    if (!trigger || !menu) return;
 
-    function closeProfile(): void {
-        profileDropdown!.classList.remove('active');
-        profileMenu!.style.display = 'none';
+    function toggle(event: Event): void {
+        event.stopPropagation();
+        menu!.open = !menu!.open;
     }
 
-    profileIconUsername.addEventListener('click', event => {
-        event.stopPropagation();
-        profileDropdown.classList.toggle('active');
-        profileMenu.style.display = profileMenu.style.display === 'block' ? 'none' : 'block';
+    trigger.addEventListener('click', toggle);
+    trigger.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggle(event);
+        }
     });
 
-    document.addEventListener('click', event => {
-        if (!profileDropdown.contains(event.target as Node)) closeProfile();
+    // md-menu closes itself on outside-click / Escape; mirror its open state on
+    // the trigger so the chevron rotation (.active) stays in sync.
+    menu.addEventListener('opened', () => trigger.classList.add('active'));
+    menu.addEventListener('closed', () => trigger.classList.remove('active'));
+}
+
+type ThemeChoice = 'light' | 'dark' | 'system';
+
+// Light / Dark / System toggle. An inline script in <head> already applied the
+// saved choice before first paint (to avoid a flash); this only wires the menu
+// and keeps the icon + selected state in sync. 'dark'/'light' set data-theme on
+// <html> (winning over the OS); 'system' clears it so the prefers-color-scheme
+// rules in site.less take over.
+function initThemeToggle(): void {
+    const toggle = document.getElementById('themeToggle');
+    const menu = document.getElementById('themeMenu') as MdMenu | null;
+    if (!toggle || !menu) return;
+
+    const icon = toggle.querySelector<HTMLElement>('md-icon');
+    const icons: Record<ThemeChoice, string> = {
+        light: 'light_mode',
+        dark: 'dark_mode',
+        system: 'brightness_auto',
+    };
+
+    function readChoice(): ThemeChoice {
+        try {
+            const stored = localStorage.getItem('theme');
+            if (stored === 'light' || stored === 'dark') return stored;
+        } catch {
+            // localStorage unavailable (private mode / disabled) — fall back to system.
+        }
+        return 'system';
+    }
+
+    function applyChoice(choice: ThemeChoice): void {
+        if (choice === 'system') {
+            document.documentElement.removeAttribute('data-theme');
+        } else {
+            document.documentElement.setAttribute('data-theme', choice);
+        }
+        if (icon) icon.textContent = icons[choice];
+        menu!.querySelectorAll('md-menu-item').forEach(item => {
+            item.toggleAttribute('selected', item.getAttribute('data-theme-choice') === choice);
+        });
+    }
+
+    applyChoice(readChoice());
+
+    toggle.addEventListener('click', event => {
+        event.stopPropagation();
+        menu.open = !menu.open;
+    });
+
+    menu.addEventListener('click', event => {
+        const item = (event.target as HTMLElement).closest('md-menu-item');
+        const choice = item?.getAttribute('data-theme-choice') as ThemeChoice | null;
+        if (!choice) return;
+        try {
+            localStorage.setItem('theme', choice);
+        } catch {
+            // Persistence best-effort; the choice still applies for this session.
+        }
+        applyChoice(choice);
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     initTenantSwitcher();
     initProfileDropdown();
+    initThemeToggle();
 });
+
+export {};

@@ -9,7 +9,9 @@ public partial class StrongPasswordAttribute : ValidationAttribute
     {
         var password = value as string;
         if (string.IsNullOrWhiteSpace(password))
+        {
             return new ValidationResult("Password is required.");
+        }
 
         var regex = PasswordRegex();
         return !regex.IsMatch(password) 

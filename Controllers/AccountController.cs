@@ -62,7 +62,7 @@ public class AccountController(
         }
 
         // Get user by email and login type (IsCourierLogin determines if we look for courier or staff account)
-        var masterUser = await authenticationRepository.GetUserByEmail(model.Email, model.IsCourierLogin);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(model.Email, model.IsCourierLogin);
 
         if (masterUser == null)
         {
@@ -92,7 +92,9 @@ public class AccountController(
         }
 
         if (masterUser.IsLegacyHash)
+        {
             await UpgradeLegacyHashAsync(masterUser, model.Password);
+        }
 
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
@@ -104,7 +106,7 @@ public class AccountController(
 
         if (isCourier)
         {
-            var courierId = await despatchRepository.ValidateCourierByEmail(model.Email);
+            var courierId = await despatchRepository.ValidateCourierByEmailAsync(model.Email);
             if (!courierId.HasValue)
             {
                 Log.Warning(
@@ -145,7 +147,7 @@ public class AccountController(
         else
         {
             // For non-courier users, validate staff login in Despatch DB
-            var user = await despatchRepository.FetchUserByUsername(model.Email);
+            var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
             if (user == null)
             {
@@ -167,9 +169,16 @@ public class AccountController(
             // Special redirect for asure@urgent.co.nz to booking app with /asure param
             if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
                 || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))
+            {
                 return RedirectToAction("Index", "Home");
+            }
+
             var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-            if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
+            if (string.IsNullOrEmpty(tenantUrl))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
             var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
             Log.Information("Redirecting user {ModelEmail} to booking app with asure param: {BookingUrl}",
                 model.Email, bookingUrl);
@@ -204,7 +213,7 @@ public class AccountController(
         };
 
         // Get user by email and login type
-        var masterUser = await authenticationRepository.GetUserByEmail(model.Email, model.IsCourierLogin);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(model.Email, model.IsCourierLogin);
 
         if (masterUser == null)
         {
@@ -225,13 +234,15 @@ public class AccountController(
         }
 
         if (masterUser.IsLegacyHash)
+        {
             await UpgradeLegacyHashAsync(masterUser, model.Password);
+        }
 
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
-        var user = await despatchRepository.FetchUserByUsername(model.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
         if (user == null)
         {
@@ -249,7 +260,11 @@ public class AccountController(
         Log.Information("Credit card user {ModelEmail} auto-logged in successfully", model.Email);
 
         var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-        if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
+        if (string.IsNullOrEmpty(tenantUrl))
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         var bookingUrl = tenantUrl.Replace("app_name", "booking");
         Log.Information("Redirecting user {ModelEmail} to booking app with creca param: {BookingUrl}", model.Email,
             bookingUrl);
@@ -265,8 +280,11 @@ public class AccountController(
             return RedirectToActionPermanent("Index", "Home");
         }
 
-        var masterUser = await authenticationRepository.GetUserByResetKey(code);
-        if (masterUser == null) return RedirectToActionPermanent("Index", "Home");
+        var masterUser = await authenticationRepository.GetUserByResetKeyAsync(code);
+        if (masterUser == null)
+        {
+            return RedirectToActionPermanent("Index", "Home");
+        }
 
         var model = new ResetPasswordViewModel
         {
@@ -290,7 +308,7 @@ public class AccountController(
             return View(model);
         }
 
-        var masterUser = await authenticationRepository.GetUserByResetKey(model.Code);
+        var masterUser = await authenticationRepository.GetUserByResetKeyAsync(model.Code);
         if (masterUser == null)
         {
             Log.Debug("Failed to find user via reset key {ModelCode}", model.Code);
@@ -308,7 +326,7 @@ public class AccountController(
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
-        var user = await despatchRepository.FetchUserByUsername(model.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
         if (user == null)
         {
@@ -326,9 +344,16 @@ public class AccountController(
         // Special redirect for asure@urgent.co.nz to booking app with /asure param
         if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
             || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
             return RedirectToAction("Index", "Home");
+        }
+
         var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-        if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
+        if (string.IsNullOrEmpty(tenantUrl))
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
         Log.Information("Redirecting user {ModelEmail} to booking app with asure param: {BookingUrl}",
             model.Email, bookingUrl);
@@ -347,19 +372,25 @@ public class AccountController(
     public async Task<ActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         if (!ModelState.IsValid)
+        {
             return Json(new { success = false, message = "Please check your input and try again." });
+        }
 
 
         var reCaptchaResponse = await VerifyReCaptcha(Request.Form["g-recaptcha-response"].ToString());
 
         if (!reCaptchaResponse.Success || reCaptchaResponse.Score < 0.5)
+        {
             return Json(new { success = false, message = "reCAPTCHA validation failed. Please try again." });
+        }
 
         // Check if email address exists in system
-        var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(model.Email);
 
         if (masterUser == null)
+        {
             return Json(new { success = false, message = "Please check your input and try again." });
+        }
 
         masterUser.ResetKey = Guid.NewGuid().ToString();
         await authenticationRepository.SaveAsync();
@@ -369,7 +400,7 @@ public class AccountController(
 
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
-        var user = await despatchRepository.FetchUserByUsername(model.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
         if (user == null)
         {
@@ -378,7 +409,7 @@ public class AccountController(
             return Json(new { success = false, message = "Reset failed due to contact validation failure" });
         }
 
-        await despatchRepository.InitiatePasswordReset(user.UcctId, model.Email, reply, link);
+        await despatchRepository.InitiatePasswordResetAsync(user.UcctId, model.Email, reply, link);
 
 
         return Json(new { success = true, message = "Password reset instructions have been sent to your email." });
@@ -539,7 +570,10 @@ public class AccountController(
     {
         var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
         if (string.IsNullOrEmpty(credentials))
+        {
             throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
         connectionStringManager.SetConnectionString(dbConnection + credentials);
     }
 
@@ -597,17 +631,23 @@ public class AccountController(
     {
         var userId = User.FindFirst("UserID")?.Value;
         if (userId == null)
+        {
             return Json(new { success = false, message = "User not found" });
+        }
 
         if (model == null || model.TenantId == 0)
+        {
             return Json(new { success = false, message = "Invalid tenant ID" });
+        }
 
         var userIdInt = int.Parse(userId);
         var email = User.Identity?.Name ?? string.Empty;
 
         // Master-side access gate: the user must be linked to the target tenant.
         if (!await authenticationRepository.IsUserAssociatedWithTenantAsync(userIdInt, model.TenantId))
+        {
             return Json(new { success = false, message = "You don't have access to that tenant." });
+        }
 
         // Resolve the target tenant's Despatch DB WITHOUT persisting the switch yet.
         var tenantConnection = await authenticationRepository.GetTenantConnectionStringAsync(model.TenantId);
@@ -629,7 +669,7 @@ public class AccountController(
         // CurrentTenant pointed at a DB with no contact, silently breaking both
         // login and password-reset until the row was corrected by hand.
         SetTenantConnectionString(tenantConnection);
-        var user = await despatchRepository.FetchUserByUsername(email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(email);
 
         if (user == null)
         {
@@ -648,9 +688,12 @@ public class AccountController(
         // Contact verified — now it's safe to persist the tenant switch.
         var success = await authenticationRepository.UpdateCurrentTenantIdAsync(userIdInt, model.TenantId);
 
-        if (!success) return Json(new { success = false, message = "Update database failed" });
+        if (!success)
+        {
+            return Json(new { success = false, message = "Update database failed" });
+        }
 
-        var masterUser = await authenticationRepository.GetUserById(userIdInt);
+        var masterUser = await authenticationRepository.GetUserByIdAsync(userIdInt);
 
         if (masterUser == null)
         {
@@ -756,7 +799,7 @@ public class AccountController(
             return RedirectToAction("Login");
         }
 
-        var masterUser = await authenticationRepository.GetUserById(payload.UserId);
+        var masterUser = await authenticationRepository.GetUserByIdAsync(payload.UserId);
         if (masterUser?.CurrentTenant == null)
         {
             Log.Warning("AcceptTenantSwitchToken: user {UserId} or current tenant not found", payload.UserId);
@@ -779,7 +822,7 @@ public class AccountController(
         SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
-        var user = await despatchRepository.FetchUserByUsername(masterUser.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(masterUser.Email);
         if (user == null)
         {
             Log.Warning("AcceptTenantSwitchToken: despatch user not found for {Email}", masterUser.Email);
@@ -815,15 +858,29 @@ public class AccountController(
     /// </summary>
     public static string? BuildDestinationHubHost(string requestHost, string destinationTenantCode)
     {
-        if (string.IsNullOrWhiteSpace(destinationTenantCode)) return null;
-        if (ParseHost(requestHost) is not { } parsed) return null;
+        if (string.IsNullOrWhiteSpace(destinationTenantCode))
+        {
+            return null;
+        }
+
+        if (ParseHost(requestHost) is not { } parsed)
+        {
+            return null;
+        }
+
         var env = parsed.Env;
-        if (env is "local" or "dev") return null;
+        if (env is "local" or "dev")
+        {
+            return null;
+        }
 
         var isStackTenant = string.Equals(destinationTenantCode, StackTenantCode, StringComparison.OrdinalIgnoreCase);
 
         // Stack tenant only exists in staging — prod has no env-bare equivalent.
-        if (isStackTenant && env == null) return null;
+        if (isStackTenant && env == null)
+        {
+            return null;
+        }
 
         return (env, isStackTenant) switch
         {
@@ -839,8 +896,16 @@ public class AccountController(
     /// </summary>
     public static string? ExtractTenantFromHost(string host)
     {
-        if (ParseHost(host) is not { } parsed) return null;
-        if (parsed.Env is "local" or "dev") return null;
+        if (ParseHost(host) is not { } parsed)
+        {
+            return null;
+        }
+
+        if (parsed.Env is "local" or "dev")
+        {
+            return null;
+        }
+
         // Staging-bare host (hub.staging.deliverdifferent.com) serves the stack tenant.
         return parsed is { Env: "staging", Tenant: null }
             ? StackTenantCode
@@ -856,11 +921,21 @@ public class AccountController(
     /// </summary>
     private static (string? Env, string? Tenant)? ParseHost(string host)
     {
-        if (string.IsNullOrEmpty(host)) return null;
-        if (!host.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase)) return null;
+        if (string.IsNullOrEmpty(host))
+        {
+            return null;
+        }
+
+        if (!host.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
 
         var parts = host.Split('.');
-        if (parts.Length < 4) return null;
+        if (parts.Length < 4)
+        {
+            return null;
+        }
 
         // Layout: [app] . [tenant?] . [env?] . deliverdifferent . com
         // Middle segments sit between parts[0] and the trailing "deliverdifferent.com" pair.
@@ -908,7 +983,9 @@ public class AccountController(
         // The IV was written at the beginning of the ciphertext during encryption.
         var ivLength = aesAlg.BlockSize / 8;
         if (fullCipherText.Length < ivLength)
+        {
             throw new ArgumentException("Encrypted payload too short to contain an IV.", nameof(encryptedClaims));
+        }
 
         var iv = new byte[ivLength];
         Array.Copy(fullCipherText, 0, iv, 0, ivLength);
@@ -965,7 +1042,7 @@ public class AccountController(
                 Value = respToken
             };
 
-            await authenticationRepository.SaveUserSetting(viewModel, int.Parse(tenantId), int.Parse(userId));
+            await authenticationRepository.SaveUserSettingAsync(viewModel, int.Parse(tenantId), int.Parse(userId));
             return Json(new { success = true, message = "Successfully generated API key", apiKey = respToken });
 
             string? GetClaim(string type) => User.FindFirst(type)?.Value;
@@ -1025,7 +1102,7 @@ public class AccountController(
             return View(data);
         }
 
-        var masterUser = await authenticationRepository.GetUserByEmail(email);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(email);
 
         if (masterUser == null)
         {
@@ -1033,7 +1110,7 @@ public class AccountController(
             return View(data);
         }
 
-        data = await authenticationRepository.GetUserSettings(masterUser.CurrentTenant.TenantId, masterUser.UserId);
+        data = await authenticationRepository.GetUserSettingsAsync(masterUser.CurrentTenant.TenantId, masterUser.UserId);
 
         return View(data);
     }

@@ -26,7 +26,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
             .ToListAsync();
 
         if (viewingTenantId is not { } tenantId)
+        {
             return listings;
+        }
 
         var linkRequests = await context.IntMgrPartnerDirectoryLinkRequests
             .Where(r => (r.RequestingTenantId == tenantId || r.TargetTenantId == tenantId)
@@ -75,11 +77,15 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
             .FirstOrDefaultAsync();
 
         if (tenantName == null)
+        {
             return null;
+        }
 
         var exists = await context.IntMgrPartnerDirectoryListings.AnyAsync(l => l.TenantId == request.TenantId);
         if (exists)
+        {
             return null;
+        }
 
         var now = DateTime.UtcNow;
         var listing = new IntMgrPartnerDirectoryListing
@@ -122,7 +128,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
                 .SetProperty(l => l.UpdatedAtUtc, now));
 
         if (rowsAffected == 0)
+        {
             return null;
+        }
 
         return await context.IntMgrPartnerDirectoryListings
             .Where(l => l.TenantId == tenantId)
@@ -175,7 +183,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
             .FirstOrDefaultAsync();
 
         if (requestingTenant is null || targetTenant is null)
+        {
             return null;
+        }
 
         var pendingExists = await context.IntMgrPartnerDirectoryLinkRequests
             .AnyAsync(r => r.RequestingTenantId == request.RequestingTenantId
@@ -183,7 +193,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
                            && r.Status == "Pending");
 
         if (pendingExists)
+        {
             throw new InvalidOperationException("A pending link request already exists between these tenants.");
+        }
 
         var now = DateTime.UtcNow;
         var entity = new IntMgrPartnerDirectoryLinkRequest
@@ -242,7 +254,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
         if (rowsAffected is 0)
+        {
             return null;
+        }
 
         return await context.IntMgrPartnerDirectoryLinkRequests
             .Where(r => r.Id == requestId)
@@ -273,7 +287,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
         if (rowsAffected is 0)
+        {
             return null;
+        }
 
         return await context.IntMgrPartnerDirectoryLinkRequests
             .Where(r => r.Id == requestId)
@@ -304,7 +320,9 @@ public sealed class PartnerDirectoryService(MasterContext context) : IPartnerDir
                 .SetProperty(r => r.UpdatedAtUtc, now));
 
         if (rowsAffected is 0)
+        {
             return null;
+        }
 
         return await context.IntMgrPartnerDirectoryLinkRequests
             .Where(r => r.Id == requestId)

@@ -23,7 +23,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("john@test.com");
+        var user = await repo.FetchUserByUsernameAsync("john@test.com");
 
         Assert.NotNull(user);
         Assert.Equal("John", user.UcctFirstname);
@@ -34,7 +34,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("john@test.com");
+        var user = await repo.FetchUserByUsernameAsync("john@test.com");
 
         Assert.NotNull(user!.UcctClient);
         Assert.Equal("Test Client", user.UcctClient!.UcclName);
@@ -45,7 +45,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("jane@test.com");
+        var user = await repo.FetchUserByUsernameAsync("jane@test.com");
 
         Assert.Null(user);
     }
@@ -55,7 +55,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("nobody@test.com");
+        var user = await repo.FetchUserByUsernameAsync("nobody@test.com");
 
         Assert.Null(user);
     }
@@ -87,7 +87,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var id = await repo.ValidateCourierByEmail("courier@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("courier@test.com");
 
         Assert.Equal(1, id);
     }
@@ -97,7 +97,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var id = await repo.ValidateCourierByEmail("inactive@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("inactive@test.com");
 
         Assert.Null(id);
     }
@@ -107,7 +107,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var id = await repo.ValidateCourierByEmail("nobody@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("nobody@test.com");
 
         Assert.Null(id);
     }
@@ -132,7 +132,7 @@ public class RepositoryTests
         });
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var id = await repo.ValidateCourierByEmail("trimmed@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("trimmed@test.com");
 
         Assert.Equal(3, id);
     }
@@ -166,7 +166,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var result = await repo.IsAfterHoursAuthorized(1);
+        var result = await repo.IsAfterHoursAuthorizedAsync(1);
 
         Assert.True(result);
     }
@@ -176,7 +176,7 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var result = await repo.IsAfterHoursAuthorized(999);
+        var result = await repo.IsAfterHoursAuthorizedAsync(999);
 
         Assert.False(result);
     }
@@ -220,7 +220,7 @@ public class RepositoryTests
             ]);
         context.Procedures = mockProcs;
 
-        var result = await repo.GetDespatchWebInternetPermissions(1);
+        var result = await repo.GetDespatchWebInternetPermissionsAsync(1);
 
         Assert.Equal(2, result.Count);
         Assert.Contains(result, r => r.InternetPermissionID == 12);

@@ -6,12 +6,23 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    @* Apply the saved theme before first paint to avoid a light-to-dark flash.
+       "system" (or no value) falls through to the prefers-color-scheme rules. *@
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+            } catch (e) {}
+        })();
+    </script>
     <title>@ViewData["Title"] - Deliver DFRNT</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/dist/vendor.css"/>
     <link rel="stylesheet" href="~/dist/site.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/dist/material-theme.css" asp-append-version="true"/>
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"/>
     <link rel="icon" type="image/svg+xml" href="~/images/favicon.svg?v=6">
@@ -19,7 +30,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-player/2.0.12/lottie-player.js"
             integrity="sha512-2nOSQ1o1ohJgCDWTrSe2tFG4CU8hurCGROpUKoopgPHT2mUWy1mgLed21mf2le8n9gZ2c3ujOHuiXlivAnYvTQ=="
             crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <meta http-equiv="refresh" content="300">
 </head>
 @{
     var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
@@ -45,8 +55,8 @@
     var currentTenantCountry = User.FindFirst("CountryCode")?.Value ?? string.Empty;
 
     var userEmail = User.Identity?.Name ?? string.Empty;
-    var firstNameClaim = User.FindFirst("FirstName")?.Value?.Trim() ?? string.Empty;
-    var surnameClaim = User.FindFirst("Surname")?.Value?.Trim() ?? string.Empty;
+    var firstNameClaim = User.FindFirst("FirstName")?.Value.Trim() ?? string.Empty;
+    var surnameClaim = User.FindFirst("Surname")?.Value.Trim() ?? string.Empty;
     var displayFullName = string.Join(' ', new[] { firstNameClaim, surnameClaim }
         .Where(p => !string.IsNullOrEmpty(p)));
     if (string.IsNullOrEmpty(displayFullName))
@@ -80,50 +90,77 @@
                     {
                         <li class="nav-item tenant-selector me-3">
                             <span class="tenant-label me-2">Organizations:</span>
-                            <div class="dropdown">
-                                <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown"
-                                        data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    @(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")
-                                    <span class="spinner-border spinner-border-sm d-none" role="status"
-                                          aria-hidden="true"></span>
-                                </button>
-                                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="tenantDropdown">
+                            <span class="dropdown" style="position:relative">
+                                <md-filled-button id="tenantDropdown" type="button" trailing-icon
+                                                  aria-haspopup="menu">
+                                    <span class="tenant-name">@(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")</span>
+                                    <md-icon slot="icon">arrow_drop_down</md-icon>
+                                </md-filled-button>
+                                <md-menu id="tenantMenu" anchor="tenantDropdown" positioning="popover"
+                                         menu-corner="start-end" anchor-corner="end-end">
                                     @foreach (var tenant in tenants)
                                     {
-                                        <a class="dropdown-item @(tenant.Id == currentTenantId ? "active" : string.Empty)"
-                                           href="#" data-tenant-code="@tenant.Code"
-                                           data-tenant-id="@tenant.Id">@tenant.Name</a>
+                                        <md-menu-item data-tenant-code="@tenant.Code" data-tenant-id="@tenant.Id"
+                                                      @(tenant.Id == currentTenantId ? "selected" : null)>
+                                            <div slot="headline">@tenant.Name</div>
+                                        </md-menu-item>
                                     }
-                                </div>
-                            </div>
+                                </md-menu>
+                            </span>
                         </li>
                     }
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <li class="nav-item me-3">
-                            <div class="profile-dropdown">
-                                <div class="profile-icon-username">
+                            <div class="profile-dropdown" style="position:relative">
+                                <div class="profile-icon-username" id="profileTrigger" role="button" tabindex="0"
+                                     aria-haspopup="menu">
                                     <span class="username">@displayLabel</span>
                                     <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
                                 </div>
-                                <div class="profile-menu">
-                                    <div class="profile-menu-header">
-                                        <span class="material-symbols-outlined profile-menu-header-icon">account_circle</span>
-                                        <span class="profile-menu-header-email" title="@userEmail">@userEmail</span>
-                                    </div>
-                                    <div class="profile-menu-divider"></div>
-                                    <a href="@Url.Action("Settings", "Account")" class="profile-menu-item">
-                                        <span class="material-symbols-outlined menu-icon">settings</span>
-                                        Settings
-                                    </a>
-                                    <a href="@Url.Action("Logout", "Account")" class="profile-menu-item">
-                                        <span class="material-symbols-outlined menu-icon">logout</span>
-                                        Logout
-                                    </a>
-                                </div>
+                                <md-menu id="profileMenu" anchor="profileTrigger" positioning="popover"
+                                         menu-corner="start-end" anchor-corner="end-end">
+                                    <md-menu-item disabled title="@userEmail">
+                                        <md-icon slot="start">account_circle</md-icon>
+                                        <div slot="headline">@userEmail</div>
+                                    </md-menu-item>
+                                    <md-divider></md-divider>
+                                    <md-menu-item href="@Url.Action("Settings", "Account")">
+                                        <md-icon slot="start">settings</md-icon>
+                                        <div slot="headline">Settings</div>
+                                    </md-menu-item>
+                                    <md-menu-item href="@Url.Action("Logout", "Account")">
+                                        <md-icon slot="start">logout</md-icon>
+                                        <div slot="headline">Logout</div>
+                                    </md-menu-item>
+                                </md-menu>
                             </div>
                         </li>
                     }
+                    <li class="nav-item">
+                        <span class="theme-toggle" style="position:relative">
+                            <span class="dd-tooltip" data-tooltip="Change theme">
+                                <md-icon-button id="themeToggle" aria-haspopup="menu" aria-label="Change theme">
+                                    <md-icon>brightness_auto</md-icon>
+                                </md-icon-button>
+                            </span>
+                            <md-menu id="themeMenu" anchor="themeToggle" positioning="popover"
+                                     menu-corner="start-end" anchor-corner="end-end">
+                                <md-menu-item data-theme-choice="light">
+                                    <md-icon slot="start">light_mode</md-icon>
+                                    <div slot="headline">Light</div>
+                                </md-menu-item>
+                                <md-menu-item data-theme-choice="dark">
+                                    <md-icon slot="start">dark_mode</md-icon>
+                                    <div slot="headline">Dark</div>
+                                </md-menu-item>
+                                <md-menu-item data-theme-choice="system">
+                                    <md-icon slot="start">brightness_auto</md-icon>
+                                    <div slot="headline">System</div>
+                                </md-menu-item>
+                            </md-menu>
+                        </span>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -143,6 +180,7 @@
 
 <script src="~/dist/vendor.js"></script>
 <script src="~/dist/layout.js" asp-append-version="true"></script>
+<script src="~/dist/material.js" asp-append-version="true" defer></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>

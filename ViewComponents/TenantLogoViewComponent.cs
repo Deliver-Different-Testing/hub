@@ -19,12 +19,20 @@ public class TenantLogoViewComponent(ITenantLogoService tenantLogoService) : Vie
             Log.Information("Encoded S3 URL: {EncodedUrl}", encodedLogoUrl);
         }
 
+        var isS3Logo = logoUrl != null && !logoUrl.StartsWith('/');  // Distinguishes S3 vs local
+        var resolvedLogoUrl = encodedLogoUrl ?? "/images/DFRNT_HorizLogo_RGB.png";
+
         var model = new TenantLogoViewModel
         {
-            LogoUrl = encodedLogoUrl ?? "/images/DFRNT_HorizLogo_RGB.png",
+            LogoUrl = resolvedLogoUrl,
+            // Local (our own) logos ship a dark-theme variant with a light wordmark
+            // ("<name>_dark.<ext>") so we can asset-swap on dark surfaces instead of
+            // plating the light logo behind a box. S3 tenant logos are arbitrary
+            // third-party art we can't recolour, so they get no dark variant.
+            DarkLogoUrl = isS3Logo ? null : DeriveDarkVariant(resolvedLogoUrl),
             CssClass = cssClass,
             AltText = alt,
-            IsS3Logo = logoUrl != null && !logoUrl.StartsWith('/')  // Distinguishes S3 vs local
+            IsS3Logo = isS3Logo
         };
 
         Log.Information("ViewComponent model - LogoUrl: {LogoUrl}, IsS3Logo: {IsS3Logo}, CssClass: {CssClass}",
@@ -33,9 +41,17 @@ public class TenantLogoViewComponent(ITenantLogoService tenantLogoService) : Vie
         return View(model);
     }
 
+    // "/images/DFRNT_HorizLogo_RGB.png" -> "/images/DFRNT_HorizLogo_RGB_dark.png"
+    private static string DeriveDarkVariant(string url)
+    {
+        var dot = url.LastIndexOf('.');
+        return dot > 0 ? string.Concat(url.AsSpan(0, dot), "_dark", url.AsSpan(dot)) : url + "_dark";
+    }
+
     public class TenantLogoViewModel
     {
         public string LogoUrl { get; init; } = string.Empty;
+        public string? DarkLogoUrl { get; init; }
         public string CssClass { get; init; } = string.Empty;
         public string AltText { get; init; } = string.Empty;
         public bool IsS3Logo { get; init; }

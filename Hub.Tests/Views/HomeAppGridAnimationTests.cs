@@ -9,12 +9,18 @@ public class HomeAppGridAnimationTests
     {
         var viewPath = FindFile("Views", "Home", "Index.cshtml");
         if (viewPath is null)
+        {
             Assert.Skip("Views/Home/Index.cshtml not found relative to test output directory");
+        }
+
         _homeView = File.ReadAllText(viewPath);
 
         var lessPath = FindFile("wwwroot", "css", "site.less");
         if (lessPath is null)
+        {
             Assert.Skip("wwwroot/css/site.less not found relative to test output directory");
+        }
+
         _siteLess = File.ReadAllText(lessPath);
     }
 
@@ -25,7 +31,10 @@ public class HomeAppGridAnimationTests
         {
             var candidate = Path.Combine([dir.FullName, .. pathSegments]);
             if (File.Exists(candidate))
+            {
                 return candidate;
+            }
+
             dir = dir.Parent;
         }
         return null;
@@ -53,11 +62,21 @@ public class HomeAppGridAnimationTests
         // branch. Conditional cards inside the else block (e.g. Fuel Surcharge)
         // count toward the position because they may render before Workflows.
         var elseStart = view.IndexOf("else\r\n    {", StringComparison.Ordinal);
-        if (elseStart < 0) elseStart = view.IndexOf("else\n    {", StringComparison.Ordinal);
-        if (elseStart < 0) return -1;
+        if (elseStart < 0)
+        {
+            elseStart = view.IndexOf("else\n    {", StringComparison.Ordinal);
+        }
+
+        if (elseStart < 0)
+        {
+            return -1;
+        }
 
         var workflowsIndex = view.IndexOf("Workflows</div>", elseStart, StringComparison.Ordinal);
-        if (workflowsIndex < 0) return -1;
+        if (workflowsIndex < 0)
+        {
+            return -1;
+        }
 
         var count = 0;
         var index = elseStart;
@@ -80,7 +99,10 @@ public class HomeAppGridAnimationTests
             var start = index + marker.Length;
             var end = less.IndexOf(')', start);
             if (end > start && int.TryParse(less.AsSpan(start, end - start), out var n) && n > highest)
+            {
                 highest = n;
+            }
+
             index = end < 0 ? less.Length : end;
         }
         return highest;

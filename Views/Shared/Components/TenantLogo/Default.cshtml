@@ -1,10 +1,32 @@
 @model Hub.ViewComponents.TenantLogoViewComponent.TenantLogoViewModel
 
-<img src="@Model.LogoUrl"
-     alt="@Model.AltText"
-     class="@Model.CssClass @(Model.IsS3Logo ? "s3-logo" : "local-logo")"
-     loading="lazy"
-     onerror="console.error('Failed to load logo:', this.src);">
+@if (Model.DarkLogoUrl != null)
+{
+    @* Local logo: ship both variants and let CSS reveal the right one per theme
+       (data-theme override + prefers-color-scheme), so the wordmark stays legible
+       on the dark surface without a plate behind it. *@
+    <img src="@Model.LogoUrl"
+         alt="@Model.AltText"
+         class="@Model.CssClass local-logo logo-light"
+         loading="lazy"
+         onerror="console.error('Failed to load logo:', this.src);">
+    @* Both variants keep the alt: only one is ever display:block, and the
+       display:none one is ignored by assistive tech — so the logo always has an
+       accessible name whichever theme is active. *@
+    <img src="@Model.DarkLogoUrl"
+         alt="@Model.AltText"
+         class="@Model.CssClass local-logo logo-dark"
+         loading="lazy"
+         onerror="console.error('Failed to load logo:', this.src);">
+}
+else
+{
+    <img src="@Model.LogoUrl"
+         alt="@Model.AltText"
+         class="@Model.CssClass s3-logo"
+         loading="lazy"
+         onerror="console.error('Failed to load logo:', this.src);">
+}
 
 <script>
     // Pre-load next logo URL to avoid expiration issues

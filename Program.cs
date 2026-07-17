@@ -18,18 +18,24 @@ builder.Services.AddHttpClient();
 
 var connectionString = Environment.GetEnvironmentVariable("MasterSQLConnection") ?? string.Empty;
 if (string.IsNullOrEmpty(connectionString))
+{
     throw new InvalidOperationException(
         "Could not find a connection string named 'MasterSQLConnection'.");
+}
 
 var domain = Environment.GetEnvironmentVariable("Domain") ?? string.Empty;
 if (string.IsNullOrEmpty(domain) && !builder.Environment.IsDevelopment())
+{
     throw new InvalidOperationException(
         "Could not find a env var string named 'Domain'.");
+}
 
 var redisConfig = Environment.GetEnvironmentVariable("RedisConfig");
 if (string.IsNullOrEmpty(redisConfig))
+{
     throw new InvalidOperationException(
         "Could not find a Redis Env Var named 'RedisConfig'.");
+}
 
 builder.Services
     .AddDatabaseServices(connectionString)

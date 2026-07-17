@@ -1,63 +1,65 @@
 @model LoginViewModel
 @{
-    ViewBag.Title = "Log In";
+    ViewBag.Title = "Log in";
     ViewBag.PageId = "login";
     ViewBag.LoginFailedData = ViewBag.LoginFailed == true ? "true" : "false";
 }
 
 <div class="auth-wrapper" data-login-failed="@ViewBag.LoginFailedData">
     <div class="auth-card">
+        <div class="auth-progress" id="loginProgress" aria-hidden="true">
+            <md-linear-progress indeterminate aria-label="Signing in"></md-linear-progress>
+        </div>
+        @* Two mascot variants, theme-toggled by CSS (no flash: the theme is
+           resolved before paint). The dark variant knocks its baked-in white
+           backing back to a translucent panel so it melts into the card instead
+           of sitting in a white box. login.ts plays whichever is visible. *@
         <div class="text-center">
-            <lottie-player src="/images/Auto-mate-Ready%20state%20(2).json" background="transparent" speed="1" style="width: 200px; height: 200px; margin: 0 auto;" loop autoplay></lottie-player>
+            <lottie-player class="auth-lottie auth-lottie-light" src="/images/Auto-mate-Ready%20state%20(2).json" background="transparent" speed="1"></lottie-player>
+            <lottie-player class="auth-lottie auth-lottie-dark" src="/images/Auto-mate-Ready%20state%20(2)_dark.json" background="transparent" speed="1"></lottie-player>
         </div>
         <h2>Welcome back</h2>
         <p class="auth-subtitle">Sign in to your account</p>
 
-        <div class="auth-info-box">
-            <div class="icon">
-                <span class="material-symbols-outlined">location_on</span>
-            </div>
-            Login to our customer area
-        </div>
-
         <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewBag.ReturnUrl" method="post" class="needs-validation" novalidate id="loginForm">
             @Html.AntiForgeryToken()
-            @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+            @Html.ValidationSummary(true, "", new { @class = "auth-form-error" })
 
             <div class="mb-3">
-                <label asp-for="Email" class="form-label">Email</label>
-                <input asp-for="Email" class="form-control" required type="email" placeholder="you@company.com" />
-                <div class="invalid-feedback">
-                    Please enter a valid email address.
-                </div>
+                <md-filled-text-field asp-for="Email" label="Email" type="email" required no-asterisk
+                                      placeholder="you@company.com" autocomplete="username">
+                </md-filled-text-field>
             </div>
 
             <div class="mb-3">
-                <label asp-for="Password" class="form-label">Password</label>
-                <input asp-for="Password" class="form-control" type="password" required placeholder="Enter your password" />
-                <div class="invalid-feedback">
-                    Please enter your password.
-                </div>
+                <md-filled-text-field asp-for="Password" label="Password" type="password" required no-asterisk
+                                      placeholder="Enter your password" autocomplete="current-password">
+                </md-filled-text-field>
             </div>
 
             <div class="mb-3">
-                <label asp-for="IsCourierLogin" class="form-label">Login Type</label>
-                <select asp-for="IsCourierLogin" class="form-select" required>
-                    <option value="false" selected>Customer Login</option>
-                    <option value="true">Courier Login</option>
-                </select>
+                <md-filled-select name="IsCourierLogin" label="Login Type" value="false" required no-asterisk>
+                    <md-select-option value="false" selected>
+                        <div slot="headline">Customer Login</div>
+                    </md-select-option>
+                    <md-select-option value="true">
+                        <div slot="headline">Courier Login</div>
+                    </md-select-option>
+                </md-filled-select>
             </div>
 
-            <div class="mb-4 form-check d-flex justify-content-center">
-                <input asp-for="RememberMe" type="checkbox" class="form-check-input" />
-                <label asp-for="RememberMe" class="form-check-label">Remember me</label>
+            <div class="mb-4 text-center">
+                <label class="remember-me">
+                    <md-checkbox name="RememberMe" value="true" touch-target="wrapper"></md-checkbox>
+                    <span>Remember me</span>
+                </label>
             </div>
 
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary" id="loginButton">
-                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    <span class="button-text">Log in</span>
-                </button>
+            <div class="mb-3 text-center">
+                <md-filled-button type="submit" id="loginButton">
+                    <md-icon slot="icon" aria-hidden="true">login</md-icon>
+                    <span class="button-label">Log in</span>
+                </md-filled-button>
             </div>
 
             <div class="text-center">

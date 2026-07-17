@@ -9,12 +9,18 @@ public class LayoutTenantSwitchingTests
     {
         var layoutPath = FindFile("Views", "Shared", "_Layout.cshtml");
         if (layoutPath is null)
+        {
             Assert.Skip("_Layout.cshtml not found relative to test output directory");
+        }
+
         _layoutContent = File.ReadAllText(layoutPath);
 
         var layoutJsPath = FindFile("src", "layout.ts");
         if (layoutJsPath is null)
+        {
             Assert.Skip("layout.ts not found relative to test output directory");
+        }
+
         _layoutJsContent = File.ReadAllText(layoutJsPath);
     }
 
@@ -25,7 +31,10 @@ public class LayoutTenantSwitchingTests
         {
             var candidate = Path.Combine([dir.FullName, .. pathSegments]);
             if (File.Exists(candidate))
+            {
                 return candidate;
+            }
+
             dir = dir.Parent;
         }
         return null;
@@ -43,13 +52,28 @@ public class LayoutTenantSwitchingTests
     }
 
     [Fact]
-    public void Layout_ClosesDropdown_WithDomManipulation()
+    public void Layout_TogglesMenu_ViaMdMenuOpenProperty()
     {
-        // Dropdown should be closed via DOM classList manipulation, not Bootstrap JS API.
-        // Tolerate optional non-null assertions (dropdownMenu!.classList...).
-        Assert.Matches(@"dropdownMenu!?\.classList\.remove\('show'\)", _layoutJsContent);
-        Assert.Matches(@"tenantDropdown!?\.classList\.remove\('show'\)", _layoutJsContent);
-        Assert.Matches(@"tenantDropdown!?\.setAttribute\('aria-expanded',\s*'false'\)", _layoutJsContent);
+        // The dropdown is now an MD3 md-menu that manages its own open/close
+        // (outside-click / Escape) — no Bootstrap JS API and no manual
+        // classList('show')/aria-expanded manipulation. The trigger toggles it
+        // imperatively via the `open` property. Tolerate optional non-null
+        // assertions (menu!.open ...).
+        Assert.Matches(@"menu!?\.open\s*=\s*!menu!?\.open", _layoutJsContent);
+
+        // Stale Bootstrap-era DOM manipulation must not return.
+        Assert.DoesNotContain("classList.remove('show')", _layoutJsContent);
+        Assert.DoesNotContain("aria-expanded", _layoutJsContent);
+    }
+
+    [Fact]
+    public void Layout_SyncsTriggerState_WithMenuOpenedClosedEvents()
+    {
+        // md-menu closes itself; the trigger mirrors its open state via the
+        // component's 'opened'/'closed' events so the chevron (.active) stays
+        // in sync rather than being driven by manual toggle bookkeeping.
+        Assert.Matches(@"addEventListener\('opened',.*classList\.add\('active'\)", _layoutJsContent);
+        Assert.Matches(@"addEventListener\('closed',.*classList\.remove\('active'\)", _layoutJsContent);
     }
 
     [Fact]

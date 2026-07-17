@@ -9,7 +9,7 @@ public sealed class Repository(
     DynamicDespatchDbContext context,
     ITenantService tenantService) : IDespatchRepository
 {
-    public async Task<TucClientContact?> FetchUserByUsername(string email)
+    public async Task<TucClientContact?> FetchUserByUsernameAsync(string email)
     {
         try
         {
@@ -38,13 +38,13 @@ public sealed class Repository(
         return string.Join(",", subAccounts);
     }
 
-    public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissions(int contactId)
+    public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissionsAsync(int contactId)
     {
         var data = await context.Procedures.RVW_stpValidateInternetPermissionsAsync(contactId);
         return data;
     }
 
-    public async Task InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link) =>
+    public async Task InitiatePasswordResetAsync(int contactId, string recoveryEmail, string replyEmail, string link) =>
         await context.Procedures.NET_stpContact_ResetPasswordAsync(contactId, recoveryEmail, replyEmail, link);
 
     public async Task UpdateUserAccessedAsync(int id, bool rememberMe, int tenantId)
@@ -62,7 +62,7 @@ public sealed class Repository(
                 .SetProperty(x => x.AllowCookieLogin, rememberMe));
     }
 
-    public async Task<int?> ValidateCourierByEmail(string email)
+    public async Task<int?> ValidateCourierByEmailAsync(string email)
     {
         try
         {
@@ -109,7 +109,7 @@ public sealed class Repository(
         }
     }
 
-    public async Task<bool> IsAfterHoursAuthorized(int courierId)
+    public async Task<bool> IsAfterHoursAuthorizedAsync(int courierId)
     {
         try
         {

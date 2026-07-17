@@ -10,27 +10,22 @@
                 <h3>API Key</h3>
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label for="ApiKey">API Key</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="ApiKey" name="ApiKey"
-                               value="@Model.FirstOrDefault(x => x.Name == "APIKey")?.Value" readonly/>
-                        @if (string.IsNullOrEmpty(Model.FirstOrDefault(x => x.Name == "APIKey")?.Value))
-                        {
-                            <button type="button" class="btn btn-outline-secondary" id="generateApiKey">
-                                Generate Key
-                            </button>
-                        }
-                        else
-                        {
-                            <button type="button" class="btn btn-outline-secondary" id="copyApiKey"
-                                    title="Copy to clipboard">
-                                <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">content_copy</span>
-                                Copy
-                            </button>
-                        }
-                    </div>
-                    <div class="invalid-feedback" id="apiKeyError"></div>
+                @{
+                    var apiKeyValue = Model.FirstOrDefault(x => x.Name == "APIKey")?.Value;
+                    var hasApiKey = !string.IsNullOrEmpty(apiKeyValue);
+                }
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <md-outlined-text-field id="ApiKey" name="ApiKey" label="API Key"
+                                            value="@apiKeyValue" readonly style="flex:1">
+                    </md-outlined-text-field>
+                    <md-outlined-button type="button" id="generateApiKey" class="@(hasApiKey ? "d-none" : null)">
+                        Generate Key
+                    </md-outlined-button>
+                    <md-outlined-button type="button" id="copyApiKey" title="Copy to clipboard"
+                                        class="@(hasApiKey ? null : "d-none")">
+                        <md-icon slot="icon">content_copy</md-icon>
+                        Copy
+                    </md-outlined-button>
                 </div>
             </div>
         </div>
@@ -53,8 +48,8 @@
                         <tr>
                             <td>@setting.Name</td>
                             <td>
-                                <input type="text" class="form-control" name="OtherSettings[@setting.Name]"
-                                       value="@setting.Value"/>
+                                <md-outlined-text-field name="OtherSettings[@setting.Name]" value="@setting.Value">
+                                </md-outlined-text-field>
                             </td>
                         </tr>
                     }
@@ -63,7 +58,7 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Save Settings</button>
+        <md-filled-button type="submit">Save Settings</md-filled-button>
     </form>
 </div>
 

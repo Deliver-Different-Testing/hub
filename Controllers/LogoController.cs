@@ -17,7 +17,9 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
 
             // If it's a local path, serve the file directly
             if (logoUrl != null && logoUrl.StartsWith('/'))
+            {
                 return Json(new { success = true, logoUrl, isLocal = true });
+            }
 
             // If it's an S3 URL, return the pre-signed URL
             return Json(new { success = true, logoUrl, isLocal = false });
