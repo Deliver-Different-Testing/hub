@@ -19,10 +19,9 @@
     <title>@ViewData["Title"] - Deliver DFRNT</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/dist/vendor.css"/>
     <link rel="stylesheet" href="~/dist/site.css" asp-append-version="true"/>
-    <link rel="stylesheet" href="~/dist/material-theme.css" asp-append-version="true"/>
     <link rel="icon" type="image/svg+xml" href="~/images/favicon.svg?v=6">
     <link rel="alternate icon" href="~/images/favicon.ico?11" type="image/x-icon">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-player/2.0.12/lottie-player.js"
@@ -88,80 +87,88 @@
                     {
                         <li class="nav-item tenant-selector me-3">
                             <span class="tenant-label me-2">Organizations:</span>
-                            <span class="dropdown" style="position:relative">
-                                <md-filled-button id="tenantDropdown" type="button" trailing-icon
-                                                  aria-haspopup="menu">
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" id="tenantDropdown"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
                                     <span class="tenant-name">@(tenants.FirstOrDefault(t => t.Id == currentTenantId)?.Name ?? "Select Tenant")</span>
-                                    <md-icon slot="icon"><dfrnt-icon set="lucide" name="chevron-down" /></md-icon>
-                                </md-filled-button>
-                                <md-menu id="tenantMenu" anchor="tenantDropdown" positioning="popover"
-                                         menu-corner="start-end" anchor-corner="end-end">
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" id="tenantMenu" aria-labelledby="tenantDropdown">
                                     @foreach (var tenant in tenants)
                                     {
-                                        <md-menu-item data-tenant-code="@tenant.Code" data-tenant-id="@tenant.Id"
-                                                      @(tenant.Id == currentTenantId ? "selected" : null)>
-                                            <div slot="headline">@tenant.Name</div>
-                                        </md-menu-item>
+                                        <li>
+                                            <button type="button" class="dropdown-item @(tenant.Id == currentTenantId ? "active" : null)"
+                                                    data-tenant-code="@tenant.Code" data-tenant-id="@tenant.Id">
+                                                @tenant.Name
+                                            </button>
+                                        </li>
                                     }
-                                </md-menu>
-                            </span>
+                                </ul>
+                            </div>
                         </li>
                     }
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <li class="nav-item me-3">
-                            <div class="profile-dropdown" style="position:relative">
+                            <div class="dropdown profile-dropdown">
                                 <div class="profile-icon-username" id="profileTrigger" role="button" tabindex="0"
-                                     aria-haspopup="menu">
+                                     data-bs-toggle="dropdown" aria-expanded="false">
                                     <span class="username">@displayLabel</span>
                                     <dfrnt-icon set="lucide" name="chevron-down" class="dropdown-arrow" size="16" />
                                 </div>
-                                <md-menu id="profileMenu" anchor="profileTrigger" positioning="popover"
-                                         menu-corner="start-end" anchor-corner="end-end">
-                                    <md-menu-item disabled title="@userEmail">
-                                        <md-icon slot="start"><dfrnt-icon set="lucide" name="circle-user-round" /></md-icon>
-                                        <div slot="headline">@userEmail</div>
-                                    </md-menu-item>
-                                    <md-divider></md-divider>
-                                    <md-menu-item href="@Url.Action("Settings", "Account")">
-                                        <md-icon slot="start"><dfrnt-icon set="lucide" name="settings" /></md-icon>
-                                        <div slot="headline">Settings</div>
-                                    </md-menu-item>
-                                    <md-menu-item href="@Url.Action("Logout", "Account")">
-                                        <md-icon slot="start"><dfrnt-icon set="lucide" name="log-out" /></md-icon>
-                                        <div slot="headline">Logout</div>
-                                    </md-menu-item>
-                                </md-menu>
+                                <ul class="dropdown-menu dropdown-menu-end" id="profileMenu" aria-labelledby="profileTrigger">
+                                    <li>
+                                        <span class="dropdown-item-text profile-email" title="@userEmail">
+                                            <dfrnt-icon set="lucide" name="circle-user-round" />
+                                            <span class="profile-email-text">@userEmail</span>
+                                        </span>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Settings", "Account")">
+                                            <dfrnt-icon set="lucide" name="settings" /> Settings
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="@Url.Action("Logout", "Account")">
+                                            <dfrnt-icon set="lucide" name="log-out" /> Logout
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </li>
                     }
                     <li class="nav-item">
-                        <span class="theme-toggle" style="position:relative">
-                            <span class="dd-tooltip" data-tooltip="Change theme">
-                                <md-icon-button id="themeToggle" aria-haspopup="menu" aria-label="Change theme">
-                                    <md-icon class="theme-toggle-icon" data-theme-icon="system">
-                                        <dfrnt-icon set="lucide" name="sun" data-theme-choice="light" />
-                                        <dfrnt-icon set="lucide" name="moon" data-theme-choice="dark" />
-                                        <dfrnt-icon set="lucide" name="sun-moon" data-theme-choice="system" />
-                                    </md-icon>
-                                </md-icon-button>
-                            </span>
-                            <md-menu id="themeMenu" anchor="themeToggle" positioning="popover"
-                                     menu-corner="start-end" anchor-corner="end-end">
-                                <md-menu-item data-theme-choice="light">
-                                    <md-icon slot="start"><dfrnt-icon set="lucide" name="sun" /></md-icon>
-                                    <div slot="headline">Light</div>
-                                </md-menu-item>
-                                <md-menu-item data-theme-choice="dark">
-                                    <md-icon slot="start"><dfrnt-icon set="lucide" name="moon" /></md-icon>
-                                    <div slot="headline">Dark</div>
-                                </md-menu-item>
-                                <md-menu-item data-theme-choice="system">
-                                    <md-icon slot="start"><dfrnt-icon set="lucide" name="sun-moon" /></md-icon>
-                                    <div slot="headline">System</div>
-                                </md-menu-item>
-                            </md-menu>
-                        </span>
+                        <div class="dropdown theme-toggle">
+                            @* The tooltip classes sit on the button itself (not a wrapping span) so the
+                               button and its .dropdown-menu remain siblings inside .dropdown — Bootstrap
+                               resolves the menu by sibling/parent lookup, and a wrapper would hide it. *@
+                            <button class="btn icon-btn dd-tooltip" type="button" id="themeToggle"
+                                    data-tooltip="Change theme"
+                                    data-bs-toggle="dropdown" aria-expanded="false" aria-label="Change theme">
+                                <span class="theme-toggle-icon" data-theme-icon="system">
+                                    <dfrnt-icon set="lucide" name="sun" data-theme-choice="light" />
+                                    <dfrnt-icon set="lucide" name="moon" data-theme-choice="dark" />
+                                    <dfrnt-icon set="lucide" name="sun-moon" data-theme-choice="system" />
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" id="themeMenu" aria-labelledby="themeToggle">
+                                <li>
+                                    <button type="button" class="dropdown-item" data-theme-choice="light">
+                                        <dfrnt-icon set="lucide" name="sun" /> Light
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item" data-theme-choice="dark">
+                                        <dfrnt-icon set="lucide" name="moon" /> Dark
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item" data-theme-choice="system">
+                                        <dfrnt-icon set="lucide" name="sun-moon" /> System
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
                 </ul>
             </div>
@@ -182,7 +189,6 @@
 
 <script src="~/dist/vendor.js"></script>
 <script src="~/dist/layout.js" asp-append-version="true"></script>
-<script src="~/dist/material.js" asp-append-version="true" defer></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>

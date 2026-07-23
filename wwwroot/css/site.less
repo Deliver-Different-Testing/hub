@@ -118,6 +118,7 @@
   --dd-surface-container-high: #ecebe9;
   --dd-surface-container-highest: #e4e2df;
   --dd-on-surface: #0d0c2c;           // Ink Blue text (~15:1 on white)
+  --dd-on-surface-rgb: 13, 12, 44;    // rgb of --dd-on-surface (for rgba() consumers, e.g. Bootstrap)
   --dd-on-surface-secondary: #6e6d80; // Ink 60% — sparingly; prefer lighter WEIGHT
   // MD3 inverse roles — a dark chip on the light theme (used by the plain
   // tooltip); flipped to a light chip in .dd-dark-scheme().
@@ -141,9 +142,10 @@
   --elevation-3: 0 6px 20px rgba(13, 12, 44, .10);
   --elevation-4: 0 10px 28px rgba(13, 12, 44, .12);
   --elevation-5: 0 16px 40px rgba(13, 12, 44, .16);
-  // Plus Jakarta Sans — the brand book's Software UI typeface.
-  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  // Inter — the brand book's ("Typography") specified UI typeface (Inter Bold /
+  // Inter Regular).
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-sans: var(--font-body);
   --ease-standard: cubic-bezier(.4, 0, .2, 1);
   --ease-decelerate: cubic-bezier(0, 0, .2, 1);
@@ -160,16 +162,36 @@
   --radius-xl: 24px;
   --radius-full: 999px;
   --radius-circle: 50%;
+
+  // Bootstrap bridge — point Bootstrap's core CSS vars at the --dd-* tokens so
+  // Bootstrap components (form controls, selects, dropdown surfaces, cards, links)
+  // inherit brand colour AND dark mode for free: the --dd-* values flip in
+  // .dd-dark-scheme(), and these var() references resolve at use-time, so a field
+  // background / dropdown surface tracks the active theme without per-component
+  // dark rules. Replaces the old @material/web system-token bridge.
+  --bs-body-bg: var(--dd-surface);
+  --bs-body-color: var(--dd-on-surface);
+  // Bootstrap builds muted text + the .form-floating label colour from the *-rgb
+  // triple; without this it stays near-black and renders dark-on-dark in dark mode.
+  --bs-body-color-rgb: var(--dd-on-surface-rgb);
+  --bs-secondary-color: var(--dd-on-surface-secondary);
+  --bs-border-color: var(--dd-outline);
+  --bs-primary: var(--dd-primary);
+  --bs-primary-rgb: var(--dd-primary-rgb);
+  --bs-emphasis-color: var(--dd-on-surface);
+  --bs-tertiary-bg: var(--dd-surface-container);
+  --bs-link-color: var(--dd-primary);
+  --bs-link-color-rgb: var(--dd-primary-rgb);
+  --bs-link-hover-color: var(--dd-primary-hover);
 }
 
 // Neutrals-only dark scheme. Only the NEUTRAL roles (surface / on-surface /
 // outline) flip to an Ink-Blue-tinted ramp — the brand/primary/accent block is
 // intentionally left at its light values. The navbar is a CONSTANT Ink Blue bar
 // with light (--dd-on-ink) chrome in both themes, so no per-theme navbar flip is
-// needed (that logic was removed in the DFRNT rebrand). The bridge in
-// material-theme.less re-reads these --dd-* tokens on <body>, so every
-// @material/web component (fields, buttons, menus, progress) tracks dark mode
-// for free. See material-theme.less for why the colour bridge lives on body.
+// needed (that logic was removed in the DFRNT rebrand). The --bs-* bridge in
+// :root re-reads these --dd-* tokens, so every Bootstrap component (form fields,
+// selects, dropdown surfaces, cards) tracks dark mode for free.
 //
 // Activation (see layout.ts + the _Layout no-flash script):
 //   data-theme unset / "system" → follow the OS (prefers-color-scheme)
@@ -189,6 +211,7 @@
   --dd-surface-container-high: #262547;
   --dd-surface-container-highest: #2e2c52;
   --dd-on-surface: rgba(244, 242, 241, .92);
+  --dd-on-surface-rgb: 244, 242, 241;  // rgb of the dark on-surface (Bootstrap rgba() consumers)
   --dd-on-surface-secondary: rgba(244, 242, 241, .60);
   // Inverse roles flip: a light chip carrying dark text on the dark scheme.
   --dd-inverse-surface: #f4f2f1;
@@ -271,7 +294,7 @@
 html {
   font-size: 15px;
   min-height: 100%;
-  overflow-x: clip; // kill phantom h-scroll from top-layer md-menu popovers
+  overflow-x: clip; // kill phantom h-scroll from dropdown popovers
   scrollbar-width: thin;
   scrollbar-color: var(--dd-outline) transparent;
 }
@@ -539,6 +562,31 @@ a.navbar-brand {
   transition: all var(--duration-short) var(--ease-standard);
   position: relative;
   overflow: hidden;
+  // Align an inline <dfrnt-icon> + label inside the button.
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+
+// Bare icon button (theme toggle in the navbar). Circular, transparent, chrome
+// tint on hover — replaces the old <md-icon-button>.
+.icon-btn {
+  padding: .375rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: inherit;
+  // Base .btn sets overflow:hidden for the .btn-primary ripple overlay; the icon
+  // button has no ripple and hosts the .dd-tooltip ::after, which must escape.
+  overflow: visible;
+
+  &:hover,
+  &:focus {
+    background: @background_color_3;
+  }
 }
 
 .btn-primary {
@@ -806,6 +854,10 @@ a.navbar-brand {
   font-weight: 500;
   font-family: @font_family_1;
   transition: background-color var(--duration-short) var(--ease-standard);
+  // Align a leading <dfrnt-icon> with the label.
+  display: flex;
+  align-items: center;
+  gap: .625rem;
 
   &:hover {
     background-color: @background_color_11;
@@ -1305,21 +1357,25 @@ body#login {
   .password-strength {
     margin-top: .5rem;
 
-    md-linear-progress {
-      display: block;
-      width: 100%;
-      --md-linear-progress-active-indicator-height: 4px;
-      --md-linear-progress-track-height: 4px;
-      --md-linear-progress-active-indicator-color: var(--dd-error);
+    .progress {
+      height: 4px;
+      background: rgba(var(--dd-state-rgb), .12);
+      border-radius: var(--radius-full);
     }
 
-    &[data-score="2"] md-linear-progress {
-      --md-linear-progress-active-indicator-color: var(--dd-warning-strong);
+    .progress-bar {
+      background-color: var(--dd-error);
+      border-radius: var(--radius-full);
+      transition: width var(--duration-medium) var(--ease-standard);
     }
 
-    &[data-score="3"] md-linear-progress,
-    &[data-score="4"] md-linear-progress {
-      --md-linear-progress-active-indicator-color: var(--dd-primary);
+    &[data-score="2"] .progress-bar {
+      background-color: var(--dd-warning-strong);
+    }
+
+    &[data-score="3"] .progress-bar,
+    &[data-score="4"] .progress-bar {
+      background-color: var(--dd-primary);
     }
 
     &__label {
@@ -1370,15 +1426,21 @@ body#login {
 
   .btn-primary.dropdown-toggle {
     background-color: @background_color_13;
-    color: @color_8;
+    color: var(--dd-on-ink);
     border: none;
     border-radius: var(--radius-xl);
     font-size: .8125rem;
     font-weight: 600;
     padding: .375rem .875rem;
 
-    &:hover {
+    &::after {
+      color: var(--dd-on-ink);
+    }
+
+    &:hover,
+    &:focus {
       background-color: @background_color_14;
+      color: var(--dd-on-ink);
       box-shadow: none;
       transform: none;
 
@@ -1399,21 +1461,17 @@ body#login {
   white-space: nowrap;
 }
 
-// Theme toggle — an icon button on the light-branded navbar that opens a small
-// Light / Dark / System menu. The icon matches the navbar chrome (black over the
-// primary bar, per tenant); the menu inherits the themed md-menu surface, so it
-// flips with the scheme it controls.
+// Theme toggle — an icon button on the Ink Blue navbar that opens a small
+// Light / Dark / System dropdown. The icon matches the navbar chrome (light
+// on-ink); the dropdown surface flips with the scheme it controls.
 #themeToggle {
-  --md-icon-button-icon-color: var(--dd-on-ink);
-  --md-icon-button-hover-icon-color: var(--dd-on-ink);
-  --md-icon-button-focus-icon-color: var(--dd-on-ink);
-  --md-icon-button-pressed-icon-color: var(--dd-on-ink);
+  color: var(--dd-on-ink);
 }
 
 // DFRNT UI icon system (brand book "Iconography - UI"): Lucide for chrome,
 // Tabler for logistics, inlined by the <dfrnt-icon> TagHelper at stroke width
 // 1.25. The SVGs use stroke:currentColor, so they inherit the element's colour
-// (and thus the active --dd-* theme / md-icon token). Width/height are baked in;
+// (and thus the active --dd-* theme colour). Width/height are baked in;
 // this only fixes inline alignment.
 .dfrnt-icon {
   display: inline-block;
@@ -1424,7 +1482,7 @@ body#login {
 }
 
 // The theme toggle inlines all three icons and shows the one matching the
-// active choice; layout.ts sets data-theme-icon on the md-icon.
+// active choice; layout.ts sets data-theme-icon on the .theme-toggle-icon wrapper.
 .theme-toggle-icon {
   .dfrnt-icon {
     display: none;
@@ -1438,39 +1496,22 @@ body#login {
 }
 
 #themeMenu {
-  --md-menu-container-color: var(--dd-surface-container);
-  --md-menu-container-shape: var(--radius-md);
+  min-width: 160px;
 
-  md-menu-item[selected] {
-    --md-menu-item-label-text-color: var(--dd-primary);
-    --md-menu-item-selected-container-color: transparent;
+  // The selected choice reads as brand-tinted text on a transparent row (not a
+  // filled pill), so it doesn't compete with the hover state.
+  .dropdown-item.active {
+    background-color: transparent;
+    color: var(--dd-primary);
+    font-weight: 600;
   }
 }
 
+// The organisation selector is a dropdown button ON the dark Ink Blue bar. Its
+// translucent light fill + on-ink label/caret (a lighter chip on the dark bar)
+// are defined by `.tenant-selector .btn-primary.dropdown-toggle` above; this only
+// spaces the loading spinner. Constant across themes (the bar is always dark).
 #tenantDropdown {
-  // The filled button's container defaults to --md-sys-color-primary, which is
-  // the SAME colour as the navbar it sits on (.navbar background = --dd-primary)
-  // — so the button would read as a low-separation blob. Override the container
-  // to a translucent on-primary overlay: over the primary navbar this renders as
-  // a lighter tint (the "light-blue fill" the label colour below assumes) and
-  // adapts per tenant (on-primary flips dark on the yellow theme).
-  // The organisation selector is a filled button ON the dark Ink Blue bar. Give
-  // it a translucent light fill (on-ink tint) that reads as a lighter chip on the
-  // dark bar, and light label/icon text so it matches the rest of the navbar
-  // chrome. This is constant across themes (the bar is always dark).
-  --md-filled-button-container-color: rgba(var(--dd-on-primary-rgb), .12);
-  --md-filled-button-hover-container-color: rgba(var(--dd-on-primary-rgb), .20);
-  --md-filled-button-focus-container-color: rgba(var(--dd-on-primary-rgb), .20);
-  --md-filled-button-pressed-container-color: rgba(var(--dd-on-primary-rgb), .26);
-  --md-filled-button-label-text-color: var(--dd-on-ink);
-  --md-filled-button-hover-label-text-color: var(--dd-on-ink);
-  --md-filled-button-focus-label-text-color: var(--dd-on-ink);
-  --md-filled-button-pressed-label-text-color: var(--dd-on-ink);
-  --md-filled-button-icon-color: var(--dd-on-ink);
-  --md-filled-button-hover-icon-color: var(--dd-on-ink);
-  --md-filled-button-focus-icon-color: var(--dd-on-ink);
-  --md-filled-button-pressed-icon-color: var(--dd-on-ink);
-
   .spinner-border {
     margin-left: 5px;
     vertical-align: middle;
@@ -1518,16 +1559,16 @@ body#login {
   margin-left: .125rem;
 }
 
-.profile-dropdown.active {
+// Bootstrap toggles `.show` on the dropdown trigger while the menu is open.
+.profile-icon-username.show {
   .dropdown-arrow {
     transform: rotate(180deg);
   }
 }
 
-// Material 3 "plain tooltip" (@material/web ships no tooltip element, so this
-// is a CSS-only stand-in). A small inverse-surface chip that labels the theme
+// CSS-only "plain tooltip": a small inverse-surface chip that labels the theme
 // toggle on hover/keyboard-focus. `data-tooltip` on the host carries the text;
-// once the md-menu opens focus leaves .dd-tooltip, so the tip auto-hides.
+// once the dropdown opens focus leaves .dd-tooltip, so the tip auto-hides.
 .dd-tooltip {
   position: relative;
   display: inline-flex;
@@ -1562,6 +1603,12 @@ body#login {
   &:focus-within::after {
     opacity: 1;
   }
+
+  // While the dropdown is open (Bootstrap adds .show to the toggle) suppress the
+  // tooltip so it doesn't hang over the open menu.
+  &.show::after {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1570,53 +1617,48 @@ body#login {
   }
 }
 
-// Profile dropdown — MD3 md-menu restyled to match the master appearance
-// (surface bg, rounded corners, ~240px width, badge email header, inset
-// divider, brand-tinted hover). The pill trigger above is unchanged.
+// Profile dropdown — Bootstrap dropdown restyled to match the master appearance
+// (surface bg, rounded corners, ~240px width, badge email header, inset divider,
+// brand-tinted hover). The pill trigger above is unchanged.
 #profileMenu {
   min-width: 240px;
-  max-width: 240px; // pin to master's width so a long email truncates instead of widening the menu
-  --md-menu-container-color: var(--dd-surface);
-  --md-menu-container-shape: var(--radius-lg);
+  max-width: 240px; // pin the width so a long email truncates instead of widening the menu
+  border-radius: var(--radius-lg);
 
-  md-menu-item {
-    min-width: 240px; // force the surface to master's width
-    --md-menu-item-label-text-font: @font_family_1;
-    --md-menu-item-label-text-size: .875rem;
-    --md-menu-item-label-text-weight: 500;
-    --md-menu-item-label-text-color: @color_1;
-    --md-menu-item-hover-state-layer-color: var(--dd-primary);
-  }
-
-  md-menu-item md-icon[slot="start"] {
+  .dropdown-item .dfrnt-icon {
     color: @color_5;
   }
 
-  // Email header (the disabled first item) — full-strength, badge icon.
-  md-menu-item[disabled] {
-    opacity: 1;
-    --md-menu-item-label-text-color: @color_5;
-    --md-menu-item-label-text-size: .8125rem;
+  // Email header (the first, non-interactive row) — badge icon + muted, truncated
+  // email text.
+  .profile-email {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+    padding: .5rem .875rem;
+    font-size: .8125rem;
+    color: @color_5;
+
+    .dfrnt-icon {
+      flex: 0 0 auto;
+      color: @color_7;
+      background: var(--dd-primary-container);
+      border-radius: var(--radius-circle);
+      padding: .25rem;
+    }
+
+    .profile-email-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
-  md-menu-item[disabled] md-icon[slot="start"] {
-    color: @color_7;
-    background: var(--dd-primary-container);
-    border-radius: var(--radius-circle);
-    padding: .25rem;
-  }
-
-  // Truncate a long email (or any headline) rather than overflowing the surface.
-  [slot="headline"] {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  md-divider {
-    --md-divider-color: var(--dd-outline-variant);
+  .dropdown-divider {
+    border-top-color: var(--dd-outline-variant);
     margin: .375rem .75rem;
+    opacity: 1;
   }
 }
 

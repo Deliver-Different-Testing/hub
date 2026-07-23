@@ -1,11 +1,11 @@
 namespace Hub.Tests.Views;
 
-// Guards the MD3 login/reset button icons and the login-submit progress bar.
-// The buttons deliberately use a `.button-label` span instead of the whole
-// button's text so the JS "Logging in..."/"Processing..." swap (setSubmitting)
-// updates the label WITHOUT clobbering the slotted <md-icon> — a plain
-// button.textContent assignment would delete the icon. These tests fail if that
-// structure regresses.
+// Guards the login/reset button icons and the login-submit progress bar after
+// the Bootstrap migration. The buttons deliberately use a `.button-label` span
+// instead of the whole button's text so the JS "Logging in..."/"Processing..."
+// swap (setSubmitting) updates the label WITHOUT clobbering the leading
+// <dfrnt-icon> — a plain button.textContent assignment would delete the icon.
+// These tests fail if that structure regresses.
 public class AuthButtonProgressTests
 {
     private static string Read(params string[] segments)
@@ -40,7 +40,9 @@ public class AuthButtonProgressTests
     {
         var view = Read("Views", "Account", "Login.cshtml");
         Assert.Contains("id=\"loginProgress\"", view);
-        Assert.Contains("<md-linear-progress indeterminate", view);
+        // The old <md-linear-progress indeterminate> is now a CSS-animated bar.
+        Assert.Contains("class=\"auth-progress-bar\"", view);
+        Assert.DoesNotContain("md-linear-progress", view);
     }
 
     [Fact]
@@ -49,13 +51,10 @@ public class AuthButtonProgressTests
         var view = Read("Views", "Account", "Login.cshtml");
         var buttonStart = view.IndexOf("id=\"loginButton\"", StringComparison.Ordinal);
         Assert.True(buttonStart >= 0, "loginButton not found");
-        var buttonEnd = view.IndexOf("</md-filled-button>", buttonStart, StringComparison.Ordinal);
+        var buttonEnd = view.IndexOf("</button>", buttonStart, StringComparison.Ordinal);
         Assert.True(buttonEnd > buttonStart, "loginButton not closed");
 
         var button = view[buttonStart..buttonEnd];
-        // The md-icon container is kept (so the JS label swap can't clobber it);
-        // its ligature is replaced by an inlined Lucide icon via <dfrnt-icon>.
-        Assert.Contains("<md-icon slot=\"icon\"", button);
         Assert.Contains("<dfrnt-icon set=\"lucide\" name=\"log-in\"", button);
         Assert.Contains("class=\"button-label\"", button);
     }
@@ -66,11 +65,10 @@ public class AuthButtonProgressTests
         var view = Read("Views", "Account", "ResetPassword.cshtml");
         var buttonStart = view.IndexOf("id=\"resetButton\"", StringComparison.Ordinal);
         Assert.True(buttonStart >= 0, "resetButton not found");
-        var buttonEnd = view.IndexOf("</md-filled-button>", buttonStart, StringComparison.Ordinal);
+        var buttonEnd = view.IndexOf("</button>", buttonStart, StringComparison.Ordinal);
         Assert.True(buttonEnd > buttonStart, "resetButton not closed");
 
         var button = view[buttonStart..buttonEnd];
-        Assert.Contains("<md-icon slot=\"icon\"", button);
         Assert.Contains("<dfrnt-icon set=\"lucide\" name=\"key-round\"", button);
         Assert.Contains("class=\"button-label\"", button);
     }
@@ -89,7 +87,7 @@ public class AuthButtonProgressTests
     [Fact]
     public void SubmitScripts_UpdateLabelSpan_NotButtonTextContent()
     {
-        // button.textContent = ... would wipe the slotted <md-icon>. Both submit
+        // button.textContent = ... would wipe the leading <dfrnt-icon>. Both submit
         // handlers must drive the .button-label span instead.
         foreach (var script in new[] { "login.ts", "reset-password.ts" })
         {
@@ -100,17 +98,13 @@ public class AuthButtonProgressTests
     }
 
     [Fact]
-    public void Material_ImportsLinearProgress()
-    {
-        var material = Read("src", "material.ts");
-        Assert.Contains("@material/web/progress/linear-progress.js", material);
-    }
-
-    [Fact]
-    public void LoginStyles_StyleTheProgressBar()
+    public void LoginStyles_AnimateTheProgressBar()
     {
         var less = Read("wwwroot", "css", "login.less");
         Assert.Contains(".auth-progress", less);
         Assert.Contains("&.active", less);
+        // The indeterminate sweep keyframes replace md-linear-progress.
+        Assert.Contains("authProgressIndeterminate", less);
+        Assert.DoesNotContain("md-linear-progress", less);
     }
 }

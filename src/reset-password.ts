@@ -41,33 +41,26 @@ function isStrongPassword(pwd: string): boolean {
     return PASSWORD_REGEX.test(pwd);
 }
 
-// @material/web surfaces. Form-associated, so `required` participates in
-// form.checkValidity(); the strength / match rules are enforced here.
-interface MdTextField extends HTMLElement {
-    value: string;
-    error: boolean;
-    errorText: string;
-}
-
-interface MdButton extends HTMLElement {
-    disabled: boolean;
-}
-
-interface MdLinearProgress extends HTMLElement {
-    value: number;
+// Set/clear a Bootstrap inline validation error on a field. The error text goes
+// in the adjacent .invalid-feedback (a sibling of the input inside .form-floating).
+function setFieldError(field: HTMLInputElement, message: string): void {
+    field.classList.toggle('is-invalid', message.length > 0);
+    const feedback = field.parentElement?.querySelector<HTMLElement>('.invalid-feedback');
+    if (feedback) feedback.textContent = message;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.querySelector('.needs-validation') as HTMLFormElement;
-    const password = document.getElementById('Password') as MdTextField;
-    const confirmPassword = document.getElementById('ConfirmPassword') as MdTextField;
-    const button = document.getElementById('resetButton') as MdButton;
+    const password = document.getElementById('Password') as HTMLInputElement;
+    const confirmPassword = document.getElementById('ConfirmPassword') as HTMLInputElement;
+    const button = document.getElementById('resetButton') as HTMLButtonElement;
     const label = button.querySelector<HTMLElement>('.button-label');
     const resetFailed = document.querySelector<HTMLElement>('.auth-wrapper')?.dataset.resetFailed === 'true';
 
-    // Strength-meter elements (present on the reset view only).
+    // Strength-meter elements (present on the reset view only). strengthBar is the
+    // Bootstrap .progress-bar fill; its width tracks the score.
     const strength = document.getElementById('passwordStrength');
-    const strengthBar = document.getElementById('strengthBar') as MdLinearProgress | null;
+    const strengthBar = document.getElementById('strengthBar');
     const strengthLabel = document.getElementById('strengthLabel');
     const strengthFeedback = document.getElementById('strengthFeedback');
 
@@ -77,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastScoredValue = '';
     let lastScore = -1;
 
-    // Update the label span, not button.textContent, so the slotted md-icon survives.
+    // Update the label span, not button.textContent, so the button icon survives.
     function setSubmitting(isSubmitting: boolean): void {
         button.disabled = isSubmitting;
         if (label) label.textContent = isSubmitting ? 'Processing...' : 'Reset Password';
@@ -91,20 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // we actually have a score for the current value (currentScore() >= 0).
     function refreshPasswordError(): void {
         if (!password.value) {
-            password.error = false;
-            password.errorText = '';
+            setFieldError(password, '');
             return;
         }
         const score = currentScore();
         if (!isStrongPassword(password.value)) {
-            password.error = true;
-            password.errorText = PASSWORD_INVALID_MESSAGE;
+            setFieldError(password, PASSWORD_INVALID_MESSAGE);
         } else if (score >= 0 && score < MIN_STRENGTH_SCORE) {
-            password.error = true;
-            password.errorText = WEAK_PASSWORD_MESSAGE;
+            setFieldError(password, WEAK_PASSWORD_MESSAGE);
         } else {
-            password.error = false;
-            password.errorText = '';
+            setFieldError(password, '');
         }
     }
 
@@ -113,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             strength.hidden = false;
             strength.dataset.score = String(score);
         }
-        if (strengthBar) strengthBar.value = (score + 1) / STRENGTH_LABELS.length;
+        if (strengthBar) strengthBar.style.width = `${((score + 1) / STRENGTH_LABELS.length) * 100}%`;
         if (strengthLabel) strengthLabel.textContent = STRENGTH_LABELS[score];
     }
 
@@ -140,8 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function validateConfirmField(): void {
         const mismatch = Boolean(confirmPassword.value) && password.value !== confirmPassword.value;
-        confirmPassword.error = mismatch;
-        confirmPassword.errorText = mismatch ? CONFIRM_MISMATCH_MESSAGE : '';
+        setFieldError(confirmPassword, mismatch ? CONFIRM_MISMATCH_MESSAGE : '');
     }
 
     async function handleSubmit(): Promise<void> {

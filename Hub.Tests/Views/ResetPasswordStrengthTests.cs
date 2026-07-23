@@ -39,8 +39,11 @@ public class ResetPasswordStrengthTests
     {
         var view = Read("Views", "Account", "ResetPassword.cshtml");
         Assert.Contains("id=\"passwordStrength\"", view);
+        // The bar is now a Bootstrap .progress > .progress-bar (id=strengthBar),
+        // whose width the reset script drives, replacing <md-linear-progress>.
         Assert.Contains("id=\"strengthBar\"", view);
-        Assert.Contains("<md-linear-progress", view);
+        Assert.Contains("class=\"progress\"", view);
+        Assert.DoesNotContain("md-linear-progress", view);
         Assert.Contains("id=\"strengthLabel\"", view);
         Assert.Contains("id=\"strengthFeedback\"", view);
     }

@@ -4,26 +4,18 @@ interface UpdateTenantResponse {
     message?: string;
 }
 
-// @material/web md-menu surface we toggle imperatively.
-interface MdMenu extends HTMLElement {
-    open: boolean;
-}
-
 function getRequestToken(): string {
     return document.querySelector<HTMLMetaElement>('meta[name="request-token"]')?.content ?? '';
 }
 
+// Tenant switcher — Bootstrap's dropdown JS handles open/close/anchor; this only
+// wires the item clicks to the tenant-switch fetch. Items are <button.dropdown-item>.
 function initTenantSwitcher(): void {
-    const menu = document.getElementById('tenantMenu') as MdMenu | null;
-    const button = document.getElementById('tenantDropdown') as (HTMLElement & { disabled: boolean }) | null;
+    const menu = document.getElementById('tenantMenu');
+    const button = document.getElementById('tenantDropdown') as (HTMLButtonElement | null);
     if (!menu || !button) return;
 
     const label = button.querySelector<HTMLElement>('.tenant-name');
-
-    button.addEventListener('click', event => {
-        event.stopPropagation();
-        menu.open = !menu.open;
-    });
 
     function setTenantLoading(isLoading: boolean): void {
         button!.disabled = isLoading;
@@ -94,52 +86,28 @@ function initTenantSwitcher(): void {
     }
 
     menu.addEventListener('click', event => {
-        const item = (event.target as HTMLElement).closest('md-menu-item');
+        const item = (event.target as HTMLElement).closest<HTMLElement>('.dropdown-item');
         if (!item) return;
         const tenantId = Number.parseInt(item.getAttribute('data-tenant-id') ?? '0', 10);
         void switchTenant(tenantId, item.textContent?.trim() ?? '');
     });
 }
 
-function initProfileDropdown(): void {
-    const trigger = document.getElementById('profileTrigger');
-    const menu = document.getElementById('profileMenu') as MdMenu | null;
-    if (!trigger || !menu) return;
-
-    function toggle(event: Event): void {
-        event.stopPropagation();
-        menu!.open = !menu!.open;
-    }
-
-    trigger.addEventListener('click', toggle);
-    trigger.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            toggle(event);
-        }
-    });
-
-    // md-menu closes itself on outside-click / Escape; mirror its open state on
-    // the trigger so the chevron rotation (.active) stays in sync.
-    menu.addEventListener('opened', () => trigger.classList.add('active'));
-    menu.addEventListener('closed', () => trigger.classList.remove('active'));
-}
-
 type ThemeChoice = 'light' | 'dark' | 'system';
 
 // Light / Dark / System toggle. An inline script in <head> already applied the
 // saved choice before first paint (to avoid a flash); this only wires the menu
-// and keeps the icon + selected state in sync. 'dark'/'light' set data-theme on
-// <html> (winning over the OS); 'system' clears it so the prefers-color-scheme
-// rules in site.less take over.
+// and keeps the icon + selected state in sync. Bootstrap handles open/close.
+// 'dark'/'light' set data-theme on <html> (winning over the OS); 'system' clears
+// it so the prefers-color-scheme rules in site.less take over.
 function initThemeToggle(): void {
     const toggle = document.getElementById('themeToggle');
-    const menu = document.getElementById('themeMenu') as MdMenu | null;
+    const menu = document.getElementById('themeMenu');
     if (!toggle || !menu) return;
 
     // The button holds all three Lucide icons (sun / moon / sun-moon) inlined by
     // the <dfrnt-icon> TagHelper; CSS shows the one matching data-theme-icon.
-    const icon = toggle.querySelector<HTMLElement>('md-icon');
+    const icon = toggle.querySelector<HTMLElement>('.theme-toggle-icon');
 
     function readChoice(): ThemeChoice {
         try {
@@ -158,20 +126,15 @@ function initThemeToggle(): void {
             document.documentElement.setAttribute('data-theme', choice);
         }
         if (icon) icon.dataset.themeIcon = choice;
-        menu!.querySelectorAll('md-menu-item').forEach(item => {
-            item.toggleAttribute('selected', item.getAttribute('data-theme-choice') === choice);
+        menu!.querySelectorAll<HTMLElement>('.dropdown-item').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('data-theme-choice') === choice);
         });
     }
 
     applyChoice(readChoice());
 
-    toggle.addEventListener('click', event => {
-        event.stopPropagation();
-        menu.open = !menu.open;
-    });
-
     menu.addEventListener('click', event => {
-        const item = (event.target as HTMLElement).closest('md-menu-item');
+        const item = (event.target as HTMLElement).closest<HTMLElement>('.dropdown-item');
         const choice = item?.getAttribute('data-theme-choice') as ThemeChoice | null;
         if (!choice) return;
         try {
@@ -185,7 +148,6 @@ function initThemeToggle(): void {
 
 document.addEventListener('DOMContentLoaded', () => {
     initTenantSwitcher();
-    initProfileDropdown();
     initThemeToggle();
 });
 

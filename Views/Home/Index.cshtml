@@ -53,12 +53,12 @@
             @if (Model.ShowAfterHours)
             {
                 <a class="app-card" href="@AppUrl("afterhours")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                     <div class="app-card-title">After Hours</div>
                 </a>
             }
             <a class="app-card" href="@AppUrl("courierportal")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </a>
             @* Courier-portal cutover: the new React portal is served by the
@@ -71,7 +71,7 @@
                no slug logic duplicated here. Swap out the legacy tile once
                cutover completes. *@
             <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
                 <div class="app-card-title">DFRNT Drive</div>
             </a>
         </div>
@@ -88,21 +88,21 @@
             @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
             {
                 <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
                     <div class="app-card-title">DFRNT Drive</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
             {
                 <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                     <div class="app-card-title">Dispatch</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
             {
                 <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
                     <div class="app-card-title">Route Viewer</div>
                 </a>
             }
@@ -125,55 +125,55 @@
             @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
             {
                 <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
                     <div class="app-card-title">Booking/Job List</div>
                 </a>
             }
             @if (bulkUploadPermission)
             {
                 <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
                     <div class="app-card-title">Bulk Import</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
             {
                 <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
                     <div class="app-card-title">Job Search</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
             {
                 <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                     <div class="app-card-title">Dispatch</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
             {
                 <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
                     <div class="app-card-title">Workflows</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-couriermanager"))
             {
                 <a class="app-card" href="@AppUrl("couriermanager")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
                     <div class="app-card-title">Courier Manager</div>
                 </a>
             }
             @if (!isUrgentAsureUser)
             {
                 <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
                     <div class="app-card-title">Print</div>
                 </a>
                 @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
                 {
                     <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                        <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
                         <div class="app-card-title">Route Viewer</div>
                     </a>
                 }
@@ -181,7 +181,7 @@
             @if (showFuelLink)
             {
                 <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
                     <div class="app-card-title">Fuel Surcharge</div>
                 </a>
             }
@@ -200,34 +200,34 @@
             @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
             {
                 <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
                     <div class="app-card-title">Booking/Job List</div>
                 </a>
             }
             @if (bulkUploadPermission)
             {
                 <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
                     <div class="app-card-title">Bulk Import</div>
                 </a>
             }
             @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
             {
                 <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
                     <div class="app-card-title">Job Search</div>
                 </a>
             }
             @if (!isUrgentAsureUser)
             {
                 <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
                     <div class="app-card-title">Print</div>
                 </a>
                 @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
                 {
                     <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                        <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
                         <div class="app-card-title">Route Viewer</div>
                     </a>
                 }
@@ -235,7 +235,7 @@
             @if (showFuelLink)
             {
                 <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
                     <div class="app-card-title">Fuel Surcharge</div>
                 </a>
             }
@@ -245,58 +245,58 @@
     {
         <div class="app-grid">
             <a class="app-card" href="@AppUrl("accounts")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/accounts.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/accounts.svg" alt="" /></div>
                 <div class="app-card-title">Accounts</div>
             </a>
             <a class="app-card" href="@AppUrl("adminmanager")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/admin-manager.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/admin-manager.svg" alt="" /></div>
                 <div class="app-card-title">Admin Manager</div>
             </a>
             <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
                 <div class="app-card-title">Booking/Job List</div>
             </a>
             <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
                 <div class="app-card-title">Bulk Import</div>
             </a>
             <a class="app-card" href="@AppUrl("clientmanager")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/client-manager.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/client-manager.svg" alt="" /></div>
                 <div class="app-card-title">Client Manager</div>
             </a>
             <a class="app-card" href="@AppUrl("couriermanager")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
                 <div class="app-card-title">Courier Manager</div>
             </a>
             <a class="app-card" href="@AppUrl("courierportal")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </a>
             <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                 <div class="app-card-title">Dispatch</div>
             </a>
             @if (showFuelLink)
             {
                 <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
-                    <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
+                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
                     <div class="app-card-title">Fuel Surcharge</div>
                 </a>
             }
             <a class="app-card" href="@(AppUrl("integrationmanager") + "/auth/entry")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="" /></div>
                 <div class="app-card-title">Integration Manager</div>
             </a>
             <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
                 <div class="app-card-title">Job Search</div>
             </a>
             <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
                 <div class="app-card-title">Print</div>
             </a>
             <a class="app-card" href="@AppUrl("runbuilder")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="" /></div>
                 <div class="app-card-title">Route Builder</div>
             </a>
             @* Routed Operations - the RunBuilder successor (Stage 1 = Route
@@ -309,11 +309,11 @@
                 <div class="app-card-title">Routed Operations</div>
             </a>
             <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
                 <div class="app-card-title">Route Viewer</div>
             </a>
             <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                <md-ripple></md-ripple><div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
                 <div class="app-card-title">Workflows</div>
             </a>
         </div>

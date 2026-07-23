@@ -3,11 +3,8 @@
 @primary-active: var(--dd-primary-active);
 @outline: var(--dd-outline);
 
-// Indeterminate MD3 linear progress pinned to the top edge of the auth card.
-// The card gets position:relative here (login page only) so the bar can anchor
-// to its top. A dedicated clipping wrapper rounds the bar to the card's top
-// corners WITHOUT setting overflow:hidden on the card itself — that would clip
-// the md-filled-select popover menu.
+// Indeterminate progress pinned to the top edge of the auth card. The card gets
+// position:relative here (login page only) so the bar can anchor to its top.
 .auth-card {
   position: relative;
 }
@@ -31,18 +28,26 @@
   opacity: 0;
   transition: opacity .2s var(--ease-standard, ease);
   pointer-events: none;
+  background: rgba(var(--dd-primary-rgb), .15);
 
-  md-linear-progress {
-    display: block;
-    width: 100%;
-    --md-linear-progress-active-indicator-height: 4px;
-    --md-linear-progress-track-height: 4px;
-    --md-linear-progress-track-color: transparent;
+  // CSS indeterminate fill — a short segment sweeping left→right, replacing the
+  // old Material linear-progress indeterminate animation.
+  .auth-progress-bar {
+    height: 100%;
+    width: 40%;
+    background: var(--dd-primary);
+    border-radius: inherit;
+    animation: authProgressIndeterminate 1.2s var(--ease-standard) infinite;
   }
 
   &.active {
     opacity: 1;
   }
+}
+
+@keyframes authProgressIndeterminate {
+  from { margin-left: -40%; }
+  to { margin-left: 100%; }
 }
 
 #loginButton {
@@ -118,8 +123,8 @@
   }
 }
 
-// "Remember me" — a single tappable MD3 row: the wrapping <label> toggles the
-// md-checkbox, MD3 body typography + on-surface colour. Centred under the fields
+// "Remember me" — a single tappable row: the wrapping <label> toggles the
+// checkbox, brand body typography + on-surface colour. Centred under the fields
 // via .text-center on its wrapper (the inline-flex label is an inline-level box,
 // so it honours the parent's text-align).
 .remember-me {
