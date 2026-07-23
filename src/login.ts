@@ -1,3 +1,5 @@
+import '@lottiefiles/lottie-player';
+
 const EMAIL_REGEX = /^(([^<>()\[\]\\.,;:\s@"]+(\.([^<>()\[\]\\.,;:\s@"]+))*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
 function isValidEmail(email: string): boolean {
@@ -45,19 +47,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (loginFailed) setSubmitting(false);
-
-    // The mascot plays once on load, and only when the visitor hasn't asked for
-    // reduced motion. Without `autoplay`/`loop` in the markup the player just
-    // holds its first frame, so reduced-motion users get a still illustration.
-    // Two variants are rendered (light/dark, theme-toggled by CSS); play the one
-    // that's actually visible so we don't animate a display:none player.
+    
     type LottiePlayer = HTMLElement & { play?: () => void };
     const players = Array.from(document.querySelectorAll<LottiePlayer>('.auth-lottie'));
     const lottie = players.find(p => p.offsetParent !== null) ?? players[0] ?? null;
+    
     if (lottie && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        const playOnce = (): void => lottie.play?.();
-        if (typeof lottie.play === 'function') playOnce();
-        else lottie.addEventListener('ready', playOnce, { once: true });
+        const play = (): void => lottie.play?.();
+        lottie.addEventListener('ready', play, { once: true });
+        lottie.addEventListener('load', play, { once: true });
+        play();
     }
 
     form.addEventListener('submit', e => {
