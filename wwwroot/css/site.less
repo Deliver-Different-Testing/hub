@@ -249,6 +249,17 @@
     color: var(--dd-primary);
   }
 
+  // Status chips: the primary brand block isn't flipped in dark mode, so the
+  // "Active" chip's text (--dd-on-primary-container, #1834c4 dark blue) renders
+  // dark-on-dark and its 12% tint all but vanishes on the ink surface. Lift the
+  // text to a light Reflex Blue and strengthen the fill — the same rescue the
+  // "Current" chip got via --dd-success-text (#6ee7a8). Inactive/scope chips
+  // read fine (they use flipped neutral tokens) and are left alone.
+  .fuel-chip-active {
+    background: rgba(var(--dd-primary-rgb), .22);
+    color: #aebdff;
+  }
+
   // The exceptions are brand art we can't recolour — arbitrary S3 tenant logos
   // and the login mascot's baked-in white background. These sit on a light MD3
   // inverse-surface chip so they stay legible whatever colour they are; it reads
@@ -258,6 +269,9 @@
     padding: .5rem .75rem;
     background: var(--dd-inverse-surface);
     border-radius: var(--radius-md);
+    // Soft elevation so the light chip reads as a deliberate lifted tile against
+    // the dark page rather than a flat, glaring white box.
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
   }
 
   // Login mascot: hide the light variant, reveal the dark one. Its baked backing
@@ -745,6 +759,31 @@ a.navbar-brand {
   }
 }
 
+// Browser autofill paints its own pale-blue background + near-black text through
+// an internal layer that ignores our theme — in dark mode the field turns
+// whitish-blue and the (light) floating label disappears against it. Mask the
+// fill with an inset shadow the colour of the field surface and force the themed
+// text/caret colour. Applies in BOTH themes (autofill glares in light mode too);
+// the huge inset box-shadow tracks --dd-surface, which flips with the theme.
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--dd-on-surface);
+  caret-color: var(--dd-on-surface);
+  -webkit-box-shadow: 0 0 0 1000px var(--dd-surface) inset;
+  box-shadow: 0 0 0 1000px var(--dd-surface) inset;
+  // Chrome animates the fill in ~150ms; a far-future transition keeps our masked
+  // colours from flashing back to the browser default.
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
+.form-control:-webkit-autofill:focus {
+  // Keep the focus ring while still masking the autofill background (both shadows
+  // layered: outset ring + inset surface fill).
+  -webkit-box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12), 0 0 0 1000px var(--dd-surface) inset;
+  box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12), 0 0 0 1000px var(--dd-surface) inset;
+}
+
 .form-select {
   font-family: @font_family_1;
   border: 1px solid var(--dd-outline);
@@ -957,6 +996,9 @@ a.navbar-brand {
   padding: .25rem .5rem;
   background: var(--dd-surface-container-lowest);
   border-radius: var(--radius-md);
+  // Subtle lift so the chip settles onto the Ink Blue bar as a tile, not a
+  // pasted-on box.
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
 }
 
 // The login mascot ships the same way (two <lottie-player>s). The compound

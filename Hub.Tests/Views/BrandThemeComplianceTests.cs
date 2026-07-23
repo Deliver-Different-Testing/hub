@@ -91,7 +91,7 @@ public partial class BrandThemeComplianceTests
     {
         var repoRoot = FindFile("wwwroot", "css", "site.less");
         Assert.NotNull(repoRoot);
-        var viewsDir = Path.Combine(new FileInfo(repoRoot!).Directory!.Parent!.Parent!.FullName, "Views");
+        var viewsDir = Path.Combine(new FileInfo(repoRoot).Directory!.Parent!.Parent!.FullName, "Views");
         foreach (var view in Directory.EnumerateFiles(viewsDir, "*.cshtml", SearchOption.AllDirectories))
         {
             var html = File.ReadAllText(view);
@@ -144,6 +144,21 @@ public partial class BrandThemeComplianceTests
     {
         Assert.DoesNotContain("#fff", _loginLess);
         Assert.Contains("var(--dd-on-primary)", _loginLess);
+    }
+
+    [Fact]
+    public void Autofill_MaskedToThemedSurfaceAndText()
+    {
+        // Chrome's :-webkit-autofill layer paints a pale-blue bg + dark text that
+        // ignores the theme, hiding the light floating label in dark mode. The
+        // inset shadow must track --dd-surface (flips with theme) and the text
+        // fill must be forced to --dd-on-surface.
+        Assert.Matches(
+            @"\.form-control:-webkit-autofill[^{]*\{[^}]*-webkit-box-shadow:\s*0 0 0 1000px var\(--dd-surface\) inset",
+            _siteLess);
+        Assert.Matches(
+            @"\.form-control:-webkit-autofill[^{]*\{[^}]*-webkit-text-fill-color:\s*var\(--dd-on-surface\)",
+            _siteLess);
     }
 
     // ---- Dark mode: neutrals-only scheme + Light/Dark/System toggle ---------
@@ -212,10 +227,25 @@ public partial class BrandThemeComplianceTests
     }
 
     [Fact]
+    public void DarkScheme_LiftsActiveStatusChip()
+    {
+        // The primary brand block isn't flipped in dark mode, so the "Active"
+        // chip's --dd-on-primary-container text (#1834c4) and 12% fill go
+        // dark-on-dark. The dark scheme must override it to a legible light-blue
+        // text + stronger fill (mirrors the --dd-success-text lift for Current).
+        var body = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
+        Assert.Matches(@"\.fuel-chip-active\s*\{[^}]*color:\s*#aebdff", body);
+        Assert.Matches(@"\.fuel-chip-active\s*\{[^}]*background:\s*rgba\(var\(--dd-primary-rgb\), \.22\)", body);
+    }
+
+    [Fact]
     public void DarkScheme_PlatesArbitraryS3LogoOnly()
     {
         var body = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
         Assert.Matches(@"\.s3-logo\s*\{[^}]*background:\s*var\(--dd-inverse-surface\)", body);
+        // The light chip carries a soft elevation shadow so it reads as a
+        // deliberate lifted tile, not a flat glaring box on the dark page.
+        Assert.Matches(@"\.s3-logo\s*\{[^}]*box-shadow:\s*0 1px 3px rgba\(0, 0, 0, \.35\)", body);
     }
 
     [Fact]
@@ -235,6 +265,40 @@ public partial class BrandThemeComplianceTests
         Assert.Contains("auth-lottie-light", view);
         Assert.Contains("auth-lottie-dark", view);
         Assert.Contains("(2)_dark.json", view);
+        // Both mascot variants loop: playback is JS-triggered (respecting
+        // reduced-motion) but the `loop` attribute keeps it running rather than
+        // stopping after a single pass.
+        Assert.Matches(@"<lottie-player[^>]*auth-lottie-light[^>]*\bloop\b", view);
+        Assert.Matches(@"<lottie-player[^>]*auth-lottie-dark[^>]*\bloop\b", view);
+    }
+
+    [Fact]
+    public void LoginScript_PlaysMascotOnPlayerReadyNotImmediately()
+    {
+        // The <lottie-player> is already upgraded by the time login.ts runs, so a
+        // bare `typeof play === 'function'` gate fires play() before the animation
+        // JSON has loaded — a silent no-op that leaves the mascot frozen on frame
+        // one. Playback must instead be wired to the player's ready/load events,
+        // and still be suppressed for reduced-motion users.
+        var script = Read("src", "login.ts");
+        Assert.Matches(@"addEventListener\('ready',\s*play", script);
+        Assert.Matches(@"addEventListener\('load',\s*play", script);
+        Assert.Contains("prefers-reduced-motion: reduce", script);
+        Assert.DoesNotContain("typeof lottie.play === 'function'", script);
+    }
+
+    [Fact]
+    public void LottiePlayer_BundledViaNpmNotCdn()
+    {
+        // The lottie-player component is vendored through npm + esbuild (bundled
+        // into login.js), not pulled from a CDN. Guards against the cdnjs <script>
+        // creeping back into _Layout or the side-effect import being dropped
+        // (either would leave <lottie-player> unregistered and the mascot inert).
+        var layout = Read("Views", "Shared", "_Layout.cshtml");
+        Assert.DoesNotContain("lottie-player", layout);
+        Assert.DoesNotContain("cdnjs.cloudflare.com", layout);
+        Assert.Contains("import '@lottiefiles/lottie-player'", Read("src", "login.ts"));
+        Assert.Contains("@lottiefiles/lottie-player", Read("package.json"));
     }
 
     [Fact]
@@ -293,7 +357,7 @@ public partial class BrandThemeComplianceTests
             _siteLess);
     }
 
-    [GeneratedRegex(@"<md-[a-z-]+")]
+    [GeneratedRegex("<md-[a-z-]+")]
     private static partial Regex MdCustomElement();
 
     // Captures the .dd-dark-scheme() mixin body, up to the unique comment that
