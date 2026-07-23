@@ -99,7 +99,6 @@ const configs: BuildOptions[] = [
       'src/settings.ts',
       'src/home.ts',
       'src/fuel-surcharge.ts',
-      'src/material.ts',
     ],
   },
   {
@@ -118,7 +117,6 @@ const configs: BuildOptions[] = [
     entryPoints: [
       'wwwroot/css/site.less',
       'wwwroot/css/login.less',
-      'wwwroot/css/material-theme.less',
     ],
     plugins: [lessLoader()],
   },

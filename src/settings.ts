@@ -4,36 +4,40 @@ interface GenerateApiKeyResponse {
     message?: string;
 }
 
-interface MdTextField extends HTMLElement {
-    value: string;
-    error: boolean;
-    errorText: string;
-}
-
 const COPIED_RESET_DELAY_MS = 2000;
 
 function getRequestVerificationToken(): string {
     return document.querySelector<HTMLInputElement>('input[name="__RequestVerificationToken"]')!.value;
 }
 
-function apiKeyField(): MdTextField {
-    return document.getElementById('ApiKey') as MdTextField;
+function apiKeyField(): HTMLInputElement {
+    return document.getElementById('ApiKey') as HTMLInputElement;
 }
 
 function showApiKeyError(message: string): void {
-    const field = apiKeyField();
-    field.error = true;
-    field.errorText = message;
+    apiKeyField().classList.add('is-invalid');
+    const error = document.getElementById('apiKeyError');
+    if (error) {
+        error.textContent = message;
+        error.classList.remove('d-none');
+    }
 }
 
-// The copy button is an <md-outlined-button> with an icon slot; swap its
-// contents to signal the copied state, then revert. Built with safe DOM APIs
-// (no innerHTML) — values are constants but this keeps it XSS-proof by design.
-function setCopyButtonContent(btn: HTMLElement, icon: string, label: string): void {
-    const iconEl = document.createElement('md-icon');
-    iconEl.setAttribute('slot', 'icon');
-    iconEl.textContent = icon;
-    btn.replaceChildren(iconEl, ` ${label}`);
+function clearApiKeyError(): void {
+    apiKeyField().classList.remove('is-invalid');
+    document.getElementById('apiKeyError')?.classList.add('d-none');
+}
+
+// The copy button shows a copy icon + "Copy"; on success swap to a check icon +
+// "Copied!", then revert. Both icons are pre-rendered by the <dfrnt-icon>
+// TagHelper; we just toggle their visibility (no client-side SVG creation).
+function setCopyButtonCopied(copied: boolean): void {
+    const btn = document.getElementById('copyApiKey');
+    if (!btn) return;
+    btn.querySelector('.copy-icon-copy')?.classList.toggle('d-none', copied);
+    btn.querySelector('.copy-icon-check')?.classList.toggle('d-none', !copied);
+    const label = btn.querySelector<HTMLElement>('.copy-label');
+    if (label) label.textContent = copied ? 'Copied!' : 'Copy';
 }
 
 async function copyApiKeyToClipboard(): Promise<void> {
@@ -42,8 +46,8 @@ async function copyApiKeyToClipboard(): Promise<void> {
 
     try {
         await navigator.clipboard.writeText(apiKeyField().value);
-        setCopyButtonContent(btn, 'check', 'Copied!');
-        setTimeout(() => setCopyButtonContent(btn, 'content_copy', 'Copy'), COPIED_RESET_DELAY_MS);
+        setCopyButtonCopied(true);
+        setTimeout(() => setCopyButtonCopied(false), COPIED_RESET_DELAY_MS);
     } catch (err) {
         console.error('Failed to copy text:', err);
     }
@@ -72,8 +76,7 @@ async function generateApiKey(): Promise<void> {
 
         const field = apiKeyField();
         field.value = result.apiKey ?? '';
-        field.error = false;
-        field.errorText = '';
+        clearApiKeyError();
 
         document.getElementById('generateApiKey')?.classList.add('d-none');
         document.getElementById('copyApiKey')?.classList.remove('d-none');

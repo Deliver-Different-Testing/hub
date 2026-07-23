@@ -3,25 +3,21 @@ declare const grecaptcha: {
     execute(siteKey: string, options: { action: string }): Promise<string>;
 };
 
-// @material/web field/button surfaces we drive imperatively. They are
-// form-associated, so `name`/value participate in FormData and form.reset().
-interface MdTextField extends HTMLElement {
-    value: string;
-    error: boolean;
-    errorText: string;
-}
-
-interface MdButton extends HTMLElement {
-    disabled: boolean;
-}
-
 const EMAIL_ERROR = 'Please enter a valid email address.';
+
+// Set/clear a Bootstrap inline validation error on a field. The error text goes
+// in the adjacent .invalid-feedback (a sibling of the input inside .form-floating).
+function setFieldError(field: HTMLInputElement, message: string): void {
+    field.classList.toggle('is-invalid', message.length > 0);
+    const feedback = field.parentElement?.querySelector<HTMLElement>('.invalid-feedback');
+    if (feedback) feedback.textContent = message;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('forgot-password-form') as HTMLFormElement;
     const messageArea = document.getElementById('messageArea') as HTMLElement;
-    const emailField = document.getElementById('Email') as MdTextField;
-    const submitButton = document.getElementById('submitButton') as MdButton;
+    const emailField = document.getElementById('Email') as HTMLInputElement;
+    const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
     const recaptchaSiteKey = document.querySelector<HTMLMetaElement>('meta[name="recaptcha-site-key"]')?.content;
 
     function showMessage(message: string, isError = false): void {
@@ -36,12 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setEmailError(hasError: boolean): void {
-        emailField.error = hasError;
-        emailField.errorText = hasError ? EMAIL_ERROR : '';
+        setFieldError(emailField, hasError ? EMAIL_ERROR : '');
     }
 
-    // Update the label span (not button.textContent) so the slotted md-icon
-    // survives — the same pattern the login button uses.
+    // Update the label span (not button.textContent) so the icon survives —
+    // the same pattern the login button uses.
     function setLoading(isLoading: boolean): void {
         submitButton.disabled = isLoading;
         const label = submitButton.querySelector<HTMLElement>('.button-label');

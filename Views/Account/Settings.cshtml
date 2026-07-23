@@ -14,19 +14,23 @@
                     var apiKeyValue = Model.FirstOrDefault(x => x.Name == "APIKey")?.Value;
                     var hasApiKey = !string.IsNullOrEmpty(apiKeyValue);
                 }
-                <div class="mb-3 d-flex align-items-center gap-2">
-                    <md-outlined-text-field id="ApiKey" name="ApiKey" label="API Key"
-                                            value="@apiKeyValue" readonly style="flex:1">
-                    </md-outlined-text-field>
-                    <md-outlined-button type="button" id="generateApiKey" class="@(hasApiKey ? "d-none" : null)">
+                <div class="mb-1 d-flex align-items-center gap-2">
+                    <div class="form-floating flex-grow-1">
+                        <input id="ApiKey" name="ApiKey" class="form-control" placeholder="API Key"
+                               value="@apiKeyValue" readonly />
+                        <label for="ApiKey">API Key</label>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary @(hasApiKey ? "d-none" : null)" id="generateApiKey">
                         Generate Key
-                    </md-outlined-button>
-                    <md-outlined-button type="button" id="copyApiKey" title="Copy to clipboard"
-                                        class="@(hasApiKey ? null : "d-none")">
-                        <md-icon slot="icon"><dfrnt-icon set="lucide" name="copy" /></md-icon>
-                        Copy
-                    </md-outlined-button>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary @(hasApiKey ? null : "d-none")"
+                            id="copyApiKey" title="Copy to clipboard">
+                        <dfrnt-icon set="lucide" name="copy" class="copy-icon-copy" />
+                        <dfrnt-icon set="lucide" name="check" class="copy-icon-check d-none" />
+                        <span class="copy-label">Copy</span>
+                    </button>
                 </div>
+                <div class="invalid-feedback d-none" id="apiKeyError"></div>
             </div>
         </div>
 
@@ -48,8 +52,8 @@
                         <tr>
                             <td>@setting.Name</td>
                             <td>
-                                <md-outlined-text-field name="OtherSettings[@setting.Name]" value="@setting.Value">
-                                </md-outlined-text-field>
+                                <input class="form-control" name="OtherSettings[@setting.Name]"
+                                       value="@setting.Value" aria-label="@setting.Name" />
                             </td>
                         </tr>
                     }
@@ -58,7 +62,7 @@
             </div>
         </div>
 
-        <md-filled-button type="submit">Save Settings</md-filled-button>
+        <button type="submit" class="btn btn-primary">Save Settings</button>
     </form>
 </div>
 

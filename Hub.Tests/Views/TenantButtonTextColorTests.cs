@@ -2,6 +2,11 @@ using System.Text.RegularExpressions;
 
 namespace Hub.Tests.Views;
 
+// Guards the tenant-selector button chrome after the Bootstrap migration. The
+// organisation selector is a `.btn.btn-primary.dropdown-toggle` sitting on the
+// constant dark Ink Blue navbar, so its label + caret must use the light
+// --dd-on-ink chrome token (not the default on-primary, and not the dark
+// on-surface Ink text) or it becomes unreadable on the bar.
 public partial class TenantButtonTextColorTests
 {
     private readonly string _siteLess;
@@ -33,57 +38,42 @@ public partial class TenantButtonTextColorTests
         return null;
     }
 
-    private string TenantDropdownBlock()
+    private string TenantToggleBlock()
     {
-        // Grab the `#tenantDropdown { ... }` rule body. The block only nests one
-        // level (.spinner-border), so a balanced match to the first closing
-        // brace at column-0-ish is unnecessary — capture up to the closing brace
-        // that ends the top-level block.
-        var match = TenantDropdownRegex().Match(_siteLess);
-        Assert.True(match.Success, "#tenantDropdown rule not found in site.less");
+        var match = TenantToggleRegex().Match(_siteLess);
+        Assert.True(match.Success, ".tenant-selector .btn-primary.dropdown-toggle rule not found in site.less");
         return match.Groups["body"].Value;
     }
 
     [Fact]
-    public void TenantDropdown_LabelText_UsesOnInkNotOnPrimary()
+    public void TenantToggle_LabelText_UsesOnInk()
     {
-        // DFRNT rebrand: the tenant button sits on the constant dark Ink Blue bar,
-        // so its label must use the light --dd-on-ink chrome token (not on-primary,
-        // and not the old on-surface which is now dark Ink text).
-        var block = TenantDropdownBlock();
-
-        Assert.Matches(
-            @"--md-filled-button-label-text-color\s*:\s*var\(--dd-on-ink\)",
-            block);
+        // The tenant button sits on the constant dark Ink Blue bar, so its label
+        // must use the light --dd-on-ink chrome token.
+        var block = TenantToggleBlock();
+        Assert.Matches(@"color\s*:\s*var\(--dd-on-ink\)", block);
     }
 
     [Fact]
-    public void TenantDropdown_IconAndInteractionStates_AlsoUseOnInk()
+    public void TenantToggle_Caret_UsesOnInk()
     {
-        // Every state resolves independently and falls back to on-primary, so
-        // hover/focus/pressed (label + icon) must be pinned to on-ink too, or the
-        // text flashes on interaction.
-        var block = TenantDropdownBlock();
-
-        string[] tokens =
-        [
-            "--md-filled-button-hover-label-text-color",
-            "--md-filled-button-focus-label-text-color",
-            "--md-filled-button-pressed-label-text-color",
-            "--md-filled-button-icon-color",
-            "--md-filled-button-hover-icon-color",
-            "--md-filled-button-focus-icon-color",
-            "--md-filled-button-pressed-icon-color",
-        ];
-
-        foreach (var token in tokens)
-        {
-            Assert.Matches($@"{Regex.Escape(token)}\s*:\s*var\(--dd-on-ink\)", block);
-        }
+        // Bootstrap's dropdown caret (::after) must also be on-ink, or it renders
+        // as a dark triangle on the dark bar.
+        var block = TenantToggleBlock();
+        Assert.Matches(@"&::after\s*\{[^}]*color\s*:\s*var\(--dd-on-ink\)", block);
     }
 
-    // Anchor to the top-level (column-0) navbar rule so the match isn't stolen by
-    // the indented `#tenantDropdown` override nested inside the dark-mode scheme.
-    [GeneratedRegex(@"^#tenantDropdown\s*\{(?<body>.*?)^\}", RegexOptions.Singleline | RegexOptions.Multiline)]
-    private static partial Regex TenantDropdownRegex();
+    [Fact]
+    public void TenantToggle_Fill_IsTranslucentOnInkChip()
+    {
+        // A translucent on-primary/on-ink overlay reads as a lighter chip on the
+        // dark bar (the @background_color_13 var), not a solid Reflex-Blue blob.
+        var block = TenantToggleBlock();
+        Assert.Matches(@"background-color\s*:\s*@background_color_13", block);
+        Assert.Matches(@"@background_color_13\s*:\s*rgba\(var\(--dd-on-primary-rgb\)", _siteLess);
+    }
+
+    // The tenant button rule is nested under `.tenant-selector { ... }`.
+    [GeneratedRegex(@"\.btn-primary\.dropdown-toggle\s*\{(?<body>.*?)\n  \}", RegexOptions.Singleline)]
+    private static partial Regex TenantToggleRegex();
 }

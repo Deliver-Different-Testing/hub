@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Html;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace Hub.TagHelpers;
@@ -26,7 +25,7 @@ namespace Hub.TagHelpers;
 /// wwwroot/dist is.
 /// </summary>
 [HtmlTargetElement("dfrnt-icon", TagStructure = TagStructure.WithoutEndTag)]
-public class DfrntIconTagHelper(IWebHostEnvironment env) : TagHelper
+public partial class DfrntIconTagHelper(IWebHostEnvironment env) : TagHelper
 {
     /// <summary>Confirmed brand spec — same stroke for both libraries.</summary>
     public const string StrokeWidth = "1.25";
@@ -35,8 +34,8 @@ public class DfrntIconTagHelper(IWebHostEnvironment env) : TagHelper
     public const int DefaultSize = 24;
 
     private static readonly ConcurrentDictionary<string, ParsedIcon?> Cache = new(StringComparer.Ordinal);
-    private static readonly Regex ViewBoxRegex = new("""viewBox="([^"]*)""", RegexOptions.Compiled);
-    private static readonly Regex SafeToken = new("^[a-z0-9-]+$", RegexOptions.Compiled);
+    private static readonly Regex ViewBoxRegex = MyRegex();
+    private static readonly Regex SafeToken = MyRegex1();
 
     private sealed record ParsedIcon(string ViewBox, string Inner);
 
@@ -132,4 +131,9 @@ public class DfrntIconTagHelper(IWebHostEnvironment env) : TagHelper
 
         return new ParsedIcon(viewBox, inner);
     }
+
+    [GeneratedRegex("""viewBox="([^"]*)""", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
+    [GeneratedRegex("^[a-z0-9-]+$", RegexOptions.Compiled)]
+    private static partial Regex MyRegex1();
 }

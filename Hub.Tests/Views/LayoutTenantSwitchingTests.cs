@@ -52,28 +52,52 @@ public class LayoutTenantSwitchingTests
     }
 
     [Fact]
-    public void Layout_TogglesMenu_ViaMdMenuOpenProperty()
+    public void Layout_UsesBootstrapDropdown_ForMenus()
     {
-        // The dropdown is now an MD3 md-menu that manages its own open/close
-        // (outside-click / Escape) — no Bootstrap JS API and no manual
-        // classList('show')/aria-expanded manipulation. The trigger toggles it
-        // imperatively via the `open` property. Tolerate optional non-null
-        // assertions (menu!.open ...).
-        Assert.Matches(@"menu!?\.open\s*=\s*!menu!?\.open", _layoutJsContent);
+        // The menus are now Bootstrap dropdowns: the triggers declare
+        // data-bs-toggle="dropdown" (Bootstrap's JS manages open/close/anchor/
+        // outside-click/Escape) and the tenant options are .dropdown-item buttons
+        // carrying data-tenant-id. The old <md-menu>/<md-menu-item> markup and the
+        // imperative `menu.open` toggling are gone.
+        Assert.Contains("data-bs-toggle=\"dropdown\"", _layoutContent);
+        Assert.DoesNotContain("<md-menu", _layoutContent);
+        Assert.Contains("class=\"dropdown-item", _layoutContent);
+        Assert.Contains("data-tenant-code=", _layoutContent);
+        Assert.Contains("data-tenant-id=", _layoutContent);
 
-        // Stale Bootstrap-era DOM manipulation must not return.
-        Assert.DoesNotContain("classList.remove('show')", _layoutJsContent);
-        Assert.DoesNotContain("aria-expanded", _layoutJsContent);
+        // layout.ts reacts to .dropdown-item clicks, not md-menu-item, and no
+        // longer imperatively toggles an md-menu `open` property.
+        Assert.Contains(".dropdown-item", _layoutJsContent);
+        Assert.DoesNotContain("md-menu-item", _layoutJsContent);
+        Assert.DoesNotMatch(@"menu!?\.open", _layoutJsContent);
     }
 
     [Fact]
-    public void Layout_SyncsTriggerState_WithMenuOpenedClosedEvents()
+    public void ThemeToggle_ButtonIsDropdownSibling_NotWrappedInTooltipSpan()
     {
-        // md-menu closes itself; the trigger mirrors its open state via the
-        // component's 'opened'/'closed' events so the chevron (.active) stays
-        // in sync rather than being driven by manual toggle bookkeeping.
-        Assert.Matches(@"addEventListener\('opened',.*classList\.add\('active'\)", _layoutJsContent);
-        Assert.Matches(@"addEventListener\('closed',.*classList\.remove\('active'\)", _layoutJsContent);
+        // Regression: the theme toggle button must be a direct child of .dropdown
+        // (sibling of #themeMenu) so Bootstrap can resolve the menu. Wrapping the
+        // toggle in a <span class="dd-tooltip"> hid the menu from Bootstrap's
+        // sibling/parent lookup, so _isShown() dereferenced a null _menu and the
+        // menu wouldn't open. The tooltip classes therefore live ON the button.
+        Assert.Matches(
+            @"<button[^>]*class=""[^""]*dd-tooltip[^""]*""[^>]*id=""themeToggle""[^>]*data-bs-toggle=""dropdown""",
+            _layoutContent);
+        Assert.DoesNotContain("<span class=\"dd-tooltip\"", _layoutContent);
+    }
+
+    [Fact]
+    public void ProfileChevron_RotatesViaBootstrapShowClass()
+    {
+        // Bootstrap toggles `.show` on the dropdown trigger while open, so the
+        // profile chevron rotation is driven by CSS off that class — no JS
+        // opened/closed bookkeeping.
+        var siteLessPath = FindFile("wwwroot", "css", "site.less");
+        Assert.NotNull(siteLessPath);
+        var siteLess = File.ReadAllText(siteLessPath!);
+        Assert.Matches(
+            @"\.profile-icon-username\.show\s*\{[\s\S]*?\.dropdown-arrow\s*\{[^}]*transform:\s*rotate\(180deg\)",
+            siteLess);
     }
 
     [Fact]

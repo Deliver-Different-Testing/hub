@@ -7,8 +7,8 @@
 
 <div class="auth-wrapper" data-login-failed="@ViewBag.LoginFailedData">
     <div class="auth-card">
-        <div class="auth-progress" id="loginProgress" aria-hidden="true">
-            <md-linear-progress indeterminate aria-label="Signing in"></md-linear-progress>
+        <div class="auth-progress" id="loginProgress" role="progressbar" aria-label="Signing in" aria-hidden="true">
+            <div class="auth-progress-bar"></div>
         </div>
         @* Two mascot variants, theme-toggled by CSS (no flash: the theme is
            resolved before paint). The dark variant knocks its baked-in white
@@ -25,41 +25,40 @@
             @Html.AntiForgeryToken()
             @Html.ValidationSummary(true, "", new { @class = "auth-form-error" })
 
-            <div class="mb-3">
-                <md-filled-text-field asp-for="Email" label="Email" type="email" required no-asterisk
-                                      placeholder="you@company.com" autocomplete="username">
-                </md-filled-text-field>
+            <div class="mb-3 form-floating">
+                <input asp-for="Email" type="email" class="form-control" placeholder="you@company.com"
+                       required autocomplete="username" />
+                <label asp-for="Email">Email</label>
+                <div class="invalid-feedback"></div>
             </div>
 
-            <div class="mb-3">
-                <md-filled-text-field asp-for="Password" label="Password" type="password" required no-asterisk
-                                      placeholder="Enter your password" autocomplete="current-password">
-                </md-filled-text-field>
+            <div class="mb-3 form-floating">
+                <input asp-for="Password" type="password" class="form-control" placeholder="Enter your password"
+                       required autocomplete="current-password" />
+                <label asp-for="Password">Password</label>
+                <div class="invalid-feedback"></div>
             </div>
 
-            <div class="mb-3">
-                <md-filled-select name="IsCourierLogin" label="Login Type" value="false" required no-asterisk>
-                    <md-select-option value="false" selected>
-                        <div slot="headline">Customer Login</div>
-                    </md-select-option>
-                    <md-select-option value="true">
-                        <div slot="headline">Courier Login</div>
-                    </md-select-option>
-                </md-filled-select>
+            <div class="mb-3 form-floating">
+                <select name="IsCourierLogin" id="IsCourierLogin" class="form-select" required>
+                    <option value="false" selected>Customer Login</option>
+                    <option value="true">Courier Login</option>
+                </select>
+                <label for="IsCourierLogin">Login Type</label>
             </div>
 
             <div class="mb-4 text-center">
                 <label class="remember-me">
-                    <md-checkbox name="RememberMe" value="true" touch-target="wrapper"></md-checkbox>
+                    <input class="form-check-input m-0" type="checkbox" name="RememberMe" value="true" />
                     <span>Remember me</span>
                 </label>
             </div>
 
             <div class="mb-3 text-center">
-                <md-filled-button type="submit" id="loginButton">
-                    <md-icon slot="icon" aria-hidden="true"><dfrnt-icon set="lucide" name="log-in" /></md-icon>
+                <button type="submit" id="loginButton" class="btn btn-primary">
+                    <dfrnt-icon set="lucide" name="log-in" />
                     <span class="button-label">Log in</span>
-                </md-filled-button>
+                </button>
             </div>
 
             <div class="text-center">
