@@ -382,3 +382,6 @@ redis-tools/
 /reporting-overview.html
 /Reporting-Framework-Overview.md
 /database/001-add-isnetworkpartner-to-user.sql
+
+# Design docs / brand assets (PDFs etc.) — kept local, not committed
+docs/

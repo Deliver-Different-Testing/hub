@@ -53,8 +53,10 @@ public class AuthButtonProgressTests
         Assert.True(buttonEnd > buttonStart, "loginButton not closed");
 
         var button = view[buttonStart..buttonEnd];
+        // The md-icon container is kept (so the JS label swap can't clobber it);
+        // its ligature is replaced by an inlined Lucide icon via <dfrnt-icon>.
         Assert.Contains("<md-icon slot=\"icon\"", button);
-        Assert.Contains(">login</md-icon>", button);
+        Assert.Contains("<dfrnt-icon set=\"lucide\" name=\"log-in\"", button);
         Assert.Contains("class=\"button-label\"", button);
     }
 
@@ -69,7 +71,7 @@ public class AuthButtonProgressTests
 
         var button = view[buttonStart..buttonEnd];
         Assert.Contains("<md-icon slot=\"icon\"", button);
-        Assert.Contains(">lock_reset</md-icon>", button);
+        Assert.Contains("<dfrnt-icon set=\"lucide\" name=\"key-round\"", button);
         Assert.Contains("class=\"button-label\"", button);
     }
 

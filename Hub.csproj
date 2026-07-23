@@ -28,6 +28,14 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />
   </ItemGroup>
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="ClientApp\obj\ClientApp.esproj.nuget.dgspec.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\obj\project.assets.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\obj\project.packagespec.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\package-lock.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\package.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\tsconfig.json" />
+  </ItemGroup>
   <Target Name="NpmInstall" BeforeTargets="NpmBuild"
           Inputs="package-lock.json" Outputs="node_modules\.install-stamp">
     <Exec Command="npm install" />

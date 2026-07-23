@@ -137,12 +137,9 @@ function initThemeToggle(): void {
     const menu = document.getElementById('themeMenu') as MdMenu | null;
     if (!toggle || !menu) return;
 
+    // The button holds all three Lucide icons (sun / moon / sun-moon) inlined by
+    // the <dfrnt-icon> TagHelper; CSS shows the one matching data-theme-icon.
     const icon = toggle.querySelector<HTMLElement>('md-icon');
-    const icons: Record<ThemeChoice, string> = {
-        light: 'light_mode',
-        dark: 'dark_mode',
-        system: 'brightness_auto',
-    };
 
     function readChoice(): ThemeChoice {
         try {
@@ -160,7 +157,7 @@ function initThemeToggle(): void {
         } else {
             document.documentElement.setAttribute('data-theme', choice);
         }
-        if (icon) icon.textContent = icons[choice];
+        if (icon) icon.dataset.themeIcon = choice;
         menu!.querySelectorAll('md-menu-item').forEach(item => {
             item.toggleAttribute('selected', item.getAttribute('data-theme-choice') === choice);
         });
