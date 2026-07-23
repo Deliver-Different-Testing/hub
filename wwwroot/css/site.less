@@ -20,7 +20,6 @@
 @color_9: var(--dd-success-text);
 @font_family_1: var(--font-body);
 @font_family_2: var(--font-heading);
-@background_color_1: #fef8e8;
 @background_color_2: var(--dd-surface-container-low);
 @background_color_3: rgba(var(--dd-on-primary-rgb), .12);
 @background_color_4: #000;
@@ -31,7 +30,7 @@
 @background_color_9: var(--dd-primary-container);
 @background_color_10: rgba(var(--dd-primary-rgb), .18);
 @background_color_11: rgba(var(--dd-primary-rgb), .06);
-@background_color_12: #1e293b;
+@background_color_12: #0d0c2c;  // Ink Blue — the login field ground
 @background_color_13: rgba(var(--dd-on-primary-rgb), .15);
 @background_color_14: rgba(var(--dd-on-primary-rgb), .22);
 @border_color_1: var(--dd-primary-hover);
@@ -47,9 +46,7 @@
 // same values; kept byte-identical to the previous inline rgba() literals via
 // fade(). The chevron SVG strokes stay inline: CSS/LESS vars can't cross into a
 // data: URI string.
-@login_glow_sky: #38bdf8; // default-theme cool accent glow (was rgba(56,189,248))
-@login_glow_gold: #f4c430; // non-US warm accent glow (was rgba(244,196,48))
-@login_glow_cream: #fef3d2; // non-US warm centre wash (was rgba(254,243,210))
+@login_glow_sky: #3bc7f4; // DFRNT Cyan accent glow behind the auth card
 
 
 @keyframes cardEntrance {
@@ -87,48 +84,64 @@
 
 
 :root {
-  --dd-primary: #2196f3;
-  --dd-primary-rgb: 33, 150, 243;
-  --dd-primary-hover: #1e88e5;
-  --dd-primary-active: #1565c0;
-  --dd-primary-container: #e3f2fd;
+  // DFRNT brand palette (Feb 2026). Interactive/foreground colour is split from
+  // the fill-only accent: --dd-primary (Reflex Blue) must read on white AND
+  // carry white text, so it drives links/focus/standard buttons. Cyan fails as
+  // a foreground on white (~1.6:1), so it lives as --dd-accent — a fill-only
+  // spotlight (dark Ink text on it) reserved for the primary CTA.
+  --dd-primary: #2a4eff;              // Reflex Blue
+  --dd-primary-rgb: 42, 78, 255;
+  --dd-primary-hover: #1f3fe0;
+  --dd-primary-active: #1834c4;
+  --dd-primary-container: #d4dcff;    // Reflex Blue 20%
   --dd-on-primary: #ffffff;
   --dd-on-primary-rgb: 255, 255, 255;
-  --dd-on-primary-container: #0d47a1;
-  --dd-secondary: #78716c;
-  --dd-secondary-rgb: 120, 113, 108;
+  --dd-on-primary-container: #1834c4;
+  --dd-secondary: #6e6d80;            // Ink Blue 60%
+  --dd-secondary-rgb: 110, 109, 128;
   --dd-on-secondary: #ffffff;
-  --dd-accent: #FF9800;
+  // Cyan — fill-only accent (dark Ink text on it) + the CTA/highlight colour.
+  --dd-accent: #3bc7f4;               // Cyan
+  --dd-accent-rgb: 59, 199, 244;
+  --dd-on-accent: #0d0c2c;            // Ink Blue text on cyan ≈ 11:1
+  --dd-accent-container: #d8f4fd;     // Cyan 20%
+  // Ink Blue — the brand's dark ground: navbar chrome + primary text.
+  --dd-ink: #0d0c2c;
+  --dd-ink-rgb: 13, 12, 44;
+  --dd-on-ink: #f4f2f1;               // Light Grey — chrome that sits on the ink bar
   --dd-surface: #ffffff;
-  --dd-surface-dim: #f5f7fa;
-  --dd-surface-variant: #f5f5f4;
+  --dd-surface-dim: #ecebe9;          // warm, a touch darker — app background
+  --dd-surface-variant: #f4f2f1;      // brand Light Grey
   --dd-surface-container-lowest: #ffffff;
-  --dd-surface-container-low: #f8f9fc;
-  --dd-surface-container: #f1f3f8;
-  --dd-surface-container-high: #ebedf4;
-  --dd-surface-container-highest: #e4e6ee;
-  --dd-on-surface: rgba(0, 0, 0, 0.87);
-  --dd-on-surface-secondary: rgba(0, 0, 0, 0.54);
+  --dd-surface-container-low: #faf9f8;
+  --dd-surface-container: #f4f2f1;
+  --dd-surface-container-high: #ecebe9;
+  --dd-surface-container-highest: #e4e2df;
+  --dd-on-surface: #0d0c2c;           // Ink Blue text (~15:1 on white)
+  --dd-on-surface-secondary: #6e6d80; // Ink 60% — sparingly; prefer lighter WEIGHT
   // MD3 inverse roles — a dark chip on the light theme (used by the plain
   // tooltip); flipped to a light chip in .dd-dark-scheme().
-  --dd-inverse-surface: #322F35;
-  --dd-inverse-on-surface: #F5EFF7;
-  --dd-outline: #8d8a86;
-  --dd-outline-variant: #e7e5e4;
-  --dd-error: #F44336;
+  --dd-inverse-surface: #0d0c2c;
+  --dd-inverse-on-surface: #f4f2f1;
+  --dd-outline: #cfced5;              // Ink 20% — keyline dividers/borders
+  --dd-outline-variant: #e6e4e9;      // lighter keyline
+  --dd-error: #dc3246;
   --dd-on-error: #ffffff;
-  --dd-success: #4CAF50;
-  --dd-success-rgb: 76, 175, 80;
-  --dd-success-text: #2e7d32;
-  --dd-warning: #FF9800;
-  --dd-warning-strong: #f59e0b;
-  --dd-info: #2196F3;
+  --dd-success: #13b964;
+  --dd-success-rgb: 19, 185, 100;
+  --dd-success-text: #0e8f4d;
+  --dd-warning: #fe811a;
+  --dd-warning-strong: #e6740f;
+  --dd-info: #2a4eff;
   --dd-state-rgb: var(--dd-primary-rgb);
-  --elevation-1: 0 1px 3px rgba(var(--dd-primary-rgb), .06), 0 1px 2px rgba(0, 0, 0, .04);
-  --elevation-2: 0 2px 6px rgba(var(--dd-primary-rgb), .08), 0 1px 3px rgba(0, 0, 0, .06);
-  --elevation-3: 0 4px 12px rgba(var(--dd-primary-rgb), .10), 0 2px 4px rgba(0, 0, 0, .05);
-  --elevation-4: 0 8px 24px rgba(var(--dd-primary-rgb), .12), 0 4px 8px rgba(0, 0, 0, .06);
-  --elevation-5: 0 12px 32px rgba(var(--dd-primary-rgb), .14), 0 6px 12px rgba(0, 0, 0, .08);
+  // Flattened elevation — near-flat surfaces; a real shadow only on overlays
+  // (menus/dropdowns) so cards read as keyline-bounded, not boxed & shadowed.
+  --elevation-1: none;
+  --elevation-2: 0 1px 2px rgba(13, 12, 44, .05);
+  --elevation-3: 0 6px 20px rgba(13, 12, 44, .10);
+  --elevation-4: 0 10px 28px rgba(13, 12, 44, .12);
+  --elevation-5: 0 16px 40px rgba(13, 12, 44, .16);
+  // Plus Jakarta Sans — the brand book's Software UI typeface.
   --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-sans: var(--font-body);
@@ -150,49 +163,41 @@
 }
 
 // Neutrals-only dark scheme. Only the NEUTRAL roles (surface / on-surface /
-// outline) flip — the brand/primary block is intentionally left at its light
-// values because the navbar is painted with --dd-primary and stays a
-// light-branded bar. Its bare chrome (tenant label, username, dropdown arrow,
-// theme-toggle icon) is repointed from black to --dd-on-primary in dark mode so
-// it reads white on the blue bar (dark on the yellow non-US bar); the profile
-// avatar keeps its dark icon on the light on-primary circle. The bridge in
-// material-theme.less re-reads these --dd-*
-// tokens on <body>, so every @material/web component (fields, buttons, menus,
-// progress) tracks dark mode for free. See material-theme.less for why the
-// colour bridge lives on body.
+// outline) flip to an Ink-Blue-tinted ramp — the brand/primary/accent block is
+// intentionally left at its light values. The navbar is a CONSTANT Ink Blue bar
+// with light (--dd-on-ink) chrome in both themes, so no per-theme navbar flip is
+// needed (that logic was removed in the DFRNT rebrand). The bridge in
+// material-theme.less re-reads these --dd-* tokens on <body>, so every
+// @material/web component (fields, buttons, menus, progress) tracks dark mode
+// for free. See material-theme.less for why the colour bridge lives on body.
 //
 // Activation (see layout.ts + the _Layout no-flash script):
 //   data-theme unset / "system" → follow the OS (prefers-color-scheme)
 //   data-theme="dark"           → forced dark
 //   data-theme="light"          → forced light (wins over a dark OS)
 .dd-dark-scheme() {
-  // Soft-charcoal neutrals rather than near-black — the whole ladder is lifted
-  // well clear of the MD3 baseline (#141218) to a paler mid-charcoal so surfaces
-  // read as a gentle warm grey (an earlier, darker ramp bottoming at #1e1c22 felt
-  // too harsh against the white-ish text). The container ladder stays monotonic
-  // (lowest → highest gets progressively lighter), preserving tonal elevation.
-  --dd-surface: #2c2a30;
-  --dd-surface-dim: #28262c;
-  --dd-surface-variant: #56535c;
-  --dd-surface-container-lowest: #252429;
-  --dd-surface-container-low: #312f36;
-  --dd-surface-container: #37353c;
-  --dd-surface-container-high: #413f47;
-  --dd-surface-container-highest: #4c4952;
-  // on-surface stays white at reduced opacity (MD3 dark text emphasis: ~90% /
-  // ~60%), never pure white — softer contrast, less halation on dark.
-  --dd-on-surface: rgba(255, 255, 255, .9);
-  --dd-on-surface-secondary: rgba(255, 255, 255, .6);
+  // Ink-Blue-based dark ramp. The brand's dark surface IS Ink Blue (#0d0c2c), so
+  // the whole ladder is tinted navy rather than neutral charcoal. The container
+  // ladder stays monotonic (lowest → highest gets progressively lighter),
+  // preserving tonal elevation. Text is warm Light Grey, not pure white.
+  --dd-surface: #16152e;
+  --dd-surface-dim: #100f26;
+  --dd-surface-variant: #2a2947;
+  --dd-surface-container-lowest: #100f26;
+  --dd-surface-container-low: #1a1937;
+  --dd-surface-container: #1f1e3d;
+  --dd-surface-container-high: #262547;
+  --dd-surface-container-highest: #2e2c52;
+  --dd-on-surface: rgba(244, 242, 241, .92);
+  --dd-on-surface-secondary: rgba(244, 242, 241, .60);
   // Inverse roles flip: a light chip carrying dark text on the dark scheme.
-  --dd-inverse-surface: #E6E1E9;
-  --dd-inverse-on-surface: #322F35;
-  // Outline neutrals kept cool to match the surface ramp (the old warm greys
-  // clashed with the cool charcoal), aligned to MD3's dark outline tones.
-  --dd-outline: #939099;
-  --dd-outline-variant: #56535c;
-  // Darker-surface variant of the success text so the fuel "current" chip stays
-  // legible on the dark chip fill.
-  --dd-success-text: #a5d6a7;
+  --dd-inverse-surface: #f4f2f1;
+  --dd-inverse-on-surface: #0d0c2c;
+  // Outline neutrals kept in the navy family so they sit on the ink surfaces.
+  --dd-outline: #3a3960;
+  --dd-outline-variant: #2a2947;
+  // Lighter success text so the fuel "current" chip stays legible on dark fills.
+  --dd-success-text: #6ee7a8;
 
   // Keep the App Hub's geometric backdrop in dark mode — the same SVG paths and
   // opacities as the light #home pattern, but the strokes/fills flip to white so
@@ -201,61 +206,20 @@
   // matches the base body#home background-repeat / -attachment, which still apply.
   body#home {
     background-color: var(--dd-surface-dim);
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.08'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.08'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.06'/%3E%3Ccircle cx='118' cy='32' r='3' fill='%23ffffff' stroke='none' opacity='0.09'/%3E%3Cpath d='M118 35 L118 44' opacity='0.09'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.05'/%3E%3Cpath d='M70 26 L82 26' opacity='0.06'/%3E%3Ccircle cx='140' cy='80' r='1.8' fill='%23ffffff' stroke='none' opacity='0.09'/%3E%3Ccircle cx='12' cy='80' r='1.2' fill='%23ffffff' stroke='none' opacity='0.07'/%3E%3C/svg%3E"), radial-gradient(ellipse at 15% 85%, rgba(var(--dd-primary-rgb), .10) 0%, transparent 55%), radial-gradient(ellipse at 85% 10%, rgba(var(--dd-primary-rgb), .07) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, .03) 0%, transparent 65%);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.08'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.08'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.06'/%3E%3Ccircle cx='118' cy='32' r='3' fill='%23ffffff' stroke='none' opacity='0.09'/%3E%3Cpath d='M118 35 L118 44' opacity='0.09'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.05'/%3E%3Cpath d='M70 26 L82 26' opacity='0.06'/%3E%3Ccircle cx='140' cy='80' r='1.8' fill='%23ffffff' stroke='none' opacity='0.09'/%3E%3Ccircle cx='12' cy='80' r='1.2' fill='%23ffffff' stroke='none' opacity='0.07'/%3E%3C/svg%3E"), radial-gradient(ellipse at 15% 85%, rgba(var(--dd-primary-rgb), .10) 0%, transparent 55%), radial-gradient(ellipse at 85% 10%, rgba(var(--dd-accent-rgb), .07) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, .03) 0%, transparent 65%);
   }
 
-  // The base #tenantDropdown rule pins the label to --dd-on-surface (near-black
-  // in light mode). In dark mode repoint the label + icon (all states) to
-  // --dd-on-primary so the organisation selector matches the rest of the navbar
-  // chrome — white on the blue default bar (dark on the yellow non-US bar). Its
-  // fill is only a 15% on-primary tint over the primary bar, so it stays mostly
-  // primary-coloured and the on-primary text keeps clear contrast.
-  #tenantDropdown {
-    --md-filled-button-label-text-color: var(--dd-on-primary);
-    --md-filled-button-hover-label-text-color: var(--dd-on-primary);
-    --md-filled-button-focus-label-text-color: var(--dd-on-primary);
-    --md-filled-button-pressed-label-text-color: var(--dd-on-primary);
-    --md-filled-button-icon-color: var(--dd-on-primary);
-    --md-filled-button-hover-icon-color: var(--dd-on-primary);
-    --md-filled-button-focus-icon-color: var(--dd-on-primary);
-    --md-filled-button-pressed-icon-color: var(--dd-on-primary);
-  }
+  // NOTE: the navbar is now a constant Ink Blue bar with light (--dd-on-ink)
+  // chrome in BOTH themes, so the old dark-mode chrome flips (#tenantDropdown,
+  // .tenant-label/.username/.dropdown-arrow, #themeToggle) and the app-bar logo
+  // swap are gone — those are handled once at base level. Only page-surface art
+  // still flips with the theme, below.
 
   // The in-page hub logo is asset-swapped, not plated: hide the light artwork
   // and reveal the dark variant (light wordmark, transparent bg), so it sits
   // cleanly on the dark page surface with no box behind it.
   .hub-brand-logo.logo-light { display: none; }
   .hub-brand-logo.logo-dark { display: block; }
-
-  // App-bar chrome (bare text/icons on the still-light-branded navbar) is pinned
-  // black in light mode; in dark mode repoint it to --dd-on-primary so it reads
-  // white on the blue default bar yet stays dark on the yellow non-US bar
-  // (on-primary flips per tenant). Excluded on purpose: the profile avatar (dark
-  // icon on a light on-primary circle) and #tenantDropdown (its own filled button,
-  // handled above) — white would vanish on their light fills.
-  .tenant-label,
-  .username,
-  .dropdown-arrow {
-    color: var(--dd-on-primary);
-  }
-  #themeToggle {
-    --md-icon-button-icon-color: var(--dd-on-primary);
-    --md-icon-button-hover-icon-color: var(--dd-on-primary);
-    --md-icon-button-focus-icon-color: var(--dd-on-primary);
-    --md-icon-button-pressed-icon-color: var(--dd-on-primary);
-  }
-
-  // App-bar brand logo: the local logo ships a white-wordmark dark variant. On the
-  // blue default/US bar it reads cleanly, so reveal it; non-US tenants keep the
-  // yellow bar where a white wordmark washes out, so they stay on the black artwork
-  // (re-hidden below). Arbitrary S3 tenant art has no dark variant and is plated
-  // via .s3-logo instead.
-  .logo.logo-light { display: none; }
-  .logo.logo-dark { display: block; }
-  body:not([data-tenant-country="US"]):not([data-tenant-country=""]) {
-    .logo.logo-light { display: block; }
-    .logo.logo-dark { display: none; }
-  }
 
   // App Hub tiles: on hover the title flips to --dd-primary-active (a dark blue)
   // which is muddy on the dark cards — lift it to the brighter --dd-primary.
@@ -298,36 +262,11 @@
   }
 }
 
-body[data-tenant-country] {
-  &:not([data-tenant-country="US"]) {
-    &:not([data-tenant-country=""]) {
-      --dd-primary: #f4c430;
-      --dd-primary-rgb: 244, 196, 48;
-      --dd-primary-hover: #e5b52a;
-      --dd-primary-active: #d4a324;
-      --dd-primary-container: #fef9e7;
-      --dd-on-primary: #1c1917;
-      --dd-on-primary-rgb: 28, 25, 23;
-      --dd-on-primary-container: #a87614;
-      --dd-state-rgb: 28, 25, 23;
-    }
-  }
-}
-
-body#login[data-tenant-country] {
-  &:not([data-tenant-country="US"]) {
-    &:not([data-tenant-country=""]) {
-      background-color: @background_color_1;
-      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23a87614' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.18'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.18'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.14'/%3E%3Cpath d='M118 30 a4 4 0 1 1 -0.01 0 z M118 34 L118 44' opacity='0.18' fill='%23a87614'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.10'/%3E%3Cpath d='M70 26 L82 26' opacity='0.14'/%3E%3Ccircle cx='140' cy='80' r='2' fill='%23a87614' stroke='none' opacity='0.20'/%3E%3Ccircle cx='12' cy='80' r='1.4' fill='%23a87614' stroke='none' opacity='0.16'/%3E%3C/svg%3E"), radial-gradient(ellipse at 15% 80%, fade(@login_glow_gold, 15%) 0%, transparent 50%), radial-gradient(ellipse at 85% 15%, fade(@login_glow_gold, 10%) 0%, transparent 45%), radial-gradient(ellipse at 50% 50%, fade(@login_glow_cream, 60%) 0%, transparent 80%);
-      background-repeat: repeat, no-repeat, no-repeat, no-repeat;
-      background-attachment: fixed, fixed, fixed, fixed;
-
-      .footer {
-        background: fade(@login_glow_cream, 50%);
-      }
-    }
-  }
-}
+// DFRNT is now the universal brand — the former US-blue / non-US-gold
+// per-tenant colour switch has been removed. Tenants differ by LOGO only
+// (see TenantLogoService / TenantLogo view component). The old
+// body[data-tenant-country] palette override and its non-US login-background
+// variant were deleted here in the Feb 2026 rebrand.
 
 html {
   font-size: 15px;
@@ -420,9 +359,11 @@ button.accept-policy {
 }
 
 .navbar {
-  background: var(--dd-primary) !important;
-  color: @color_4;
-  box-shadow: var(--elevation-1);
+  // The DFRNT brand ground is Ink Blue: the app bar is a constant dark bar with
+  // light (--dd-on-ink) chrome in BOTH themes — no per-theme flip. Flat, no shadow.
+  background: var(--dd-ink) !important;
+  color: var(--dd-on-ink);
+  box-shadow: none;
   padding: 0;
   border: none !important;
   min-height: 56px;
@@ -436,12 +377,12 @@ button.accept-policy {
     background-image: none;
     -webkit-mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='white' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
     mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='white' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
-    background-color: @background_color_4;
+    background-color: var(--dd-on-ink);
   }
 }
 
 .navbar.navbar-floating {
-  background: var(--dd-primary) !important;
+  background: var(--dd-ink) !important;
   border: none !important;
   border-radius: 0;
   margin: 0;
@@ -593,7 +534,8 @@ a.navbar-brand {
   font-family: @font_family_1;
   font-weight: 600;
   letter-spacing: .02em;
-  border-radius: var(--radius-sm);
+  // Lozenge / pill — the DFRNT main-button shape.
+  border-radius: var(--radius-full);
   transition: all var(--duration-short) var(--ease-standard);
   position: relative;
   overflow: hidden;
@@ -604,7 +546,7 @@ a.navbar-brand {
   border: none;
   color: @color_4;
   padding: .625rem 1.5rem;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
 
   &::before {
     content: '';
@@ -620,9 +562,9 @@ a.navbar-brand {
       background: rgba(255, 255, 255, .08);
     }
 
+    // Flat: darken on hover, no elevation shadow (the "no boxing" brand rule).
     background-color: @background_color_6;
     border-color: @border_color_1;
-    box-shadow: var(--elevation-2);
   }
 
   &:active {
@@ -637,11 +579,38 @@ a.navbar-brand {
   &:focus {
     background-color: @background_color_6;
     border-color: @border_color_1;
-    box-shadow: var(--elevation-2);
   }
 
   &:focus-visible {
     outline: 3px solid rgba(var(--dd-primary-rgb), .4);
+    outline-offset: 2px;
+  }
+}
+
+// Signature CTA — the single spotlight action (the brand's cyan "+ Add new"
+// pill). Solid Cyan with dark Ink text (~11:1) — accessible and matches the
+// brand mockup. The cyan→reflex atom gradient is reserved for text-free accent
+// lines (see .hub-surface / .app-card), never behind text. Use sparingly.
+.btn-cta {
+  background-color: var(--dd-accent);
+  border: none;
+  color: var(--dd-on-accent);
+  font-weight: 700;
+  padding: .625rem 1.5rem;
+  border-radius: var(--radius-full);
+
+  &:hover,
+  &:focus {
+    color: var(--dd-on-accent);
+    filter: brightness(.96);
+  }
+
+  &:active {
+    filter: brightness(.92);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(var(--dd-accent-rgb), .5);
     outline-offset: 2px;
   }
 }
@@ -689,15 +658,18 @@ a.navbar-brand {
 }
 
 .card {
-  border: 1px solid rgba(var(--dd-primary-rgb), .06);
+  // Flat, keyline-bounded — no elevation, a single hairline border instead of
+  // a shadowed box (the "fewer boxes / keyline dividers" brand direction).
+  border: 1px solid var(--dd-outline-variant);
   border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-1);
+  box-shadow: none;
   background: var(--dd-surface);
   overflow: hidden;
 }
 
 .card-header {
-  background: var(--dd-surface-container);
+  // Keyline divider, not a filled/shaded header band.
+  background: transparent;
   border-bottom: 1px solid var(--dd-outline-variant);
   padding: 1rem 1.25rem;
 
@@ -716,7 +688,7 @@ a.navbar-brand {
 
 .form-control {
   font-family: @font_family_1;
-  border: 2px solid var(--dd-outline);
+  border: 1px solid var(--dd-outline);
   border-radius: var(--radius-sm);
   transition: border-color var(--duration-short) var(--ease-standard), box-shadow var(--duration-short) var(--ease-standard);
 
@@ -728,7 +700,7 @@ a.navbar-brand {
 
 .form-select {
   font-family: @font_family_1;
-  border: 2px solid var(--dd-outline);
+  border: 1px solid var(--dd-outline);
   border-radius: var(--radius-sm);
   transition: border-color var(--duration-short) var(--ease-standard), box-shadow var(--duration-short) var(--ease-standard);
 
@@ -775,6 +747,10 @@ a.navbar-brand {
 .table {
   border-color: @border_color_5;
   --bs-table-bg: transparent;
+  // Bootstrap forces cell text to --bs-table-color (near-black, fixed for both
+  // themes). Route it through the theme token so tbody data cells stay readable
+  // in dark mode instead of rendering dark-on-dark.
+  --bs-table-color: var(--dd-on-surface);
 
   > thead {
     > tr {
@@ -911,6 +887,27 @@ a.navbar-brand {
   display: none;
 }
 
+// App-bar logo sits on the always-dark Ink Blue navbar, so it always uses the
+// white-wordmark (dark) variant regardless of theme — out-specifies the generic
+// `.logo-dark { display: none }` above. The in-page .hub-brand-logo still
+// theme-swaps (handled in the dark scheme).
+.navbar .logo.logo-light {
+  display: none;
+}
+
+.navbar .logo.logo-dark {
+  display: block;
+}
+
+// Arbitrary S3 tenant logos have no white-wordmark variant, so on the dark bar
+// they'd vanish. Plate them on a light chip in BOTH themes (the dark-scheme
+// .s3-logo rule handles in-page S3 art elsewhere).
+.navbar .s3-logo {
+  padding: .25rem .5rem;
+  background: var(--dd-surface-container-lowest);
+  border-radius: var(--radius-md);
+}
+
 // The login mascot ships the same way (two <lottie-player>s). The compound
 // selector out-specifies login.css's `.auth-lottie { display: block }` so the
 // dark variant stays hidden in light mode regardless of stylesheet order.
@@ -937,11 +934,12 @@ a.navbar-brand {
   background: var(--dd-surface-container-lowest);
   border-radius: var(--radius-xl);
   border: 1px solid var(--dd-outline-variant);
-  box-shadow: var(--elevation-2);
+  box-shadow: none;
   position: relative;
   overflow: hidden;
   animation: fadeInUp .55s var(--ease-emphasized-decelerate) both;
 
+  // Signature keyline: a slim cyan→reflex-blue atom-gradient rule across the top.
   &::before {
     content: '';
     position: absolute;
@@ -949,9 +947,8 @@ a.navbar-brand {
     height: 3px;
     background: linear-gradient(90deg,
       transparent 0%,
-      rgba(var(--dd-primary-rgb), .55) 25%,
-      rgba(var(--dd-primary-rgb), .85) 50%,
-      rgba(var(--dd-primary-rgb), .55) 75%,
+      var(--dd-accent) 30%,
+      var(--dd-primary) 70%,
       transparent 100%);
     pointer-events: none;
     z-index: 1;
@@ -1138,8 +1135,9 @@ a.navbar-brand {
     color: @color_1;
     --card-accent-scale: 1;
     --card-state-layer: .05;
-    transform: translateY(-4px);
-    box-shadow: var(--elevation-3);
+    // Flatter hover: a gentle lift and a whisper of shadow, not a floating card.
+    transform: translateY(-2px);
+    box-shadow: var(--elevation-2);
     border-color: @border_color_6;
 
     .app-card-icon {
@@ -1173,7 +1171,7 @@ a.navbar-brand {
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent 0%, rgba(var(--dd-primary-rgb), .85) 30%, rgba(var(--dd-primary-rgb), .85) 70%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, var(--dd-accent) 30%, var(--dd-primary) 70%, transparent 100%);
     transform: scaleX(var(--card-accent-scale));
     transform-origin: center;
     transition: transform var(--duration-long) var(--ease-emphasized);
@@ -1221,12 +1219,6 @@ a.navbar-brand {
     z-index: 1;
   }
 
-  .material-symbols-outlined {
-    color: @color_7;
-    position: relative;
-    z-index: 1;
-    font-size: 36px !important;
-  }
 }
 
 .app-card-title {
@@ -1277,9 +1269,11 @@ body#login {
   max-width: 440px;
   background: var(--dd-surface-container-lowest);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, .2), 0 2px 8px rgba(0, 0, 0, .1);
+  // Soft ink-tinted lift — a light card resting on the dark Ink Blue login field,
+  // not a hard drop-shadowed box.
+  box-shadow: var(--elevation-4);
   padding: 2.5rem 2rem;
-  border: 1px solid rgba(255, 255, 255, .2);
+  border: 1px solid var(--dd-outline-variant);
   animation: fadeInUp .5s var(--ease-emphasized-decelerate) both;
 
   .auth-logo {
@@ -1396,7 +1390,7 @@ body#login {
 }
 
 .tenant-label {
-  color: @color_8;
+  color: var(--dd-on-ink);
   font-family: @font_family_1;
   font-weight: 700;
   font-size: .6875rem;
@@ -1410,10 +1404,37 @@ body#login {
 // primary bar, per tenant); the menu inherits the themed md-menu surface, so it
 // flips with the scheme it controls.
 #themeToggle {
-  --md-icon-button-icon-color: @color_8;
-  --md-icon-button-hover-icon-color: @color_8;
-  --md-icon-button-focus-icon-color: @color_8;
-  --md-icon-button-pressed-icon-color: @color_8;
+  --md-icon-button-icon-color: var(--dd-on-ink);
+  --md-icon-button-hover-icon-color: var(--dd-on-ink);
+  --md-icon-button-focus-icon-color: var(--dd-on-ink);
+  --md-icon-button-pressed-icon-color: var(--dd-on-ink);
+}
+
+// DFRNT UI icon system (brand book "Iconography - UI"): Lucide for chrome,
+// Tabler for logistics, inlined by the <dfrnt-icon> TagHelper at stroke width
+// 1.25. The SVGs use stroke:currentColor, so they inherit the element's colour
+// (and thus the active --dd-* theme / md-icon token). Width/height are baked in;
+// this only fixes inline alignment.
+.dfrnt-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  fill: none;
+}
+
+// The theme toggle inlines all three icons and shows the one matching the
+// active choice; layout.ts sets data-theme-icon on the md-icon.
+.theme-toggle-icon {
+  .dfrnt-icon {
+    display: none;
+  }
+
+  &[data-theme-icon="light"] .dfrnt-icon[data-theme-choice="light"],
+  &[data-theme-icon="dark"] .dfrnt-icon[data-theme-choice="dark"],
+  &[data-theme-icon="system"] .dfrnt-icon[data-theme-choice="system"] {
+    display: block;
+  }
 }
 
 #themeMenu {
@@ -1433,21 +1454,22 @@ body#login {
   // to a translucent on-primary overlay: over the primary navbar this renders as
   // a lighter tint (the "light-blue fill" the label colour below assumes) and
   // adapts per tenant (on-primary flips dark on the yellow theme).
-  --md-filled-button-container-color: rgba(var(--dd-on-primary-rgb), .15);
-  --md-filled-button-hover-container-color: rgba(var(--dd-on-primary-rgb), .22);
-  --md-filled-button-focus-container-color: rgba(var(--dd-on-primary-rgb), .22);
-  --md-filled-button-pressed-container-color: rgba(var(--dd-on-primary-rgb), .28);
-  // Blue theme sets --md-sys-color-on-primary to white; the filled button uses
-  // it for label + icon. Use the on-surface (black) token so the button text
-  // matches the adjacent profile text and reads clearly on the light-blue fill.
-  --md-filled-button-label-text-color: var(--dd-on-surface);
-  --md-filled-button-hover-label-text-color: var(--dd-on-surface);
-  --md-filled-button-focus-label-text-color: var(--dd-on-surface);
-  --md-filled-button-pressed-label-text-color: var(--dd-on-surface);
-  --md-filled-button-icon-color: var(--dd-on-surface);
-  --md-filled-button-hover-icon-color: var(--dd-on-surface);
-  --md-filled-button-focus-icon-color: var(--dd-on-surface);
-  --md-filled-button-pressed-icon-color: var(--dd-on-surface);
+  // The organisation selector is a filled button ON the dark Ink Blue bar. Give
+  // it a translucent light fill (on-ink tint) that reads as a lighter chip on the
+  // dark bar, and light label/icon text so it matches the rest of the navbar
+  // chrome. This is constant across themes (the bar is always dark).
+  --md-filled-button-container-color: rgba(var(--dd-on-primary-rgb), .12);
+  --md-filled-button-hover-container-color: rgba(var(--dd-on-primary-rgb), .20);
+  --md-filled-button-focus-container-color: rgba(var(--dd-on-primary-rgb), .20);
+  --md-filled-button-pressed-container-color: rgba(var(--dd-on-primary-rgb), .26);
+  --md-filled-button-label-text-color: var(--dd-on-ink);
+  --md-filled-button-hover-label-text-color: var(--dd-on-ink);
+  --md-filled-button-focus-label-text-color: var(--dd-on-ink);
+  --md-filled-button-pressed-label-text-color: var(--dd-on-ink);
+  --md-filled-button-icon-color: var(--dd-on-ink);
+  --md-filled-button-hover-icon-color: var(--dd-on-ink);
+  --md-filled-button-focus-icon-color: var(--dd-on-ink);
+  --md-filled-button-pressed-icon-color: var(--dd-on-ink);
 
   .spinner-border {
     margin-left: 5px;
@@ -1484,13 +1506,13 @@ body#login {
 }
 
 .username {
-  color: @color_8;
+  color: var(--dd-on-ink);
   font-weight: 500;
   font-size: .875rem;
 }
 
 .dropdown-arrow {
-  color: @color_8;
+  color: var(--dd-on-ink);
   font-size: .65rem;
   transition: transform var(--duration-medium) var(--ease-standard);
   margin-left: .125rem;
@@ -1553,6 +1575,7 @@ body#login {
 // divider, brand-tinted hover). The pill trigger above is unchanged.
 #profileMenu {
   min-width: 240px;
+  max-width: 240px; // pin to master's width so a long email truncates instead of widening the menu
   --md-menu-container-color: var(--dd-surface);
   --md-menu-container-shape: var(--radius-lg);
 
@@ -1581,6 +1604,14 @@ body#login {
     background: var(--dd-primary-container);
     border-radius: var(--radius-circle);
     padding: .25rem;
+  }
+
+  // Truncate a long email (or any headline) rather than overflowing the surface.
+  [slot="headline"] {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   md-divider {
@@ -2035,10 +2066,6 @@ body#login {
     opacity: .35;
     cursor: not-allowed;
   }
-
-  .material-symbols-outlined {
-    font-size: 18px;
-  }
 }
 
 .fuel-page-status {
@@ -2156,10 +2183,6 @@ body#login {
     img {
       width: 34px;
       height: 34px;
-    }
-
-    .material-symbols-outlined {
-      font-size: 32px !important;
     }
   }
 

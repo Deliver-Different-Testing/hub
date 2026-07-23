@@ -20,9 +20,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             // Looking for courier: IsCourier must be true
             query = isCourier.Value
                 ? query.Where(u => u.IsCourier == true)
-                :
-                // Looking for staff: IsCourier must be false or null
-                query.Where(u => u.IsCourier == false || u.IsCourier == null);
+                : query.Where(u => u.IsCourier == false || u.IsCourier == null);
         }
 
         return await query.FirstOrDefaultAsync();
@@ -148,7 +146,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
         var existing = await context.Users
             .AsNoTracking()
             .AnyAsync(u => u.Email == email);
-     
+
         if (existing)
         {
             return null;

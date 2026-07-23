@@ -45,24 +45,24 @@ public partial class TenantButtonTextColorTests
     }
 
     [Fact]
-    public void TenantDropdown_LabelText_UsesOnSurfaceNotOnPrimary()
+    public void TenantDropdown_LabelText_UsesOnInkNotOnPrimary()
     {
-        // Blue theme's --md-sys-color-on-primary is white; the filled tenant
-        // button must instead use the on-surface (black) token so its text
-        // matches the adjacent black profile trigger text.
+        // DFRNT rebrand: the tenant button sits on the constant dark Ink Blue bar,
+        // so its label must use the light --dd-on-ink chrome token (not on-primary,
+        // and not the old on-surface which is now dark Ink text).
         var block = TenantDropdownBlock();
 
         Assert.Matches(
-            @"--md-filled-button-label-text-color\s*:\s*var\(--dd-on-surface\)",
+            @"--md-filled-button-label-text-color\s*:\s*var\(--dd-on-ink\)",
             block);
     }
 
     [Fact]
-    public void TenantDropdown_IconAndInteractionStates_AlsoUseOnSurface()
+    public void TenantDropdown_IconAndInteractionStates_AlsoUseOnInk()
     {
         // Every state resolves independently and falls back to on-primary, so
-        // hover/focus/pressed (label + icon) must be pinned too, or the text
-        // flashes white on interaction.
+        // hover/focus/pressed (label + icon) must be pinned to on-ink too, or the
+        // text flashes on interaction.
         var block = TenantDropdownBlock();
 
         string[] tokens =
@@ -78,7 +78,7 @@ public partial class TenantButtonTextColorTests
 
         foreach (var token in tokens)
         {
-            Assert.Matches($@"{Regex.Escape(token)}\s*:\s*var\(--dd-on-surface\)", block);
+            Assert.Matches($@"{Regex.Escape(token)}\s*:\s*var\(--dd-on-ink\)", block);
         }
     }
 

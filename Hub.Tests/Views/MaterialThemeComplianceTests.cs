@@ -85,10 +85,10 @@ public partial class MaterialThemeComplianceTests
         Assert.Contains("rgba(var(--dd-success-rgb)", block);
         Assert.DoesNotContain("rgba(76, 175, 80", block);
 
-        // @color_9 (the chip text colour) must map to the token, and the #2e7d32
+        // @color_9 (the chip text colour) must map to the token, and the #0e8f4d
         // hex must survive ONLY as the token declaration.
         Assert.Matches(@"@color_9\s*:\s*var\(--dd-success-text\)", _siteLess);
-        Assert.Matches(@"--dd-success-text\s*:\s*#2e7d32", _siteLess);
+        Assert.Matches(@"--dd-success-text\s*:\s*#0e8f4d", _siteLess);
         Assert.Single(ColorRegex().Matches(_siteLess));
     }
 
@@ -99,9 +99,9 @@ public partial class MaterialThemeComplianceTests
         Assert.Matches(
             """data-score="2"\][^{]*\{[^}]*--md-linear-progress-active-indicator-color:\s*var\(--dd-warning-strong\)""",
             _siteLess);
-        // ...and the #f59e0b hex must survive ONLY as the token declaration.
-        Assert.Matches(@"--dd-warning-strong\s*:\s*#f59e0b", _siteLess);
-        Assert.Single(Regex.Matches(_siteLess, "#f59e0b"));
+        // ...and the #e6740f hex must survive ONLY as the token declaration.
+        Assert.Matches(@"--dd-warning-strong\s*:\s*#e6740f", _siteLess);
+        Assert.Single(Regex.Matches(_siteLess, "#e6740f"));
     }
 
     [Fact]
@@ -129,10 +129,11 @@ public partial class MaterialThemeComplianceTests
     [Fact]
     public void DarkScheme_DefinesNeutralOverrides()
     {
-        // The dark scheme flips the neutral surface roles and follows the OS.
+        // The dark scheme flips the neutral surface roles (now an Ink-Blue-tinted
+        // ramp, per the DFRNT rebrand) and follows the OS.
         Assert.Contains("prefers-color-scheme", _siteLess);
-        Assert.Matches(@"--dd-surface\s*:\s*#2c2a30", _siteLess);
-        Assert.Matches(@"--dd-on-surface\s*:\s*rgba\(255, 255, 255, \.9\)", _siteLess);
+        Assert.Matches(@"--dd-surface\s*:\s*#16152e", _siteLess);
+        Assert.Matches(@"--dd-on-surface\s*:\s*rgba\(244, 242, 241, \.92\)", _siteLess);
     }
 
     [Fact]
@@ -172,38 +173,38 @@ public partial class MaterialThemeComplianceTests
     }
 
     [Fact]
-    public void DarkScheme_SwapsAppBarLogoForDefaultTenant()
+    public void Navbar_AppBarLogoAlwaysUsesDarkVariant()
     {
-        // In dark mode the app-bar .logo swaps to its white-wordmark variant so it
-        // reads on the blue default bar. The (?<![\w-]) guard keeps these from
-        // matching the .hub-brand-logo.logo-* rules asserted above.
-        var body = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
-        Assert.Matches(@"(?<![\w-])\.logo\.logo-light\s*\{[^}]*display:\s*none", body);
-        Assert.Matches(@"(?<![\w-])\.logo\.logo-dark\s*\{[^}]*display:\s*block", body);
-        // Non-US tenants keep the yellow bar, where the white wordmark washes out —
-        // the swap is re-hidden for them so they stay on the black artwork.
-        Assert.Matches(
-            """body:not\(\[data-tenant-country="US"\]\):not\(\[data-tenant-country=""\]\)\s*\{\s*\.logo\.logo-light\s*\{[^{}]*\}\s*\.logo\.logo-dark\s*\{[^{}]*display:\s*none""",
-            body);
+        // DFRNT rebrand: the app bar is a constant Ink Blue bar in both themes, so
+        // the app-bar .logo always uses its white-wordmark (dark) variant — handled
+        // once at base level, not conditionally in the dark scheme.
+        Assert.Matches(@"\.navbar \.logo\.logo-light\s*\{[^}]*display:\s*none", _siteLess);
+        Assert.Matches(@"\.navbar \.logo\.logo-dark\s*\{[^}]*display:\s*block", _siteLess);
+        // Arbitrary S3 tenant logos (no white-wordmark variant) get a light plate on
+        // the dark bar so they stay legible.
+        Assert.Matches(@"\.navbar \.s3-logo\s*\{[^}]*background:\s*var\(--dd-surface-container-lowest\)", _siteLess);
     }
 
     [Fact]
-    public void DarkScheme_AppBarChromeUsesOnPrimary()
+    public void Navbar_IsInkBlueWithOnInkChrome()
     {
-        // The bare navbar chrome (text + theme-toggle icon) flips from pinned black
-        // to --dd-on-primary in dark mode: white on the blue bar, dark on yellow.
-        var body = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
+        // The app bar is painted Ink Blue and its chrome (text + theme-toggle icon)
+        // is light (--dd-on-ink) in BOTH themes — no per-theme flip. Profile avatar
+        // is excluded (dark icon on a light circle).
+        Assert.Matches(@"\.navbar\s*\{[^}]*background:\s*var\(--dd-ink\)\s*!important", _siteLess);
         Assert.Matches(
-            @"\.tenant-label,\s*\.username,\s*\.dropdown-arrow\s*\{[^}]*color:\s*var\(--dd-on-primary\)",
-            body);
+            @"\.tenant-label\s*\{[^}]*color:\s*var\(--dd-on-ink\)",
+            _siteLess);
         Assert.Matches(
-            @"#themeToggle\s*\{[^}]*--md-icon-button-icon-color:\s*var\(--dd-on-primary\)",
-            body);
-        // The organisation selector button follows the same chrome colour so it
-        // doesn't read as black text next to the white navbar chrome.
+            @"#themeToggle\s*\{[^}]*--md-icon-button-icon-color:\s*var\(--dd-on-ink\)",
+            _siteLess);
+        // The organisation selector button label follows the same on-ink chrome.
         Assert.Matches(
-            @"#tenantDropdown\s*\{[^}]*--md-filled-button-label-text-color:\s*var\(--dd-on-primary\)",
-            body);
+            @"#tenantDropdown\s*\{[^}]*--md-filled-button-label-text-color:\s*var\(--dd-on-ink\)",
+            _siteLess);
+        // The dark scheme must NOT re-flip navbar chrome any more.
+        var mixin = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
+        Assert.DoesNotMatch(@"\.tenant-label,\s*\.username,\s*\.dropdown-arrow", mixin);
     }
 
     [Fact]
@@ -294,6 +295,15 @@ public partial class MaterialThemeComplianceTests
     // ---- Rec #5: shape tokens instead of magic numbers ---------------------
 
     [Fact]
+    public void Table_TextColourUsesOnSurfaceToken()
+    {
+        // Bootstrap defaults --bs-table-color to a fixed near-black; without an
+        // override, tbody data cells render dark-on-dark in dark mode. The .table
+        // base must route cell text through the theme token so it stays readable.
+        Assert.Matches(@"\.table\s*\{[^}]*--bs-table-color:\s*var\(--dd-on-surface\)", _siteLess);
+    }
+
+    [Fact]
     public void ScrollbarThumb_UsesRadiusToken()
     {
         Assert.Matches(@"::-webkit-scrollbar-thumb\s*\{[^}]*border-radius:\s*var\(--radius-xs\)", _siteLess);
@@ -319,7 +329,7 @@ public partial class MaterialThemeComplianceTests
     // follows its closing brace.
     [GeneratedRegex(@"\.dd-dark-scheme\(\)\s*\{(?<b>.*?)// Explicit user choice", RegexOptions.Singleline)]
     private static partial Regex DarkSchemeMixinRegex();
-    [GeneratedRegex("#2e7d32")]
+    [GeneratedRegex("#0e8f4d")]
     private static partial Regex ColorRegex();
     [GeneratedRegex(@"\.fuel-chip-current\s*\{(?<b>[^}]*)\}")]
     private static partial Regex FuelChipCurrentRegex();
