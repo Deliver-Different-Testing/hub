@@ -67,7 +67,7 @@ public partial class BrandThemeComplianceTests
         // flip with the theme, or floating labels render dark-on-dark in dark mode.
         Assert.Matches(@"--dd-on-surface-rgb\s*:\s*13,\s*12,\s*44", _siteLess);
         var mixin = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
-        Assert.Matches(@"--dd-on-surface-rgb\s*:\s*244,\s*242,\s*241", mixin);
+        Assert.Matches(@"--dd-on-surface-rgb\s*:\s*230,\s*225,\s*233", mixin);
     }
 
     [Theory]
@@ -167,8 +167,8 @@ public partial class BrandThemeComplianceTests
     public void DarkScheme_DefinesNeutralOverrides()
     {
         Assert.Contains("prefers-color-scheme", _siteLess);
-        Assert.Matches(@"--dd-surface\s*:\s*#16152e", _siteLess);
-        Assert.Matches(@"--dd-on-surface\s*:\s*rgba\(244, 242, 241, \.92\)", _siteLess);
+        Assert.Matches(@"--dd-surface\s*:\s*#2c2a30", _siteLess);
+        Assert.Matches(@"--dd-on-surface\s*:\s*rgba\(230, 225, 233, \.92\)", _siteLess);
     }
 
     [Fact]
