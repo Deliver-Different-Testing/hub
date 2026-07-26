@@ -197,27 +197,29 @@
 //   data-theme="dark"           → forced dark
 //   data-theme="light"          → forced light (wins over a dark OS)
 .dd-dark-scheme() {
-  // Ink-Blue-based dark ramp. The brand's dark surface IS Ink Blue (#0d0c2c), so
-  // the whole ladder is tinted navy rather than neutral charcoal. The container
+  // Neutral soft-charcoal dark ramp, ported 1:1 from the Integration Manager app
+  // (its md3.ts `darkSurface` ladder) so the two DFRNT apps share one dark surface.
+  // The page surface is warm-neutral charcoal rather than navy — only the fixed
+  // navbar/sidebar stay Ink Blue (#0d0c2c, set once at base level). The container
   // ladder stays monotonic (lowest → highest gets progressively lighter),
-  // preserving tonal elevation. Text is warm Light Grey, not pure white.
-  --dd-surface: #16152e;
-  --dd-surface-dim: #100f26;
-  --dd-surface-variant: #2a2947;
-  --dd-surface-container-lowest: #100f26;
-  --dd-surface-container-low: #1a1937;
-  --dd-surface-container: #1f1e3d;
-  --dd-surface-container-high: #262547;
-  --dd-surface-container-highest: #2e2c52;
-  --dd-on-surface: rgba(244, 242, 241, .92);
-  --dd-on-surface-rgb: 244, 242, 241;  // rgb of the dark on-surface (Bootstrap rgba() consumers)
-  --dd-on-surface-secondary: rgba(244, 242, 241, .60);
+  // preserving tonal elevation. Text is a cool near-white.
+  --dd-surface: #2c2a30;
+  --dd-surface-dim: #28262c;
+  --dd-surface-variant: #56535c;
+  --dd-surface-container-lowest: #252429;
+  --dd-surface-container-low: #312f36;
+  --dd-surface-container: #37353c;
+  --dd-surface-container-high: #413f47;
+  --dd-surface-container-highest: #4c4952;
+  --dd-on-surface: rgba(230, 225, 233, .92);
+  --dd-on-surface-rgb: 230, 225, 233;  // rgb of the dark on-surface (Bootstrap rgba() consumers)
+  --dd-on-surface-secondary: rgba(230, 225, 233, .60);
   // Inverse roles flip: a light chip carrying dark text on the dark scheme.
   --dd-inverse-surface: #f4f2f1;
   --dd-inverse-on-surface: #0d0c2c;
-  // Outline neutrals kept in the navy family so they sit on the ink surfaces.
-  --dd-outline: #3a3960;
-  --dd-outline-variant: #2a2947;
+  // Outline neutrals in the charcoal family — matches IM's dark border tone.
+  --dd-outline: #56535c;
+  --dd-outline-variant: #413f47;
   // Lighter success text so the fuel "current" chip stays legible on dark fills.
   --dd-success-text: #6ee7a8;
 
