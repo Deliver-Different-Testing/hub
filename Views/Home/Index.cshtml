@@ -272,18 +272,20 @@
                 <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
                 <div class="app-card-title">Courier Portal</div>
             </a>
-            @* DFRNT CRM - multi-tenant CRM whose current focus is an email inbox
-               (connect a Gmail account, then triage and file inbound mail against
-               CRM contacts, companies and deals). Read-only: it syncs and triages
-               inbound mail but does not send. Hostname is dfrntcrm.{tenant} per its
-               per-tenant CI deploy vars. Ungated, matching every other tile in this
-               internal-staff grid - note that means the tile shows for all tenants,
-               but only tenants whose dfrntcrm deploy job has been played will
-               resolve. Gate on Model.VisibleFeatures if that becomes a problem. *@
-            <a class="app-card" href="@AppUrl("dfrntcrm")" target="_blank" rel="noopener noreferrer">
+            @* Customer Success Platform (formerly "DFRNT CRM") - multi-tenant CRM
+               whose current focus is an email inbox (connect a Gmail account, then
+               triage and file inbound mail against CRM contacts, companies and deals).
+               Currently DISABLED / "Coming soon": the product isn't ready, so the tile
+               is shown (so staff know it's coming) but is not clickable. To re-enable,
+               swap this back to a live link -
+               <a class="app-card" href="@@AppUrl("dfrntcrm")" target="_blank" rel="noopener noreferrer">
+               - the "dfrntcrm" slug is the per-tenant deploy hostname (dfrntcrm.{tenant},
+               driven by CI vars, not this file) and stays the same when re-enabled. *@
+            <div class="app-card app-card--soon" aria-disabled="true" title="Coming soon">
                 <div class="app-card-icon"><img src="~/images/icons/crm-inbox.svg" alt="" /></div>
-                <div class="app-card-title">DFRNT CRM</div>
-            </a>
+                <div class="app-card-title">Customer Success Platform</div>
+                <span class="app-card-chip">Coming soon</span>
+            </div>
             <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
                 <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                 <div class="app-card-title">Dispatch</div>
