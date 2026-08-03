@@ -300,11 +300,56 @@
   }
 }
 
-// DFRNT is now the universal brand — the former US-blue / non-US-gold
-// per-tenant colour switch has been removed. Tenants differ by LOGO only
-// (see TenantLogoService / TenantLogo view component). The old
-// body[data-tenant-country] palette override and its non-US login-background
-// variant were deleted here in the Feb 2026 rebrand.
+// DFRNT is the universal brand — the former US-blue / non-US-gold per-tenant
+// colour switch (and its login-background variant) was removed in the Feb 2026
+// rebrand, and tenants otherwise differ by LOGO only (see TenantLogoService /
+// TenantLogo view component).
+//
+// EXCEPTION — the Urgent tenant keeps its gold brand (the theming skill's
+// urgentPrimaryPalette, #f4c430), reintroduced Aug 2026 and scoped to the
+// urgent tenant ONLY; every other tenant stays pure DFRNT. The --dd-primary*
+// block flips to gold (dark Ink text on it), and the app-bar ground flips too:
+// --dd-ink → gold with dark (--dd-on-ink) chrome, so the whole navbar (bg,
+// tenant selector, toggler, theme toggle, dropdowns) repaints from the tokens
+// it already reads. The Cyan --dd-accent CTA and all neutral/surface tokens are
+// unchanged, and the brand/ink block isn't flipped in .dd-dark-scheme(), so
+// gold persists on the charcoal page in dark mode (same as DFRNT's own
+// primary). The --bs-* bridge in :root re-reads these tokens, so Bootstrap
+// links/buttons/focus follow for free. The hook is the data-tenant-code emitted
+// on <body> in _Layout.cshtml; login is pre-auth (no TenantCode claim) so it
+// stays DFRNT.
+body[data-tenant-code="urgent"] {
+  --dd-primary: #f4c430;
+  --dd-primary-rgb: 244, 196, 48;
+  --dd-primary-hover: #e5b52a;
+  --dd-primary-active: #d4a324;
+  --dd-primary-container: #fef9e7;
+  --dd-on-primary: #1c1917;
+  --dd-on-primary-rgb: 28, 25, 23;
+  --dd-on-primary-container: #a87614;
+  --dd-state-rgb: 28, 25, 23;
+  // Gold app bar — the navbar paints from --dd-ink with --dd-on-ink chrome, so
+  // flipping these two turns the whole bar gold with dark Ink chrome on it.
+  --dd-ink: #f4c430;
+  --dd-ink-rgb: 244, 196, 48;
+  --dd-on-ink: #1c1917;
+}
+
+// Urgent's app bar is a LIGHT gold surface, so the app-bar logo must use the
+// dark-ink artwork (the .logo-light variant) rather than the white-wordmark
+// (.logo-dark) variant the always-dark Ink Blue bar uses — reverse the base
+// `.navbar .logo` swap for this tenant. The bar stays gold in dark mode too
+// (the brand/ink block isn't flipped in .dd-dark-scheme()), so this holds in
+// both themes; the extra body[data-tenant-code] specificity out-weighs the
+// base rule. Only local logos ship both variants — S3 logos are a single
+// plated image and are unaffected.
+body[data-tenant-code="urgent"] .navbar .logo.logo-light {
+  display: block;
+}
+
+body[data-tenant-code="urgent"] .navbar .logo.logo-dark {
+  display: none;
+}
 
 html {
   font-size: 15px;
