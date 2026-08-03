@@ -22,9 +22,21 @@ public class TenantLogoViewComponent(ITenantLogoService tenantLogoService) : Vie
         var isS3Logo = logoUrl != null && !logoUrl.StartsWith('/');  // Distinguishes S3 vs local
         var resolvedLogoUrl = encodedLogoUrl ?? "/images/DFRNT_HorizLogo_RGB.png";
 
+        // Client-side <img onerror> fallback for when the S3 pre-signed URL fails
+        // to load (expired/403/access). Urgent keeps its own brand art; everyone
+        // else lands on the universal DFRNT wordmark. Read the tenant claim
+        // null-safely — the component is constructed without a ViewComponentContext
+        // in unit tests, so `User` would throw. Matches _Layout.cshtml's claim read.
+        var tenantCode = ViewComponentContext?.ViewContext?.HttpContext?
+            .User?.FindFirst("TenantCode")?.Value ?? string.Empty;
+        var fallbackLogoUrl = string.Equals(tenantCode, "urgent", StringComparison.OrdinalIgnoreCase)
+            ? "/images/urgentCouriersNewLogo.png"
+            : "/images/DFRNT_HorizLogo_RGB.png";
+
         var model = new TenantLogoViewModel
         {
             LogoUrl = resolvedLogoUrl,
+            FallbackLogoUrl = fallbackLogoUrl,
             // Local (our own) logos ship a dark-theme variant with a light wordmark
             // ("<name>_dark.<ext>") so we can asset-swap on dark surfaces instead of
             // plating the light logo behind a box. S3 tenant logos are arbitrary
@@ -51,6 +63,7 @@ public class TenantLogoViewComponent(ITenantLogoService tenantLogoService) : Vie
     public class TenantLogoViewModel
     {
         public string LogoUrl { get; init; } = string.Empty;
+        public string FallbackLogoUrl { get; init; } = "/images/DFRNT_HorizLogo_RGB.png";
         public string? DarkLogoUrl { get; init; }
         public string CssClass { get; init; } = string.Empty;
         public string AltText { get; init; } = string.Empty;

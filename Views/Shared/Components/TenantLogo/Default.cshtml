@@ -21,11 +21,14 @@
 }
 else
 {
+    @* If the S3 pre-signed URL fails to load, swap to the tenant fallback
+       (urgent's own brand art, else the DFRNT wordmark) instead of leaving a
+       broken-image icon. Clear onerror first so a failing fallback can't loop. *@
     <img src="@Model.LogoUrl"
          alt="@Model.AltText"
          class="@Model.CssClass s3-logo"
          loading="lazy"
-         onerror="console.error('Failed to load logo:', this.src);">
+         onerror="console.error('Failed to load logo:', this.src); this.onerror=null; this.src='@Model.FallbackLogoUrl';">
 }
 
 <script>

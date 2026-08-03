@@ -312,6 +312,16 @@ public partial class BrandThemeComplianceTests
     }
 
     [Fact]
+    public void TenantLogoView_S3ImageFallsBackOnLoadError()
+    {
+        var view = Read("Views", "Shared", "Components", "TenantLogo", "Default.cshtml");
+        // A failed S3 load must swap to the tenant fallback, not leave a broken icon.
+        Assert.Contains("Model.FallbackLogoUrl", view);
+        Assert.Contains("this.src='", view);
+        Assert.Contains("this.onerror=null", view);
+    }
+
+    [Fact]
     public void DarkScheme_KeepsHomePattern()
     {
         var body = DarkSchemeMixinRegex().Match(_siteLess).Groups["b"].Value;
