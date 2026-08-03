@@ -1342,6 +1342,41 @@ a.navbar-brand {
   }
 }
 
+// Disabled "coming soon" tile: visible (so staff know it's coming) but inert -
+// no navigation, no hover lift, no accent bar; icon + title dimmed while the
+// chip stays fully legible.
+.app-card--soon {
+  cursor: default;
+
+  &:hover {
+    transform: none;
+    box-shadow: var(--elevation-1);
+    border-color: var(--dd-outline-variant);
+  }
+
+  &:hover .app-card-icon {
+    transform: none;
+    box-shadow: inset 0 0 0 1px rgba(var(--dd-primary-rgb), .08), inset 0 1px 0 rgba(255, 255, 255, .4);
+  }
+
+  &:hover .app-card-title {
+    color: var(--dd-on-surface-secondary);
+  }
+
+  &::before {
+    display: none; // no top accent bar
+  }
+
+  .app-card-icon,
+  .app-card-title {
+    opacity: .55;
+  }
+
+  .app-card-title {
+    color: var(--dd-on-surface-secondary);
+  }
+}
+
 .app-card-icon {
   width: 64px;
   height: 64px;
@@ -1376,6 +1411,27 @@ a.navbar-brand {
   position: relative;
   z-index: 2;
   transition: color var(--duration-medium) var(--ease-standard);
+}
+
+// "Coming soon" chip for disabled tiles - modeled on .fuel-chip / .fuel-chip-inactive.
+// Sits above the card's ::after state layer (z-index:1) and clips to the card's
+// rounded corners (the card is already overflow:hidden).
+.app-card-chip {
+  position: absolute;
+  top: .6rem;
+  right: .6rem;
+  z-index: 3;
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: var(--radius-full);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--dd-surface-container);
+  color: var(--dd-on-surface-secondary);
+  border: 1px solid var(--dd-outline-variant);
 }
 
 body#home {
