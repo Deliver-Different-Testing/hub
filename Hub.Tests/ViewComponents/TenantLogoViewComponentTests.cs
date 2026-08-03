@@ -1,5 +1,8 @@
-﻿using Hub.Interfaces;
+﻿using System.Security.Claims;
+using Hub.Interfaces;
 using Hub.ViewComponents;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
 using NSubstitute;
 
@@ -97,6 +100,68 @@ public class TenantLogoViewComponentTests
         var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
         Assert.Equal("", model!.CssClass);
         Assert.Equal("Company Logo", model.AltText);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_UrgentTenant_FallbackIsUrgentLocalLogo()
+    {
+        _mockLogoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/bucket/logo.png");
+        SetTenantCode("urgent");
+
+        var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
+
+        var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
+        // On S3 load failure the urgent tenant falls back to its own brand art.
+        Assert.Equal("/images/urgentCouriersNewLogo.png", model!.FallbackLogoUrl);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_UrgentTenant_FallbackIsCaseInsensitive()
+    {
+        _mockLogoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/bucket/logo.png");
+        SetTenantCode("URGENT");
+
+        var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
+
+        var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
+        Assert.Equal("/images/urgentCouriersNewLogo.png", model!.FallbackLogoUrl);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_NonUrgentTenant_FallbackIsDfrntDefault()
+    {
+        _mockLogoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/bucket/logo.png");
+        SetTenantCode("someothertenant");
+
+        var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
+
+        var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", model!.FallbackLogoUrl);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_NoTenantContext_FallbackIsDfrntDefault()
+    {
+        // No ViewComponentContext set (as the other tests) — the tenant read must
+        // stay null-safe and default to the DFRNT fallback rather than throw.
+        _mockLogoService.GetLogoUrlAsync().Returns("https://s3.amazonaws.com/bucket/logo.png");
+
+        var result = await _viewComponent.InvokeAsync() as ViewViewComponentResult;
+
+        var model = result!.ViewData!.Model as TenantLogoViewComponent.TenantLogoViewModel;
+        Assert.Equal("/images/DFRNT_HorizLogo_RGB.png", model!.FallbackLogoUrl);
+    }
+
+    private void SetTenantCode(string tenantCode)
+    {
+        var identity = new ClaimsIdentity([new Claim("TenantCode", tenantCode)], "TestAuth");
+        _viewComponent.ViewComponentContext = new ViewComponentContext
+        {
+            ViewContext = new ViewContext
+            {
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+            }
+        };
     }
 
     [Fact]
