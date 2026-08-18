@@ -640,4 +640,116 @@ public class AdminUsersControllerTests : IDisposable
         var status = Assert.IsType<StatusCodeResult>(result);
         Assert.Equal(500, status.StatusCode);
     }
+
+    // ── ChangeEmail (login-email sync from the configurator) ────────────────
+    // Regression cover for the urgent-prod 2026-08-17 desync: the tenant row's
+    // UserName moved to a new address while Master.User kept the old one, which
+    // broke that user's password reset because Hub matches the two.
+
+    [Fact]
+    public async Task ChangeEmail_MissingApiKey_Returns401()
+    {
+        var result = await _controller.ChangeEmail(null,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _authRepo.DidNotReceive().GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>());
+    }
+
+    [Theory]
+    [InlineData("", "new@example.com")]
+    [InlineData("old@example.com", "")]
+    [InlineData("   ", "new@example.com")]
+    public async Task ChangeEmail_BlankEmail_ReturnsBadRequest(string current, string next)
+    {
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest(current, next));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_SameAddress_ReturnsBadRequestAndDoesNotSave()
+    {
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("Same@example.com", "same@example.com"));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_NoHubIdentity_Returns404()
+    {
+        _authRepo.GetUserByEmailAsync("old@example.com", false).Returns((User?)null);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        Assert.IsType<NotFoundObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_NewAddressAlreadyHeld_Returns409AndLeavesUserUntouched()
+    {
+        var user = StaffUserStub(email: "old@example.com");
+        _authRepo.GetUserByEmailAsync("old@example.com", false).Returns(user);
+        _authRepo.EmailExistsAsync("new@example.com").Returns(true);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        Assert.IsType<ConflictObjectResult>(result);
+        Assert.Equal("old@example.com", user.Email);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_Success_UpdatesEmailVoidsResetKeyAndSaves()
+    {
+        var user = StaffUserStub(email: "Operations@taxisgb.co.nz");
+        _authRepo.GetUserByEmailAsync("Operations@taxisgb.co.nz", false).Returns(user);
+        _authRepo.EmailExistsAsync("janelle@taxisgb.co.nz").Returns(false);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("Operations@taxisgb.co.nz", "janelle@taxisgb.co.nz"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.ChangeEmailResponse>(ok.Value);
+        Assert.Equal("janelle@taxisgb.co.nz", body.Email);
+        Assert.Equal(user.UserId, body.UserId);
+        Assert.Equal("janelle@taxisgb.co.nz", user.Email);
+        // The outstanding reset link was issued against the old identity.
+        Assert.Null(user.ResetKey);
+        await _authRepo.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_TrimsWhitespaceBeforeLookup()
+    {
+        var user = StaffUserStub(email: "old@example.com");
+        _authRepo.GetUserByEmailAsync("old@example.com", false).Returns(user);
+        _authRepo.EmailExistsAsync("new@example.com").Returns(false);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("  old@example.com  ", "  new@example.com  "));
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal("new@example.com", user.Email);
+    }
+
+    [Fact]
+    public async Task ChangeEmail_AuthRepoThrows_Returns500()
+    {
+        _authRepo.GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>())
+            .ThrowsAsync(new InvalidOperationException("db down"));
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+    }
 }

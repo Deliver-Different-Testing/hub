@@ -184,6 +184,81 @@ public class AdminUsersController(
         }
     }
 
+    // ── Login-email change (configurator contact edit) ──────────────────────
+    // 2026-08-18 — closes a single-tenant-era hole. The configurator's contact
+    // edit surfaces write tucClientContact.UserName (the login key) but had no
+    // way to tell Hub, so Master.User.Email went stale. Because Hub resolves
+    // the tenant contact with `WHERE UserName = Master.User.Email`
+    // (FetchUserByUsernameAsync), a stale address silently breaks that user's
+    // password reset — it fails contact validation and no email is sent.
+    // Observed on urgent-prod 2026-08-17: Master said Operations@taxisgb.co.nz
+    // while the tenant row had already moved to janelle@taxisgb.co.nz.
+    //
+    // Staff (non-courier) only, matching set-password / send-reset. 404 when
+    // there is no Hub identity for the old address — that is a legitimate
+    // state (contact never invited, or the invite failed) and the caller
+    // treats it as "nothing to sync", not as an error.
+
+    public record ChangeEmailRequest(string CurrentEmail, string NewEmail);
+    public record ChangeEmailResponse(int UserId, string Email);
+
+    [HttpPost("change-email")]
+    public async Task<IActionResult> ChangeEmail(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromBody] ChangeEmailRequest request)
+    {
+        if (!IsApiKeyValid(apiKey))
+        {
+            return Unauthorized();
+        }
+
+        if (request is null
+            || string.IsNullOrWhiteSpace(request.CurrentEmail)
+            || string.IsNullOrWhiteSpace(request.NewEmail))
+        {
+            return BadRequest(new { error = "CurrentEmail and NewEmail are required." });
+        }
+
+        var currentEmail = request.CurrentEmail.Trim();
+        var newEmail = request.NewEmail.Trim();
+
+        if (string.Equals(currentEmail, newEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { error = "CurrentEmail and NewEmail are the same." });
+        }
+
+        try
+        {
+            var user = await authenticationRepository.GetUserByEmailAsync(currentEmail, isCourier: false);
+            if (user is null)
+            {
+                Log.Warning("ChangeEmail: no staff Master.User for {Email}", currentEmail);
+                return NotFound(new { error = $"No Hub login exists for \"{currentEmail}\"." });
+            }
+
+            if (await authenticationRepository.EmailExistsAsync(newEmail))
+            {
+                Log.Warning("ChangeEmail: {NewEmail} is already held by another Master.User", newEmail);
+                return Conflict(new { error = $"A Hub user with email \"{newEmail}\" already exists." });
+            }
+
+            var previousEmail = user.Email;
+            user.Email = newEmail;
+            // Any outstanding reset link was issued against the old identity.
+            user.ResetKey = null;
+            await authenticationRepository.SaveAsync();
+
+            Log.Information("ChangeEmail: Master.User {UserId} moved from {OldEmail} to {NewEmail}.",
+                user.UserId, previousEmail, newEmail);
+            return Ok(new ChangeEmailResponse(user.UserId, user.Email));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ChangeEmail unexpected failure for {Email}", currentEmail);
+            return StatusCode(500);
+        }
+    }
+
     private async Task<IActionResult> ProvisionAsync(
         string? apiKey, CreateNpUserRequest request, bool isNetworkPartner, string kind)
     {

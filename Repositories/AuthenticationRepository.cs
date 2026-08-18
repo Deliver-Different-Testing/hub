@@ -174,4 +174,7 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
         await context.SaveChangesAsync();
         return user;
     }
+
+    public async Task<bool> EmailExistsAsync(string email) =>
+        await context.Users.AsNoTracking().AnyAsync(u => u.Email == email);
 }
