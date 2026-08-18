@@ -35,4 +35,10 @@ public interface IAuthenticationRepository
     // password and a fresh ResetKey for the invite-email link; isNetworkPartner
     // toggles only the data-scope flag. Returns null when the email already exists.
     Task<User?> CreateUserAsync(string email, int currentTenantId, bool isNetworkPartner);
+
+    // 2026-08-18 — collision guard for the change-email endpoint. Deliberately
+    // NOT filtered by IsCourier: Master.User.Email is the login key for every
+    // scheme, so handing a staff user an address a courier already holds would
+    // make the login ambiguous. Any existing holder blocks the rename.
+    Task<bool> EmailExistsAsync(string email);
 }
