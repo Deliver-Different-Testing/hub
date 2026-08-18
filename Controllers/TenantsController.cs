@@ -43,6 +43,42 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
         }
     }
 
+    /// <summary>
+    /// The tenant's wall-clock timezone. Integration Manager needs this to evaluate the Shopify
+    /// booking rules that run in its order-polling sweep, and reads it here so it does not need a
+    /// master-controller connection of its own.
+    /// </summary>
+    [HttpGet("{tenantId:int}/time-zone")]
+    public async Task<IActionResult> GetTimeZone(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        int tenantId)
+    {
+        if (!IsApiKeyValid(apiKey))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var timeZone = await authenticationRepository.GetTenantTimeZoneAsync(tenantId);
+            if (string.IsNullOrEmpty(timeZone))
+            {
+                return NotFound();
+            }
+
+            return Ok(new TenantTimeZoneResponse
+            {
+                TenantId = tenantId,
+                TimeZone = timeZone
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to get timezone for tenant {TenantId}", tenantId);
+            return StatusCode(500);
+        }
+    }
+
     private static bool IsApiKeyValid(string? apiKey)
     {
         var expectedKey = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey") ?? string.Empty;
@@ -52,7 +88,7 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
             return true;
         }
 
-        Log.Warning("Tenant connection-string request rejected: invalid or missing API key");
+        Log.Warning("Tenant metadata request rejected: invalid or missing API key");
         return false;
     }
 }
