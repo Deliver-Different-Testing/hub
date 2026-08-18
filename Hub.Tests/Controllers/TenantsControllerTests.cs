@@ -99,4 +99,70 @@ public class TenantsControllerTests : IDisposable
         var statusResult = Assert.IsType<StatusCodeResult>(result);
         Assert.Equal(500, statusResult.StatusCode);
     }
+
+    // Integration Manager hosts the Shopify order-polling and auto-fulfilment sweeps, which
+    // evaluate time-based booking rules against tenant-local now. It reads every other piece of
+    // tenant metadata through Hub, so it reads the timezone here rather than opening its own
+    // master-controller connection.
+    [Fact]
+    public async Task GetTimeZone_ValidApiKey_Returns200WithZone()
+    {
+        _mockRepository.GetTenantTimeZoneAsync(42).Returns("New Zealand Standard Time");
+
+        var result = await _controller.GetTimeZone(ValidApiKey, 42);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<TenantTimeZoneResponse>(okResult.Value);
+        Assert.Equal(42, response.TenantId);
+        Assert.Equal("New Zealand Standard Time", response.TimeZone);
+    }
+
+    [Fact]
+    public async Task GetTimeZone_MissingApiKey_Returns401()
+    {
+        var result = await _controller.GetTimeZone(null, 42);
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _mockRepository.DidNotReceive().GetTenantTimeZoneAsync(Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task GetTimeZone_WrongApiKey_Returns401()
+    {
+        var result = await _controller.GetTimeZone("wrong-key", 42);
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _mockRepository.DidNotReceive().GetTenantTimeZoneAsync(Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task GetTimeZone_TenantNotFound_Returns404()
+    {
+        _mockRepository.GetTenantTimeZoneAsync(999).Returns((string?)null);
+
+        var result = await _controller.GetTimeZone(ValidApiKey, 999);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetTimeZone_TenantWithNoZoneRecorded_Returns404()
+    {
+        _mockRepository.GetTenantTimeZoneAsync(7).Returns(string.Empty);
+
+        var result = await _controller.GetTimeZone(ValidApiKey, 7);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetTimeZone_RepositoryThrows_Returns500()
+    {
+        _mockRepository.GetTenantTimeZoneAsync(1).ThrowsAsync(new Exception("db blew up"));
+
+        var result = await _controller.GetTimeZone(ValidApiKey, 1);
+
+        var statusResult = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, statusResult.StatusCode);
+    }
 }
