@@ -1,0 +1,227 @@
+/* ============================================================
+   DFRNT — Colors & Type
+   Core design tokens for the DFRNT TMS ecosystem.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+:root {
+  /* ---------- PRIMARY BRAND ---------- */
+  --c-ink-blue:        #0d0c2c;   /* primary dark, main text, dark surfaces   */
+  --c-ink-blue-60:     #6e6d80;   /* 60% tint (muted text on light)           */
+  --c-ink-blue-20:     #cfced5;   /* 20% tint (dividers on light)             */
+
+  --c-cyan:            #3bc7f4;   /* brand cyan — CTAs, accents, active       */
+  --c-cyan-40:         #b1e9fb;
+  --c-cyan-20:         #d8f4fd;
+
+  --c-light-grey:      #f4f2f1;   /* warm off-white app background            */
+  --c-light-grey-60:   #f8f7f7;
+  --c-white:           #ffffff;
+
+  /* Admin UI close-variants (per DESIGN-SYSTEM.md extended palette) */
+  --c-admin-dark:      #14152D;   /* slightly warmer dark used in admin       */
+  --c-admin-cyan:      #43C7F4;   /* admin UI cyan (hex case variant)         */
+  --c-admin-purple:    #606DB4;   /* secondary purple used in admin chrome    */
+
+  /* ---------- SECONDARY ---------- */
+  --c-reflex-blue:     #2a4eff;   --c-reflex-blue-40: #aab8ff;  --c-reflex-blue-20: #d4dcff;
+  --c-purple:          #824ae0;   --c-purple-40:      #cdb7f3;  --c-purple-20:      #e6dbf9;
+  --c-green:           #13b964;   --c-green-40:       #a1e3c1;  --c-green-20:       #d0f1e0;
+  --c-orange:          #fe811a;   --c-orange-40:      #ffcda3;  --c-orange-20:      #ffe6d1;
+  --c-red:             #dc3246;   --c-red-40:         #f1adb5;  --c-red-20:         #f8d6da;
+
+  /* ---------- SEMANTIC SURFACE ---------- */
+  --bg-app:         var(--c-light-grey);      /* warm grey app bg — not pure white */
+  --bg-surface:     #fafbfc;                  /* subtle cream card surface         */
+  --bg-elevated:    var(--c-white);           /* elevated cards / menus            */
+  --bg-inverse:     var(--c-ink-blue);        /* dark surfaces, navigation         */
+
+  /* ---------- SEMANTIC FOREGROUND ---------- */
+  --fg-1:           var(--c-ink-blue);        /* primary text                      */
+  --fg-2:           #64748b;                  /* secondary text                    */
+  --fg-3:           #94a3b8;                  /* muted / tertiary                  */
+  --fg-on-dark:     rgba(255,255,255,0.92);
+  --fg-on-dark-2:   rgba(255,255,255,0.62);
+  --fg-on-dark-3:   rgba(255,255,255,0.38);
+  --fg-accent:      var(--c-cyan);            /* cyan links / active label         */
+
+  /* ---------- BORDERS / DIVIDERS ---------- */
+  --border:         #e8ecf1;                  /* default border                    */
+  --border-light:   #f1f5f9;                  /* subtle divider                    */
+  --border-strong:  #d0d5dd;
+
+  /* ---------- SEMANTIC STATE ---------- */
+  --success:        var(--c-green);           --success-bg: var(--c-green-20);
+  --warning:        var(--c-orange);          --warning-bg: var(--c-orange-20);
+  --error:          var(--c-red);             --error-bg:   var(--c-red-20);
+  --info:           var(--c-cyan);            --info-bg:    var(--c-cyan-20);
+
+  /* ---------- SPACING (8pt grid) ---------- */
+  --space-xs: 4px;  --space-sm: 8px;  --space-md: 16px;
+  --space-lg: 24px; --space-xl: 32px; --space-2xl: 48px;
+
+  /* ---------- RADII ---------- */
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
+  --radius-xl: 16px; --radius-full: 9999px;
+  --radius-lozenge: 9999px;                   /* DFRNT primary button shape        */
+
+  /* ---------- SHADOWS ---------- */
+  --shadow-sm:    0 1px 2px  rgba(0,14,37,0.05);
+  --shadow-md:    0 2px 8px  rgba(0,14,37,0.08);
+  --shadow-lg:    0 4px 12px rgba(0,14,37,0.12);
+  --shadow-xl:    0 8px 24px rgba(0,14,37,0.15);
+  --shadow-cyan:  0 4px 12px rgba(67,199,244,0.30);
+  --shadow-sidebar: -4px 0 24px rgba(0,14,37,0.15);
+
+  /* ---------- MOTION ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 150ms ease;
+  --t-norm: 200ms ease;
+  --t-slow: 300ms ease;
+  --t-expand: 500ms ease-out;
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --font-display:  'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-body:     'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-ui:       'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-ui-legacy:'Roboto', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:     ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* Type scale (software UI — leans larger than web typical) */
+  --text-2xs: 11px;
+  --text-xs:  12px;
+  --text-sm:  13px;
+  --text-base:14px;
+  --text-md:  16px;
+  --text-lg:  18px;
+  --text-xl:  20px;
+  --text-2xl: 24px;
+  --text-3xl: 28px;
+  --text-4xl: 36px;
+  --text-5xl: 48px;
+  --text-6xl: 64px;
+
+  --lh-tight: 1.1;
+  --lh-snug:  1.25;
+  --lh-norm:  1.5;
+  --lh-loose: 1.7;
+
+  --track-tight:  -0.02em;
+  --track-normal: 0;
+  --track-wide:   0.04em;
+  --track-caps:   0.08em;
+}
+
+/* ============================================================
+   Semantic typographic styles (use these, not raw sizes)
+   ============================================================ */
+
+.display-hero, h1.display {
+  font-family: var(--font-display);
+  font-weight: 600;              /* DM Sans Semibold = brand headline weight   */
+  font-size: clamp(44px, 6vw, var(--text-6xl));
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
+  color: var(--fg-1);
+}
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-4xl);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
+  color: var(--fg-1);
+}
+
+h2, .h2 {
+  font-family: var(--font-display);
+  font-weight: 700;              /* DM Sans Bold for sub-headings              */
+  font-size: var(--text-2xl);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--track-tight);
+  color: var(--fg-1);
+}
+
+h3, .h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+h4, .h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+p, .body {
+  font-family: var(--font-body);
+  font-weight: 400;              /* DM Sans Regular for body                   */
+  font-size: var(--text-md);
+  line-height: var(--lh-norm);
+  color: var(--fg-1);
+}
+
+.body-sm {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-sm);
+  line-height: var(--lh-norm);
+  color: var(--fg-2);
+}
+
+.ui, .ui-text {
+  font-family: var(--font-ui);   /* Inter preferred for new software UI        */
+  font-weight: 400;
+  font-size: var(--text-base);
+  line-height: var(--lh-norm);
+  color: var(--fg-1);
+}
+
+.ui-label {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+
+.eyebrow {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--fg-accent);
+}
+
+.tagline {
+  /* "Deliver Different" tagline — DM Sans Semibold */
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+  color: var(--fg-1);
+}
+
+code, .code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+
+a { color: var(--fg-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Base page defaults */
+html { font-family: var(--font-body); color: var(--fg-1); background: var(--bg-app); }
+body { margin: 0; font-size: var(--text-md); line-height: var(--lh-norm); -webkit-font-smoothing: antialiased; }
