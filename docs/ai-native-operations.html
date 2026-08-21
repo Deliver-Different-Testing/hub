@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Native Courier Model — Operations</title>
+  <link rel="stylesheet" href="./assets/colors_and_type.css">
+  <style>
+    :root { --page-max: 1180px; --shadow-soft: 0 18px 48px rgba(13,12,44,.10); --shadow-card: 0 10px 30px rgba(13,12,44,.08); --border: rgba(13,12,44,.10); }
+    * { box-sizing: border-box; } body { margin: 0; background: var(--c-light-grey); color: var(--c-ink-blue); font-family: Inter, sans-serif; line-height: 1.55; }
+    .hero { background: linear-gradient(135deg, #0d0c2c 0%, #14152D 68%, #1c2460 100%); color: white; }
+    .wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 24px; } .hero-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:28px; align-items:center; padding:54px 0 42px; }
+    .eyebrow { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:rgba(59,199,244,.12); color:var(--c-cyan); font-size:12px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; margin-bottom:18px; }
+    h1,h2,h3 { margin:0; font-family:"DM Sans",sans-serif; letter-spacing:-.02em; } h1 { font-size:clamp(40px,5vw,60px); line-height:.98; font-weight:600; }
+    .hero p { margin:18px 0 0; font-size:18px; color:rgba(255,255,255,.88); max-width:720px; }
+    .hero-card,.card { background:white; border-radius:18px; border:1px solid var(--border); box-shadow:var(--shadow-card); } .hero-card { padding:22px; } .hero-card h3 { font-size:22px; margin-bottom:10px; } .hero-card p { color:var(--c-ink-blue); margin:0; font-size:15px; }
+    .section { padding:36px 0; } .grid-2,.grid-3 { display:grid; gap:20px; } .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); } .grid-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .card { padding:24px; } .label { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#6e6d80; font-weight:800; margin-bottom:10px; }
+    .section-head { display:flex; align-items:end; justify-content:space-between; gap:18px; margin-bottom:18px; } .section-head h2 { font-size:clamp(28px,3vw,38px); line-height:1.02; font-weight:600; } .section-head p { margin:0; max-width:720px; color:#6e6d80; }
+    .bullet-list { margin:14px 0 0; padding-left:18px; } .bullet-list li { margin:8px 0; } .tag { display:inline-flex; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:800; margin-bottom:14px; background:var(--c-cyan-20); color:var(--c-ink-blue); }
+    .nav-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; } .nav-links a,.button-link { display:inline-block; padding:12px 16px; border-radius:999px; background:var(--c-cyan); color:var(--c-ink-blue); text-decoration:none; font-weight:700; } .nav-links a.secondary { background:rgba(255,255,255,.08); color:white; border:1px solid rgba(255,255,255,.14); }
+    table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:14px 12px; border-bottom:1px solid rgba(13,12,44,.08); vertical-align:top; } th { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#6e6d80; }
+    .quote { background:#0d0c2c; color:white; border-radius:24px; padding:30px; box-shadow:var(--shadow-soft); } .quote p { margin:0; font-family:"DM Sans",sans-serif; font-size:clamp(24px,2.6vw,34px); line-height:1.08; letter-spacing:-.03em; }
+    .footer { padding:28px 0 56px; } @media (max-width:920px){ .hero-grid,.grid-2,.grid-3{grid-template-columns:1fr;} .wrap{padding:0 18px;} .section{padding:28px 0;} }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">AI-native operating stages</div>
+        <h1>Operations</h1>
+        <p>Operations is the nerve centre. This is where booked demand becomes controlled execution, planned runs, live dispatch decisions, exception handling, and customer-visible outcomes.</p>
+        <div class="nav-links">
+          <a href="./ai-native-strategy.html">Back to strategy page</a>
+          <a class="secondary" href="./ai-native-accounts.html">Next: Accounts</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Stage outcome</div>
+        <h3>Planned, controlled, profitable execution</h3>
+        <p>AI native operations should stop dispatch from being a heroic manual craft. It should become a fast decision system where humans focus on edge cases, commercial judgment, and service recovery.</p>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="section"><div class="wrap"><div class="section-head"><div><div class="label">Core functions</div><h2>What Operations actually owns</h2></div><p>Turn the booking stream into planned work, controlled exceptions, and reliable status truth.</p></div><div class="grid-2"><div class="card"><ul class="bullet-list"><li>Booking intake and validation</li><li>Dispatch planning</li><li>Route and run building</li><li>Allocation and auto-dispatch</li></ul></div><div class="card"><ul class="bullet-list"><li>Recurring / scheduled orchestration</li><li>Exception and service recovery</li><li>Customer visibility and status flow</li><li>Operational control-room decisions</li></ul></div></div></div></section>
+    <section class="section"><div class="wrap"><div class="section-head"><div><div class="label">App map</div><h2>Systems involved in Operations</h2></div></div><div class="card"><table><thead><tr><th>Function</th><th>Primary app(s)</th><th>Supporting app(s)</th><th>Role</th></tr></thead><tbody><tr><td>Booking intake / job lifecycle</td><td>DespatchWeb, API</td><td>CRM, Configurator</td><td>Core live job state and booking flow</td></tr><tr><td>Dispatch control</td><td>DespatchWeb</td><td>Auto Dispatch, RunViewer</td><td>Manual and machine-assisted assignment</td></tr><tr><td>Run / route planning</td><td>Routed Operations / RunBuilder / RunViewer</td><td>DespatchWeb, Auto Dispatch</td><td>Future-facing planner workflow</td></tr><tr><td>Auto-allocation</td><td>Auto Dispatch</td><td>DespatchWeb, Integration Manager</td><td>Rules/AI-led sequencing and assignment</td></tr><tr><td>Recurring / scheduled work</td><td>Routed Operations + legacy schedule logic</td><td>Configurator, legacy territory models</td><td>Critical bridge area between old and new stack</td></tr><tr><td>Partner orchestration</td><td>Integration Manager</td><td>API, external carrier/client systems</td><td>Webhooks, status translation, external coordination</td></tr></tbody></table></div></div></section>
+    <section class="section"><div class="wrap"><div class="section-head"><div><div class="label">AI-native design</div><h2>How AI changes Operations</h2></div></div><div class="grid-3"><div class="card"><div class="tag">AI as dispatcher copilot</div><h3>Surface the best next decision</h3><ul class="bullet-list"><li>Jobs at SLA risk</li><li>Better courier matches</li><li>Route conflicts</li><li>Margin-destructive assignments</li></ul></div><div class="card"><div class="tag">AI as planner</div><h3>Design the network, not just the next run</h3><ul class="bullet-list"><li>Propose route structures</li><li>Recommend territory changes</li><li>Simulate cost / service trade-offs</li><li>Predict failure clusters</li></ul></div><div class="card"><div class="tag">AI as triage engine</div><h3>Handle exceptions faster</h3><ul class="bullet-list"><li>Classify the exception</li><li>Gather evidence</li><li>Suggest recovery action</li><li>Draft outbound customer comms</li></ul></div></div></div></section>
+    <section class="section"><div class="wrap"><div class="quote"><p>If Operations is AI native, dispatch becomes a high-speed decision system instead of a labour-heavy coordination layer.</p></div></div></section>
+  </main>
+  <footer class="footer"><div class="wrap"><a class="button-link" href="./ai-native-accounts.html">Continue to Accounts</a></div></footer>
+</body>
+</html>

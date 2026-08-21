@@ -188,6 +188,15 @@
     .steps li { margin: 12px 0; }
     .footer { padding: 28px 0 56px; }
     .footer a { color: var(--c-ink-blue); font-weight: 700; }
+    .stage-links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+    .stage-card { text-decoration: none; color: inherit; display: block; }
+    .stage-card:hover { transform: translateY(-2px); transition: transform .18s ease; }
+    .stage-card h3 { font-family: "DM Sans", sans-serif; font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin-bottom: 8px; }
+    .stage-card p { margin: 0; color: #6e6d80; }
+    .stage-card .mini-list { margin: 12px 0 0; padding-left: 18px; color: var(--c-ink-blue); }
+    @media (max-width: 1080px) {
+      .stage-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     @media (max-width: 920px) {
       .hero-grid, .lede-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .wrap { padding: 0 18px; }
@@ -356,6 +365,60 @@
             <h3>If DFRNT does not do this, someone else may</h3>
             <p>The danger is not only missing upside. It is ending up with neither business: not the AI-native winner, and not a particularly attractive legacy delivery model either.</p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="label">Operating model drill-down</div>
+            <h2>The four operating stages</h2>
+            <p>If the pivot is real, we need to map the courier company stage by stage — the functions under each stage, the apps involved, and where AI should assist, automate, or fully replace manual coordination.</p>
+          </div>
+        </div>
+        <div class="stage-links">
+          <a class="card stage-card" href="./ai-native-sales.html">
+            <div class="label">Stage 01</div>
+            <h3>Sales</h3>
+            <p>Lead capture, pricing, service design, onboarding, and clean handoff into live operations.</p>
+            <ul class="mini-list">
+              <li>CRM / CSP</li>
+              <li>Configurator</li>
+              <li>Master Controller</li>
+            </ul>
+          </a>
+          <a class="card stage-card" href="./ai-native-operations.html">
+            <div class="label">Stage 02</div>
+            <h3>Operations</h3>
+            <p>Booking intake, dispatch, route/run planning, recurring work, exceptions, and service control.</p>
+            <ul class="mini-list">
+              <li>DespatchWeb</li>
+              <li>Routed Operations</li>
+              <li>Auto Dispatch</li>
+            </ul>
+          </a>
+          <a class="card stage-card" href="./ai-native-accounts.html">
+            <div class="label">Stage 03</div>
+            <h3>Accounts</h3>
+            <p>Invoicing, settlements, sync, AR, reconciliation, and margin truth.</p>
+            <ul class="mini-list">
+              <li>Accounts</li>
+              <li>Reporting</li>
+              <li>Finance integrations</li>
+            </ul>
+          </a>
+          <a class="card stage-card" href="./ai-native-delivery.html">
+            <div class="label">Stage 04</div>
+            <h3>Delivery</h3>
+            <p>Courier execution, scans, POD, recipient visibility, and recoverable field exceptions.</p>
+            <ul class="mini-list">
+              <li>Courier Portal</li>
+              <li>Drive surfaces</li>
+              <li>Integration Manager</li>
+            </ul>
+          </a>
         </div>
       </div>
     </section>

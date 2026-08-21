@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Native Courier Model — Sales</title>
+  <link rel="stylesheet" href="./assets/colors_and_type.css">
+  <style>
+    :root {
+      --page-max: 1180px;
+      --shadow-soft: 0 18px 48px rgba(13,12,44,.10);
+      --shadow-card: 0 10px 30px rgba(13,12,44,.08);
+      --border: rgba(13,12,44,.10);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--c-light-grey); color: var(--c-ink-blue); font-family: Inter, sans-serif; line-height: 1.55; }
+    .hero { background: linear-gradient(135deg, #0d0c2c 0%, #14152D 68%, #1c2460 100%); color: white; }
+    .wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 24px; }
+    .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; padding: 54px 0 42px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(59,199,244,.12); color: var(--c-cyan); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; margin-bottom: 18px; }
+    h1, h2, h3 { margin: 0; }
+    h1, h2, h3 { font-family: "DM Sans", sans-serif; letter-spacing: -.02em; }
+    h1 { font-size: clamp(40px, 5vw, 60px); line-height: .98; font-weight: 600; }
+    .hero p { margin: 18px 0 0; font-size: 18px; color: rgba(255,255,255,.88); max-width: 720px; }
+    .hero-card, .card { background: white; border-radius: 18px; border: 1px solid var(--border); box-shadow: var(--shadow-card); }
+    .hero-card { padding: 22px; }
+    .hero-card h3 { font-size: 22px; margin-bottom: 10px; }
+    .hero-card p { color: var(--c-ink-blue); margin: 0; font-size: 15px; }
+    .section { padding: 36px 0; }
+    .grid-2, .grid-3 { display: grid; gap: 20px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { padding: 24px; }
+    .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #6e6d80; font-weight: 800; margin-bottom: 10px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+    .section-head h2 { font-size: clamp(28px, 3vw, 38px); line-height: 1.02; font-weight: 600; }
+    .section-head p { margin: 0; max-width: 720px; color: #6e6d80; }
+    .bullet-list { margin: 14px 0 0; padding-left: 18px; }
+    .bullet-list li { margin: 8px 0; }
+    .tag { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; margin-bottom: 14px; background: var(--c-cyan-20); color: var(--c-ink-blue); }
+    .nav-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .nav-links a, .button-link { display: inline-block; padding: 12px 16px; border-radius: 999px; background: var(--c-cyan); color: var(--c-ink-blue); text-decoration: none; font-weight: 700; }
+    .nav-links a.secondary { background: rgba(255,255,255,.08); color: white; border: 1px solid rgba(255,255,255,.14); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 14px 12px; border-bottom: 1px solid rgba(13,12,44,.08); vertical-align: top; }
+    th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #6e6d80; }
+    .quote { background: #0d0c2c; color: white; border-radius: 24px; padding: 30px; box-shadow: var(--shadow-soft); }
+    .quote p { margin: 0; font-family: "DM Sans", sans-serif; font-size: clamp(24px, 2.6vw, 34px); line-height: 1.08; letter-spacing: -.03em; }
+    .footer { padding: 28px 0 56px; }
+    .footer a { color: var(--c-ink-blue); font-weight: 700; }
+    @media (max-width: 920px) { .hero-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; } .wrap { padding: 0 18px; } .section { padding: 28px 0; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">AI-native operating stages</div>
+        <h1>Sales</h1>
+        <p>Sales should not just win freight. It should create the right customers, with the right commercial model, configured cleanly enough that operations and accounts are not fixing preventable mistakes after go-live.</p>
+        <div class="nav-links">
+          <a href="./ai-native-strategy.html">Back to strategy page</a>
+          <a class="secondary" href="./ai-native-operations.html">Next: Operations</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Stage outcome</div>
+        <h3>Commercially correct setup from day one</h3>
+        <p>Wrong rates, wrong service windows, wrong billing rules, and wrong expectations all start here. An AI-native sales layer acts as an analyst, pricing copilot, and onboarding gatekeeper before the deal is marked won.</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="label">Core functions</div>
+            <h2>What Sales actually owns</h2>
+          </div>
+          <p>Move from pipeline administration to structured commercial design and clean downstream handoff.</p>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <ul class="bullet-list">
+              <li>Lead capture and enrichment</li>
+              <li>Qualification</li>
+              <li>Proposal and pricing design</li>
+              <li>Service-scope definition</li>
+            </ul>
+          </div>
+          <div class="card">
+            <ul class="bullet-list">
+              <li>Contract and commercial agreement</li>
+              <li>Customer onboarding</li>
+              <li>Operating-rule configuration</li>
+              <li>Handoff to operations and accounts</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="label">App map</div>
+            <h2>Systems involved in Sales</h2>
+          </div>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr><th>Function</th><th>Primary app(s)</th><th>Supporting app(s)</th><th>Role</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Lead capture / pipeline</td><td>DFRNT CRM / CSP</td><td>Email, forms, chat channels</td><td>Opportunity and account context</td></tr>
+              <tr><td>Pricing / quote design</td><td>Configurator / pricing surfaces</td><td>Legacy pricing logic, spreadsheets</td><td>Guided commercial design instead of ad hoc quoting</td></tr>
+              <tr><td>Service design / feature selection</td><td>DFRNT configurator</td><td>Master Controller</td><td>Feature flags, workflows, service options</td></tr>
+              <tr><td>Customer / tenant setup</td><td>Master Controller / admin surfaces</td><td>Accounts, Configurator</td><td>Create the customer correctly once</td></tr>
+              <tr><td>Commercial setup handoff</td><td>Accounts</td><td>CRM, Configurator</td><td>Terms, billing model, invoice schedule, contacts</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="label">AI-native design</div>
+            <h2>How AI changes Sales</h2>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="tag">AI as analyst</div>
+            <h3>Pre-sales research before human review</h3>
+            <ul class="bullet-list">
+              <li>Enrich company profile</li>
+              <li>Classify likely service type</li>
+              <li>Suggest similar existing customers</li>
+              <li>Flag likely operational constraints</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="tag">AI as pricing copilot</div>
+            <h3>Guide commercial decisions</h3>
+            <ul class="bullet-list">
+              <li>Propose the closest service template</li>
+              <li>Suggest rate-card starting points</li>
+              <li>Warn when quote assumptions clash with capability</li>
+              <li>Show likely margin sensitivity</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="tag">AI as gatekeeper</div>
+            <h3>Stop incomplete onboarding</h3>
+            <ul class="bullet-list">
+              <li>Validate billing contacts</li>
+              <li>Validate service windows and route dependencies</li>
+              <li>Identify required integrations</li>
+              <li>Force explicit exception rules before go-live</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="quote">
+          <p>If Sales is AI native, the company wins better-fit freight and removes downstream exceptions before the first job is even booked.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <a class="button-link" href="./ai-native-operations.html">Continue to Operations</a>
+    </div>
+  </footer>
+</body>
+</html>
