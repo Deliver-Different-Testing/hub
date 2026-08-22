@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DFRNT AI-Native Strategy Deck</title>
+  <link rel="stylesheet" href="./assets/colors_and_type.css">
+  <style>
+    :root {
+      --ink: #0d0c2c;
+      --ink-2: #14152D;
+      --bg: #f4f2f1;
+      --cyan: #3bc7f4;
+      --cyan-20: rgba(59,199,244,.16);
+      --green: #16a34a;
+      --amber: #f59e0b;
+      --red: #dc2626;
+      --white: #ffffff;
+      --muted: #6e6d80;
+      --line: rgba(13,12,44,.10);
+      --shadow: 0 16px 36px rgba(13,12,44,.10);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: #d9d7d6;
+      color: var(--ink);
+      font-family: Inter, Arial, sans-serif;
+    }
+    body { padding: 24px; }
+    .deck { display: grid; gap: 28px; }
+    .slide {
+      width: 1280px;
+      min-height: 720px;
+      margin: 0 auto;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 18px 50px rgba(0,0,0,.12);
+      page-break-after: always;
+    }
+    .pad { padding: 56px 64px; }
+    .dark {
+      background: linear-gradient(135deg, var(--ink) 0%, #182056 100%);
+      color: white;
+    }
+    .dark .eyebrow { background: rgba(59,199,244,.14); color: var(--cyan); }
+    .dark .kicker, .dark .body, .dark .small { color: rgba(255,255,255,.84); }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--cyan-20);
+      color: var(--ink);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    h1, h2, h3, h4, .stat, .quote { font-family: "DM Sans", Inter, Arial, sans-serif; margin: 0; }
+    h1 { font-size: 64px; line-height: .98; letter-spacing: -.03em; font-weight: 600; }
+    h2 { font-size: 42px; line-height: 1.02; letter-spacing: -.03em; font-weight: 600; }
+    h3 { font-size: 24px; line-height: 1.12; letter-spacing: -.02em; font-weight: 600; }
+    .kicker { color: var(--muted); font-size: 20px; line-height: 1.45; margin-top: 18px; max-width: 960px; }
+    .body { color: var(--ink); font-size: 22px; line-height: 1.45; }
+    .small { color: var(--muted); font-size: 16px; line-height: 1.4; }
+    .grid-2 { display: grid; grid-template-columns: 1.1fr .9fr; gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    .card.tinted { background: linear-gradient(180deg, rgba(59,199,244,.11), rgba(59,199,244,.03)); }
+    .list { margin: 16px 0 0; padding-left: 22px; font-size: 20px; line-height: 1.45; }
+    .list li { margin: 10px 0; }
+    .stat { font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -.03em; }
+    .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--muted); margin-bottom: 10px; }
+    .tag {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: var(--cyan-20);
+    }
+    .tag.warn { background: #fff1d6; color: #8a4c08; }
+    .tag.good { background: #dcfce7; color: #166534; }
+    .option.recommended { border: 2px solid rgba(59,199,244,.55); }
+    .quote {
+      font-size: 38px;
+      line-height: 1.08;
+      letter-spacing: -.03em;
+      max-width: 980px;
+    }
+    .slide-no {
+      position: absolute;
+      right: 28px;
+      bottom: 18px;
+      font-size: 13px;
+      color: rgba(13,12,44,.48);
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .dark .slide-no { color: rgba(255,255,255,.52); }
+    .hero-mark {
+      position: absolute;
+      right: -70px;
+      bottom: -80px;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59,199,244,.28) 0%, rgba(59,199,244,0) 70%);
+    }
+    .image-card img { width: 100%; border-radius: 14px; display: block; }
+    .stage {
+      border-radius: 16px;
+      padding: 18px 18px 20px;
+      background: white;
+      border: 1px solid var(--line);
+    }
+    .stage p { margin: 10px 0 0; color: var(--muted); font-size: 17px; line-height: 1.38; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .pill { border-radius: 999px; background: white; border: 1px solid var(--line); padding: 9px 14px; font-size: 16px; font-weight: 700; }
+    .pill.live { background: #dcfce7; color: #166534; }
+    .pill.draft { background: #eef2ff; color: #3730a3; }
+    .pill.test { background: #fff7ed; color: #9a3412; }
+    .arrow { font-size: 26px; font-weight: 800; color: var(--cyan); }
+    .process-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-items: center; margin-top: 28px; }
+    .process-step {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      min-height: 130px;
+    }
+    .process-step h4 { margin: 0 0 8px; font-size: 20px; font-family: "DM Sans", Inter, sans-serif; }
+    .process-step p { margin: 0; font-size: 16px; line-height: 1.38; color: var(--muted); }
+    .full-height { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+    @media print {
+      @page { size: 13.333in 7.5in; margin: 0; }
+      body { background: white; padding: 0; }
+      .deck { gap: 0; }
+      .slide { width: 13.333in; min-height: 7.5in; box-shadow: none; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+
+    <section class="slide dark">
+      <div class="hero-mark"></div>
+      <div class="pad full-height">
+        <div>
+          <div class="eyebrow">DFRNT strategy deck</div>
+          <h1>What AI-native could mean for DFRNT and Urgent</h1>
+          <p class="kicker">A strategic discussion deck to help the team understand the future-state vision, the path to get there, and the three real options in front of us.</p>
+        </div>
+        <div>
+          <p class="small">Prepared from the current AI-native strategy pack, white paper, and latest strategic framing update.</p>
+        </div>
+      </div>
+      <div class="slide-no">01</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Why now</div>
+        <h2>This is not a “how do we use more AI?” conversation</h2>
+        <div class="grid-2" style="margin-top:28px; align-items:start;">
+          <div class="card">
+            <div class="label">The wrong frame</div>
+            <ul class="list">
+              <li>Add copilots to current workflows</li>
+              <li>Automate a few admin tasks</li>
+              <li>Project today’s org chart and systems into the future</li>
+              <li>Optimise the current courier model at the edges</li>
+            </ul>
+          </div>
+          <div class="card tinted">
+            <div class="label">The right frame</div>
+            <ul class="list">
+              <li>Start with a compelling 5–7 year vision</li>
+              <li>Ask what an AI-native operating model actually looks like</li>
+              <li>Backcast the systems, workflows and capabilities needed</li>
+              <li>Decide whether we are building a better old model — or a new one</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">02</div>
+    </section>
+
+    <section class="slide dark">
+      <div class="hero-mark"></div>
+      <div class="pad">
+        <div class="eyebrow">Strategic advantage</div>
+        <h2>We are uniquely positioned to do this</h2>
+        <div class="grid-2" style="margin-top:30px;">
+          <div class="card" style="background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.14); color:white;">
+            <div class="label" style="color:rgba(255,255,255,.62)">Urgent</div>
+            <h3>Real operator</h3>
+            <p class="body" style="color:rgba(255,255,255,.84)">Live dispatch complexity, real customers, real margin pressure, real service failures, real proof opportunities.</p>
+          </div>
+          <div class="card" style="background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.14); color:white;">
+            <div class="label" style="color:rgba(255,255,255,.62)">DFRNT</div>
+            <h3>Platform builder</h3>
+            <p class="body" style="color:rgba(255,255,255,.84)">The software company that can encode the learning, automate the workflows, and turn operational insight into scalable product capability.</p>
+          </div>
+        </div>
+        <div class="card" style="margin-top:24px; background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12); color:white;">
+          <p class="quote">No other courier company is better positioned than we are to define what an AI-native transport business could actually look like in practice.</p>
+        </div>
+      </div>
+      <div class="slide-no">03</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Future-state vision</div>
+        <h2>What are we backcasting from?</h2>
+        <p class="kicker">If we designed DFRNT and Urgent from scratch today to be AI-native 5–7 years from now, what would exist, what would be automated, what would humans still own, and what would make the business structurally better than a traditional courier operator?</p>
+        <div class="grid-3" style="margin-top:24px;">
+          <div class="card"><h3>Continuously learning operating system</h3><p class="body">Operational events are captured once and reused everywhere. The platform gets smarter from real execution, not reports written after the fact.</p></div>
+          <div class="card"><h3>Exception-led human work</h3><p class="body">Agents, rules and workflows handle repetitive coordination. Humans focus on exceptions, judgement, service design and commercial decisions.</p></div>
+          <div class="card"><h3>Better scaling economics</h3><p class="body">Quality, speed and margin improve without management overhead scaling at the same rate.</p></div>
+        </div>
+      </div>
+      <div class="slide-no">04</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">What AI-native means</div>
+        <h2>AI-native is not “chatbot everywhere”</h2>
+        <div class="process-grid">
+          <div class="process-step"><h4>Visible</h4><p>The data exists and can be seen.</p></div>
+          <div class="arrow">→</div>
+          <div class="process-step"><h4>Assisted</h4><p>AI drafts, suggests, classifies and summarises.</p></div>
+          <div class="arrow">→</div>
+          <div class="process-step"><h4>Automated</h4><p>Low-risk work completes end-to-end through rules and agents.</p></div>
+        </div>
+        <div class="grid-2" style="margin-top:22px; grid-template-columns: 1fr 1fr;">
+          <div class="card">
+            <h3>Core design idea</h3>
+            <ul class="list">
+              <li>Every stage has a clean system of record</li>
+              <li>Key events are emitted once and reused everywhere</li>
+              <li>Apps are organised around operating outcomes, not historical team boundaries</li>
+            </ul>
+          </div>
+          <div class="card tinted">
+            <h3>End-state discipline</h3>
+            <ul class="list">
+              <li>Humans stay on judgement, exceptions and relationships</li>
+              <li>Machines take coordination, classification and repetitive decision support</li>
+              <li>The system reprioritises around cost, SLA risk and customer value</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">05</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Operating model</div>
+        <h2>The four operating stages</h2>
+        <div class="grid-4" style="margin-top:26px;">
+          <div class="stage"><div class="label">Stage 01</div><h3>Sales</h3><p>Win the customer, price the work, configure the service, and hand off cleanly into live operations.</p></div>
+          <div class="stage"><div class="label">Stage 02</div><h3>Operations</h3><p>Turn demand into planned, controlled, profitable execution through orchestration and exception control.</p></div>
+          <div class="stage"><div class="label">Stage 03</div><h3>Accounts</h3><p>Bill accurately, settle correctly, reconcile fast, and surface margin truth.</p></div>
+          <div class="stage"><div class="label">Stage 04</div><h3>Delivery</h3><p>Execute the work in the field, capture proof, exceptions and customer visibility.</p></div>
+        </div>
+        <div class="card" style="margin-top:24px;">
+          <p class="quote" style="font-size:30px; color:var(--ink);">Lead → Quote → Onboard → Book → Plan → Dispatch → Deliver → Invoice → Settle → Report → Improve</p>
+        </div>
+      </div>
+      <div class="slide-no">06</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Value creation</div>
+        <h2>Why this matters economically</h2>
+        <div class="grid-3" style="margin-top:28px;">
+          <div class="card tinted">
+            <div class="label">Customer economics</div>
+            <div class="stat">Lower cost to serve</div>
+            <p class="body">AI-native workflow redesign can change the cost structure of delivery rather than just improving software around the same manual process.</p>
+          </div>
+          <div class="card tinted">
+            <div class="label">Operating leverage</div>
+            <div class="stat">20 staff → 5</div>
+            <p class="body">If the operating model is redesigned around automation and exception handling, staffing intensity can fall materially over time.</p>
+          </div>
+          <div class="card tinted">
+            <div class="label">Strategic upside</div>
+            <div class="stat">Better proof</div>
+            <p class="body">Urgent becomes the proving ground and DFRNT becomes the product engine — creating a stronger valuation and market-entry story.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">07</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Strategic options</div>
+        <h2>There are three credible paths</h2>
+        <div class="grid-3" style="margin-top:26px;">
+          <div class="card option">
+            <div class="tag">Option 1</div>
+            <h3>Stay AI-enabled</h3>
+            <ul class="list">
+              <li>Add selective AI features to the current model</li>
+              <li>Lowest near-term disruption</li>
+              <li>Highest risk of becoming a cleaner version of the old model</li>
+            </ul>
+          </div>
+          <div class="card option">
+            <div class="tag warn">Option 2</div>
+            <h3>Dual-track: defend + wedge</h3>
+            <ul class="list">
+              <li>Usually sounds balanced</li>
+              <li>Works only if “defend the base” does not consume all oxygen</li>
+              <li>High risk of delaying the real pivot</li>
+            </ul>
+          </div>
+          <div class="card option recommended">
+            <div class="tag good">Option 3</div>
+            <h3>Full AI-native pivot</h3>
+            <ul class="list">
+              <li>Make the pivot the primary build priority</li>
+              <li>Use Urgent as the proof case</li>
+              <li>Best fit if the aim is structural change, not incremental optimisation</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">08</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Trade-offs</div>
+        <h2>What each option gives up</h2>
+        <div class="grid-3" style="margin-top:26px;">
+          <div class="card">
+            <h3>Option 1 risk</h3>
+            <p class="body">We end up with better tooling, but not a structurally better business.</p>
+          </div>
+          <div class="card">
+            <h3>Option 2 risk</h3>
+            <p class="body">Legacy work absorbs the team and the wedge never becomes the strategy.</p>
+          </div>
+          <div class="card tinted">
+            <h3>Option 3 risk</h3>
+            <p class="body">Requires discipline, proof milestones, and the willingness to stop saying yes to work that drags us backwards.</p>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:24px;">
+          <div class="card">
+            <div class="label">Biggest external risk</div>
+            <p class="body">Prospects keep asking DFRNT to preserve manual process steps that an AI-native strategy is supposed to eliminate.</p>
+          </div>
+          <div class="card">
+            <div class="label">Biggest internal risk</div>
+            <p class="body">We confuse AI novelty with operating-model change and call that progress too early.</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">09</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Execution discipline</div>
+        <h2>What has to be true if we want to win</h2>
+        <div class="grid-2" style="margin-top:28px;">
+          <div class="card">
+            <ul class="list">
+              <li>Urgent is treated as the proof case, not just another tenant</li>
+              <li>The roadmap is ranked against the target operating model</li>
+              <li>Build capacity for the AI-native wedge is protected</li>
+              <li>New work is judged on whether it moves us toward the future-state vision</li>
+            </ul>
+          </div>
+          <div class="card tinted">
+            <ul class="list">
+              <li>We measure proof in real operating metrics</li>
+              <li>We keep the system-of-record and event model clean</li>
+              <li>We do not let tenant-by-tenant requests define the product architecture</li>
+              <li>We build a testimony engine from the transformation story</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">10</div>
+    </section>
+
+    <section class="slide dark">
+      <div class="hero-mark"></div>
+      <div class="pad full-height">
+        <div>
+          <div class="eyebrow">Recommendation</div>
+          <h2>Start with the vision. Backcast the path. Bias toward the pivot.</h2>
+          <div class="card" style="margin-top:24px; background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.14); color:white;">
+            <p class="quote" style="font-size:34px;">The strongest direction is a more decisive AI-native pivot — but grounded in proof milestones, real operating metrics, and roadmap discipline.</p>
+          </div>
+        </div>
+        <div class="pill-row">
+          <span class="pill">Compelling 5–7 year vision</span>
+          <span class="pill">Urgent as proving ground</span>
+          <span class="pill">DFRNT as operating system</span>
+          <span class="pill">Backcasted roadmap</span>
+        </div>
+      </div>
+      <div class="slide-no">11</div>
+    </section>
+
+    <section class="slide">
+      <div class="pad">
+        <div class="eyebrow">Decision discussion</div>
+        <h2>Questions for the team</h2>
+        <div class="grid-2" style="margin-top:28px;">
+          <div class="card">
+            <ul class="list">
+              <li>What 5–7 year future state are we actually aiming for?</li>
+              <li>Which of the three options are we really choosing?</li>
+              <li>What are we explicitly not choosing?</li>
+            </ul>
+          </div>
+          <div class="card tinted">
+            <ul class="list">
+              <li>What proof do we need in the next 12 months?</li>
+              <li>What tenant or roadmap work should we stop doing if it pulls us backward?</li>
+              <li>What has to be protected so this does not become just another side project?</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-no">12</div>
+    </section>
+
+  </div>
+</body>
+</html>
