@@ -44,8 +44,26 @@
       background: linear-gradient(135deg, var(--ink) 0%, #182056 100%);
       color: white;
     }
+    .dark h1,
+    .dark h2,
+    .dark h3,
+    .dark h4,
+    .dark p,
+    .dark li,
+    .dark .quote,
+    .dark .card,
+    .dark .card h3,
+    .dark .card h4,
+    .dark .pill {
+      color: #ffffff !important;
+    }
     .dark .eyebrow { background: rgba(59,199,244,.14); color: var(--cyan); }
-    .dark .kicker, .dark .body, .dark .small { color: rgba(255,255,255,.84); }
+    .dark .kicker, .dark .body, .dark .small { color: rgba(255,255,255,.84) !important; }
+    .dark .label { color: rgba(255,255,255,.68) !important; }
+    .dark .pill {
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.18);
+    }
     .eyebrow {
       display: inline-flex;
       align-items: center;
