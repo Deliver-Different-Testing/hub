@@ -389,6 +389,16 @@ public class AccountController(
 
         if (masterUser == null)
         {
+            // The RESPONSE stays deliberately identical to the ModelState-invalid
+            // one above, so this page cannot be used to discover which addresses
+            // have accounts. The LOG is the other half of that trade: without it
+            // the two branches are indistinguishable to us as well, and "password
+            // reset does not work" costs a source read to answer.
+            //
+            // Server-side only, so it gives away nothing. Debug matches the
+            // sibling login-failure line a few actions up.
+            Log.Debug("Password reset requested for {ModelEmail}, which has no Master.User row.",
+                model.Email);
             return Json(new { success = false, message = "Please check your input and try again." });
         }
 
