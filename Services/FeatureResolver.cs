@@ -9,6 +9,13 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
     // NULL ClientTypeId → 2 (Customer) per §1.4 of the Permissions plan.
     private const int NullClientTypeFallback = 2;
 
+    // A feature reaches a tenant only when ClientVisible AND ReleaseStatus ==
+    // Live, so unfinished work cannot surface just because its parent tile is
+    // enabled. Must stay in step with the configurator ClientTypeFeatureResolver:
+    // the two apps read the same catalogue and a disagreement shows up as a hub
+    // tile that leads to an empty sidebar.
+    private const string LiveReleaseStatus = "Live";
+
     public async Task<HashSet<string>> ResolveVisibleFeaturesAsync(int? clientTypeId)
     {
         var effectiveId = clientTypeId ?? NullClientTypeFallback;
@@ -16,6 +23,9 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         var keys = await context.ClientTypeFeatures
             .AsNoTracking()
             .Where(ctf => ctf.ClientTypeId == effectiveId && ctf.Visible)
+            .Join(context.Features.AsNoTracking()
+                     .Where(f => f.ClientVisible && f.ReleaseStatus == LiveReleaseStatus),
+                  ctf => ctf.FeatureKey, f => f.FeatureKey, (ctf, f) => ctf)
             .Select(ctf => ctf.FeatureKey)
             .ToListAsync();
 

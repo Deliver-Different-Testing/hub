@@ -15,5 +15,14 @@ public partial class Feature
 
     public string Category { get; set; }
 
+    // Release state (tile-level direction, 2026-08-26). A feature reaches a
+    // tenant only when ClientVisible AND ReleaseStatus == "Live". Added by
+    // dbmigrationsv2 20260826170000_FeatureReleaseState.sql - that migration
+    // MUST be applied to a tenant DB before this app is deployed against it,
+    // or EF selects columns that do not exist.
+    public bool ClientVisible { get; set; }
+
+    public string ReleaseStatus { get; set; }
+
     public virtual ICollection<ClientTypeFeature> ClientTypeFeatures { get; set; } = new List<ClientTypeFeature>();
 }
