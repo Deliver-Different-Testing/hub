@@ -55,7 +55,15 @@ public class HomeControllerTests : IDisposable
         featureResolver.ResolveForClientAsync(Arg.Any<int?>())
             .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
-        var controller = new HomeController(connectionStringManager, repo, featureResolver);
+        // Gate 2 (tile access) is substituted to "no decisions", i.e. it removes
+        // nothing from the visible set. These tests cover the controller wiring,
+        // not the tile rules - those live in TileAccessResolverTests.
+        var tileAccessResolver = Substitute.For<ITileAccessResolver>();
+        tileAccessResolver.ResolveAsync(Arg.Any<int>(), Arg.Any<int?>(), Arg.Any<ISet<string>>())
+            .Returns(new List<TileAccess>());
+
+        var controller = new HomeController(
+            connectionStringManager, repo, featureResolver, tileAccessResolver);
         ControllerTestBase.SetupHttpContext(controller, user);
 
         return controller;

@@ -11,7 +11,8 @@ namespace Hub.Controllers;
 public class HomeController(
     IConnectionStringManager connectionStringManager,
     IDespatchRepository despatchRepository,
-    IFeatureResolver featureResolver)
+    IFeatureResolver featureResolver,
+    ITileAccessResolver tileAccessResolver)
     : Controller
 {
     public async Task<IActionResult> Index()
@@ -45,6 +46,25 @@ public class HomeController(
         // DF-admin (ClientType=5) bypass is determined inside the resolver from
         // the client's ClientType — no longer the legacy UserGroupID==1 check.
         var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId);
+
+        // Gate 2 - tile-level access (Steve 2026-08-26). Gate 1 above says which
+        // features DF Admin enabled for the tenant; this says which of the hub
+        // tiles the contact's ROLES may see. A tile needs both to render.
+        //
+        // Only hub-tile-* keys are removed: everything else in the set is
+        // sub-tile detail that the tile model does not govern.
+        var tileDecisions = await tileAccessResolver.ResolveAsync(contactId, clientId, visibleFeatures);
+        foreach (var denied in tileDecisions.Where(d => !d.Granted))
+        {
+            visibleFeatures.Remove(denied.TileKey);
+        }
+
+        // Debug-logged because it is the only way to answer "why can't this user
+        // see that tile". The tile is simply absent either way, and which gate
+        // closed is not recoverable after the fact.
+        Log.Debug("Tile access for ContactID:{Cid} - {Decisions}",
+            contactId,
+            string.Join(", ", tileDecisions.Select(d => $"{d.TileKey}={d.Reason}")));
 
         var model = new HomeViewModel
         {
