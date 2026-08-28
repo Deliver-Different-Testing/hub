@@ -88,6 +88,8 @@
     .doc-title { font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--c-ink-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
     .doc-title:hover { text-decoration: underline; }
     .doc-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; min-width: 0; }
+    .dropzone .doc-card summary { grid-template-columns: 1fr; }
+    .dropzone .doc-meta { justify-content: flex-start; margin-left: 21px; margin-top: 4px; }
     .pill { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; line-height: 1.1; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); max-width: 100%; }
     .pill.core { background: rgba(255,179,71,.24); }
     .pill.strategic { background: rgba(59,199,244,.18); }
@@ -99,13 +101,6 @@
     .type-group { display: grid; gap: 6px; margin-top: 10px; }
     .type-group label { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
     .footer { padding: 28px 0 56px; }
-    .catalog-list .doc-card summary {
-      grid-template-columns: 1fr;
-    }
-    .catalog-list .doc-meta {
-      justify-content: flex-start;
-      margin-left: 21px;
-    }
     @media (max-width: 1120px) {
       .planner-layout, .hero-grid, .lede-grid, .months { grid-template-columns: 1fr; }
       .backlog-panel { position: static; }
@@ -164,7 +159,7 @@
             <div class="label">MD backlog</div>
             <h3>Candidate roadmap docs</h3>
           </div>
-          <p class="helper">Everything starts in the unscheduled parking area so you can drag each doc into the right month. The full candidate catalog stays visible underneath.</p>
+          <p class="helper">Everything starts in the unscheduled parking area so you can drag each project into the right month.</p>
           <div class="filter-stack">
             <div class="filter-box">
               <label><input type="checkbox" id="filterStrategicOnly"> Show strategic automation only</label>
@@ -180,10 +175,8 @@
             <button class="mini-btn" id="resetLayoutBtn" type="button">Reset layout</button>
             <button class="mini-btn" id="resetTypesBtn" type="button">Reset types</button>
           </div>
-          <div class="label" style="margin-top:18px;">Unscheduled / parking</div>
-          <div class="backlog-list" id="backlogList"></div>
-          <div class="label" style="margin-top:18px;">All candidate roadmap docs</div>
-          <div class="backlog-list scrollable catalog-list" id="catalogList"></div>
+          <div class="label" style="margin-top:18px;">Project list / unscheduled</div>
+          <div class="backlog-list scrollable" id="backlogList"></div>
         </aside>
 
         <div>
@@ -202,7 +195,7 @@
 
   <script>
     const BACKLOG_ID = 'backlog';
-    const STORAGE_KEY = 'aiNativeSalesImplementationPlanner.v4';
+    const STORAGE_KEY = 'aiNativeSalesImplementationPlanner.v5';
 
     const docs = [
       { id: 'kerran-client-rates-migration', title: 'Kerran client modal + rates migration', url: 'https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/docs/STEVE-KERRAN-CLIENT-MODAL-AND-RATES-MIGRATION-2026-07-02.md', description: 'Moves core customer commercial setup into the real implementation home.', defaultMonth: '2026-07', category: 'onboarding' },
@@ -348,14 +341,23 @@
 
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
-      const catalog = document.getElementById('catalogList');
       const visibleDocs = docs.filter(passesFilters);
       const backlogDocs = visibleDocs.filter(doc => state.monthAssignments[doc.id] === BACKLOG_ID);
       backlog.classList.toggle('empty', backlogDocs.length === 0);
       backlog.innerHTML = backlogDocs.map(doc => docCardHtml(doc)).join('');
-      catalog.innerHTML = visibleDocs.map(doc => docCardHtml(doc, true)).join('');
       bindCardEvents(backlog);
-      bindCardEvents(catalog);
+    }
+
+    function monthSummary(monthDocs) {
+      if (monthDocs.length === 0) return 'No projects scheduled yet.';
+      const strategicCount = monthDocs.filter(doc => (state.categories[doc.id] || doc.category) === 'strategic').length;
+      const onboardingCount = monthDocs.filter(doc => (state.categories[doc.id] || doc.category) === 'onboarding').length;
+      const coreCount = monthDocs.length - strategicCount - onboardingCount;
+      const parts = [];
+      if (coreCount) parts.push(`${coreCount} core`);
+      if (strategicCount) parts.push(`${strategicCount} strategic`);
+      if (onboardingCount) parts.push(`${onboardingCount} onboarding`);
+      return `${monthDocs.length} project${monthDocs.length === 1 ? '' : 's'} scheduled · ${parts.join(' · ')}`;
     }
 
     function renderPlanner() {
@@ -375,7 +377,7 @@
                 <div class="quarter-tag">${quarter} · ${meta.subtitle}</div>
                 <h3>${meta.title}</h3>
               </div>
-              <p class="muted">Drag docs between months to reshape the path.</p>
+              <p class="muted">Drag projects between months to reshape the path.</p>
             </div>
             <div class="months">
               ${quarterMonths.map(month => {
@@ -384,7 +386,7 @@
                   <div class="month-card" data-month-id="${month.id}">
                     <h4>${month.title}</h4>
                     <div class="month-theme">${month.theme}</div>
-                    <p class="muted">${month.note}</p>
+                    <p class="muted">${monthSummary(monthDocs)}</p>
                     <div class="dropzone ${monthDocs.length === 0 ? 'empty' : ''}" data-month-id="${month.id}">
                       ${monthDocs.map(doc => docCardHtml(doc)).join('')}
                     </div>
