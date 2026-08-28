@@ -283,7 +283,7 @@
 
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
-      const backlogProjects = projects.filter(project => state.monthAssignments[project.id] === BACKLOG_ID);
+      const backlogProjects = projects.filter(project => state.monthAssignments[project.id] === BACKLOG_ID && project.status !== 'Done');
       backlog.classList.toggle('empty', backlogProjects.length === 0);
       backlog.innerHTML = backlogProjects.map(project => projectCardHtml(project)).join('');
       bindCardEvents(backlog);
