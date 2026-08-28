@@ -77,9 +77,11 @@
     .doc-title:hover { text-decoration: underline; }
     .doc-subline { margin-left: 21px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .pill { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; line-height: 1.1; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); }
-    .pill.status-active { background: rgba(59,199,244,.18); }
-    .pill.status-complete { background: rgba(111,215,167,.20); }
-    .pill.status-paused { background: rgba(255,179,71,.24); }
+    .pill.status-not-started { background: rgba(13,12,44,.08); }
+    .pill.status-in-progress { background: rgba(59,199,244,.18); }
+    .pill.status-blocked { background: rgba(220,50,70,.16); }
+    .pill.status-in-review { background: rgba(255,179,71,.24); }
+    .pill.status-done { background: rgba(111,215,167,.20); }
     .pill.owner { background: rgba(13,12,44,.06); }
     .doc-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(13,12,44,.08); }
     .doc-desc { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
@@ -106,7 +108,7 @@
       <div>
         <div class="eyebrow">Strategic planning board</div>
         <h1>Strategic Planner Calendar</h1>
-        <p>Use this as a working 12-month calendar from July 2026 to June 2027. All projects start in the left-hand list, then you can drag them into the right month as you shape the plan.</p>
+        <p>Use this as a working 12-month calendar from July 2026 to June 2027. All developer workstreams start in the left-hand list, then you can drag them into the right month as you shape the plan.</p>
         <div class="nav-links">
           <a href="./ai-native-strategy.html">Back to strategy page</a>
           <a class="secondary" href="https://deliver-different-testing.github.io/project-dashboard/" target="_blank" rel="noopener noreferrer">Open project dashboard</a>
@@ -114,8 +116,8 @@
       </div>
       <div class="hero-card">
         <div class="label">Source</div>
-        <h3>Projects + MD links come from the project dashboard list</h3>
-        <p>Each tile uses the project name, status, developer owner, description, and primary docs link published from the project dashboard.</p>
+        <h3>Workstreams + MD links come from each developer section</h3>
+        <p>Each tile uses the developer work items from the project dashboard, then overlays live Railway status where that item has saved state.</p>
       </div>
     </div>
   </header>
@@ -126,9 +128,9 @@
         <div class="card">
           <div class="label">Planner rules</div>
           <ul class="bullet-list">
-            <li><strong>Everything starts unscheduled</strong> in the left project list.</li>
-            <li><strong>Drag and drop</strong> projects into months, or back to the left list.</li>
-            <li><strong>No duplication</strong> — a project lives in one place only.</li>
+            <li><strong>Everything starts unscheduled</strong> in the left workstream list.</li>
+            <li><strong>Drag and drop</strong> workstreams into months, or back to the left list.</li>
+            <li><strong>No duplication</strong> — a workstream lives in one place only.</li>
             <li><strong>Local browser persistence</strong> is enabled, so your arrangement survives refresh in the same browser.</li>
           </ul>
         </div>
@@ -144,15 +146,15 @@
       <div class="wrap planner-layout">
         <aside class="backlog-panel">
           <div class="panel-head">
-            <div class="label">Project list</div>
-            <h3>Unscheduled projects</h3>
+            <div class="label">Developer workstreams</div>
+            <h3>Unscheduled workstreams</h3>
           </div>
-          <p class="helper">Projects disappear from this list as soon as you drag them into a month.</p>
+          <p class="helper">Workstreams disappear from this list as soon as you drag them into a month.</p>
           <div class="panel-actions">
             <button class="mini-btn" id="resetLayoutBtn" type="button">Reset layout</button>
           </div>
           <div class="backlog-list scrollable" id="backlogList">
-            <div class="loading">Loading projects from project dashboard…</div>
+            <div class="loading">Loading developer workstreams from project dashboard…</div>
           </div>
         </aside>
 
@@ -171,8 +173,9 @@
 
   <script>
     const BACKLOG_ID = 'backlog';
-    const STORAGE_KEY = 'strategicPlannerCalendar.v1';
-    const PROJECT_CATALOG_URL = 'https://deliver-different-testing.github.io/project-dashboard/project-catalog.json';
+    const STORAGE_KEY = 'strategicPlannerCalendar.v2';
+    const WORKSTREAM_CATALOG_URL = 'https://deliver-different-testing.github.io/project-dashboard/developer-workstreams.json';
+    const PROJECT_DASH_API_BASE = 'https://project-dashboard-production-a23f.up.railway.app';
 
     const months = [
       { id: '2026-07', quarter: 'Q1', quarterClass: 'q1', title: 'July 2026', theme: 'Foundation' },
@@ -201,11 +204,11 @@
     let draggedProjectId = null;
 
     function ownerLabel(owner) {
-      return owner ? owner.charAt(0).toUpperCase() + owner.slice(1) : 'Unassigned';
+      return owner || 'Unassigned';
     }
 
     function statusClass(status) {
-      return `status-${String(status || '').toLowerCase()}`;
+      return `status-${String(status || '').toLowerCase().replace(/\s+/g, '-')}`;
     }
 
     function defaultState() {
@@ -237,9 +240,8 @@
 
     function projectCardHtml(project) {
       const mdLink = project.docs ? `<a class="doc-link" href="${project.docs}" target="_blank" rel="noopener noreferrer">Open MD</a>` : '';
-      const repoLink = project.repo ? `<a class="doc-link" href="${project.repo}" target="_blank" rel="noopener noreferrer">Repo</a>` : '';
-      const liveLink = project.live ? `<a class="doc-link" href="${project.live}" target="_blank" rel="noopener noreferrer">Live</a>` : '';
-      const emptyNote = !project.docs ? `<div class="empty-note">No primary MD linked in the project dashboard for this project.</div>` : '';
+      const forwardLink = project.forwardWorkUrl ? `<a class="doc-link" href="${project.forwardWorkUrl}" target="_blank" rel="noopener noreferrer">Developer list</a>` : '';
+      const emptyNote = !project.docs ? `<div class="empty-note">No primary MD linked on this developer workstream.</div>` : '';
       return `
         <article class="doc-card" draggable="true" data-doc-id="${project.id}">
           <details>
@@ -249,14 +251,14 @@
                 <div class="doc-title" title="${escapeHtml(project.title)}">${escapeHtml(project.title)}</div>
               </div>
               <div class="doc-subline">
-                <span class="pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span>
                 <span class="pill owner">${escapeHtml(ownerLabel(project.owner))}</span>
+                <span class="pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span>
               </div>
             </summary>
             <div class="doc-body">
               <p class="doc-desc">${escapeHtml(project.description)}</p>
               ${emptyNote}
-              <div class="link-row">${mdLink}${repoLink}${liveLink}</div>
+              <div class="link-row">${mdLink}${forwardLink}</div>
             </div>
           </details>
         </article>
@@ -264,17 +266,19 @@
     }
 
     function monthSummary(monthProjects) {
-      if (monthProjects.length === 0) return 'No projects scheduled yet.';
+      if (monthProjects.length === 0) return 'No workstreams scheduled yet.';
       const byStatus = monthProjects.reduce((acc, project) => {
         const key = String(project.status || 'Unknown').toLowerCase();
         acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {});
       const parts = [];
-      if (byStatus.active) parts.push(`${byStatus.active} active`);
-      if (byStatus.complete) parts.push(`${byStatus.complete} complete`);
-      if (byStatus.paused) parts.push(`${byStatus.paused} paused`);
-      return `${monthProjects.length} project${monthProjects.length === 1 ? '' : 's'} scheduled${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+      if (byStatus['in progress']) parts.push(`${byStatus['in progress']} in progress`);
+      if (byStatus['not started']) parts.push(`${byStatus['not started']} not started`);
+      if (byStatus.blocked) parts.push(`${byStatus.blocked} blocked`);
+      if (byStatus['in review']) parts.push(`${byStatus['in review']} in review`);
+      if (byStatus.done) parts.push(`${byStatus.done} done`);
+      return `${monthProjects.length} workstream${monthProjects.length === 1 ? '' : 's'} scheduled${parts.length ? ' · ' + parts.join(' · ') : ''}`;
     }
 
     function renderBacklog() {
@@ -302,7 +306,7 @@
                 <div class="quarter-tag">${meta.subtitle}</div>
                 <h3>${meta.title}</h3>
               </div>
-              <p class="muted">Drag projects between months or back to the left list.</p>
+              <p class="muted">Drag workstreams between months or back to the left list.</p>
             </div>
             <div class="months">
               ${quarterMonths.map(month => {
@@ -395,17 +399,55 @@
       renderPlanner();
     }
 
-    function normalizeProject(project) {
-      return {
-        id: project.slug,
-        title: `${project.emoji ? project.emoji + ' ' : ''}${project.name}`,
-        status: project.status || 'Active',
-        owner: project.owner || '',
-        description: project.description || '',
-        docs: project.docs || '',
-        repo: project.repo || '',
-        live: project.live || ''
-      };
+    function applyDevState(workstreams, stateMapByDev, orderByDev) {
+      return workstreams.map(item => {
+        const row = stateMapByDev[item.ownerKey]?.[item.key];
+        return {
+          ...item,
+          status: row?.status || 'Not started'
+        };
+      }).sort((a, b) => {
+        if (a.ownerKey !== b.ownerKey) return a.ownerKey.localeCompare(b.ownerKey);
+        const order = orderByDev[a.ownerKey] || [];
+        const ai = order.indexOf(a.key);
+        const bi = order.indexOf(b.key);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        return a.title.localeCompare(b.title);
+      });
+    }
+
+    function normalizeWorkstreams(devsPayload) {
+      return devsPayload.flatMap(dev => (dev.items || []).map(item => ({
+        id: `${dev.devKey}:${item.key}`,
+        key: item.key,
+        title: item.title,
+        status: 'Not started',
+        owner: dev.devName || dev.devKey,
+        ownerKey: dev.devKey,
+        description: item.summary || '',
+        docs: item.url || '',
+        forwardWorkUrl: dev.forwardWorkUrl || '',
+        date: item.date || ''
+      })));
+    }
+
+    async function loadDashboardState(devsPayload) {
+      const stateMapByDev = {};
+      const orderByDev = {};
+      await Promise.all(devsPayload.map(async dev => {
+        try {
+          const response = await fetch(`${PROJECT_DASH_API_BASE}/api/forward-work/${encodeURIComponent(dev.devKey)}`, { cache: 'no-store' });
+          if (!response.ok) return;
+          const payload = await response.json();
+          stateMapByDev[dev.devKey] = payload.state || {};
+          orderByDev[dev.devKey] = Array.isArray(payload.order) ? payload.order : [];
+        } catch {
+          // ignore live state failures and fall back to static feed
+        }
+      }));
+      return { stateMapByDev, orderByDev };
     }
 
     function showError(message) {
@@ -425,17 +467,17 @@
       document.getElementById('backlogList').addEventListener('drop', onDrop);
 
       try {
-        const response = await fetch(PROJECT_CATALOG_URL, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`Project catalog fetch failed (${response.status})`);
-        const rawProjects = await response.json();
-        projects = Array.isArray(rawProjects)
-          ? rawProjects.map(normalizeProject).sort((a, b) => a.title.localeCompare(b.title))
-          : [];
+        const response = await fetch(WORKSTREAM_CATALOG_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Workstream catalog fetch failed (${response.status})`);
+        const devsPayload = await response.json();
+        const workstreams = Array.isArray(devsPayload) ? normalizeWorkstreams(devsPayload) : [];
+        const { stateMapByDev, orderByDev } = await loadDashboardState(Array.isArray(devsPayload) ? devsPayload : []);
+        projects = applyDevState(workstreams, stateMapByDev, orderByDev);
         state = loadState();
         renderAll();
       } catch (error) {
         console.error(error);
-        showError('Could not load the project dashboard catalog yet. Try refreshing in a moment.');
+        showError('Could not load the developer workstreams yet. Try refreshing in a moment.');
       }
     }
 
