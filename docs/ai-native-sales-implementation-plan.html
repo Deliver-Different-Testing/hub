@@ -187,7 +187,7 @@
               <h3>Candidate roadmap docs</h3>
             </div>
           </div>
-          <p class="helper">Drag docs from here into a month, or drag them back out mentally by moving them between months. Use the tickboxes to mark what is truly strategic automation / AI.</p>
+          <p class="helper">Use the top area as the real unscheduled parking lane. Beneath that is the full candidate catalog so the page never looks empty again.</p>
           <div class="filter-stack">
             <div class="filter-box">
               <label><input type="checkbox" id="filterStrategicOnly"> Show strategic automation / AI only</label>
@@ -200,7 +200,10 @@
             <button class="mini-btn" id="resetLayoutBtn" type="button">Reset layout</button>
             <button class="mini-btn" id="resetFlagsBtn" type="button">Reset flags</button>
           </div>
+          <div class="label" style="margin-top:18px;">Unscheduled / parking</div>
           <div class="backlog-list" id="backlogList"></div>
+          <div class="label" style="margin-top:18px;">All candidate roadmap docs</div>
+          <div class="backlog-list" id="catalogList" style="max-height:none;"></div>
         </aside>
 
         <div>
@@ -465,11 +468,25 @@
 
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
+      const catalog = document.getElementById('catalogList');
       const visibleDocs = docs.filter(doc => passesFilters(doc));
       const backlogDocs = visibleDocs.filter(doc => state.monthAssignments[doc.id] === BACKLOG_ID);
       backlog.classList.toggle('empty', backlogDocs.length === 0);
       backlog.innerHTML = backlogDocs.map(docCardHtml).join('');
+      catalog.classList.remove('empty', 'drop-active');
+      catalog.innerHTML = visibleDocs.map(doc => {
+        const assignedMonth = state.monthAssignments[doc.id];
+        const month = months.find(m => m.id === assignedMonth);
+        const locationLabel = assignedMonth === BACKLOG_ID
+          ? 'Unscheduled'
+          : (month ? `Currently in ${month.title}` : 'Scheduled');
+        return docCardHtml(doc).replace(
+          '<div class="doc-meta">',
+          `<div class="doc-meta"><span class="pill">${locationLabel}</span>`
+        );
+      }).join('');
       bindCardEvents(backlog);
+      bindCardEvents(catalog);
     }
 
     function passesFilters(doc) {
