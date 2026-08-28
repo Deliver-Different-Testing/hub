@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Native Sales — Implementation Planning</title>
+  <link rel="stylesheet" href="./assets/colors_and_type.css">
+  <style>
+    :root {
+      --page-max: 1240px;
+      --shadow-soft: 0 18px 48px rgba(13,12,44,.10);
+      --shadow-card: 0 10px 30px rgba(13,12,44,.08);
+      --border: rgba(13,12,44,.10);
+      --quarter-1: #3bc7f4;
+      --quarter-2: #6fd7a7;
+      --quarter-3: #ffb347;
+      --quarter-4: #f57ab6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--c-light-grey); color: var(--c-ink-blue); font-family: Inter, sans-serif; line-height: 1.55; }
+    .hero { background: linear-gradient(135deg, #0d0c2c 0%, #14152D 68%, #1c2460 100%); color: white; }
+    .wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 24px; }
+    .hero-grid { display: grid; grid-template-columns: 1.08fr .92fr; gap: 28px; align-items: center; padding: 54px 0 42px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(59,199,244,.12); color: var(--c-cyan); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; margin-bottom: 18px; }
+    h1, h2, h3, h4 { margin: 0; font-family: "DM Sans", sans-serif; letter-spacing: -.02em; }
+    h1 { font-size: clamp(40px, 5vw, 60px); line-height: .98; font-weight: 600; }
+    .hero p { margin: 18px 0 0; font-size: 18px; color: rgba(255,255,255,.88); max-width: 760px; }
+    .hero-card, .card, .month-card { background: white; border-radius: 18px; border: 1px solid var(--border); box-shadow: var(--shadow-card); }
+    .hero-card { padding: 22px; color: var(--c-ink-blue); }
+    .hero-card h3 { font-size: 22px; margin-bottom: 10px; }
+    .hero-card p { margin: 0; font-size: 15px; }
+    .nav-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .nav-links a, .button-link, .doc-link { display: inline-block; text-decoration: none; font-weight: 700; }
+    .nav-links a, .button-link { padding: 12px 16px; border-radius: 999px; background: var(--c-cyan); color: var(--c-ink-blue); }
+    .nav-links a.secondary { background: rgba(255,255,255,.08); color: white; border: 1px solid rgba(255,255,255,.14); }
+    .section { padding: 36px 0; }
+    .lede-grid, .grid-2 { display: grid; gap: 20px; }
+    .lede-grid { grid-template-columns: 1.1fr .9fr; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { padding: 24px; }
+    .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #6e6d80; font-weight: 800; margin-bottom: 10px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+    .section-head h2 { font-size: clamp(28px, 3vw, 38px); line-height: 1.02; font-weight: 600; }
+    .section-head p, .muted { margin: 0; color: #6e6d80; }
+    .bullet-list { margin: 14px 0 0; padding-left: 18px; }
+    .bullet-list li { margin: 8px 0; }
+    .quarter-grid { display: grid; gap: 22px; }
+    .quarter-card { border-radius: 24px; padding: 22px; box-shadow: var(--shadow-soft); }
+    .quarter-card.q1 { background: linear-gradient(180deg, rgba(59,199,244,.12), rgba(59,199,244,.04)); }
+    .quarter-card.q2 { background: linear-gradient(180deg, rgba(111,215,167,.14), rgba(111,215,167,.05)); }
+    .quarter-card.q3 { background: linear-gradient(180deg, rgba(255,179,71,.16), rgba(255,179,71,.05)); }
+    .quarter-card.q4 { background: linear-gradient(180deg, rgba(245,122,182,.16), rgba(245,122,182,.05)); }
+    .quarter-top { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 18px; }
+    .quarter-top h3 { font-size: 28px; }
+    .quarter-tag { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: rgba(13,12,44,.08); color: var(--c-ink-blue); margin-bottom: 10px; }
+    .months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .month-card { padding: 18px; }
+    .month-card h4 { font-size: 22px; margin-bottom: 4px; }
+    .month-theme { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: #6e6d80; margin-bottom: 10px; }
+    .doc-list { display: grid; gap: 10px; margin-top: 14px; }
+    .doc-link { padding: 12px 14px; border-radius: 14px; background: #f7f9fc; border: 1px solid rgba(13,12,44,.08); color: var(--c-ink-blue); }
+    .doc-link:hover { transform: translateY(-1px); transition: transform .16s ease; }
+    .doc-link small { display: block; font-size: 12px; color: #6e6d80; font-weight: 600; margin-top: 4px; }
+    .timeline-note { border-left: 4px solid var(--c-cyan); padding-left: 14px; }
+    .footer { padding: 28px 0 56px; }
+    @media (max-width: 980px) { .hero-grid, .lede-grid, .grid-2, .months { grid-template-columns: 1fr; } .wrap { padding: 0 18px; } .section { padding: 28px 0; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">AI-native operating stages</div>
+        <h1>Sales implementation planning</h1>
+        <p>A 12-month pathway from July 2026 to June 2027, broken into quarters and anchored to live markdown workstreams that move DFRNT from manual commercial setup toward an automated, AI-native operating model.</p>
+        <div class="nav-links">
+          <a href="./ai-native-sales.html">Back to Sales stage page</a>
+          <a href="./ai-native-strategy.html">Back to strategy page</a>
+          <a class="secondary" href="./ai-native-operations.html">Next: Operations</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="label">Planning lens</div>
+        <h3>Start with commercial correctness, then automate downstream flow</h3>
+        <p>The sequence below assumes the right order is: structure customer setup, harden pricing and configuration, add safer release control, then automate dispatch and operational execution on top of that cleaner foundation.</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="wrap lede-grid">
+        <div class="card">
+          <div class="label">How to read this page</div>
+          <p>This is not a fantasy roadmap. Each month points at a real markdown doc already in the working trail. Some are handovers, some are implementation specs, and some are policy gates. Together they form a pragmatic path toward being more automated and more AI native.</p>
+        </div>
+        <div class="card timeline-note">
+          <div class="label">Calendar shape</div>
+          <p class="muted"><strong>Q1:</strong> Jul–Sep 2026 · <strong>Q2:</strong> Oct–Dec 2026 · <strong>Q3:</strong> Jan–Mar 2027 · <strong>Q4:</strong> Apr–Jun 2027</p>
+          <p class="muted" style="margin-top:10px;">Use the docs as the implementation backbone, then refine sequence and ownership as capacity and tenant priorities shift.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="label">12-month calendar</div>
+            <h2>Quartered implementation pathway</h2>
+          </div>
+          <p>Each month carries one or more linked markdowns that represent a concrete step toward the target operating model.</p>
+        </div>
+
+        <div class="quarter-grid">
+          <div class="quarter-card q1">
+            <div class="quarter-top">
+              <div>
+                <div class="quarter-tag">Q1 · Foundation</div>
+                <h3>July – September 2026</h3>
+              </div>
+              <p class="muted">Clean up commercial structure before automating the wrong things.</p>
+            </div>
+            <div class="months">
+              <div class="month-card">
+                <h4>July 2026</h4>
+                <div class="month-theme">Client and rates foundation</div>
+                <p class="muted">Get the commercial setup surface into the right home and out of prototype-only state.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/docs/STEVE-KERRAN-CLIENT-MODAL-AND-RATES-MIGRATION-2026-07-02.md" target="_blank" rel="noopener noreferrer">Kerran client modal + rates migration<small>Move the core customer commercial setup toward the real implementation surface.</small></a>
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/IMPLEMENTATION.md" target="_blank" rel="noopener noreferrer">Scheduled rate builder implementation backbone<small>Reference implementation structure for schedules, rates, and surrounding entities.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>August 2026</h4>
+                <div class="month-theme">Shared pricing logic and fuel structure</div>
+                <p class="muted">Make pricing rules reusable across customers instead of hard-wired one-off setup.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/fuel-mfv-analysis/blob/master/FSC_INDEXING_SUPPLEMENT_2026-08-06.md" target="_blank" rel="noopener noreferrer">FSC indexing supplement<small>Supports one FSC profile serving multiple clients instead of a brittle 1:1 model.</small></a>
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/NP-Agent-Management/blob/main/NP-RATE-ISOLATION.md" target="_blank" rel="noopener noreferrer">NP rate isolation<small>Separates rating concerns so quoting and rerating can stay consistent as automation grows.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>September 2026</h4>
+                <div class="month-theme">Safe rollout policy</div>
+                <p class="muted">Lock down how new automation ships before more high-impact workflow moves land.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/dfrnt-ops/blob/main/docs/DRAFT-DFRNT-ENVIRONMENT-AND-RELEASE-POLICY.md" target="_blank" rel="noopener noreferrer">DFRNT environment and release policy<small>Shared non-prod + gated release structure for safer multi-tenant change.</small></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quarter-card q2">
+            <div class="quarter-top">
+              <div>
+                <div class="quarter-tag">Q2 · Commercial automation</div>
+                <h3>October – December 2026</h3>
+              </div>
+              <p class="muted">Turn structured setup into guided sales, quoting, and onboarding flow.</p>
+            </div>
+            <div class="months">
+              <div class="month-card">
+                <h4>October 2026</h4>
+                <div class="month-theme">Schedules and service model alignment</div>
+                <p class="muted">Reduce manual interpretation around service windows, availability, and configured service patterns.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/docs/HANDOVER-KEVIN-SCHEDULES-PROTOTYPE-2026-06-18.md" target="_blank" rel="noopener noreferrer">Kevin schedules prototype handover<small>Moves scheduling logic toward a reusable modern shell without breaking legacy first.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>November 2026</h4>
+                <div class="month-theme">Agent / partner operating model</div>
+                <p class="muted">Build the surrounding network structures that automated sales and onboarding will rely on.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/NP-Agent-Management/blob/main/IMPLEMENTATION.md" target="_blank" rel="noopener noreferrer">NP Agent Management implementation<small>Quotes, prospects, marketplace, and admin surfaces that support the future commercial flow.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>December 2026</h4>
+                <div class="month-theme">Coverage and service-fit logic</div>
+                <p class="muted">Improve the sales/onboarding ability to see whether a customer or postcode pattern is actually supportable.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/dfrntdrive_configurator/blob/master/docs/STEVE-NP-MODAL-COVERAGE-MAP-ADDENDUM-GARRY-2026-08-27.md" target="_blank" rel="noopener noreferrer">NP modal coverage-map addendum<small>Graphical postcode coverage view using the routed-operations polygon-builder pattern.</small></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quarter-card q3">
+            <div class="quarter-top">
+              <div>
+                <div class="quarter-tag">Q3 · Dispatch automation</div>
+                <h3>January – March 2027</h3>
+              </div>
+              <p class="muted">Once setup quality improves, automate operational decisioning with lower marginal cost.</p>
+            </div>
+            <div class="months">
+              <div class="month-card">
+                <h4>January 2027</h4>
+                <div class="month-theme">On-demand auto-dispatch</div>
+                <p class="muted">Replace costly routing dependence with a safer default automation stack.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/autodispatch/blob/master/docs/ON-DEMAND-AUTODISPATCH-OSRM-IMPLEMENTATION.md" target="_blank" rel="noopener noreferrer">OSRM on-demand autodispatch implementation<small>Self-hosted routing path with HERE as optional premium provider and Haversine fallback.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>February 2027</h4>
+                <div class="month-theme">Set-route / corridor dispatch</div>
+                <p class="muted">Automate the repeated routed-delivery patterns that humans currently reason through manually.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/autodispatch/blob/master/docs/SET-ROUTE-AUTODISPATCH-IMPLEMENTATION.md" target="_blank" rel="noopener noreferrer">Set-route autodispatch implementation<small>Includes pass-through postcode logic and reuse of route roster / route master structures.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>March 2027</h4>
+                <div class="month-theme">Driver schedule execution</div>
+                <p class="muted">Bring planned service capacity into the same automated operating chain.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/routed-operations/blob/main/docs/KEVIN-DRIVER-SCHEDULING-ROUTED-OPERATIONS-HANDOVER-2026-08-27.md" target="_blank" rel="noopener noreferrer">Driver scheduling routed-operations handover<small>Lift-and-shift legacy scheduler behaviour into the newer scheduling shell.</small></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quarter-card q4">
+            <div class="quarter-top">
+              <div>
+                <div class="quarter-tag">Q4 · Integrated AI-native operation</div>
+                <h3>April – June 2027</h3>
+              </div>
+              <p class="muted">Connect sales, configuration, coverage, schedules, and dispatch into one exception-led model.</p>
+            </div>
+            <div class="months">
+              <div class="month-card">
+                <h4>April 2027</h4>
+                <div class="month-theme">Zones and managed coverage</div>
+                <p class="muted">Make route and service geography manageable enough for automation to trust.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/routed-operations/blob/main/docs/KEVIN-SCHEDULES-ZONES-ZONE-GROUPS-HANDOVER-2026-08-21.md" target="_blank" rel="noopener noreferrer">Schedules, zones, zone groups handover<small>Normalises the service geography model that smarter scheduling and dispatch depend on.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>May 2027</h4>
+                <div class="month-theme">Stage-wide operating alignment</div>
+                <p class="muted">Use the published AI-native stage model to test whether the implementation sequence still supports the target state.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/dfrnt-ops/blob/main/docs/DRAFT-DFRNT-ENVIRONMENT-AND-RELEASE-POLICY-EXECUTIVE-SUMMARY.md" target="_blank" rel="noopener noreferrer">Environment policy executive summary<small>Short governance layer for maintaining release discipline as automation expands.</small></a>
+                </div>
+              </div>
+              <div class="month-card">
+                <h4>June 2027</h4>
+                <div class="month-theme">Platform integration checkpoint</div>
+                <p class="muted">Converge the sales-side design with the broader partner, quote, and marketplace operating system.</p>
+                <div class="doc-list">
+                  <a class="doc-link" href="https://github.com/Deliver-Different-Testing/NP-Agent-Management/blob/main/HANDOVER.md" target="_blank" rel="noopener noreferrer">NP Agent Management handover<small>Use as the broader integration checkpoint for what the AI-native commercial surface is becoming.</small></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="card">
+          <div class="label">Why this sequence</div>
+          <ul class="bullet-list">
+            <li><strong>First:</strong> fix customer, rate, and pricing structure so automation has clean inputs.</li>
+            <li><strong>Second:</strong> harden environment and release discipline so multi-tenant regression risk stays under control.</li>
+            <li><strong>Third:</strong> automate dispatch, schedules, and coverage once the operating model is structured enough to trust.</li>
+            <li><strong>Finally:</strong> connect those parts into an exception-led AI-native workflow rather than a pile of disconnected features.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <a class="button-link" style="margin-right:12px" href="./ai-native-sales.html">Back to Sales</a>
+      <a class="button-link" href="./ai-native-operations.html">Continue to Operations</a>
+    </div>
+  </footer>
+</body>
+</html>
