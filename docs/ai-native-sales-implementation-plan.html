@@ -74,31 +74,38 @@
     .month-card h4 { font-size: 22px; margin-bottom: 4px; }
     .month-theme { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--muted); margin-bottom: 10px; }
     .dropzone { display: grid; gap: 10px; margin-top: 14px; min-height: 120px; }
-    .doc-card { border-radius: 16px; border: 1px solid rgba(13,12,44,.10); background: #f7f9fc; padding: 12px 14px; cursor: grab; box-shadow: 0 6px 20px rgba(13,12,44,.06); }
+    .doc-card { border-radius: 14px; border: 1px solid rgba(13,12,44,.10); background: #f7f9fc; padding: 10px 12px; cursor: grab; box-shadow: 0 4px 14px rgba(13,12,44,.05); }
     .doc-card:active { cursor: grabbing; }
     .doc-card.dragging { opacity: .55; }
     .doc-card.core { background: var(--core-bg); border-color: var(--core-border); }
     .doc-card.strategic { background: var(--strategic-bg); border-color: var(--strategic-border); box-shadow: 0 0 0 2px rgba(85,184,122,.22), 0 12px 28px rgba(85,184,122,.14); }
     .doc-card.onboarding { background: var(--onboarding-bg); border-color: var(--onboarding-border); }
-    .doc-card summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
+    .doc-card summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; cursor: pointer; }
     .doc-card summary::-webkit-details-marker { display: none; }
-    .doc-head { min-width: 0; display: flex; align-items: center; gap: 10px; }
-    .expand-arrow { font-size: 15px; font-weight: 900; color: var(--muted); transition: transform .15s ease; }
+    .doc-head { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+    .expand-arrow { font-size: 13px; font-weight: 900; color: var(--muted); transition: transform .15s ease; }
     details[open] .expand-arrow { transform: rotate(90deg); }
-    .doc-title { font-weight: 800; color: var(--c-ink-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+    .doc-title { font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--c-ink-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
     .doc-title:hover { text-decoration: underline; }
-    .doc-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    .pill { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); }
+    .doc-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; min-width: 0; }
+    .pill { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; line-height: 1.1; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); max-width: 100%; }
     .pill.core { background: rgba(255,179,71,.24); }
     .pill.strategic { background: rgba(59,199,244,.18); }
     .pill.onboarding { background: rgba(154,124,255,.18); }
     .pill.location { background: rgba(13,12,44,.08); }
-    .doc-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(13,12,44,.08); }
-    .doc-desc { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
-    .doc-link { font-size: 13px; font-weight: 700; color: var(--c-ink-blue); }
-    .type-group { display: grid; gap: 7px; margin-top: 10px; }
+    .doc-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(13,12,44,.08); }
+    .doc-desc { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+    .doc-link { font-size: 12px; font-weight: 700; color: var(--c-ink-blue); }
+    .type-group { display: grid; gap: 6px; margin-top: 10px; }
     .type-group label { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
     .footer { padding: 28px 0 56px; }
+    .catalog-list .doc-card summary {
+      grid-template-columns: 1fr;
+    }
+    .catalog-list .doc-meta {
+      justify-content: flex-start;
+      margin-left: 21px;
+    }
     @media (max-width: 1120px) {
       .planner-layout, .hero-grid, .lede-grid, .months { grid-template-columns: 1fr; }
       .backlog-panel { position: static; }
@@ -176,7 +183,7 @@
           <div class="label" style="margin-top:18px;">Unscheduled / parking</div>
           <div class="backlog-list" id="backlogList"></div>
           <div class="label" style="margin-top:18px;">All candidate roadmap docs</div>
-          <div class="backlog-list scrollable" id="catalogList"></div>
+          <div class="backlog-list scrollable catalog-list" id="catalogList"></div>
         </aside>
 
         <div>
