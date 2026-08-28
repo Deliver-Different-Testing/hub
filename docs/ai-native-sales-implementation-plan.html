@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="./assets/colors_and_type.css">
   <style>
     :root {
-      --page-max: 1400px;
+      --page-max: 1460px;
       --shadow-soft: 0 18px 48px rgba(13,12,44,.10);
       --shadow-card: 0 10px 30px rgba(13,12,44,.08);
       --border: rgba(13,12,44,.10);
@@ -18,12 +18,12 @@
     body { margin: 0; background: var(--c-light-grey); color: var(--c-ink-blue); font-family: Inter, sans-serif; line-height: 1.55; }
     .hero { background: linear-gradient(135deg, #0d0c2c 0%, #14152D 68%, #1c2460 100%); color: white; }
     .wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 24px; }
-    .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; padding: 54px 0 42px; }
+    .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 28px; align-items: center; padding: 54px 0 42px; }
     .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(59,199,244,.12); color: var(--c-cyan); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; margin-bottom: 18px; }
     h1, h2, h3, h4 { margin: 0; font-family: "DM Sans", sans-serif; letter-spacing: -.02em; }
     h1 { font-size: clamp(40px, 5vw, 60px); line-height: .98; font-weight: 600; }
     .hero p { margin: 18px 0 0; font-size: 18px; color: rgba(255,255,255,.88); max-width: 780px; }
-    .hero-card, .card, .month-card, .backlog-panel { background: white; border-radius: 18px; border: 1px solid var(--border); box-shadow: var(--shadow-card); }
+    .hero-card, .card, .sprint-card, .backlog-panel { background: white; border-radius: 18px; border: 1px solid var(--border); box-shadow: var(--shadow-card); }
     .hero-card { padding: 22px; color: var(--c-ink-blue); }
     .hero-card h3 { font-size: 22px; margin-bottom: 10px; }
     .hero-card p { margin: 0; font-size: 15px; }
@@ -37,33 +37,36 @@
     .muted { color: var(--muted); }
     .bullet-list { margin: 14px 0 0; padding-left: 18px; }
     .bullet-list li { margin: 8px 0; }
-    .planner-layout { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; }
+    .planner-layout { display: grid; grid-template-columns: 380px 1fr; gap: 22px; align-items: start; }
     .backlog-panel { position: sticky; top: 18px; padding: 18px; }
     .panel-head h3 { font-size: 24px; }
     .helper { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
-    .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
-    .mini-btn { border: 1px solid rgba(13,12,44,.12); background: white; color: var(--c-ink-blue); border-radius: 999px; padding: 9px 12px; font-weight: 700; cursor: pointer; }
-    .mini-btn:hover { background: #f3f6fb; }
-    .backlog-list { display: grid; gap: 10px; }
-    .backlog-list.scrollable { max-height: 68vh; overflow: auto; padding-right: 4px; }
+    .backlog-list { display: grid; gap: 10px; max-height: 72vh; overflow: auto; padding-right: 4px; }
     .drop-active { outline: 2px dashed var(--c-cyan); outline-offset: 6px; border-radius: 14px; background: var(--drop-bg); }
     .backlog-list.empty::before, .dropzone.empty::before {
-      content: 'Drop projects here'; display: block; padding: 14px; border-radius: 14px; border: 1px dashed rgba(13,12,44,.16); color: var(--muted); font-size: 14px; text-align: center; background: rgba(255,255,255,.55);
+      content: 'Drop workstreams here'; display: block; padding: 14px; border-radius: 14px; border: 1px dashed rgba(13,12,44,.16); color: var(--muted); font-size: 14px; text-align: center; background: rgba(255,255,255,.55);
     }
+    .sync-note, .loading, .error-box {
+      padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(13,12,44,.08); font-size: 13px; margin-bottom: 14px;
+    }
+    .sync-note { background: rgba(59,199,244,.08); color: var(--c-ink-blue); }
+    .loading { background: rgba(255,255,255,.7); color: var(--muted); }
+    .error-box { color: #b42318; background: rgba(254,242,242,.95); border-color: rgba(180,35,24,.16); }
     .quarter-grid { display: grid; gap: 22px; }
     .quarter-card { border-radius: 24px; padding: 22px; box-shadow: var(--shadow-soft); }
-    .quarter-card.q1 { background: linear-gradient(180deg, rgba(59,199,244,.12), rgba(59,199,244,.04)); }
-    .quarter-card.q2 { background: linear-gradient(180deg, rgba(111,215,167,.14), rgba(111,215,167,.05)); }
-    .quarter-card.q3 { background: linear-gradient(180deg, rgba(255,179,71,.16), rgba(255,179,71,.05)); }
-    .quarter-card.q4 { background: linear-gradient(180deg, rgba(245,122,182,.16), rgba(245,122,182,.05)); }
+    .quarter-card.q3-2026 { background: linear-gradient(180deg, rgba(59,199,244,.12), rgba(59,199,244,.04)); }
+    .quarter-card.q4-2026 { background: linear-gradient(180deg, rgba(111,215,167,.14), rgba(111,215,167,.05)); }
+    .quarter-card.q1-2027 { background: linear-gradient(180deg, rgba(255,179,71,.16), rgba(255,179,71,.05)); }
+    .quarter-card.q2-2027 { background: linear-gradient(180deg, rgba(245,122,182,.16), rgba(245,122,182,.05)); }
+    .quarter-card.q3-2027 { background: linear-gradient(180deg, rgba(130,74,224,.16), rgba(130,74,224,.05)); }
     .quarter-top { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 18px; }
     .quarter-top h3 { font-size: 28px; }
     .quarter-tag { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: rgba(13,12,44,.08); color: var(--c-ink-blue); margin-bottom: 10px; }
-    .months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-    .month-card { padding: 18px; min-height: 260px; }
-    .month-card.drag-over { outline: 2px dashed var(--c-cyan); background: var(--drop-bg); }
-    .month-card h4 { font-size: 22px; margin-bottom: 4px; }
-    .month-theme { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
+    .sprints { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .sprint-card { padding: 18px; min-height: 260px; }
+    .sprint-card.drag-over { outline: 2px dashed var(--c-cyan); background: var(--drop-bg); }
+    .sprint-card h4 { font-size: 22px; margin-bottom: 4px; }
+    .sprint-theme { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
     .dropzone { display: grid; gap: 10px; margin-top: 14px; min-height: 120px; }
     .doc-card { border-radius: 14px; border: 1px solid rgba(13,12,44,.10); background: #f7f9fc; padding: 10px 12px; cursor: grab; box-shadow: 0 4px 14px rgba(13,12,44,.05); }
     .doc-card:active { cursor: grabbing; }
@@ -73,8 +76,7 @@
     .doc-head { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; }
     .expand-arrow { font-size: 13px; font-weight: 900; color: var(--muted); transition: transform .15s ease; padding-top: 2px; }
     details[open] .expand-arrow { transform: rotate(90deg); }
-    .doc-title { font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--c-ink-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
-    .doc-title:hover { text-decoration: underline; }
+    .doc-title { font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--c-ink-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .doc-subline { margin-left: 21px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .pill { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; line-height: 1.1; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); }
     .pill.status-not-started { background: rgba(13,12,44,.08); }
@@ -82,18 +84,22 @@
     .pill.status-blocked { background: rgba(220,50,70,.16); }
     .pill.status-in-review { background: rgba(255,179,71,.24); }
     .pill.status-done { background: rgba(111,215,167,.20); }
+    .pill.type-core { background: rgba(255,179,71,.24); }
+    .pill.type-strategic { background: rgba(59,199,244,.18); }
+    .pill.type-onboarding { background: rgba(154,124,255,.18); }
+    .pill.type-unset { background: rgba(13,12,44,.06); }
     .pill.owner { background: rgba(13,12,44,.06); }
     .doc-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(13,12,44,.08); }
     .doc-desc { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
-    .link-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .link-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .doc-link { font-size: 12px; font-weight: 700; color: var(--c-ink-blue); text-decoration: none; padding: 8px 10px; border-radius: 999px; background: rgba(13,12,44,.06); }
     .doc-link:hover { background: rgba(13,12,44,.10); }
-    .empty-note { font-size: 12px; color: var(--muted); }
-    .loading, .error-box { padding: 16px; border-radius: 14px; background: rgba(255,255,255,.7); border: 1px solid rgba(13,12,44,.08); color: var(--muted); }
-    .error-box { color: #b42318; background: rgba(254, 242, 242, .9); border-color: rgba(180,35,24,.16); }
-    .footer { padding: 28px 0 56px; }
-    @media (max-width: 1120px) {
-      .planner-layout, .hero-grid, .lede-grid, .months { grid-template-columns: 1fr; }
+    .field-group { display: grid; gap: 6px; margin-top: 10px; }
+    .field-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .field-select { width: 100%; border-radius: 10px; border: 1px solid rgba(13,12,44,.12); padding: 9px 10px; font: inherit; background: white; color: var(--c-ink-blue); }
+    .field-meta { font-size: 12px; color: var(--muted); }
+    @media (max-width: 1200px) {
+      .planner-layout, .hero-grid, .lede-grid, .sprints { grid-template-columns: 1fr; }
       .backlog-panel { position: static; }
     }
     @media (max-width: 920px) {
@@ -108,7 +114,7 @@
       <div>
         <div class="eyebrow">Strategic planning board</div>
         <h1>Strategic Planner Calendar</h1>
-        <p>Use this as a working 12-month calendar from July 2026 to June 2027. All developer workstreams start in the left-hand list, then you can drag them into the right month as you shape the plan.</p>
+        <p>Use this as a rolling 2-week sprint board starting on <strong>1 September 2026</strong>. Workstreams come from the developer sections of the project dashboard and save sprint targeting back to Railway.</p>
         <div class="nav-links">
           <a href="./ai-native-strategy.html">Back to strategy page</a>
           <a class="secondary" href="https://deliver-different-testing.github.io/project-dashboard/" target="_blank" rel="noopener noreferrer">Open project dashboard</a>
@@ -116,8 +122,8 @@
       </div>
       <div class="hero-card">
         <div class="label">Source</div>
-        <h3>Workstreams + MD links come from each developer section</h3>
-        <p>Each tile uses the developer work items from the project dashboard, then overlays live Railway status where that item has saved state.</p>
+        <h3>Developer workstreams + Railway sprint targeting</h3>
+        <p>Each tile comes from the developer workstream list. Project type, sprint start date, and sprint end date are stored against the same forward-work row in Railway.</p>
       </div>
     </div>
   </header>
@@ -129,15 +135,16 @@
           <div class="label">Planner rules</div>
           <ul class="bullet-list">
             <li><strong>Everything starts unscheduled</strong> in the left workstream list.</li>
-            <li><strong>Drag and drop</strong> workstreams into months, or back to the left list.</li>
+            <li><strong>Drag and drop</strong> workstreams into rolling 2-week sprint buckets.</li>
             <li><strong>No duplication</strong> — a workstream lives in one place only.</li>
-            <li><strong>Local browser persistence</strong> is enabled, so your arrangement survives refresh in the same browser.</li>
+            <li><strong>Done work stays out</strong> of the unscheduled list by default.</li>
           </ul>
         </div>
         <div class="card">
-          <div class="label">Calendar shape</div>
-          <p class="muted"><strong>Q1:</strong> Jul–Sep 2026 · <strong>Q2:</strong> Oct–Dec 2026 · <strong>Q3:</strong> Jan–Mar 2027 · <strong>Q4:</strong> Apr–Jun 2027</p>
-          <p class="muted" style="margin-top:10px;">Month summaries update automatically as projects move between buckets.</p>
+          <div class="label">Sprint shape</div>
+          <p class="muted"><strong>Cadence:</strong> rolling 14-day sprints</p>
+          <p class="muted"><strong>Start:</strong> 1 Sep 2026</p>
+          <p class="muted" style="margin-top:10px;">Each drop writes the sprint start/end dates back to the shared Railway forward-work row for that developer item.</p>
         </div>
       </div>
     </section>
@@ -149,11 +156,9 @@
             <div class="label">Developer workstreams</div>
             <h3>Unscheduled workstreams</h3>
           </div>
-          <p class="helper">Workstreams disappear from this list as soon as you drag them into a month.</p>
-          <div class="panel-actions">
-            <button class="mini-btn" id="resetLayoutBtn" type="button">Reset layout</button>
-          </div>
-          <div class="backlog-list scrollable" id="backlogList">
+          <p class="helper">Done work is hidden here. Drag a workstream into the right sprint to set its sprint dates.</p>
+          <div id="syncNote" class="sync-note">Loading developer workstreams and live Railway state…</div>
+          <div class="backlog-list" id="backlogList">
             <div class="loading">Loading developer workstreams from project dashboard…</div>
           </div>
         </aside>
@@ -165,43 +170,85 @@
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="wrap">
-      <a class="button-link" href="https://deliver-different-testing.github.io/project-dashboard/" target="_blank" rel="noopener noreferrer">Open project dashboard</a>
-    </div>
-  </footer>
-
   <script>
     const BACKLOG_ID = 'backlog';
-    const STORAGE_KEY = 'strategicPlannerCalendar.v2';
     const WORKSTREAM_CATALOG_URL = 'https://deliver-different-testing.github.io/project-dashboard/developer-workstreams.json';
     const PROJECT_DASH_API_BASE = 'https://project-dashboard-production-a23f.up.railway.app';
-
-    const months = [
-      { id: '2026-07', quarter: 'Q1', quarterClass: 'q1', title: 'July 2026', theme: 'Foundation' },
-      { id: '2026-08', quarter: 'Q1', quarterClass: 'q1', title: 'August 2026', theme: 'Build momentum' },
-      { id: '2026-09', quarter: 'Q1', quarterClass: 'q1', title: 'September 2026', theme: 'Stabilise direction' },
-      { id: '2026-10', quarter: 'Q2', quarterClass: 'q2', title: 'October 2026', theme: 'Execution' },
-      { id: '2026-11', quarter: 'Q2', quarterClass: 'q2', title: 'November 2026', theme: 'Commercial progress' },
-      { id: '2026-12', quarter: 'Q2', quarterClass: 'q2', title: 'December 2026', theme: 'Year-end checkpoint' },
-      { id: '2027-01', quarter: 'Q3', quarterClass: 'q3', title: 'January 2027', theme: 'New-year push' },
-      { id: '2027-02', quarter: 'Q3', quarterClass: 'q3', title: 'February 2027', theme: 'Operational follow-through' },
-      { id: '2027-03', quarter: 'Q3', quarterClass: 'q3', title: 'March 2027', theme: 'Quarter close' },
-      { id: '2027-04', quarter: 'Q4', quarterClass: 'q4', title: 'April 2027', theme: 'Scale and refine' },
-      { id: '2027-05', quarter: 'Q4', quarterClass: 'q4', title: 'May 2027', theme: 'Governance and quality' },
-      { id: '2027-06', quarter: 'Q4', quarterClass: 'q4', title: 'June 2027', theme: 'Annual checkpoint' }
+    const USER_NAME = 'Strategic Planner Calendar';
+    const TYPE_OPTIONS = [
+      { value: '', label: 'Type not set', pillClass: 'type-unset' },
+      { value: 'core', label: 'Core / enabling', pillClass: 'type-core' },
+      { value: 'strategic', label: 'Strategic automation', pillClass: 'type-strategic' },
+      { value: 'onboarding', label: 'On-boarding feature set', pillClass: 'type-onboarding' },
     ];
 
-    const quarterMeta = {
-      Q1: { title: 'July – September 2026', subtitle: 'Q1' },
-      Q2: { title: 'October – December 2026', subtitle: 'Q2' },
-      Q3: { title: 'January – March 2027', subtitle: 'Q3' },
-      Q4: { title: 'April – June 2027', subtitle: 'Q4' }
-    };
+    const BOARD_START = new Date('2026-09-01T00:00:00Z');
+    const BOARD_END = new Date('2027-08-31T00:00:00Z');
 
     let projects = [];
-    let state = null;
     let draggedProjectId = null;
+
+    function plusDays(date, days) {
+      const next = new Date(date);
+      next.setUTCDate(next.getUTCDate() + days);
+      return next;
+    }
+
+    function isoDate(date) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    function formatDate(date) {
+      return date.toLocaleDateString('en-NZ', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    function quarterKeyFor(date) {
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const quarter = Math.floor(month / 3) + 1;
+      return `q${quarter}-${year}`;
+    }
+
+    function quarterTitleFor(date) {
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const quarter = Math.floor(month / 3) + 1;
+      const startMonth = new Date(Date.UTC(year, (quarter - 1) * 3, 1));
+      const endMonth = new Date(Date.UTC(year, (quarter * 3) - 1, 1));
+      return {
+        key: `q${quarter}-${year}`,
+        tag: `Q${quarter} ${year}`,
+        title: `${startMonth.toLocaleDateString('en-NZ', { month: 'long', timeZone: 'UTC' })} – ${endMonth.toLocaleDateString('en-NZ', { month: 'long', timeZone: 'UTC' })} ${year}`
+      };
+    }
+
+    function generateSprints() {
+      const sprints = [];
+      let cursor = new Date(BOARD_START);
+      let index = 1;
+      while (cursor <= BOARD_END) {
+        const end = plusDays(cursor, 13) <= BOARD_END ? plusDays(cursor, 13) : new Date(BOARD_END);
+        const quarter = quarterTitleFor(cursor);
+        sprints.push({
+          id: `${isoDate(cursor)}|${isoDate(end)}`,
+          sprintNumber: index,
+          start: new Date(cursor),
+          end: new Date(end),
+          startIso: isoDate(cursor),
+          endIso: isoDate(end),
+          title: `Sprint ${index}`,
+          theme: `${formatDate(cursor)} – ${formatDate(end)}`,
+          quarterKey: quarter.key,
+          quarterTag: quarter.tag,
+          quarterTitle: quarter.title,
+        });
+        cursor = plusDays(end, 1);
+        index += 1;
+      }
+      return sprints;
+    }
+
+    const sprints = generateSprints();
 
     function ownerLabel(owner) {
       return owner || 'Unassigned';
@@ -211,39 +258,31 @@
       return `status-${String(status || '').toLowerCase().replace(/\s+/g, '-')}`;
     }
 
-    function defaultState() {
-      return {
-        monthAssignments: Object.fromEntries(projects.map(project => [project.id, BACKLOG_ID]))
-      };
-    }
-
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-
-    function loadState() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return defaultState();
-        const parsed = JSON.parse(raw);
-        return {
-          monthAssignments: { ...defaultState().monthAssignments, ...(parsed.monthAssignments || {}) }
-        };
-      } catch {
-        return defaultState();
-      }
+    function typeMeta(projectType) {
+      return TYPE_OPTIONS.find(option => option.value === projectType) || TYPE_OPTIONS[0];
     }
 
     function escapeHtml(value) {
       return String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
     }
 
+    function sprintIdForProject(project) {
+      if (!project.sprintStartDate || !project.sprintEndDate) return BACKLOG_ID;
+      const match = sprints.find(sprint => sprint.startIso === project.sprintStartDate && sprint.endIso === project.sprintEndDate);
+      return match ? match.id : BACKLOG_ID;
+    }
+
+    function sprintLabel(project) {
+      if (!project.sprintStartDate || !project.sprintEndDate) return 'Unscheduled';
+      return `${project.sprintStartDate} → ${project.sprintEndDate}`;
+    }
+
     function projectCardHtml(project) {
+      const type = typeMeta(project.projectType);
       const mdLink = project.docs ? `<a class="doc-link" href="${project.docs}" target="_blank" rel="noopener noreferrer">Open MD</a>` : '';
       const forwardLink = project.forwardWorkUrl ? `<a class="doc-link" href="${project.forwardWorkUrl}" target="_blank" rel="noopener noreferrer">Developer list</a>` : '';
-      const emptyNote = !project.docs ? `<div class="empty-note">No primary MD linked on this developer workstream.</div>` : '';
       return `
-        <article class="doc-card" draggable="true" data-doc-id="${project.id}">
+        <article class="doc-card" draggable="true" data-project-id="${project.id}">
           <details>
             <summary>
               <div class="doc-head">
@@ -253,11 +292,18 @@
               <div class="doc-subline">
                 <span class="pill owner">${escapeHtml(ownerLabel(project.owner))}</span>
                 <span class="pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span>
+                <span class="pill ${type.pillClass}">${escapeHtml(type.label)}</span>
               </div>
             </summary>
             <div class="doc-body">
               <p class="doc-desc">${escapeHtml(project.description)}</p>
-              ${emptyNote}
+              <div class="field-group">
+                <label class="field-label" for="type-${project.id}">Project type</label>
+                <select class="field-select" id="type-${project.id}" data-type-select="${project.id}">
+                  ${TYPE_OPTIONS.map(option => `<option value="${option.value}" ${project.projectType === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field-meta">Sprint target: ${escapeHtml(sprintLabel(project))}</div>
               <div class="link-row">${mdLink}${forwardLink}</div>
             </div>
           </details>
@@ -265,9 +311,9 @@
       `;
     }
 
-    function monthSummary(monthProjects) {
-      if (monthProjects.length === 0) return 'No workstreams scheduled yet.';
-      const byStatus = monthProjects.reduce((acc, project) => {
+    function sprintSummary(sprintProjects) {
+      if (sprintProjects.length === 0) return 'No workstreams targeted yet.';
+      const byStatus = sprintProjects.reduce((acc, project) => {
         const key = String(project.status || 'Unknown').toLowerCase();
         acc[key] = (acc[key] || 0) + 1;
         return acc;
@@ -278,12 +324,18 @@
       if (byStatus.blocked) parts.push(`${byStatus.blocked} blocked`);
       if (byStatus['in review']) parts.push(`${byStatus['in review']} in review`);
       if (byStatus.done) parts.push(`${byStatus.done} done`);
-      return `${monthProjects.length} workstream${monthProjects.length === 1 ? '' : 's'} scheduled${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+      return `${sprintProjects.length} workstream${sprintProjects.length === 1 ? '' : 's'} targeted${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+    }
+
+    function setSyncNote(message, tone = 'info') {
+      const note = document.getElementById('syncNote');
+      note.className = tone === 'error' ? 'error-box' : 'sync-note';
+      note.textContent = message;
     }
 
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
-      const backlogProjects = projects.filter(project => state.monthAssignments[project.id] === BACKLOG_ID && project.status !== 'Done');
+      const backlogProjects = projects.filter(project => sprintIdForProject(project) === BACKLOG_ID && project.status !== 'Done');
       backlog.classList.toggle('empty', backlogProjects.length === 0);
       backlog.innerHTML = backlogProjects.map(project => projectCardHtml(project)).join('');
       bindCardEvents(backlog);
@@ -291,43 +343,40 @@
 
     function renderPlanner() {
       const planner = document.getElementById('plannerGrid');
-      const grouped = months.reduce((acc, month) => {
-        acc[month.quarter] ??= [];
-        acc[month.quarter].push(month);
+      const grouped = sprints.reduce((acc, sprint) => {
+        acc[sprint.quarterKey] ??= { title: sprint.quarterTitle, tag: sprint.quarterTag, className: sprint.quarterKey, items: [] };
+        acc[sprint.quarterKey].items.push(sprint);
         return acc;
       }, {});
 
-      planner.innerHTML = Object.entries(grouped).map(([quarter, quarterMonths]) => {
-        const meta = quarterMeta[quarter];
-        return `
-          <section class="quarter-card ${quarterMonths[0].quarterClass}">
-            <div class="quarter-top">
-              <div>
-                <div class="quarter-tag">${meta.subtitle}</div>
-                <h3>${meta.title}</h3>
-              </div>
-              <p class="muted">Drag workstreams between months or back to the left list.</p>
+      planner.innerHTML = Object.values(grouped).map(group => `
+        <section class="quarter-card ${group.className}">
+          <div class="quarter-top">
+            <div>
+              <div class="quarter-tag">${group.tag}</div>
+              <h3>${group.title}</h3>
             </div>
-            <div class="months">
-              ${quarterMonths.map(month => {
-                const monthProjects = projects.filter(project => state.monthAssignments[project.id] === month.id);
-                return `
-                  <div class="month-card" data-month-id="${month.id}">
-                    <h4>${month.title}</h4>
-                    <div class="month-theme">${month.theme}</div>
-                    <p class="muted">${monthSummary(monthProjects)}</p>
-                    <div class="dropzone ${monthProjects.length === 0 ? 'empty' : ''}" data-month-id="${month.id}">
-                      ${monthProjects.map(project => projectCardHtml(project)).join('')}
-                    </div>
+            <p class="muted">Rolling 2-week sprints from 1 Sep 2026.</p>
+          </div>
+          <div class="sprints">
+            ${group.items.map(sprint => {
+              const sprintProjects = projects.filter(project => sprintIdForProject(project) === sprint.id);
+              return `
+                <div class="sprint-card" data-sprint-id="${sprint.id}">
+                  <h4>${sprint.title}</h4>
+                  <div class="sprint-theme">${sprint.theme}</div>
+                  <p class="muted">${sprintSummary(sprintProjects)}</p>
+                  <div class="dropzone ${sprintProjects.length === 0 ? 'empty' : ''}" data-sprint-id="${sprint.id}">
+                    ${sprintProjects.map(project => projectCardHtml(project)).join('')}
                   </div>
-                `;
-              }).join('')}
-            </div>
-          </section>
-        `;
-      }).join('');
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </section>
+      `).join('');
 
-      planner.querySelectorAll('.dropzone, .month-card').forEach(zone => {
+      planner.querySelectorAll('.dropzone, .sprint-card').forEach(zone => {
         zone.addEventListener('dragover', onDragOver);
         zone.addEventListener('dragleave', onDragLeave);
         zone.addEventListener('drop', onDrop);
@@ -341,11 +390,14 @@
         card.addEventListener('dragstart', onDragStart);
         card.addEventListener('dragend', onDragEnd);
       });
+      root.querySelectorAll('[data-type-select]').forEach(select => {
+        select.addEventListener('change', onTypeChange);
+      });
     }
 
     function onDragStart(event) {
       const card = event.currentTarget;
-      draggedProjectId = card.dataset.docId;
+      draggedProjectId = card.dataset.projectId;
       card.classList.add('dragging');
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', draggedProjectId);
@@ -353,7 +405,7 @@
 
     function onDragEnd(event) {
       event.currentTarget.classList.remove('dragging');
-      document.querySelectorAll('.month-card').forEach(card => card.classList.remove('drag-over'));
+      document.querySelectorAll('.sprint-card').forEach(card => card.classList.remove('drag-over'));
       document.getElementById('backlogList').classList.remove('drop-active');
     }
 
@@ -364,8 +416,8 @@
         event.dataTransfer.dropEffect = 'move';
         return;
       }
-      const monthCard = event.currentTarget.classList.contains('month-card') ? event.currentTarget : event.currentTarget.closest('.month-card');
-      if (monthCard) monthCard.classList.add('drag-over');
+      const sprintCard = event.currentTarget.classList.contains('sprint-card') ? event.currentTarget : event.currentTarget.closest('.sprint-card');
+      if (sprintCard) sprintCard.classList.add('drag-over');
       event.dataTransfer.dropEffect = 'move';
     }
 
@@ -374,24 +426,94 @@
         event.currentTarget.classList.remove('drop-active');
         return;
       }
-      const monthCard = event.currentTarget.classList.contains('month-card') ? event.currentTarget : event.currentTarget.closest('.month-card');
-      if (monthCard) monthCard.classList.remove('drag-over');
+      const sprintCard = event.currentTarget.classList.contains('sprint-card') ? event.currentTarget : event.currentTarget.closest('.sprint-card');
+      if (sprintCard) sprintCard.classList.remove('drag-over');
     }
 
-    function onDrop(event) {
+    async function persistProject(project, patch) {
+      const payload = {
+        status: patch.status ?? project.status,
+        notes: patch.notes ?? project.notes,
+        projectType: patch.projectType !== undefined ? patch.projectType : project.projectType,
+        sprintStartDate: patch.sprintStartDate !== undefined ? patch.sprintStartDate : project.sprintStartDate,
+        sprintEndDate: patch.sprintEndDate !== undefined ? patch.sprintEndDate : project.sprintEndDate,
+        updatedBy: USER_NAME,
+      };
+      const response = await fetch(`${PROJECT_DASH_API_BASE}/api/forward-work/${encodeURIComponent(project.ownerKey)}/${encodeURIComponent(project.key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`Save failed (${response.status})`);
+      return response.json();
+    }
+
+    async function onDrop(event) {
       event.preventDefault();
       const projectId = event.dataTransfer.getData('text/plain') || draggedProjectId;
       if (!projectId) return;
+      const project = projects.find(item => item.id === projectId);
+      if (!project) return;
+
+      let patch;
       if (event.currentTarget.id === 'backlogList') {
-        state.monthAssignments[projectId] = BACKLOG_ID;
         event.currentTarget.classList.remove('drop-active');
+        patch = { sprintStartDate: null, sprintEndDate: null };
       } else {
-        const monthId = event.currentTarget.dataset.monthId || event.currentTarget.closest('[data-month-id]')?.dataset.monthId;
-        if (!monthId) return;
-        state.monthAssignments[projectId] = monthId;
+        const sprintId = event.currentTarget.dataset.sprintId || event.currentTarget.closest('[data-sprint-id]')?.dataset.sprintId;
+        const sprint = sprints.find(item => item.id === sprintId);
+        if (!sprint) return;
+        patch = { sprintStartDate: sprint.startIso, sprintEndDate: sprint.endIso };
       }
-      saveState();
+
+      const previous = { sprintStartDate: project.sprintStartDate, sprintEndDate: project.sprintEndDate };
+      Object.assign(project, patch);
       renderAll();
+      setSyncNote(`Saving ${project.title}…`);
+      try {
+        const saved = await persistProject(project, patch);
+        Object.assign(project, {
+          status: saved.status || project.status,
+          notes: saved.notes || '',
+          projectType: saved.projectType || '',
+          sprintStartDate: saved.sprintStartDate,
+          sprintEndDate: saved.sprintEndDate,
+        });
+        renderAll();
+        setSyncNote(`Saved ${project.title}.`);
+      } catch (error) {
+        Object.assign(project, previous);
+        renderAll();
+        console.error(error);
+        setSyncNote(`Could not save ${project.title}.`, 'error');
+      }
+    }
+
+    async function onTypeChange(event) {
+      const projectId = event.currentTarget.dataset.typeSelect;
+      const project = projects.find(item => item.id === projectId);
+      if (!project) return;
+      const previous = project.projectType;
+      project.projectType = event.currentTarget.value;
+      renderAll();
+      setSyncNote(`Saving type for ${project.title}…`);
+      try {
+        const saved = await persistProject(project, { projectType: project.projectType });
+        Object.assign(project, {
+          status: saved.status || project.status,
+          notes: saved.notes || '',
+          projectType: saved.projectType || '',
+          sprintStartDate: saved.sprintStartDate,
+          sprintEndDate: saved.sprintEndDate,
+        });
+        renderAll();
+        setSyncNote(`Saved type for ${project.title}.`);
+      } catch (error) {
+        project.projectType = previous;
+        renderAll();
+        console.error(error);
+        setSyncNote(`Could not save type for ${project.title}.`, 'error');
+      }
     }
 
     function renderAll() {
@@ -399,37 +521,23 @@
       renderPlanner();
     }
 
-    function applyDevState(workstreams, stateMapByDev, orderByDev) {
-      return workstreams.map(item => {
-        const row = stateMapByDev[item.ownerKey]?.[item.key];
-        return {
-          ...item,
-          status: row?.status || 'Not started'
-        };
-      }).sort((a, b) => {
-        if (a.ownerKey !== b.ownerKey) return a.ownerKey.localeCompare(b.ownerKey);
-        const order = orderByDev[a.ownerKey] || [];
-        const ai = order.indexOf(a.key);
-        const bi = order.indexOf(b.key);
-        if (ai !== -1 && bi !== -1) return ai - bi;
-        if (ai !== -1) return -1;
-        if (bi !== -1) return 1;
-        return a.title.localeCompare(b.title);
-      });
-    }
-
     function normalizeWorkstreams(devsPayload) {
       return devsPayload.flatMap(dev => (dev.items || []).map(item => ({
         id: `${dev.devKey}:${item.key}`,
         key: item.key,
         title: item.title,
-        status: 'Not started',
         owner: dev.devName || dev.devKey,
         ownerKey: dev.devKey,
         description: item.summary || '',
         docs: item.url || '',
         forwardWorkUrl: dev.forwardWorkUrl || '',
-        date: item.date || ''
+        currentWorkUrl: dev.currentWorkUrl || '',
+        date: item.date || '',
+        status: 'Not started',
+        notes: '',
+        projectType: '',
+        sprintStartDate: null,
+        sprintEndDate: null,
       })));
     }
 
@@ -444,24 +552,44 @@
           stateMapByDev[dev.devKey] = payload.state || {};
           orderByDev[dev.devKey] = Array.isArray(payload.order) ? payload.order : [];
         } catch {
-          // ignore live state failures and fall back to static feed
+          // static feed still renders if live state is unavailable
         }
       }));
       return { stateMapByDev, orderByDev };
     }
 
+    function applyDevState(workstreams, stateMapByDev, orderByDev) {
+      return workstreams.map(item => {
+        const row = stateMapByDev[item.ownerKey]?.[item.key];
+        return {
+          ...item,
+          status: row?.status || 'Not started',
+          notes: row?.notes || '',
+          projectType: row?.projectType || '',
+          sprintStartDate: row?.sprintStartDate || null,
+          sprintEndDate: row?.sprintEndDate || null,
+        };
+      }).sort((a, b) => {
+        if (sprintIdForProject(a) === BACKLOG_ID && sprintIdForProject(b) !== BACKLOG_ID) return -1;
+        if (sprintIdForProject(a) !== BACKLOG_ID && sprintIdForProject(b) === BACKLOG_ID) return 1;
+        if (a.ownerKey !== b.ownerKey) return a.ownerKey.localeCompare(b.ownerKey);
+        const order = orderByDev[a.ownerKey] || [];
+        const ai = order.indexOf(a.key);
+        const bi = order.indexOf(b.key);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        return a.title.localeCompare(b.title);
+      });
+    }
+
     function showError(message) {
       document.getElementById('backlogList').innerHTML = `<div class="error-box">${escapeHtml(message)}</div>`;
       document.getElementById('plannerGrid').innerHTML = '';
+      setSyncNote(message, 'error');
     }
 
     async function init() {
-      document.getElementById('resetLayoutBtn').addEventListener('click', () => {
-        state = defaultState();
-        saveState();
-        renderAll();
-      });
-
       document.getElementById('backlogList').addEventListener('dragover', onDragOver);
       document.getElementById('backlogList').addEventListener('dragleave', onDragLeave);
       document.getElementById('backlogList').addEventListener('drop', onDrop);
@@ -473,8 +601,8 @@
         const workstreams = Array.isArray(devsPayload) ? normalizeWorkstreams(devsPayload) : [];
         const { stateMapByDev, orderByDev } = await loadDashboardState(Array.isArray(devsPayload) ? devsPayload : []);
         projects = applyDevState(workstreams, stateMapByDev, orderByDev);
-        state = loadState();
         renderAll();
+        setSyncNote('Live Railway state loaded. Drag a workstream into a sprint to set its target dates.');
       } catch (error) {
         console.error(error);
         showError('Could not load the developer workstreams yet. Try refreshing in a moment.');
