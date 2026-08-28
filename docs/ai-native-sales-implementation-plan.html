@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI-Native Sales — Implementation Planning</title>
+  <title>Strategic Planner Calendar</title>
   <link rel="stylesheet" href="./assets/colors_and_type.css">
   <style>
     :root {
@@ -12,12 +12,6 @@
       --shadow-card: 0 10px 30px rgba(13,12,44,.08);
       --border: rgba(13,12,44,.10);
       --muted: #6e6d80;
-      --core-bg: #fff6ea;
-      --core-border: #ffb347;
-      --strategic-bg: #e8f7ff;
-      --strategic-border: #3bc7f4;
-      --onboarding-bg: #f1eaff;
-      --onboarding-border: #9a7cff;
       --drop-bg: rgba(59,199,244,.08);
     }
     * { box-sizing: border-box; }
@@ -43,21 +37,18 @@
     .muted { color: var(--muted); }
     .bullet-list { margin: 14px 0 0; padding-left: 18px; }
     .bullet-list li { margin: 8px 0; }
-    .planner-layout { display: grid; grid-template-columns: 340px 1fr; gap: 22px; align-items: start; }
+    .planner-layout { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; }
     .backlog-panel { position: sticky; top: 18px; padding: 18px; }
     .panel-head h3 { font-size: 24px; }
     .helper { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
-    .filter-stack { display: grid; gap: 10px; margin: 12px 0 16px; }
-    .filter-box { padding: 12px 14px; border-radius: 14px; background: #f7f9fc; border: 1px solid rgba(13,12,44,.08); }
-    .filter-box label { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
     .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
     .mini-btn { border: 1px solid rgba(13,12,44,.12); background: white; color: var(--c-ink-blue); border-radius: 999px; padding: 9px 12px; font-weight: 700; cursor: pointer; }
     .mini-btn:hover { background: #f3f6fb; }
     .backlog-list { display: grid; gap: 10px; }
-    .backlog-list.scrollable { max-height: 52vh; overflow: auto; padding-right: 4px; }
+    .backlog-list.scrollable { max-height: 68vh; overflow: auto; padding-right: 4px; }
     .drop-active { outline: 2px dashed var(--c-cyan); outline-offset: 6px; border-radius: 14px; background: var(--drop-bg); }
     .backlog-list.empty::before, .dropzone.empty::before {
-      content: 'Drop roadmap MDs here'; display: block; padding: 14px; border-radius: 14px; border: 1px dashed rgba(13,12,44,.16); color: var(--muted); font-size: 14px; text-align: center; background: rgba(255,255,255,.55);
+      content: 'Drop projects here'; display: block; padding: 14px; border-radius: 14px; border: 1px dashed rgba(13,12,44,.16); color: var(--muted); font-size: 14px; text-align: center; background: rgba(255,255,255,.55);
     }
     .quarter-grid { display: grid; gap: 22px; }
     .quarter-card { border-radius: 24px; padding: 22px; box-shadow: var(--shadow-soft); }
@@ -72,34 +63,32 @@
     .month-card { padding: 18px; min-height: 260px; }
     .month-card.drag-over { outline: 2px dashed var(--c-cyan); background: var(--drop-bg); }
     .month-card h4 { font-size: 22px; margin-bottom: 4px; }
-    .month-theme { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--muted); margin-bottom: 10px; }
+    .month-theme { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
     .dropzone { display: grid; gap: 10px; margin-top: 14px; min-height: 120px; }
     .doc-card { border-radius: 14px; border: 1px solid rgba(13,12,44,.10); background: #f7f9fc; padding: 10px 12px; cursor: grab; box-shadow: 0 4px 14px rgba(13,12,44,.05); }
     .doc-card:active { cursor: grabbing; }
     .doc-card.dragging { opacity: .55; }
-    .doc-card.core { background: var(--core-bg); border-color: var(--core-border); }
-    .doc-card.strategic { background: var(--strategic-bg); border-color: var(--strategic-border); box-shadow: 0 0 0 2px rgba(85,184,122,.22), 0 12px 28px rgba(85,184,122,.14); }
-    .doc-card.onboarding { background: var(--onboarding-bg); border-color: var(--onboarding-border); }
-    .doc-card summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; cursor: pointer; }
+    .doc-card summary { list-style: none; display: grid; grid-template-columns: 1fr; gap: 6px; align-items: start; cursor: pointer; }
     .doc-card summary::-webkit-details-marker { display: none; }
-    .doc-head { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
-    .expand-arrow { font-size: 13px; font-weight: 900; color: var(--muted); transition: transform .15s ease; }
+    .doc-head { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; }
+    .expand-arrow { font-size: 13px; font-weight: 900; color: var(--muted); transition: transform .15s ease; padding-top: 2px; }
     details[open] .expand-arrow { transform: rotate(90deg); }
     .doc-title { font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--c-ink-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
     .doc-title:hover { text-decoration: underline; }
-    .doc-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; min-width: 0; }
-    .dropzone .doc-card summary { grid-template-columns: 1fr; }
-    .dropzone .doc-meta { justify-content: flex-start; margin-left: 21px; margin-top: 4px; }
-    .pill { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; line-height: 1.1; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); max-width: 100%; }
-    .pill.core { background: rgba(255,179,71,.24); }
-    .pill.strategic { background: rgba(59,199,244,.18); }
-    .pill.onboarding { background: rgba(154,124,255,.18); }
-    .pill.location { background: rgba(13,12,44,.08); }
+    .doc-subline { margin-left: 21px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .pill { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; line-height: 1.1; font-weight: 800; letter-spacing: .03em; background: rgba(13,12,44,.08); color: var(--c-ink-blue); }
+    .pill.status-active { background: rgba(59,199,244,.18); }
+    .pill.status-complete { background: rgba(111,215,167,.20); }
+    .pill.status-paused { background: rgba(255,179,71,.24); }
+    .pill.owner { background: rgba(13,12,44,.06); }
     .doc-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(13,12,44,.08); }
-    .doc-desc { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
-    .doc-link { font-size: 12px; font-weight: 700; color: var(--c-ink-blue); }
-    .type-group { display: grid; gap: 6px; margin-top: 10px; }
-    .type-group label { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
+    .doc-desc { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+    .link-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .doc-link { font-size: 12px; font-weight: 700; color: var(--c-ink-blue); text-decoration: none; padding: 8px 10px; border-radius: 999px; background: rgba(13,12,44,.06); }
+    .doc-link:hover { background: rgba(13,12,44,.10); }
+    .empty-note { font-size: 12px; color: var(--muted); }
+    .loading, .error-box { padding: 16px; border-radius: 14px; background: rgba(255,255,255,.7); border: 1px solid rgba(13,12,44,.08); color: var(--muted); }
+    .error-box { color: #b42318; background: rgba(254, 242, 242, .9); border-color: rgba(180,35,24,.16); }
     .footer { padding: 28px 0 56px; }
     @media (max-width: 1120px) {
       .planner-layout, .hero-grid, .lede-grid, .months { grid-template-columns: 1fr; }
@@ -115,19 +104,18 @@
   <header class="hero">
     <div class="wrap hero-grid">
       <div>
-        <div class="eyebrow">AI-native operating stages</div>
-        <h1>Sales implementation planning</h1>
-        <p>Use this as a working 12-month planning board from July 2026 to June 2027. Drag markdown workstreams between months, park them back on the left, and keep the truly strategic automation work visually distinct from core fixes and onboarding feature work.</p>
+        <div class="eyebrow">Strategic planning board</div>
+        <h1>Strategic Planner Calendar</h1>
+        <p>Use this as a working 12-month calendar from July 2026 to June 2027. All projects start in the left-hand list, then you can drag them into the right month as you shape the plan.</p>
         <div class="nav-links">
-          <a href="./ai-native-sales.html">Back to Sales stage page</a>
           <a href="./ai-native-strategy.html">Back to strategy page</a>
-          <a class="secondary" href="./ai-native-operations.html">Next: Operations</a>
+          <a class="secondary" href="https://deliver-different-testing.github.io/project-dashboard/" target="_blank" rel="noopener noreferrer">Open project dashboard</a>
         </div>
       </div>
       <div class="hero-card">
-        <div class="label">Type model</div>
-        <h3>One visible type per MD</h3>
-        <p>Each markdown is classified as <strong>Core / enabling</strong>, <strong>Strategic automation</strong>, or <strong>On-boarding feature set</strong>. That type is always visible on the tile, while the description and controls stay behind an expand arrow.</p>
+        <div class="label">Source</div>
+        <h3>Projects + MD links come from the project dashboard list</h3>
+        <p>Each tile uses the project name, status, developer owner, description, and primary docs link published from the project dashboard.</p>
       </div>
     </div>
   </header>
@@ -136,18 +124,18 @@
     <section class="section">
       <div class="wrap lede-grid">
         <div class="card">
-          <div class="label">Roadmap rules</div>
+          <div class="label">Planner rules</div>
           <ul class="bullet-list">
-            <li><strong>Drag and drop</strong> cards between months or back into the left parking lane.</li>
-            <li><strong>Keep the tiles compact</strong> — name + type always visible, detail hidden behind expand.</li>
-            <li><strong>Use Strategic automation</strong> only for specs that genuinely move the AI-native model forward.</li>
-            <li><strong>Local browser persistence</strong> is enabled, so your layout survives refresh in the same browser.</li>
+            <li><strong>Everything starts unscheduled</strong> in the left project list.</li>
+            <li><strong>Drag and drop</strong> projects into months, or back to the left list.</li>
+            <li><strong>No duplication</strong> — a project lives in one place only.</li>
+            <li><strong>Local browser persistence</strong> is enabled, so your arrangement survives refresh in the same browser.</li>
           </ul>
         </div>
         <div class="card">
           <div class="label">Calendar shape</div>
           <p class="muted"><strong>Q1:</strong> Jul–Sep 2026 · <strong>Q2:</strong> Oct–Dec 2026 · <strong>Q3:</strong> Jan–Mar 2027 · <strong>Q4:</strong> Apr–Jun 2027</p>
-          <p class="muted" style="margin-top:10px;">This version separates core stabilisation from strategic automation and from onboarding-oriented capability work.</p>
+          <p class="muted" style="margin-top:10px;">Month summaries update automatically as projects move between buckets.</p>
         </div>
       </div>
     </section>
@@ -156,27 +144,16 @@
       <div class="wrap planner-layout">
         <aside class="backlog-panel">
           <div class="panel-head">
-            <div class="label">MD backlog</div>
-            <h3>Candidate roadmap docs</h3>
+            <div class="label">Project list</div>
+            <h3>Unscheduled projects</h3>
           </div>
-          <p class="helper">Everything starts in the unscheduled parking area so you can drag each project into the right month.</p>
-          <div class="filter-stack">
-            <div class="filter-box">
-              <label><input type="checkbox" id="filterStrategicOnly"> Show strategic automation only</label>
-            </div>
-            <div class="filter-box">
-              <label><input type="checkbox" id="filterHideCore"> Hide core / enabling</label>
-            </div>
-            <div class="filter-box">
-              <label><input type="checkbox" id="filterOnboardingOnly"> Show on-boarding feature set only</label>
-            </div>
-          </div>
+          <p class="helper">Projects disappear from this list as soon as you drag them into a month.</p>
           <div class="panel-actions">
             <button class="mini-btn" id="resetLayoutBtn" type="button">Reset layout</button>
-            <button class="mini-btn" id="resetTypesBtn" type="button">Reset types</button>
           </div>
-          <div class="label" style="margin-top:18px;">Project list / unscheduled</div>
-          <div class="backlog-list scrollable" id="backlogList"></div>
+          <div class="backlog-list scrollable" id="backlogList">
+            <div class="loading">Loading projects from project dashboard…</div>
+          </div>
         </aside>
 
         <div>
@@ -188,176 +165,124 @@
 
   <footer class="footer">
     <div class="wrap">
-      <a class="button-link" style="margin-right:12px" href="./ai-native-sales.html">Back to Sales</a>
-      <a class="button-link" href="./ai-native-operations.html">Continue to Operations</a>
+      <a class="button-link" href="https://deliver-different-testing.github.io/project-dashboard/" target="_blank" rel="noopener noreferrer">Open project dashboard</a>
     </div>
   </footer>
 
   <script>
     const BACKLOG_ID = 'backlog';
-    const STORAGE_KEY = 'aiNativeSalesImplementationPlanner.v5';
-
-    const docs = [
-      { id: 'kerran-client-rates-migration', title: 'Kerran client modal + rates migration', url: 'https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/docs/STEVE-KERRAN-CLIENT-MODAL-AND-RATES-MIGRATION-2026-07-02.md', description: 'Moves core customer commercial setup into the real implementation home.', defaultMonth: '2026-07', category: 'onboarding' },
-      { id: 'scheduled-rate-builder-implementation', title: 'Scheduled rate builder implementation backbone', url: 'https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/IMPLEMENTATION.md', description: 'Reference implementation structure for schedules, rates, and related entities.', defaultMonth: '2026-07', category: 'core' },
-      { id: 'fsc-indexing-supplement', title: 'FSC indexing supplement', url: 'https://github.com/Deliver-Different-Testing/fuel-mfv-analysis/blob/master/FSC_INDEXING_SUPPLEMENT_2026-08-06.md', description: 'Supports reusable FSC profiles across multiple clients instead of 1:1 duplication.', defaultMonth: '2026-08', category: 'core' },
-      { id: 'np-rate-isolation', title: 'NP rate isolation', url: 'https://github.com/Deliver-Different-Testing/NP-Agent-Management/blob/main/NP-RATE-ISOLATION.md', description: 'Separates quote / booking / rerating paths so future automation uses cleaner pricing logic.', defaultMonth: '2026-08', category: 'core' },
-      { id: 'environment-release-policy', title: 'DFRNT environment and release policy', url: 'https://github.com/Deliver-Different-Testing/dfrnt-ops/blob/main/docs/DRAFT-DFRNT-ENVIRONMENT-AND-RELEASE-POLICY.md', description: 'Creates the release guardrails needed before higher-risk automation expands across tenants.', defaultMonth: '2026-09', category: 'core' },
-      { id: 'kevin-schedules-prototype', title: 'Kevin schedules prototype handover', url: 'https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/docs/HANDOVER-KEVIN-SCHEDULES-PROTOTYPE-2026-06-18.md', description: 'Modernises scheduling structure so service windows and recurring service logic become more usable.', defaultMonth: '2026-10', category: 'onboarding' },
-      { id: 'np-agent-management-implementation', title: 'NP Agent Management implementation', url: 'https://github.com/Deliver-Different-Testing/NP-Agent-Management/blob/main/IMPLEMENTATION.md', description: 'Prospects, quotes, partner network, and marketplace surfaces that push Sales toward structured automation.', defaultMonth: '2026-11', category: 'strategic' },
-      { id: 'np-coverage-map-addendum', title: 'NP modal coverage-map addendum', url: 'https://github.com/Deliver-Different-Testing/dfrntdrive_configurator/blob/master/docs/STEVE-NP-MODAL-COVERAGE-MAP-ADDENDUM-GARRY-2026-08-27.md', description: 'Lets the business visually understand service coverage and postcode fit before bad commitments are made.', defaultMonth: '2026-12', category: 'onboarding' },
-      { id: 'on-demand-osrm-autodispatch', title: 'OSRM on-demand autodispatch implementation', url: 'https://github.com/Deliver-Different-Testing/autodispatch/blob/master/docs/ON-DEMAND-AUTODISPATCH-OSRM-IMPLEMENTATION.md', description: 'Actual automation step: lower-cost routing-backed auto-allocation for on-demand work.', defaultMonth: '2027-01', category: 'strategic' },
-      { id: 'set-route-autodispatch', title: 'Set-route autodispatch implementation', url: 'https://github.com/Deliver-Different-Testing/autodispatch/blob/master/docs/SET-ROUTE-AUTODISPATCH-IMPLEMENTATION.md', description: 'Strategic dispatch automation for repeated route patterns, including pass-through postcode logic.', defaultMonth: '2027-02', category: 'strategic' },
-      { id: 'driver-scheduling-ro', title: 'Driver scheduling routed-operations handover', url: 'https://github.com/Deliver-Different-Testing/routed-operations/blob/main/docs/KEVIN-DRIVER-SCHEDULING-ROUTED-OPERATIONS-HANDOVER-2026-08-27.md', description: 'Brings planned service capacity into the same future operating chain as routing and dispatch.', defaultMonth: '2027-03', category: 'core' },
-      { id: 'zones-zone-groups', title: 'Schedules, zones, zone groups handover', url: 'https://github.com/Deliver-Different-Testing/routed-operations/blob/main/docs/KEVIN-SCHEDULES-ZONES-ZONE-GROUPS-HANDOVER-2026-08-21.md', description: 'Normalises geography and service zones so automation can make safer decisions.', defaultMonth: '2027-04', category: 'core' },
-      { id: 'environment-policy-summary', title: 'Environment policy executive summary', url: 'https://github.com/Deliver-Different-Testing/dfrnt-ops/blob/main/docs/DRAFT-DFRNT-ENVIRONMENT-AND-RELEASE-POLICY-EXECUTIVE-SUMMARY.md', description: 'Short governance layer to keep scaling automation from turning into unsafe change velocity.', defaultMonth: '2027-05', category: 'core' },
-      { id: 'np-agent-management-handover', title: 'NP Agent Management handover', url: 'https://github.com/Deliver-Different-Testing/NP-Agent-Management/blob/main/HANDOVER.md', description: 'Integration checkpoint for what the broader AI-native commercial and network operating system becomes.', defaultMonth: '2027-06', category: 'strategic' }
-    ];
+    const STORAGE_KEY = 'strategicPlannerCalendar.v1';
+    const PROJECT_CATALOG_URL = 'https://deliver-different-testing.github.io/project-dashboard/project-catalog.json';
 
     const months = [
-      { id: '2026-07', quarter: 'Q1', quarterClass: 'q1', title: 'July 2026', theme: 'Client and rates foundation', note: 'Commercial setup and pricing structure.' },
-      { id: '2026-08', quarter: 'Q1', quarterClass: 'q1', title: 'August 2026', theme: 'Pricing logic and reusable models', note: 'Reduce duplicated commercial logic.' },
-      { id: '2026-09', quarter: 'Q1', quarterClass: 'q1', title: 'September 2026', theme: 'Release safety', note: 'Put guardrails around change.' },
-      { id: '2026-10', quarter: 'Q2', quarterClass: 'q2', title: 'October 2026', theme: 'Schedules and service model', note: 'Modernise service definitions.' },
-      { id: '2026-11', quarter: 'Q2', quarterClass: 'q2', title: 'November 2026', theme: 'Commercial network tooling', note: 'Build the platform around prospects and partners.' },
-      { id: '2026-12', quarter: 'Q2', quarterClass: 'q2', title: 'December 2026', theme: 'Coverage intelligence', note: 'Make service-fit visible before go-live.' },
-      { id: '2027-01', quarter: 'Q3', quarterClass: 'q3', title: 'January 2027', theme: 'On-demand automation', note: 'Start real dispatch automation.' },
-      { id: '2027-02', quarter: 'Q3', quarterClass: 'q3', title: 'February 2027', theme: 'Route pattern automation', note: 'Automate repeated routed work.' },
-      { id: '2027-03', quarter: 'Q3', quarterClass: 'q3', title: 'March 2027', theme: 'Capacity execution', note: 'Tie scheduling into execution.' },
-      { id: '2027-04', quarter: 'Q4', quarterClass: 'q4', title: 'April 2027', theme: 'Zone and service geography', note: 'Stabilise spatial logic.' },
-      { id: '2027-05', quarter: 'Q4', quarterClass: 'q4', title: 'May 2027', theme: 'Operating governance', note: 'Keep scaling change under control.' },
-      { id: '2027-06', quarter: 'Q4', quarterClass: 'q4', title: 'June 2027', theme: 'AI-native integration checkpoint', note: 'Check if the whole model is converging.' }
+      { id: '2026-07', quarter: 'Q1', quarterClass: 'q1', title: 'July 2026', theme: 'Foundation' },
+      { id: '2026-08', quarter: 'Q1', quarterClass: 'q1', title: 'August 2026', theme: 'Build momentum' },
+      { id: '2026-09', quarter: 'Q1', quarterClass: 'q1', title: 'September 2026', theme: 'Stabilise direction' },
+      { id: '2026-10', quarter: 'Q2', quarterClass: 'q2', title: 'October 2026', theme: 'Execution' },
+      { id: '2026-11', quarter: 'Q2', quarterClass: 'q2', title: 'November 2026', theme: 'Commercial progress' },
+      { id: '2026-12', quarter: 'Q2', quarterClass: 'q2', title: 'December 2026', theme: 'Year-end checkpoint' },
+      { id: '2027-01', quarter: 'Q3', quarterClass: 'q3', title: 'January 2027', theme: 'New-year push' },
+      { id: '2027-02', quarter: 'Q3', quarterClass: 'q3', title: 'February 2027', theme: 'Operational follow-through' },
+      { id: '2027-03', quarter: 'Q3', quarterClass: 'q3', title: 'March 2027', theme: 'Quarter close' },
+      { id: '2027-04', quarter: 'Q4', quarterClass: 'q4', title: 'April 2027', theme: 'Scale and refine' },
+      { id: '2027-05', quarter: 'Q4', quarterClass: 'q4', title: 'May 2027', theme: 'Governance and quality' },
+      { id: '2027-06', quarter: 'Q4', quarterClass: 'q4', title: 'June 2027', theme: 'Annual checkpoint' }
     ];
 
     const quarterMeta = {
-      Q1: { title: 'July – September 2026', subtitle: 'Foundation' },
-      Q2: { title: 'October – December 2026', subtitle: 'Commercial automation' },
-      Q3: { title: 'January – March 2027', subtitle: 'Dispatch automation' },
-      Q4: { title: 'April – June 2027', subtitle: 'Integrated AI-native operation' }
+      Q1: { title: 'July – September 2026', subtitle: 'Q1' },
+      Q2: { title: 'October – December 2026', subtitle: 'Q2' },
+      Q3: { title: 'January – March 2027', subtitle: 'Q3' },
+      Q4: { title: 'April – June 2027', subtitle: 'Q4' }
     };
 
-    const defaultState = {
-      monthAssignments: Object.fromEntries(docs.map(doc => [doc.id, BACKLOG_ID])),
-      categories: Object.fromEntries(docs.map(doc => [doc.id, doc.category])),
-      filters: { strategicOnly: false, hideCore: false, onboardingOnly: false }
-    };
+    let projects = [];
+    let state = null;
+    let draggedProjectId = null;
 
-    let state = loadState();
-    let draggedDocId = null;
-
-    function loadState() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return structuredClone(defaultState);
-        const parsed = JSON.parse(raw);
-        return {
-          monthAssignments: { ...defaultState.monthAssignments, ...(parsed.monthAssignments || {}) },
-          categories: migrateCategories(parsed),
-          filters: { ...defaultState.filters, ...(parsed.filters || {}) }
-        };
-      } catch {
-        return structuredClone(defaultState);
-      }
+    function ownerLabel(owner) {
+      return owner ? owner.charAt(0).toUpperCase() + owner.slice(1) : 'Unassigned';
     }
 
-    function migrateCategories(parsed) {
-      const savedCategories = parsed.categories || {};
-      const savedFlags = parsed.flags || {};
-      const categories = {};
-      docs.forEach(doc => {
-        if (savedCategories[doc.id]) {
-          categories[doc.id] = savedCategories[doc.id];
-        } else if (savedFlags[doc.id]) {
-          categories[doc.id] = savedFlags[doc.id].strategic ? 'strategic' : (savedFlags[doc.id].core ? 'core' : doc.category);
-        } else {
-          categories[doc.id] = doc.category;
-        }
-      });
-      return categories;
+    function statusClass(status) {
+      return `status-${String(status || '').toLowerCase()}`;
+    }
+
+    function defaultState() {
+      return {
+        monthAssignments: Object.fromEntries(projects.map(project => [project.id, BACKLOG_ID]))
+      };
     }
 
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return {
+          monthAssignments: { ...defaultState().monthAssignments, ...(parsed.monthAssignments || {}) }
+        };
+      } catch {
+        return defaultState();
+      }
+    }
+
     function escapeHtml(value) {
-      return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+      return String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
     }
 
-    function categoryLabel(category) {
-      if (category === 'strategic') return 'Strategic automation';
-      if (category === 'onboarding') return 'On-boarding feature set';
-      return 'Core / enabling';
-    }
-
-    function categoryPill(category) {
-      return `<span class="pill ${category}">${categoryLabel(category)}</span>`;
-    }
-
-    function currentLocationLabel(docId) {
-      const assigned = state.monthAssignments[docId];
-      if (assigned === BACKLOG_ID) return 'Unscheduled';
-      const month = months.find(m => m.id === assigned);
-      return month ? `Currently in ${month.title}` : 'Scheduled';
-    }
-
-    function docCardHtml(doc, showLocation = false) {
-      const category = state.categories[doc.id] || 'core';
-      const location = showLocation ? `<span class="pill location">${escapeHtml(currentLocationLabel(doc.id))}</span>` : '';
+    function projectCardHtml(project) {
+      const mdLink = project.docs ? `<a class="doc-link" href="${project.docs}" target="_blank" rel="noopener noreferrer">Open MD</a>` : '';
+      const repoLink = project.repo ? `<a class="doc-link" href="${project.repo}" target="_blank" rel="noopener noreferrer">Repo</a>` : '';
+      const liveLink = project.live ? `<a class="doc-link" href="${project.live}" target="_blank" rel="noopener noreferrer">Live</a>` : '';
+      const emptyNote = !project.docs ? `<div class="empty-note">No primary MD linked in the project dashboard for this project.</div>` : '';
       return `
-        <article class="doc-card ${category}" draggable="true" data-doc-id="${doc.id}">
+        <article class="doc-card" draggable="true" data-doc-id="${project.id}">
           <details>
             <summary>
               <div class="doc-head">
                 <span class="expand-arrow">▶</span>
-                <a class="doc-title" href="${doc.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(doc.title)}</a>
+                <div class="doc-title" title="${escapeHtml(project.title)}">${escapeHtml(project.title)}</div>
               </div>
-              <div class="doc-meta">
-                ${location}
-                ${categoryPill(category)}
+              <div class="doc-subline">
+                <span class="pill ${statusClass(project.status)}">${escapeHtml(project.status)}</span>
+                <span class="pill owner">${escapeHtml(ownerLabel(project.owner))}</span>
               </div>
             </summary>
             <div class="doc-body">
-              <p class="doc-desc">${escapeHtml(doc.description)}</p>
-              <a class="doc-link" href="${doc.url}" target="_blank" rel="noopener noreferrer">Open markdown</a>
-              <div class="type-group">
-                <label><input type="radio" name="category-${doc.id}" data-doc-id="${doc.id}" value="core" ${category === 'core' ? 'checked' : ''}> Core / enabling</label>
-                <label><input type="radio" name="category-${doc.id}" data-doc-id="${doc.id}" value="strategic" ${category === 'strategic' ? 'checked' : ''}> Strategic automation</label>
-                <label><input type="radio" name="category-${doc.id}" data-doc-id="${doc.id}" value="onboarding" ${category === 'onboarding' ? 'checked' : ''}> On-boarding feature set</label>
-              </div>
+              <p class="doc-desc">${escapeHtml(project.description)}</p>
+              ${emptyNote}
+              <div class="link-row">${mdLink}${repoLink}${liveLink}</div>
             </div>
           </details>
         </article>
       `;
     }
 
-    function passesFilters(doc) {
-      const category = state.categories[doc.id] || 'core';
-      if (state.filters.strategicOnly && category !== 'strategic') return false;
-      if (state.filters.hideCore && category === 'core') return false;
-      if (state.filters.onboardingOnly && category !== 'onboarding') return false;
-      return true;
+    function monthSummary(monthProjects) {
+      if (monthProjects.length === 0) return 'No projects scheduled yet.';
+      const byStatus = monthProjects.reduce((acc, project) => {
+        const key = String(project.status || 'Unknown').toLowerCase();
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      const parts = [];
+      if (byStatus.active) parts.push(`${byStatus.active} active`);
+      if (byStatus.complete) parts.push(`${byStatus.complete} complete`);
+      if (byStatus.paused) parts.push(`${byStatus.paused} paused`);
+      return `${monthProjects.length} project${monthProjects.length === 1 ? '' : 's'} scheduled${parts.length ? ' · ' + parts.join(' · ') : ''}`;
     }
 
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
-      const visibleDocs = docs.filter(passesFilters);
-      const backlogDocs = visibleDocs.filter(doc => state.monthAssignments[doc.id] === BACKLOG_ID);
-      backlog.classList.toggle('empty', backlogDocs.length === 0);
-      backlog.innerHTML = backlogDocs.map(doc => docCardHtml(doc)).join('');
+      const backlogProjects = projects.filter(project => state.monthAssignments[project.id] === BACKLOG_ID);
+      backlog.classList.toggle('empty', backlogProjects.length === 0);
+      backlog.innerHTML = backlogProjects.map(project => projectCardHtml(project)).join('');
       bindCardEvents(backlog);
-    }
-
-    function monthSummary(monthDocs) {
-      if (monthDocs.length === 0) return 'No projects scheduled yet.';
-      const strategicCount = monthDocs.filter(doc => (state.categories[doc.id] || doc.category) === 'strategic').length;
-      const onboardingCount = monthDocs.filter(doc => (state.categories[doc.id] || doc.category) === 'onboarding').length;
-      const coreCount = monthDocs.length - strategicCount - onboardingCount;
-      const parts = [];
-      if (coreCount) parts.push(`${coreCount} core`);
-      if (strategicCount) parts.push(`${strategicCount} strategic`);
-      if (onboardingCount) parts.push(`${onboardingCount} onboarding`);
-      return `${monthDocs.length} project${monthDocs.length === 1 ? '' : 's'} scheduled · ${parts.join(' · ')}`;
     }
 
     function renderPlanner() {
@@ -374,21 +299,21 @@
           <section class="quarter-card ${quarterMonths[0].quarterClass}">
             <div class="quarter-top">
               <div>
-                <div class="quarter-tag">${quarter} · ${meta.subtitle}</div>
+                <div class="quarter-tag">${meta.subtitle}</div>
                 <h3>${meta.title}</h3>
               </div>
-              <p class="muted">Drag projects between months to reshape the path.</p>
+              <p class="muted">Drag projects between months or back to the left list.</p>
             </div>
             <div class="months">
               ${quarterMonths.map(month => {
-                const monthDocs = docs.filter(doc => state.monthAssignments[doc.id] === month.id && passesFilters(doc));
+                const monthProjects = projects.filter(project => state.monthAssignments[project.id] === month.id);
                 return `
                   <div class="month-card" data-month-id="${month.id}">
                     <h4>${month.title}</h4>
                     <div class="month-theme">${month.theme}</div>
-                    <p class="muted">${monthSummary(monthDocs)}</p>
-                    <div class="dropzone ${monthDocs.length === 0 ? 'empty' : ''}" data-month-id="${month.id}">
-                      ${monthDocs.map(doc => docCardHtml(doc)).join('')}
+                    <p class="muted">${monthSummary(monthProjects)}</p>
+                    <div class="dropzone ${monthProjects.length === 0 ? 'empty' : ''}" data-month-id="${month.id}">
+                      ${monthProjects.map(project => projectCardHtml(project)).join('')}
                     </div>
                   </div>
                 `;
@@ -412,17 +337,14 @@
         card.addEventListener('dragstart', onDragStart);
         card.addEventListener('dragend', onDragEnd);
       });
-      root.querySelectorAll('input[type="radio"][data-doc-id]').forEach(input => {
-        input.addEventListener('change', onCategoryChange);
-      });
     }
 
     function onDragStart(event) {
       const card = event.currentTarget;
-      draggedDocId = card.dataset.docId;
+      draggedProjectId = card.dataset.docId;
       card.classList.add('dragging');
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', draggedDocId);
+      event.dataTransfer.setData('text/plain', draggedProjectId);
     }
 
     function onDragEnd(event) {
@@ -454,85 +376,70 @@
 
     function onDrop(event) {
       event.preventDefault();
-      const docId = event.dataTransfer.getData('text/plain') || draggedDocId;
-      if (!docId) return;
+      const projectId = event.dataTransfer.getData('text/plain') || draggedProjectId;
+      if (!projectId) return;
       if (event.currentTarget.id === 'backlogList') {
-        state.monthAssignments[docId] = BACKLOG_ID;
+        state.monthAssignments[projectId] = BACKLOG_ID;
         event.currentTarget.classList.remove('drop-active');
       } else {
         const monthId = event.currentTarget.dataset.monthId || event.currentTarget.closest('[data-month-id]')?.dataset.monthId;
         if (!monthId) return;
-        state.monthAssignments[docId] = monthId;
+        state.monthAssignments[projectId] = monthId;
       }
       saveState();
       renderAll();
     }
 
-    function onCategoryChange(event) {
-      const input = event.currentTarget;
-      state.categories[input.dataset.docId] = input.value;
-      saveState();
-      renderAll();
-    }
-
-    function bindGlobalControls() {
-      const strategicOnly = document.getElementById('filterStrategicOnly');
-      const hideCore = document.getElementById('filterHideCore');
-      const onboardingOnly = document.getElementById('filterOnboardingOnly');
-      const backlog = document.getElementById('backlogList');
-
-      strategicOnly.checked = state.filters.strategicOnly;
-      hideCore.checked = state.filters.hideCore;
-      onboardingOnly.checked = state.filters.onboardingOnly;
-
-      backlog.addEventListener('dragover', onDragOver);
-      backlog.addEventListener('dragleave', onDragLeave);
-      backlog.addEventListener('drop', onDrop);
-
-      strategicOnly.addEventListener('change', () => {
-        state.filters.strategicOnly = strategicOnly.checked;
-        if (strategicOnly.checked) state.filters.onboardingOnly = false;
-        saveState();
-        renderAll();
-      });
-
-      hideCore.addEventListener('change', () => {
-        state.filters.hideCore = hideCore.checked;
-        saveState();
-        renderAll();
-      });
-
-      onboardingOnly.addEventListener('change', () => {
-        state.filters.onboardingOnly = onboardingOnly.checked;
-        if (onboardingOnly.checked) state.filters.strategicOnly = false;
-        saveState();
-        renderAll();
-      });
-
-      document.getElementById('resetLayoutBtn').addEventListener('click', () => {
-        state.monthAssignments = structuredClone(defaultState.monthAssignments);
-        saveState();
-        renderAll();
-      });
-
-      document.getElementById('resetTypesBtn').addEventListener('click', () => {
-        state.categories = structuredClone(defaultState.categories);
-        state.filters = structuredClone(defaultState.filters);
-        saveState();
-        renderAll();
-      });
-    }
-
     function renderAll() {
       renderBacklog();
       renderPlanner();
-      document.getElementById('filterStrategicOnly').checked = state.filters.strategicOnly;
-      document.getElementById('filterHideCore').checked = state.filters.hideCore;
-      document.getElementById('filterOnboardingOnly').checked = state.filters.onboardingOnly;
     }
 
-    bindGlobalControls();
-    renderAll();
+    function normalizeProject(project) {
+      return {
+        id: project.slug,
+        title: `${project.emoji ? project.emoji + ' ' : ''}${project.name}`,
+        status: project.status || 'Active',
+        owner: project.owner || '',
+        description: project.description || '',
+        docs: project.docs || '',
+        repo: project.repo || '',
+        live: project.live || ''
+      };
+    }
+
+    function showError(message) {
+      document.getElementById('backlogList').innerHTML = `<div class="error-box">${escapeHtml(message)}</div>`;
+      document.getElementById('plannerGrid').innerHTML = '';
+    }
+
+    async function init() {
+      document.getElementById('resetLayoutBtn').addEventListener('click', () => {
+        state = defaultState();
+        saveState();
+        renderAll();
+      });
+
+      document.getElementById('backlogList').addEventListener('dragover', onDragOver);
+      document.getElementById('backlogList').addEventListener('dragleave', onDragLeave);
+      document.getElementById('backlogList').addEventListener('drop', onDrop);
+
+      try {
+        const response = await fetch(PROJECT_CATALOG_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Project catalog fetch failed (${response.status})`);
+        const rawProjects = await response.json();
+        projects = Array.isArray(rawProjects)
+          ? rawProjects.map(normalizeProject).sort((a, b) => a.title.localeCompare(b.title))
+          : [];
+        state = loadState();
+        renderAll();
+      } catch (error) {
+        console.error(error);
+        showError('Could not load the project dashboard catalog yet. Try refreshing in a moment.');
+      }
+    }
+
+    init();
   </script>
 </body>
 </html>
