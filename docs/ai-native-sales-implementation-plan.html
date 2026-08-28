@@ -41,6 +41,9 @@
     .backlog-panel { position: sticky; top: 18px; padding: 18px; }
     .panel-head h3 { font-size: 24px; }
     .helper { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+    .filter-stack { display: grid; gap: 10px; margin: 12px 0 16px; }
+    .filter-box { padding: 12px 14px; border-radius: 14px; background: #f7f9fc; border: 1px solid rgba(13,12,44,.08); }
+    .filter-box label { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
     .backlog-list { display: grid; gap: 10px; max-height: 72vh; overflow: auto; padding-right: 4px; }
     .drop-active { outline: 2px dashed var(--c-cyan); outline-offset: 6px; border-radius: 14px; background: var(--drop-bg); }
     .backlog-list.empty::before, .dropzone.empty::before {
@@ -157,6 +160,17 @@
             <h3>Unscheduled workstreams</h3>
           </div>
           <p class="helper">Done work is hidden here. Drag a workstream into the right sprint to set its sprint dates.</p>
+          <div class="filter-stack">
+            <div class="filter-box">
+              <label><input type="checkbox" id="filterStrategicOnly"> Show strategic automation only</label>
+            </div>
+            <div class="filter-box">
+              <label><input type="checkbox" id="filterHideCore"> Hide core / enabling</label>
+            </div>
+            <div class="filter-box">
+              <label><input type="checkbox" id="filterOnboardingOnly"> Show on-boarding feature set only</label>
+            </div>
+          </div>
           <div id="syncNote" class="sync-note">Loading developer workstreams and live Railway state…</div>
           <div class="backlog-list" id="backlogList">
             <div class="loading">Loading developer workstreams from project dashboard…</div>
@@ -187,6 +201,11 @@
 
     let projects = [];
     let draggedProjectId = null;
+    const filters = {
+      strategicOnly: false,
+      hideCore: false,
+      onboardingOnly: false,
+    };
 
     function plusDays(date, days) {
       const next = new Date(date);
@@ -279,6 +298,14 @@
       return match ? match.id : BACKLOG_ID;
     }
 
+    function passesFilters(project) {
+      const projectType = project.projectType || '';
+      if (filters.strategicOnly && projectType !== 'strategic') return false;
+      if (filters.hideCore && projectType === 'core') return false;
+      if (filters.onboardingOnly && projectType !== 'onboarding') return false;
+      return true;
+    }
+
     function sprintLabel(project) {
       const sprintStart = normalizeDateOnly(project.sprintStartDate);
       const sprintEnd = normalizeDateOnly(project.sprintEndDate);
@@ -344,7 +371,7 @@
 
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
-      const backlogProjects = projects.filter(project => sprintIdForProject(project) === BACKLOG_ID && project.status !== 'Done');
+      const backlogProjects = projects.filter(project => sprintIdForProject(project) === BACKLOG_ID && project.status !== 'Done' && passesFilters(project));
       backlog.classList.toggle('empty', backlogProjects.length === 0);
       backlog.innerHTML = backlogProjects.map(project => projectCardHtml(project)).join('');
       bindCardEvents(backlog);
@@ -369,7 +396,7 @@
           </div>
           <div class="sprints">
             ${group.items.map(sprint => {
-              const sprintProjects = projects.filter(project => sprintIdForProject(project) === sprint.id);
+              const sprintProjects = projects.filter(project => sprintIdForProject(project) === sprint.id && passesFilters(project));
               return `
                 <div class="sprint-card" data-sprint-id="${sprint.id}">
                   <h4>${sprint.title}</h4>
@@ -402,6 +429,39 @@
       root.querySelectorAll('[data-type-select]').forEach(select => {
         select.addEventListener('change', onTypeChange);
       });
+    }
+
+    function bindFilterControls() {
+      const strategicOnly = document.getElementById('filterStrategicOnly');
+      const hideCore = document.getElementById('filterHideCore');
+      const onboardingOnly = document.getElementById('filterOnboardingOnly');
+
+      strategicOnly.checked = filters.strategicOnly;
+      hideCore.checked = filters.hideCore;
+      onboardingOnly.checked = filters.onboardingOnly;
+
+      strategicOnly.onchange = () => {
+        filters.strategicOnly = strategicOnly.checked;
+        if (filters.strategicOnly) {
+          filters.onboardingOnly = false;
+          onboardingOnly.checked = false;
+        }
+        renderAll();
+      };
+
+      hideCore.onchange = () => {
+        filters.hideCore = hideCore.checked;
+        renderAll();
+      };
+
+      onboardingOnly.onchange = () => {
+        filters.onboardingOnly = onboardingOnly.checked;
+        if (filters.onboardingOnly) {
+          filters.strategicOnly = false;
+          strategicOnly.checked = false;
+        }
+        renderAll();
+      };
     }
 
     function onDragStart(event) {
@@ -528,6 +588,7 @@
     function renderAll() {
       renderBacklog();
       renderPlanner();
+      bindFilterControls();
     }
 
     function normalizeWorkstreams(devsPayload) {
