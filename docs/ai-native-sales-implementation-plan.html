@@ -164,7 +164,7 @@
             <div class="label">MD backlog</div>
             <h3>Candidate roadmap docs</h3>
           </div>
-          <p class="helper">The top lane is your unscheduled parking area. The full candidate catalog stays visible underneath.</p>
+          <p class="helper">Everything starts in the unscheduled parking area so you can drag each doc into the right month. The full candidate catalog stays visible underneath.</p>
           <div class="filter-stack">
             <div class="filter-box">
               <label><input type="checkbox" id="filterStrategicOnly"> Show strategic automation only</label>
@@ -202,7 +202,7 @@
 
   <script>
     const BACKLOG_ID = 'backlog';
-    const STORAGE_KEY = 'aiNativeSalesImplementationPlanner.v3';
+    const STORAGE_KEY = 'aiNativeSalesImplementationPlanner.v4';
 
     const docs = [
       { id: 'kerran-client-rates-migration', title: 'Kerran client modal + rates migration', url: 'https://github.com/Deliver-Different-Testing/scheduled-rate-builder/blob/main/docs/STEVE-KERRAN-CLIENT-MODAL-AND-RATES-MIGRATION-2026-07-02.md', description: 'Moves core customer commercial setup into the real implementation home.', defaultMonth: '2026-07', category: 'onboarding' },
@@ -244,7 +244,7 @@
     };
 
     const defaultState = {
-      monthAssignments: Object.fromEntries(docs.map(doc => [doc.id, doc.defaultMonth])),
+      monthAssignments: Object.fromEntries(docs.map(doc => [doc.id, BACKLOG_ID])),
       categories: Object.fromEntries(docs.map(doc => [doc.id, doc.category])),
       filters: { strategicOnly: false, hideCore: false, onboardingOnly: false }
     };
