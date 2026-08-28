@@ -57,6 +57,23 @@
     .filter-box { padding: 12px 14px; border-radius: 14px; background: #f7f9fc; border: 1px solid rgba(13,12,44,.08); }
     .filter-box label { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
     .backlog-list { display: grid; gap: 10px; max-height: 70vh; overflow: auto; padding-right: 4px; }
+    .backlog-list.drop-active {
+      outline: 2px dashed var(--c-cyan);
+      outline-offset: 6px;
+      border-radius: 14px;
+      background: rgba(59,199,244,.07);
+    }
+    .backlog-list.empty::before {
+      content: 'Drop roadmap MDs back here';
+      display: block;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px dashed rgba(13,12,44,.16);
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      background: rgba(255,255,255,.55);
+    }
     .quarter-grid { display: grid; gap: 22px; }
     .quarter-card { border-radius: 24px; padding: 22px; box-shadow: var(--shadow-soft); }
     .quarter-card.q1 { background: linear-gradient(180deg, rgba(59,199,244,.12), rgba(59,199,244,.04)); }
@@ -372,6 +389,7 @@
       flags: Object.fromEntries(docs.map(doc => [doc.id, { strategic: doc.strategic, core: doc.core }])),
       filters: { strategicOnly: false, hideCore: false }
     };
+    const BACKLOG_ID = 'backlog';
 
     let state = loadState();
     let draggedDocId = null;
@@ -448,7 +466,9 @@
     function renderBacklog() {
       const backlog = document.getElementById('backlogList');
       const visibleDocs = docs.filter(doc => passesFilters(doc));
-      backlog.innerHTML = visibleDocs.map(docCardHtml).join('');
+      const backlogDocs = visibleDocs.filter(doc => state.monthAssignments[doc.id] === BACKLOG_ID);
+      backlog.classList.toggle('empty', backlogDocs.length === 0);
+      backlog.innerHTML = backlogDocs.map(docCardHtml).join('');
       bindCardEvents(backlog);
     }
 
@@ -535,18 +555,36 @@
 
     function onDragOver(event) {
       event.preventDefault();
+      if (event.currentTarget.id === 'backlogList') {
+        event.currentTarget.classList.add('drop-active');
+        event.dataTransfer.dropEffect = 'move';
+        return;
+      }
       const monthCard = event.currentTarget.classList.contains('month-card') ? event.currentTarget : event.currentTarget.closest('.month-card');
       if (monthCard) monthCard.classList.add('drag-over');
       event.dataTransfer.dropEffect = 'move';
     }
 
     function onDragLeave(event) {
+      if (event.currentTarget.id === 'backlogList') {
+        event.currentTarget.classList.remove('drop-active');
+        return;
+      }
       const monthCard = event.currentTarget.classList.contains('month-card') ? event.currentTarget : event.currentTarget.closest('.month-card');
       if (monthCard) monthCard.classList.remove('drag-over');
     }
 
     function onDrop(event) {
       event.preventDefault();
+      if (event.currentTarget.id === 'backlogList') {
+        const docId = event.dataTransfer.getData('text/plain') || draggedDocId;
+        if (!docId) return;
+        state.monthAssignments[docId] = BACKLOG_ID;
+        event.currentTarget.classList.remove('drop-active');
+        saveState();
+        renderAll();
+        return;
+      }
       const monthId = event.currentTarget.dataset.monthId || event.currentTarget.closest('[data-month-id]')?.dataset.monthId;
       const docId = event.dataTransfer.getData('text/plain') || draggedDocId;
       if (!monthId || !docId) return;
@@ -567,8 +605,13 @@
     function bindGlobalControls() {
       const strategicOnly = document.getElementById('filterStrategicOnly');
       const hideCore = document.getElementById('filterHideCore');
+      const backlog = document.getElementById('backlogList');
       strategicOnly.checked = state.filters.strategicOnly;
       hideCore.checked = state.filters.hideCore;
+
+      backlog.addEventListener('dragover', onDragOver);
+      backlog.addEventListener('dragleave', onDragLeave);
+      backlog.addEventListener('drop', onDrop);
 
       strategicOnly.addEventListener('change', () => {
         state.filters.strategicOnly = strategicOnly.checked;
