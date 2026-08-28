@@ -266,15 +266,24 @@
       return String(value || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
     }
 
+    function normalizeDateOnly(value) {
+      if (!value) return null;
+      return String(value).slice(0, 10);
+    }
+
     function sprintIdForProject(project) {
-      if (!project.sprintStartDate || !project.sprintEndDate) return BACKLOG_ID;
-      const match = sprints.find(sprint => sprint.startIso === project.sprintStartDate && sprint.endIso === project.sprintEndDate);
+      const sprintStart = normalizeDateOnly(project.sprintStartDate);
+      const sprintEnd = normalizeDateOnly(project.sprintEndDate);
+      if (!sprintStart || !sprintEnd) return BACKLOG_ID;
+      const match = sprints.find(sprint => sprint.startIso === sprintStart && sprint.endIso === sprintEnd);
       return match ? match.id : BACKLOG_ID;
     }
 
     function sprintLabel(project) {
-      if (!project.sprintStartDate || !project.sprintEndDate) return 'Unscheduled';
-      return `${project.sprintStartDate} → ${project.sprintEndDate}`;
+      const sprintStart = normalizeDateOnly(project.sprintStartDate);
+      const sprintEnd = normalizeDateOnly(project.sprintEndDate);
+      if (!sprintStart || !sprintEnd) return 'Unscheduled';
+      return `${sprintStart} → ${sprintEnd}`;
     }
 
     function projectCardHtml(project) {
@@ -476,8 +485,8 @@
           status: saved.status || project.status,
           notes: saved.notes || '',
           projectType: saved.projectType || '',
-          sprintStartDate: saved.sprintStartDate,
-          sprintEndDate: saved.sprintEndDate,
+          sprintStartDate: normalizeDateOnly(saved.sprintStartDate) || patch.sprintStartDate,
+          sprintEndDate: normalizeDateOnly(saved.sprintEndDate) || patch.sprintEndDate,
         });
         renderAll();
         setSyncNote(`Saved ${project.title}.`);
@@ -503,8 +512,8 @@
           status: saved.status || project.status,
           notes: saved.notes || '',
           projectType: saved.projectType || '',
-          sprintStartDate: saved.sprintStartDate,
-          sprintEndDate: saved.sprintEndDate,
+          sprintStartDate: normalizeDateOnly(saved.sprintStartDate) || project.sprintStartDate,
+          sprintEndDate: normalizeDateOnly(saved.sprintEndDate) || project.sprintEndDate,
         });
         renderAll();
         setSyncNote(`Saved type for ${project.title}.`);
@@ -566,8 +575,8 @@
           status: row?.status || 'Not started',
           notes: row?.notes || '',
           projectType: row?.projectType || '',
-          sprintStartDate: row?.sprintStartDate || null,
-          sprintEndDate: row?.sprintEndDate || null,
+          sprintStartDate: normalizeDateOnly(row?.sprintStartDate) || null,
+          sprintEndDate: normalizeDateOnly(row?.sprintEndDate) || null,
         };
       }).sort((a, b) => {
         if (sprintIdForProject(a) === BACKLOG_ID && sprintIdForProject(b) !== BACKLOG_ID) return -1;
