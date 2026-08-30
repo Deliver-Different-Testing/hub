@@ -41,26 +41,26 @@ public class HomeAppGridAnimationTests
     }
 
     [Fact]
-    public void Animation_Covers_WorkflowsCard_InInternalTenantGrid()
+    public void Animation_Covers_SettingsCard_InInternalTenantGrid()
     {
         // The internal-tenant branch (Index.cshtml else block) renders 15 cards
-        // ending in Workflows. Without a :nth-child(15) animation-delay rule the
-        // Workflows tile pops in alongside the first card instead of trailing
+        // ending in Settings. Without a :nth-child(15) animation-delay rule the
+        // Settings tile pops in alongside the first card instead of trailing
         // the staggered entry — visually inconsistent with the rest.
-        var workflowsPosition = WorkflowsCardPositionInInternalBranch(_homeView);
-        Assert.True(workflowsPosition > 0, "Workflows card not found in home view");
+        var settingsPosition = SettingsCardPositionInInternalBranch(_homeView);
+        Assert.True(settingsPosition > 0, "Settings card not found in home view");
 
         var highestDelayedChild = HighestNthChildDelayInAppGrid(_siteLess);
         Assert.True(
-            highestDelayedChild >= workflowsPosition,
-            $"site.less staggers up to :nth-child({highestDelayedChild}) but Workflows is card #{workflowsPosition}.");
+            highestDelayedChild >= settingsPosition,
+            $"site.less staggers up to :nth-child({highestDelayedChild}) but Settings is card #{settingsPosition}.");
     }
 
-    private static int WorkflowsCardPositionInInternalBranch(string view)
+    private static int SettingsCardPositionInInternalBranch(string view)
     {
         // The else block starts after the closing brace of the `!clientInternal`
         // branch. Conditional cards inside the else block (e.g. Fuel Surcharge)
-        // count toward the position because they may render before Workflows.
+        // count toward the position because they may render before Settings.
         var elseStart = view.IndexOf("else\r\n    {", StringComparison.Ordinal);
         if (elseStart < 0)
         {
@@ -72,8 +72,8 @@ public class HomeAppGridAnimationTests
             return -1;
         }
 
-        var workflowsIndex = view.IndexOf("Workflows</div>", elseStart, StringComparison.Ordinal);
-        if (workflowsIndex < 0)
+        var settingsIndex = view.IndexOf("Settings</div>", elseStart, StringComparison.Ordinal);
+        if (settingsIndex < 0)
         {
             return -1;
         }
@@ -81,7 +81,7 @@ public class HomeAppGridAnimationTests
         var count = 0;
         var index = elseStart;
         const string marker = "class=\"app-card\"";
-        while ((index = view.IndexOf(marker, index, StringComparison.Ordinal)) >= 0 && index < workflowsIndex)
+        while ((index = view.IndexOf(marker, index, StringComparison.Ordinal)) >= 0 && index < settingsIndex)
         {
             count++;
             index += marker.Length;
