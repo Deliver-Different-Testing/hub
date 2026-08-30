@@ -45,7 +45,13 @@ public class HomeController(
         int? clientId = int.TryParse(clientIdClaim, out var ci) && ci > 0 ? ci : null;
         // DF-admin (ClientType=5) bypass is determined inside the resolver from
         // the client's ClientType — no longer the legacy UserGroupID==1 check.
-        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId);
+        //
+        // isInternal is passed so the tenant's own staff resolve as Tenant
+        // (ClientType 4) rather than Customer (2) — they sit on Customer clients
+        // carrying ucclInternal=1, and resolving that literally would strip most
+        // of their tiles. See FeatureResolver for the full reasoning.
+        var isInternalStaff = bool.TryParse(internalTenantUser, out var iu) && iu;
+        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId, isInternalStaff);
 
         // Gate 2 - tile-level access (Steve 2026-08-26). Gate 1 above says which
         // features DF Admin enabled for the tenant; this says which of the hub
