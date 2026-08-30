@@ -133,7 +133,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <a class="dropdown-item" href="@Url.Action("Settings", "Account")">
-                                            <dfrnt-icon set="lucide" name="settings" /> Settings
+                                            @* "User Settings", not "Settings" - the hub tile that
+                                               opens the configurator is now called Settings, and two
+                                               unrelated things called Settings on the same page is
+                                               how people end up in the wrong one. *@
+                                            <dfrnt-icon set="lucide" name="settings" /> User Settings
                                         </a>
                                     </li>
                                     <li>
