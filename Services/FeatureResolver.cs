@@ -9,6 +9,10 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
     // NULL ClientTypeId → 2 (Customer) per §1.4 of the Permissions plan.
     private const int NullClientTypeFallback = 2;
 
+    // ClientType 4 = Tenant, 5 = DFRNTAdmin.
+    private const int TenantClientType = 4;
+    private const int DfAdminClientType = 5;
+
     // A feature reaches a tenant only when ClientVisible AND ReleaseStatus ==
     // Live, so unfinished work cannot surface just because its parent tile is
     // enabled. Must stay in step with the configurator ClientTypeFeatureResolver:
@@ -32,7 +36,7 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<HashSet<string>> ResolveForClientAsync(int? clientId)
+    public async Task<HashSet<string>> ResolveForClientAsync(int? clientId, bool isInternal = false)
     {
         // Look up the user's ClientType from their client.
         int? clientTypeId = null;
@@ -45,12 +49,35 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
                 .FirstOrDefaultAsync();
         }
 
+        // INTERNAL STAFF RESOLVE AS TENANT, NOT AS CUSTOMER.
+        //
+        // The tenant's own people sit on Customer (ClientType 2) clients
+        // carrying ucclInternal = 1 - section 3 of the unified permissions spec
+        // warns about exactly this, and StaffLaneSignal in the configurator
+        // keys off the same flag. Taking their ClientType literally would
+        // resolve them against the Customer row set, which on urgent-staging is
+        // three tiles: they would lose Dispatch, Accounts, Admin Manager and
+        // the rest the moment the internal branch of Index.cshtml starts
+        // honouring this set.
+        //
+        // Mapping them to Tenant is both correct and safe. ucclInternal = 1
+        // means "this client is us", and ClientType 4 already carries a visible
+        // row for every hub tile, so this preserves exactly what internal staff
+        // see today rather than granting anything new.
+        //
+        // NOT applied to a DF Admin: ClientType 5 has its own bypass below and
+        // must keep it.
+        if (isInternal && clientTypeId != DfAdminClientType)
+        {
+            clientTypeId = TenantClientType;
+        }
+
         // DF Admin bypass — ClientType=5 (DFRNTAdmin) sees the union of every
         // visible feature key across all ClientTypes. Keyed on ClientType so a
         // tenant Administrator (UserGroupID=1 on a ClientTypeId=4 client) is NOT
         // treated as a DF admin — was a caller-supplied isDfAdmin bool keyed on
         // UserGroupID==1; switched to match the configurator's signal.
-        if (clientTypeId != 5)
+        if (clientTypeId != DfAdminClientType)
         {
             return await ResolveVisibleFeaturesAsync(clientTypeId);
         }

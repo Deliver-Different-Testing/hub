@@ -33,5 +33,11 @@ public interface IFeatureResolver
     /// and returns the matching matrix slice. ClientType=5 (DFRNTAdmin)
     /// bypasses to the union of every visible key across all ClientTypes.
     /// </summary>
-    Task<HashSet<string>> ResolveForClientAsync(int? clientId);
+    /// <param name="isInternal">
+    /// The caller's <c>Internal</c> claim (tucClient.ucclInternal). Internal
+    /// staff sit on Customer clients but are the tenant, so they resolve as
+    /// ClientType 4 rather than 2. Without this they would resolve against the
+    /// Customer row set and lose most of their tiles.
+    /// </param>
+    Task<HashSet<string>> ResolveForClientAsync(int? clientId, bool isInternal = false);
 }
