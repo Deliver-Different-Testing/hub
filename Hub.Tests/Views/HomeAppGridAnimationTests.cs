@@ -1,20 +1,15 @@
+using Hub.Services;
+
 namespace Hub.Tests.Views;
 
 public class HomeAppGridAnimationTests
 {
-    private readonly string _homeView;
     private readonly string _siteLess;
 
     public HomeAppGridAnimationTests()
     {
-        var viewPath = FindFile("Views", "Home", "Index.cshtml");
-        if (viewPath is null)
-        {
-            Assert.Skip("Views/Home/Index.cshtml not found relative to test output directory");
-        }
-
-        _homeView = File.ReadAllText(viewPath);
-
+        // The view is no longer read: the tile list moved to HubTileCatalogue on
+        // 2026-09-01, so the count comes from there rather than from markup.
         var lessPath = FindFile("wwwroot", "css", "site.less");
         if (lessPath is null)
         {
@@ -39,55 +34,27 @@ public class HomeAppGridAnimationTests
         }
         return null;
     }
-
     [Fact]
-    public void Animation_Covers_SettingsCard_InInternalTenantGrid()
+    public void Animation_Covers_EveryTileTheCatalogueCanRender()
     {
-        // The internal-tenant branch (Index.cshtml else block) renders 15 cards
-        // ending in Settings. Without a :nth-child(15) animation-delay rule the
-        // Settings tile pops in alongside the first card instead of trailing
-        // the staggered entry — visually inconsistent with the rest.
-        var settingsPosition = SettingsCardPositionInInternalBranch(_homeView);
-        Assert.True(settingsPosition > 0, "Settings card not found in home view");
-
+        // This used to count cards in the internal-staff block of Index.cshtml.
+        // That block is gone as of 2026-09-01 — the tiles come from
+        // HubTileCatalogue and the matrix decides which of them render — so the
+        // question is asked of the catalogue directly, which is also the thing
+        // that grows when someone adds a tile.
+        //
+        // site.less staggers the entry animation per :nth-child. A tile added to
+        // the catalogue without extending that rule pops in alongside the first
+        // card instead of trailing the rest.
+        var tileCount = HubTileCatalogue.Keys.Count;
         var highestDelayedChild = HighestNthChildDelayInAppGrid(_siteLess);
+
         Assert.True(
-            highestDelayedChild >= settingsPosition,
-            $"site.less staggers up to :nth-child({highestDelayedChild}) but Settings is card #{settingsPosition}.");
+            highestDelayedChild >= tileCount,
+            $"site.less staggers up to :nth-child({highestDelayedChild}) but the catalogue can "
+            + $"render {tileCount} tiles. Extend the nth-child rules in site.less.");
     }
 
-    private static int SettingsCardPositionInInternalBranch(string view)
-    {
-        // The else block starts after the closing brace of the `!clientInternal`
-        // branch. Conditional cards inside the else block (e.g. Fuel Surcharge)
-        // count toward the position because they may render before Settings.
-        var elseStart = view.IndexOf("else\r\n    {", StringComparison.Ordinal);
-        if (elseStart < 0)
-        {
-            elseStart = view.IndexOf("else\n    {", StringComparison.Ordinal);
-        }
-
-        if (elseStart < 0)
-        {
-            return -1;
-        }
-
-        var settingsIndex = view.IndexOf("Settings</div>", elseStart, StringComparison.Ordinal);
-        if (settingsIndex < 0)
-        {
-            return -1;
-        }
-
-        var count = 0;
-        var index = elseStart;
-        const string marker = "class=\"app-card\"";
-        while ((index = view.IndexOf(marker, index, StringComparison.Ordinal)) >= 0 && index < settingsIndex)
-        {
-            count++;
-            index += marker.Length;
-        }
-        return count;
-    }
 
     private static int HighestNthChildDelayInAppGrid(string less)
     {

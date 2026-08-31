@@ -4,37 +4,15 @@
     ViewBag.PageId = "home";
 
     var contactId = Model.ContactId;
-    var userEmail = Model.UserEmail;
-    var tenantCode = Model.TenantCode;
 
-    var clientInternal = bool.TryParse(Model.ClientInternal, out var ci) && ci;
+    // Couriers are the one audience the matrix cannot drive: they have no
+    // ClientType, so FeatureResolver returns an empty set for them and there is
+    // no audience row to configure. Their tiles stay hardcoded below. Every
+    // other audience is resolved from the catalogue in HomeController.
     var isCourier = bool.TryParse(User.FindFirst("IsCourier")?.Value, out var c) && c;
-    // Phase 5+28c §D — Network Partner gets a dedicated tile set
-    // (Configurator / Dispatch / Route Viewer). Slotted between the
-    // isCourier branch and the customer / internal-staff branches below.
-    // CourierManager intentionally NOT included — superseded by the
-    // configurator's NP view per the NP-VISIBILITY-MATRIX.
-    var isNetworkPartner = bool.TryParse(User.FindFirst("IsNetworkPartner")?.Value, out var inp) && inp;
-    // Phase 5+31 R2 §2 follow-up — Tenant (ClientType=4) is a first-class tile
-    // branch below. The ClientTypeId claim already rides the cookie
-    // (AccountController:493), so we read it here like the courier / NP flags.
-    var clientTypeId = int.TryParse(User.FindFirst("ClientTypeId")?.Value, out var ctid) ? (int?)ctid : null;
-    var isTenant = clientTypeId == 4;
-    var bulkUploadPermission = Model.BulkUploadPermission;
-
-    var isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
-                            !string.IsNullOrEmpty(tenantCode) &&
-                            userEmail.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase) &&
-                            tenantCode.Equals("urgent", StringComparison.OrdinalIgnoreCase);
 
     string AppUrl(string appName) =>
         Environment.GetEnvironmentVariable("TenantURL")!.Replace("app_name", appName);
-
-    var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
-    var bookingAppFullUrl = AppUrl("booking") + bookingAppPath;
-
-    var showFuelLink = !isCourier
-                       && string.Equals(tenantCode, "urgent", StringComparison.OrdinalIgnoreCase);
 
     var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 }
@@ -76,341 +54,41 @@
             </a>
         </div>
     }
-    else if (isNetworkPartner)
-    {
-        // Phase 5+31 R2 §2 — was 5+28c §D's hardcoded 3-tile NP branch
-        // (Configurator + Dispatch + Route Viewer); each tile now gates on
-        // the matrix-driven Model.VisibleFeatures set, so admins can flip
-        // any of them off for NP via the Settings → Feature Matrix UI in
-        // configurator without a code change. Default seed matches the
-        // pre-§2 hardcoded set (3 tiles visible for NP).
-        <div class="app-grid">
-            @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
-            {
-                <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
-                    <div class="app-card-title">DFRNT Drive</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
-            {
-                <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
-                    <div class="app-card-title">Dispatch</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
-            {
-                <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
-                    <div class="app-card-title">Route Viewer</div>
-                </a>
-            }
-        </div>
-    }
-    else if (isTenant && !clientInternal)
-    {
-        // Phase 5+31 R2 §2 follow-up — Tenant (ClientType=4) tile set.
-        // Tenant staff were previously misrouted into the Customer branch
-        // (no Tenant branch existed) and so never saw Dispatch / Workflows,
-        // even though the ClientType×Feature matrix marks them visible for
-        // CT4 (seed 20260527090000_FeatureAndClientTypeFeatureMatrix). Each
-        // tile gates on the matrix-resolved Model.VisibleFeatures so admins
-        // tune the tenant set in the configurator Feature Matrix without a
-        // code change. Legacy UcclInternal=1 "internal" users still fall
-        // through to the all-tiles internal-staff branch below (the
-        // isTenant guard requires !clientInternal), so existing internal
-        // staff are not regressed.
-        <div class="app-grid">
-            @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
-            {
-                <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
-                    <div class="app-card-title">Booking/Job List</div>
-                </a>
-            }
-            @* Bulk Import needs BOTH the legacy InternetPermission and the
-               matrix. AND rather than a swap: the matrix can take the tile away
-               but must never hand it to someone the old permission excluded. *@
-            @if (bulkUploadPermission && Model.VisibleFeatures.Contains("hub-tile-bulk-import"))
-            {
-                <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
-                    <div class="app-card-title">Bulk Import</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
-            {
-                <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
-                    <div class="app-card-title">Job Search</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
-            {
-                <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
-                    <div class="app-card-title">Dispatch</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
-            {
-                <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
-                    <div class="app-card-title">Settings</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-couriermanager"))
-            {
-                <a class="app-card" href="@AppUrl("couriermanager")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
-                    <div class="app-card-title">Courier Manager</div>
-                </a>
-            }
-            @if (!isUrgentAsureUser)
-            {
-                @if (Model.VisibleFeatures.Contains("hub-tile-print"))
-                {
-                    <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
-                        <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
-                        <div class="app-card-title">Print</div>
-                    </a>
-                }
-                @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
-                {
-                    <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
-                        <div class="app-card-title">Route Viewer</div>
-                    </a>
-                }
-            }
-            @* showFuelLink is the tenant gate (urgent only, non-courier); the
-               matrix key lets it be switched off per audience on top of that. *@
-            @if (showFuelLink && Model.VisibleFeatures.Contains("hub-tile-fuel-surcharge"))
-            {
-                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
-                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
-                    <div class="app-card-title">Fuel Surcharge</div>
-                </a>
-            }
-        </div>
-    }
-    else if (!clientInternal)
-    {
-        // Phase 5+31 R2 §2 — Customer branch (ClientType=2 or NULL via
-        // resolver fallback). The three keyed tiles (Booking, Job Search,
-        // Route Viewer) now matrix-gate; the unkeyed tiles (Bulk Import,
-        // Print, Fuel Surcharge) keep their existing per-permission /
-        // per-flag conditionals because the matrix seed doesn't have keys
-        // for them yet — future iteration extends the seed + collapses
-        // those into the matrix.
-        <div class="app-grid">
-            @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
-            {
-                <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
-                    <div class="app-card-title">Booking/Job List</div>
-                </a>
-            }
-            @* Bulk Import needs BOTH the legacy InternetPermission and the
-               matrix. AND rather than a swap: the matrix can take the tile away
-               but must never hand it to someone the old permission excluded. *@
-            @if (bulkUploadPermission && Model.VisibleFeatures.Contains("hub-tile-bulk-import"))
-            {
-                <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
-                    <div class="app-card-title">Bulk Import</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
-            {
-                <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
-                    <div class="app-card-title">Job Search</div>
-                </a>
-            }
-            @if (!isUrgentAsureUser)
-            {
-                @if (Model.VisibleFeatures.Contains("hub-tile-print"))
-                {
-                    <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
-                        <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
-                        <div class="app-card-title">Print</div>
-                    </a>
-                }
-                @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
-                {
-                    <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                        <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
-                        <div class="app-card-title">Route Viewer</div>
-                    </a>
-                }
-            }
-            @* showFuelLink is the tenant gate (urgent only, non-courier); the
-               matrix key lets it be switched off per audience on top of that. *@
-            @if (showFuelLink && Model.VisibleFeatures.Contains("hub-tile-fuel-surcharge"))
-            {
-                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
-                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
-                    <div class="app-card-title">Fuel Surcharge</div>
-                </a>
-            }
-        </div>
-    }
     else
     {
         @*
-            INTERNAL STAFF. Every tile here now gates on Model.VisibleFeatures,
-            which it did not before: this branch rendered all 17 unconditionally
-            and so ignored BOTH the ClientType matrix and role-level tile access.
-            That made Tile Access silently inert for the tenant's own people -
-            found while investigating Steve's 2026-08-28 testing.
+            ONE LIST, DECIDED BY THE MATRIX.
 
-            Safe because HomeController now passes isInternal, so these callers
-            resolve as ClientType 4 (Tenant), which carries a visible row for
-            every hub tile. They keep exactly what they had; the difference is
-            that switching a tile off now works on them too.
+            This replaced four hardcoded audience blocks on 2026-09-01 (Steve
+            decision note). Each block listed the tiles someone had written into
+            it, so Tile Access could only ever HIDE a tile a block already
+            contained and never add one — which is why ticking Settings for
+            Customer changed the setting correctly and showed nothing, and why a
+            customer could reach 6 of 17 tiles regardless of configuration.
+
+            HomeController resolves Model.Tiles from the catalogue, so "which
+            tiles does this audience get" is now answered entirely by
+            ClientTypeFeature and the role grid. Adding a tile to an audience is
+            a setting, not a code change.
         *@
         <div class="app-grid">
-            @if (Model.VisibleFeatures.Contains("hub-tile-accounts"))
+            @foreach (var tile in Model.Tiles)
             {
-                <a class="app-card" href="@AppUrl("accounts")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/accounts.svg" alt="" /></div>
-                    <div class="app-card-title">Accounts</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-adminmanager"))
-            {
-                <a class="app-card" href="@AppUrl("adminmanager")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/admin-manager.svg" alt="" /></div>
-                    <div class="app-card-title">Admin Manager</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-booking"))
-            {
-                <a class="app-card" href="@bookingAppFullUrl" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/booking-page.svg" alt="" /></div>
-                    <div class="app-card-title">Booking/Job List</div>
-                </a>
-            }
-            @* Deliberately NOT also gated on bulkUploadPermission, unlike the
-               Customer and Tenant branches: internal staff have never needed
-               that permission to see this tile and requiring it now would take
-               the tile off people who use it. *@
-            @if (Model.VisibleFeatures.Contains("hub-tile-bulk-import"))
-            {
-                <a class="app-card" href="@(AppUrl("bulkimport") + "/#/login/")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/bulk-import.svg" alt="" /></div>
-                    <div class="app-card-title">Bulk Import</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-client-manager"))
-            {
-                <a class="app-card" href="@AppUrl("clientmanager")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/client-manager.svg" alt="" /></div>
-                    <div class="app-card-title">Client Manager</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-couriermanager"))
-            {
-                <a class="app-card" href="@AppUrl("couriermanager")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/courier-manager.svg" alt="" /></div>
-                    <div class="app-card-title">Courier Manager</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-courier-portal"))
-            {
-                <a class="app-card" href="@AppUrl("courierportal")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
-                    <div class="app-card-title">Courier Portal</div>
-                </a>
-            }
-            @* Customer Success Platform (formerly "DFRNT CRM") - multi-tenant CRM
-               whose current focus is an email inbox (connect a Gmail account, then
-               triage and file inbound mail against CRM contacts, companies and deals).
-               Currently DISABLED / "Coming soon": the product isn't ready, so the tile
-               is shown (so staff know it's coming) but is not clickable. To re-enable,
-               swap this back to a live link -
-               <a class="app-card" href="@@AppUrl("dfrntcrm")" target="_blank" rel="noopener noreferrer">
-               - the "dfrntcrm" slug is the per-tenant deploy hostname (dfrntcrm.{tenant},
-               driven by CI vars, not this file) and stays the same when re-enabled. *@
-            @if (Model.VisibleFeatures.Contains("hub-tile-dfrntcrm"))
-            {
-                <div class="app-card app-card--soon" aria-disabled="true" title="Coming soon">
-                    <div class="app-card-icon"><img src="~/images/icons/crm-inbox.svg" alt="" /></div>
-                    <div class="app-card-title">Customer Success Platform</div>
-                    <span class="app-card-chip">Coming soon</span>
-                </div>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-despatchweb"))
-            {
-                <a class="app-card" href="@AppUrl("despatch")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
-                    <div class="app-card-title">Dispatch</div>
-                </a>
-            }
-            @* showFuelLink is the tenant gate (urgent only, non-courier); the
-               matrix key lets it be switched off per audience on top of that. *@
-            @if (showFuelLink && Model.VisibleFeatures.Contains("hub-tile-fuel-surcharge"))
-            {
-                <a class="app-card" href="@Url.Action("Index", "FuelSurcharge")">
-                    <div class="app-card-icon"><img src="~/images/icons/fuel icon.svg" alt="" /></div>
-                    <div class="app-card-title">Fuel Surcharge</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-integration-manager"))
-            {
-                <a class="app-card" href="@(AppUrl("integrationmanager") + "/auth/entry")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/integration-hub.svg" alt="" /></div>
-                    <div class="app-card-title">Integration Manager</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-tracking"))
-            {
-                <a class="app-card" href="@AppUrl("tracking")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/tracker.svg" alt="" /></div>
-                    <div class="app-card-title">Job Search</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-print"))
-            {
-                <a class="app-card" href="@(AppUrl("runviewer") + "/#/print")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/print.svg" alt="" /></div>
-                    <div class="app-card-title">Print</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-route-builder"))
-            {
-                <a class="app-card" href="@AppUrl("runbuilder")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="" /></div>
-                    <div class="app-card-title">Route Builder</div>
-                </a>
-            }
-            @* Routed Operations - the RunBuilder successor (Stage 1 = Route
-               Builder parity). Added alongside the legacy Route Builder tile
-               so internal staff can use either while parity is validated;
-               swap out the legacy tile once cutover completes. Hostname is
-               routedoperations.{tenant} per its per-tenant CI deploy vars. *@
-            @if (Model.VisibleFeatures.Contains("hub-tile-routed-operations"))
-            {
-                <a class="app-card" href="@AppUrl("routedoperations")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/route-builder.svg" alt="" /></div>
-                    <div class="app-card-title">Routed Operations</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-routeviewer"))
-            {
-                <a class="app-card" href="@AppUrl("runviewer")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/route-viewer.svg" alt="" /></div>
-                    <div class="app-card-title">Route Viewer</div>
-                </a>
-            }
-            @if (Model.VisibleFeatures.Contains("hub-tile-configurator"))
-            {
-                <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
-                    <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
-                    <div class="app-card-title">Settings</div>
-                </a>
+                if (tile.IsDisabled)
+                {
+                    <div class="app-card app-card--soon" aria-disabled="true" title="Coming soon">
+                        <div class="app-card-icon"><img src="~/images/icons/@tile.Icon" alt="" /></div>
+                        <div class="app-card-title">@tile.Title</div>
+                        <span class="app-card-chip">Coming soon</span>
+                    </div>
+                }
+                else
+                {
+                    <a class="app-card" href="@tile.Href" target="_blank" rel="noopener noreferrer">
+                        <div class="app-card-icon"><img src="~/images/icons/@tile.Icon" alt="" /></div>
+                        <div class="app-card-title">@tile.Title</div>
+                    </a>
+                }
             }
         </div>
     }

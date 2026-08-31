@@ -1,3 +1,5 @@
+using Hub.Models;
+
 namespace Hub.ViewModels;
 
 public sealed record HomeViewModel
@@ -18,4 +20,18 @@ public sealed record HomeViewModel
     // Empty set for courier logins (no client context) — courier branch
     // doesn't consult this field anyway.
     public HashSet<string> VisibleFeatures { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The launcher tiles this caller gets, resolved and ordered.
+    /// </summary>
+    /// <remarks>
+    /// Replaced five hardcoded per-audience blocks in Index.cshtml on
+    /// 2026-09-01. Those blocks meant the matrix could only hide a tile a block
+    /// already listed, never add one — a customer could reach 6 of 17 tiles
+    /// whatever Tile Access said. Now the matrix decides.
+    ///
+    /// Empty for couriers, who have no ClientType and therefore no audience row
+    /// to configure; the view keeps a hardcoded courier block for them.
+    /// </remarks>
+    public IReadOnlyList<HubTile> Tiles { get; init; } = [];
 }

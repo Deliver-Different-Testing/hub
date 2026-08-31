@@ -3,6 +3,7 @@ using Hub.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using Hub.Services;
 using Hub.Models;
 
 namespace Hub.Controllers;
@@ -34,13 +35,10 @@ public class HomeController(
         var contactId = int.Parse(cid);
         var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissionsAsync(contactId);
 
-        // Phase 5+31 R2 §2 — resolve the user's visible hub-tile-* feature
-        // keys against the ClientType × Feature matrix. Drives the
-        // non-courier non-internal-staff tile rendering in Index.cshtml.
-        // Internal-staff branch (clientInternal=true) ignores this set and
-        // shows all tiles unconditionally for R2 closeout; matrix-driving
-        // internal too is future work after the seed gains keys for the
-        // ~10 unkeyed tiles (Accounts, AdminManager, Bulk Import, etc.).
+        // Phase 5+31 R2 §2 — resolve the user's visible hub-tile-* feature keys
+        // against the ClientType × Feature matrix. Drives EVERY non-courier
+        // tile as of 2026-09-01: the per-audience blocks in Index.cshtml are
+        // gone, so this set plus the role gate below is the whole answer.
         var clientIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
         int? clientId = int.TryParse(clientIdClaim, out var ci) && ci > 0 ? ci : null;
         // DF-admin (ClientType=5) bypass is determined inside the resolver from
@@ -72,8 +70,34 @@ public class HomeController(
             contactId,
             string.Join(", ", tileDecisions.Select(d => $"{d.TileKey}={d.Reason}")));
 
+        // Resolve the launcher tiles here rather than in the view. The view used
+        // to carry five hardcoded audience blocks, which is why the matrix could
+        // only hide a tile a block already listed and never add one.
+        //
+        // The four conditions passed in are real runtime facts the matrix cannot
+        // express: a legacy per-contact permission, a page that exists on one
+        // tenant only, and one account with a bespoke rule. They stay as AND
+        // conditions on top of the matrix, never as a way to grant.
+        var tenantCodeValue = tenantCode ?? string.Empty;
+        var isAsureUser = string.Equals(userEmail, "asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
+                          && string.Equals(tenantCodeValue, "urgent", StringComparison.OrdinalIgnoreCase);
+        var isCourier = string.Equals(HttpContext.User.FindFirst("IsCourier")?.Value, "True",
+                                      StringComparison.OrdinalIgnoreCase);
+
+        var tiles = HubTileCatalogue.Resolve(
+            new HubTileContext(
+                AppUrl: TenantAppUrl,
+                FuelSurchargeUrl: Url.Action("Index", "FuelSurcharge") ?? "/FuelSurcharge",
+                BookingPath: isAsureUser ? "/#/asure" : "/#/login/",
+                HasBulkUploadPermission: GetPermission(internetPermissions, 11),
+                ShowFuelSurcharge: !isCourier
+                    && string.Equals(tenantCodeValue, "urgent", StringComparison.OrdinalIgnoreCase),
+                IsAsureUser: isAsureUser),
+            visibleFeatures);
+
         var model = new HomeViewModel
         {
+            Tiles = tiles,
             ContactId = contactId,
 
             DespatchWebPermission = GetPermission(internetPermissions, 12),
@@ -102,6 +126,13 @@ public class HomeController(
 
     private static bool GetPermission(List<RVW_stpValidateInternetPermissionsResult> internetPermissions,
         int internetPermissionId) => internetPermissions.Any(i => i.InternetPermissionID == internetPermissionId);
+
+    /// <summary>
+    /// Per-tenant app URL from an app slug. Was a local function in the view;
+    /// moved here when tile resolution did.
+    /// </summary>
+    private static string TenantAppUrl(string appName) =>
+        (Environment.GetEnvironmentVariable("TenantURL") ?? string.Empty).Replace("app_name", appName);
 
     private async Task<bool> IsAfterHoursAuthorizedAsync()
     {
