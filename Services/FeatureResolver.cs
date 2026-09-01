@@ -20,13 +20,25 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
     // tile that leads to an empty sidebar.
     private const string LiveReleaseStatus = "Live";
 
+    // DF ADMIN CEILING (Steve decision note 2026-09-01, step 3). Effective
+    // visibility is Visible AND Grantable: Visible is what the tenant granted
+    // in Tile Access, Grantable is whether DF Admin allowed them to. Enforced
+    // here and not only in the configurator setter, so that LOWERING the
+    // ceiling revokes immediately rather than merely blocking the next click.
+    //
+    // Applied to the DF Admin union below as well: a row the ceiling has closed
+    // grants nobody anything, so it must not carry a tile into the union
+    // either. Must stay in step with the configurator ClientTypeFeatureResolver
+    // - the two apps read the same catalogue, and a disagreement here shows up
+    // as a hub tile that leads to an empty sidebar.
+
     public async Task<HashSet<string>> ResolveVisibleFeaturesAsync(int? clientTypeId)
     {
         var effectiveId = clientTypeId ?? NullClientTypeFallback;
 
         var keys = await context.ClientTypeFeatures
             .AsNoTracking()
-            .Where(ctf => ctf.ClientTypeId == effectiveId && ctf.Visible)
+            .Where(ctf => ctf.ClientTypeId == effectiveId && ctf.Visible && ctf.Grantable)
             .Join(context.Features.AsNoTracking()
                      .Where(f => f.ClientVisible && f.ReleaseStatus == LiveReleaseStatus),
                   ctf => ctf.FeatureKey, f => f.FeatureKey, (ctf, f) => ctf)
@@ -84,7 +96,7 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
 
         var allKeys = await context.ClientTypeFeatures
             .AsNoTracking()
-            .Where(ctf => ctf.Visible)
+            .Where(ctf => ctf.Visible && ctf.Grantable)
             .Select(ctf => ctf.FeatureKey)
             .Distinct()
             .ToListAsync();
