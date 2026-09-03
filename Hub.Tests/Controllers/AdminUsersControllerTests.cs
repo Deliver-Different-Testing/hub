@@ -418,6 +418,108 @@ public class AdminUsersControllerTests : IDisposable
 
     // === Item 7b — SetPassword (staff password set) =====================
 
+    // ── Which tenant database gets searched (2026-09-04) ───────────────────
+    //
+    // THE BUG THESE EXIST FOR. SendReset resolved the tenant from
+    // Master.User.CurrentTenant - where the user last signed in - not from the
+    // tenant the administrator was working in. On 2026-09-03 an admin in urgent
+    // reset a contact whose Master record pointed at medical; Hub searched
+    // medical, found nothing, and reported "email not sent" with no hint that it
+    // had looked in the wrong database.
+    //
+    // Only staff spanning several tenants are affected - a single-tenant
+    // customer's pointer always matches - which is why nobody caught it.
+
+    [Fact]
+    public async Task SendReset_UsesTheCallerTenant_NotTheUsersCurrentTenant()
+    {
+        // THE REGRESSION TEST. The user's own pointer says one database; the
+        // caller says another. The caller must win.
+        var user = StaffUserWithTenant("Server=WRONG-users-last-tenant;");
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=RIGHT-callers-tenant;");
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com", TenantId: 42));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value).ResetEmailSent);
+        _connectionStringManager.Received(1).SetConnectionString("Server=RIGHT-callers-tenant;;User=test;Password=test;");
+        _connectionStringManager.DidNotReceive().SetConnectionString("Server=WRONG-users-last-tenant;;User=test;Password=test;");
+    }
+
+    [Fact]
+    public async Task SendReset_WithoutATenant_FallsBackToTheUsersCurrentTenant()
+    {
+        // Deploy-order safety. An older configurator sends no tenant, and must
+        // keep working exactly as it did rather than failing outright.
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false)
+            .Returns(StaffUserWithTenant("Server=users-last-tenant;"));
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value).ResetEmailSent);
+        _connectionStringManager.Received(1).SetConnectionString("Server=users-last-tenant;;User=test;Password=test;");
+    }
+
+    [Fact]
+    public async Task SendReset_CallerTenantWithNoConnection_ReturnsOkWithResetFalse()
+    {
+        // A tenant id that resolves to nothing must not silently fall through to
+        // the user's own tenant - that would reintroduce the bug by the back
+        // door, sending a reset for a database the caller never asked for.
+        var user = StaffUserWithTenant("Server=users-last-tenant;");
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _authRepo.GetTenantConnectionStringAsync(999).Returns((string?)null);
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com", TenantId: 999));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.False(Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value).ResetEmailSent);
+        _connectionStringManager.DidNotReceive().SetConnectionString(Arg.Any<string>());
+        Assert.Equal("OLD-RESET-KEY", user.ResetKey);
+    }
+
+    // ── The reset key is not rotated until the send can happen ─────────────
+
+    [Fact]
+    public async Task SendReset_ContactMissing_DoesNotRotateTheResetKey()
+    {
+        // The 2026-09-03 incident in miniature: two failed clicks each rotated
+        // the key, so any link the user already held was destroyed by an
+        // operation that sent nothing.
+        var user = StaffUserWithTenant();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns((TucClientContact?)null);
+
+        await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        Assert.Equal("OLD-RESET-KEY", user.ResetKey);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SendReset_Success_DoesRotateTheResetKey()
+    {
+        // The other half of the pair - the key must still rotate when the send
+        // actually happens, or the emailed link would be the previous one.
+        var user = StaffUserWithTenant();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+
+        await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        Assert.NotEqual("OLD-RESET-KEY", user.ResetKey);
+        await _authRepo.Received(1).SaveAsync();
+    }
+
     private static User StaffUserStub(int userId = 100, string email = "staff.user@example.com")
         => new()
         {
@@ -567,9 +669,11 @@ public class AdminUsersControllerTests : IDisposable
         var ok = Assert.IsType<OkObjectResult>(result);
         var body = Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value);
         Assert.False(body.ResetEmailSent);
-        // A fresh reset key was still generated + persisted.
-        Assert.NotEqual("OLD-RESET-KEY", user.ResetKey);
-        await _authRepo.Received(1).SaveAsync();
+        // CHANGED 2026-09-04. This used to assert the key WAS rotated, which is
+        // what the code did - and it is the bug. A send that cannot happen must
+        // not invalidate a reset link the user is already holding.
+        Assert.Equal("OLD-RESET-KEY", user.ResetKey);
+        await _authRepo.DidNotReceive().SaveAsync();
         _connectionStringManager.DidNotReceive().SetConnectionString(Arg.Any<string>());
     }
 
