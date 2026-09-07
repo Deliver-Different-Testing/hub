@@ -101,4 +101,75 @@ public class PasswordHelperTests
         Assert.False(string.IsNullOrEmpty(result.Salt));
         Assert.False(string.IsNullOrEmpty(result.Hashed));
     }
+
+    // ------------------------------------------------------------------ Verify
+    //
+    // The one place a password is checked. It lives here rather than on a controller because there
+    // are two callers now - the portal sign-in and the Shopify merchant sign-in - and the second is
+    // reachable from the public internet by proxy. Two copies of a password comparison is one too
+    // many, and the copy that existed was not constant-time.
+
+    [Fact]
+    public void Verify_AcceptsTheRightPassword()
+    {
+        var stored = PasswordHelper.HashPassword("Test@1234", "12345");
+
+        Assert.True(PasswordHelper.Verify("Test@1234", "12345", stored, isLegacy: false));
+    }
+
+    [Fact]
+    public void Verify_RejectsTheWrongPassword()
+    {
+        var stored = PasswordHelper.HashPassword("Test@1234", "12345");
+
+        Assert.False(PasswordHelper.Verify("Test@12345", "12345", stored, isLegacy: false));
+    }
+
+    [Fact]
+    public void Verify_WithALegacyRow_AcceptsTheRightPassword()
+    {
+        var stored = PasswordHelper.HashPasswordLegacy("Test@1234", "12345");
+
+        Assert.True(PasswordHelper.Verify("Test@1234", "12345", stored, isLegacy: true));
+    }
+
+    /// <summary>
+    /// The flag decides which algorithm runs, so getting it the wrong way round must fail closed
+    /// rather than compare a SHA256 hash against a SHA1 one and land anywhere by chance.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Verify_WithTheFlagTheWrongWayRound_Refuses(bool storedIsLegacy)
+    {
+        var stored = storedIsLegacy
+            ? PasswordHelper.HashPasswordLegacy("Test@1234", "12345")
+            : PasswordHelper.HashPassword("Test@1234", "12345");
+
+        Assert.False(PasswordHelper.Verify("Test@1234", "12345", stored, isLegacy: !storedIsLegacy));
+    }
+
+    /// <summary>
+    /// An invited user who has never set a password has both columns blank and
+    /// <c>IsLegacyHash = false</c>. Hashing anything against an empty salt happens not to produce an
+    /// empty string, so today that row is unreachable by accident rather than by decision. Decide it.
+    /// </summary>
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("", "12345")]
+    [InlineData("SOMEHASH", "")]
+    [InlineData(null, "12345")]
+    [InlineData("SOMEHASH", null)]
+    public void Verify_WithNoCredentialOnTheRow_Refuses(string? storedHash, string? salt)
+    {
+        Assert.False(PasswordHelper.Verify("Test@1234", salt!, storedHash!, isLegacy: false));
+    }
+
+    [Fact]
+    public void Verify_WithAnEmptyPassword_Refuses()
+    {
+        var stored = PasswordHelper.HashPassword("x", "12345");
+
+        Assert.False(PasswordHelper.Verify("", "12345", stored, isLegacy: false));
+    }
 }
