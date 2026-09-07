@@ -27,6 +27,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[ShopifyShopTenant]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ShopifyTenantHost]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Tenant]",
          "ObjectType": 0
       },

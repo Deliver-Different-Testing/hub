@@ -41,11 +41,20 @@ unit-tests:
     - curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
     - apt-get install -y nodejs
     - dotnet restore
-    - dotnet test Hub.Tests/ --no-restore --verbosity normal -- --report-xunit-trx --report-junit
+    # Run the suite as its own executable rather than through `dotnet test`.
+    #
+    # xunit.v3 builds it that way, and Microsoft.Testing.Platform 2.x - which the package bump in
+    # 6e593e0 pulled in - dropped the VSTest bridge that let `dotnet test` drive one on the .NET 10
+    # SDK. The command now fails before running a single test, so this job was about to start
+    # failing on a change that has nothing to do with the tests.
+    - dotnet build Hub.Tests/Hub.Tests.csproj --no-restore --configuration Debug
+    - ./Hub.Tests/bin/Debug/net10.0/Hub.Tests -result-junit TestResults/junit.xml
   artifacts:
     when: always
     paths:
-      - Hub.Tests/bin/Debug/net10.0/TestResults/
+      - TestResults/
+    reports:
+      junit: TestResults/junit.xml
   rules:
     - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
     - if: $CI_COMMIT_BRANCH == "master"

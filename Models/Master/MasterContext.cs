@@ -17,6 +17,10 @@ public partial class MasterContext : DbContext
 
     public virtual DbSet<IntMgrPartnerDirectoryListing> IntMgrPartnerDirectoryListings { get; set; }
 
+    public virtual DbSet<ShopifyShopTenant> ShopifyShopTenants { get; set; }
+
+    public virtual DbSet<ShopifyTenantHost> ShopifyTenantHosts { get; set; }
+
     public virtual DbSet<Tenant> Tenants { get; set; }
 
     public virtual DbSet<TenantBranding> TenantBrandings { get; set; }
@@ -35,7 +39,7 @@ public partial class MasterContext : DbContext
         {
             entity.ToTable("IntMgrPartnerDirectoryLinkRequest");
 
-            entity.HasIndex(e => new { e.RequestingTenantId, e.TargetTenantId, e.Status }, "IX_LinkRequest_Pending").IsUnique();
+            entity.HasIndex(e => new { e.RequestingTenantId, e.TargetTenantId, e.Status }, "IX_LinkRequest_Pending");
 
             entity.HasIndex(e => e.RequestingTenantId, "IX_LinkRequest_RequestingTenantId");
 
@@ -91,6 +95,57 @@ public partial class MasterContext : DbContext
                 .HasForeignKey<IntMgrPartnerDirectoryListing>(d => d.TenantId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_IntMgrPartnerDirectoryListing_Tenant");
+        });
+
+        modelBuilder.Entity<ShopifyShopTenant>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_ShopifyShopTenant");
+
+            entity.ToTable("ShopifyShopTenant");
+
+            entity.HasIndex(e => e.TenantId, "IX_ShopifyShopTenant_TenantId");
+
+            // Not decoration: this is the one-tenant-per-shop rule, and it used to be the primary
+            // key. Two writers racing the same store still resolve at the database rather than in
+            // either application - the loser gets a duplicate-key failure.
+            entity.HasIndex(e => e.Shop, "UX_ShopifyShopTenant_Shop").IsUnique();
+
+            // Assigned in C# rather than by the store, so SQL Server and the InMemory provider the
+            // tests run on write the same value. The NEWID() default in the DDL is there for
+            // hand-written inserts, not for this.
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.Shop).HasMaxLength(255);
+            entity.Property(e => e.ShopName).HasMaxLength(255);
+            entity.Property(e => e.CreatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_ShopifyShopTenant_CreatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Tenant).WithMany(p => p.ShopifyShopTenants)
+                .HasForeignKey(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__ShopifySh__Tenan__367C1819");
+        });
+
+        modelBuilder.Entity<ShopifyTenantHost>(entity =>
+        {
+            // The tenant IS the key. No surrogate, because "one Integration Manager per courier, or
+            // none" is the rule the table exists to state, and a surrogate would let it be broken.
+            entity.HasKey(e => e.TenantId).HasName("PK_ShopifyTenantHost");
+
+            entity.ToTable("ShopifyTenantHost");
+
+            entity.Property(e => e.TenantId).ValueGeneratedNever();
+            entity.Property(e => e.IntegrationManagerUrl)
+                .IsRequired()
+                .HasMaxLength(255);
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_ShopifyTenantHost_UpdatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Tenant).WithOne(p => p.ShopifyHost)
+                .HasForeignKey<ShopifyTenantHost>(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ShopifyTenantHost_Tenant");
         });
 
         modelBuilder.Entity<Tenant>(entity =>

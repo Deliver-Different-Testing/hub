@@ -1,6 +1,8 @@
+using Hub.Models.Master;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
 using Hub.ViewModels;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Tests.Repositories;
 
@@ -332,5 +334,133 @@ public class AuthenticationRepositoryTests
         var settings = await repo.GetUserSettingsAsync(1, 1);
 
         Assert.Equal("Blue", settings.First(s => s.Name == "Theme").Value);
+    }
+
+    // ------------------------------------------------------------------ Shopify shop -> tenant
+
+    [Fact]
+    public async Task MapShopifyShop_NewPairing_IsRecordedAndReadableBack()
+    {
+        var repo = CreateRepo();
+
+        Assert.Equal(ShopifyShopMappingResult.Mapped,
+            await repo.MapShopifyShopAsync("a-shop.myshopify.com", 1));
+
+        var mapping = await repo.GetTenantByShopifyShopAsync("a-shop.myshopify.com");
+
+        Assert.NotNull(mapping);
+        Assert.Equal(1, mapping.TenantId);
+        Assert.Equal("test", mapping.TenantCode);
+    }
+
+    /// <summary>
+    /// Shop is uniquely constrained rather than collated, so its casing has to be settled in code -
+    /// otherwise the same merchant maps twice.
+    /// </summary>
+    [Theory]
+    [InlineData("A-Shop.MyShopify.com")]
+    [InlineData("  a-shop.myshopify.com  ")]
+    public async Task GetTenantByShopifyShop_IsCaseAndWhitespaceInsensitive(string lookup)
+    {
+        var repo = CreateRepo();
+        await repo.MapShopifyShopAsync("a-shop.myshopify.com", 1);
+
+        Assert.NotNull(await repo.GetTenantByShopifyShopAsync(lookup));
+    }
+
+    /// <summary>
+    /// The key is assigned by the repository, not the store: MasterContext configures
+    /// ValueGeneratedNever so that SQL Server and the InMemory provider these tests run on write the
+    /// same value. An insert that forgot it would write Guid.Empty, and the second one would collide
+    /// on a key nobody chose.
+    /// </summary>
+    [Fact]
+    public async Task MapShopifyShop_AssignsTheMappingItsOwnKey()
+    {
+        var context = TestMasterContextFactory.CreateWithSeedData();
+
+        await new AuthenticationRepository(context).MapShopifyShopAsync("a-shop.myshopify.com", 1);
+
+        var mapping = await context.ShopifyShopTenants.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.NotEqual(Guid.Empty, mapping.Id);
+    }
+
+    /// <summary>
+    /// The store's display name comes back with the mapping. Hub never writes it - the Shopify front
+    /// door does, from the Admin API - so this only has to carry what is there, including nothing.
+    /// </summary>
+    [Fact]
+    public async Task GetTenantByShopifyShop_CarriesTheStoreName()
+    {
+        var context = TestMasterContextFactory.CreateWithSeedData();
+        context.ShopifyShopTenants.Add(new ShopifyShopTenant
+        {
+            Id = Guid.NewGuid(),
+            Shop = "a-shop.myshopify.com",
+            ShopName = "Acme Widgets",
+            TenantId = 1,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var mapping = await new AuthenticationRepository(context)
+            .GetTenantByShopifyShopAsync("a-shop.myshopify.com");
+
+        Assert.Equal("Acme Widgets", mapping?.ShopName);
+    }
+
+    [Fact]
+    public async Task MapShopifyShop_SameShopSameTenant_IsIdempotent()
+    {
+        var repo = CreateRepo();
+        await repo.MapShopifyShopAsync("a-shop.myshopify.com", 1);
+
+        Assert.Equal(ShopifyShopMappingResult.AlreadyMapped,
+            await repo.MapShopifyShopAsync("A-SHOP.myshopify.com", 1));
+    }
+
+    /// <summary>
+    /// The failure this table exists to prevent: re-pointing a shop would move a live merchant's
+    /// orders into a different courier's Despatch database.
+    /// </summary>
+    [Fact]
+    public async Task MapShopifyShop_SameShopDifferentTenant_ConflictsAndLeavesTheOriginalIntact()
+    {
+        var repo = CreateRepo();
+        await repo.MapShopifyShopAsync("a-shop.myshopify.com", 1);
+
+        Assert.Equal(ShopifyShopMappingResult.ConflictsWithAnotherTenant,
+            await repo.MapShopifyShopAsync("a-shop.myshopify.com", 2));
+
+        var mapping = await repo.GetTenantByShopifyShopAsync("a-shop.myshopify.com");
+        Assert.Equal(1, mapping!.TenantId);
+    }
+
+    [Fact]
+    public async Task MapShopifyShop_UnknownTenant_IsRefused()
+    {
+        var repo = CreateRepo();
+
+        Assert.Equal(ShopifyShopMappingResult.TenantNotFound,
+            await repo.MapShopifyShopAsync("a-shop.myshopify.com", 999));
+
+        Assert.Null(await repo.GetTenantByShopifyShopAsync("a-shop.myshopify.com"));
+    }
+
+    [Fact]
+    public async Task MapShopifyShop_DifferentShopsCanShareATenant()
+    {
+        var repo = CreateRepo();
+
+        Assert.Equal(ShopifyShopMappingResult.Mapped, await repo.MapShopifyShopAsync("one.myshopify.com", 1));
+        Assert.Equal(ShopifyShopMappingResult.Mapped, await repo.MapShopifyShopAsync("two.myshopify.com", 1));
+    }
+
+    [Fact]
+    public async Task GetTenantByShopifyShop_UnmappedShop_ReturnsNull()
+    {
+        var repo = CreateRepo();
+
+        Assert.Null(await repo.GetTenantByShopifyShopAsync("nobody.myshopify.com"));
     }
 }

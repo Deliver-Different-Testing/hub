@@ -2,6 +2,7 @@ using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
 using Hub.Repositories;
+using Hub.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Extensions;
@@ -31,6 +32,13 @@ public static class DatabaseServiceExtensions
 
         services.AddScoped<IDespatchRepository, Repository>();
         services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
+
+        // Singletons, both. The signing key is parsed once and held, because IdentityModel caches a
+        // signature provider against the SecurityKey instance it was given - a key created per
+        // request would be disposed while that cache still pointed at it. Built lazily so a
+        // deployment with no Shopify sign-in configured still starts, and only fails if called.
+        services.AddSingleton(_ => ShopifyLinkTicketKey.FromEnvironment());
+        services.AddSingleton<IShopifyLinkTicketIssuer, ShopifyLinkTicketIssuer>();
 
         return services;
     }
