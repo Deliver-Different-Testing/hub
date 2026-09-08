@@ -1,4 +1,3 @@
-using Hub;
 using Hub.Models;
 using Hub.Services;
 using Microsoft.EntityFrameworkCore;
@@ -104,7 +103,7 @@ public class FeatureResolverGrantableCeilingTests
             UcclCode = "DFRNT",
             Smsname = "DFRNT",
             CreatedBy = "test",
-            LastModifiedBy = "test",
+            LastModifiedBy = "test"
         });
         await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -123,11 +122,11 @@ public class FeatureResolverGrantableCeilingTests
         ctx.Features.Add(new Feature
         {
             FeatureKey = Tile, DisplayName = Tile, Description = "test",
-            Category = "HubTile", ClientVisible = true, ReleaseStatus = "Live",
+            Category = "HubTile", ClientVisible = true, ReleaseStatus = "Live"
         });
         ctx.ClientTypeFeatures.Add(new ClientTypeFeature
         {
-            ClientTypeId = CustomerType, FeatureKey = Tile, Visible = true,
+            ClientTypeId = CustomerType, FeatureKey = Tile, Visible = true
         });
         await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -143,11 +142,11 @@ public class FeatureResolverGrantableCeilingTests
         ctx.Features.Add(new Feature
         {
             FeatureKey = Tile, DisplayName = Tile, Description = "test",
-            Category = "HubTile", ClientVisible = true, ReleaseStatus = "Draft",
+            Category = "HubTile", ClientVisible = true, ReleaseStatus = "Draft"
         });
         ctx.ClientTypeFeatures.Add(new ClientTypeFeature
         {
-            ClientTypeId = CustomerType, FeatureKey = Tile, Visible = true, Grantable = true,
+            ClientTypeId = CustomerType, FeatureKey = Tile, Visible = true, Grantable = true
         });
         await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -167,7 +166,7 @@ public class FeatureResolverGrantableCeilingTests
                 Description = "test",
                 Category = "HubTile",
                 ClientVisible = true,
-                ReleaseStatus = "Live",
+                ReleaseStatus = "Live"
             });
         }
 
@@ -176,7 +175,7 @@ public class FeatureResolverGrantableCeilingTests
             ClientTypeId = clientTypeId,
             FeatureKey = key,
             Visible = visible,
-            Grantable = grantable,
+            Grantable = grantable
         });
     }
 

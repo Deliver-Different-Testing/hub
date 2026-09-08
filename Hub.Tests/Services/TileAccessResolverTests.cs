@@ -1,4 +1,3 @@
-using Hub;
 using Hub.Interfaces;
 using Hub.Models;
 using Hub.Services;
@@ -207,7 +206,7 @@ public class TileAccessResolverTests
             ContactRoleId = DispatcherRole,
             PermissionKey = Configurator,
             Allowed = false,
-            AccessLevel = null,
+            AccessLevel = null
         });
         await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -241,7 +240,7 @@ public class TileAccessResolverTests
             PermissionKey = tileKey,
             Allowed = level >= 1,
             AccessLevel = level,
-            ClientId = clientId,
+            ClientId = clientId
         };
 
     private static void Seed(
@@ -266,7 +265,7 @@ public class TileAccessResolverTests
             ctx.TblContactRoles.Add(new TblContactRole
             {
                 ContactRoleId = roleId,
-                IsActive = !inactiveRoleIds.Contains(roleId),
+                IsActive = !inactiveRoleIds.Contains(roleId)
             });
         }
 
@@ -275,7 +274,7 @@ public class TileAccessResolverTests
             ctx.TblContactContactRoles.Add(new TblContactContactRole
             {
                 ClientContactId = ContactId,
-                ContactRoleId = roleId,
+                ContactRoleId = roleId
             });
         }
 
@@ -285,7 +284,7 @@ public class TileAccessResolverTests
             UcctClientId = ClientId,
             ContactRoleId = legacyContactRoleId,
             // Required by the scaffold; irrelevant to the rules under test.
-            CreatedBy = Stub, LastModifiedBy = Stub,
+            CreatedBy = Stub, LastModifiedBy = Stub
         });
 
         ctx.TucClients.Add(new TucClient
@@ -293,7 +292,7 @@ public class TileAccessResolverTests
             UcclId = ClientId,
             ClientTypeId = clientTypeId,
             CreatedBy = Stub, LastModifiedBy = Stub, Smsname = Stub,
-            UcclCode = Stub, UcclLegalName = Stub, UcclName = Stub,
+            UcclCode = Stub, UcclLegalName = Stub, UcclName = Stub
         });
     }
 

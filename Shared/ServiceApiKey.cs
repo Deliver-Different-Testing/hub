@@ -5,38 +5,26 @@ using Serilog;
 namespace Hub.Shared;
 
 /// <summary>
-/// The service-to-service API key check, and the two tiers it recognises.
+/// The service-to-service API key check.
 /// <para>
-/// Master holds every tenant's database credentials. The Deliver DFRNT front door is a public
-/// Shopify App URL, reachable by any store on the internet including ones that never installed, so
-/// it gets a key of its own worth only the handful of calls it makes - and a compromise there does
-/// not become a compromise of every tenant's database.
+/// Shared rather than private to one controller because several use it. Two copies of an
+/// authentication check drift, and the copy that drifts is the one nobody is looking at.
 /// </para>
 /// <para>
-/// Shared rather than private to one controller because there are two controllers now. Two copies of
-/// an authentication check drift, and the copy that drifts is the one nobody is looking at.
+/// There were two tiers until the Shopify front door stopped calling Hub. It had a key of its own -
+/// <c>ShopifySetupApiKey</c>, a <c>SetupService</c> tier worth only the handful of calls it made -
+/// because it answers a public Shopify App URL reachable by any store on the internet, and a
+/// compromise there had to not become a compromise of every tenant's database. It checks a
+/// merchant's credentials against master itself now and asks Hub nothing, so the endpoints that
+/// tier opened are gone and the tier with them. <c>ShopifySetupApiKey</c> is no longer read: it can
+/// come out of the deployment's variables.
 /// </para>
 /// </summary>
 public static class ServiceApiKey
 {
-    public enum Caller
-    {
-        /// <summary>Staff tooling and the per-tenant Integration Manager deployments.</summary>
-        Trusted,
-
-        /// <summary>Those, and the Shopify front door.</summary>
-        SetupService
-    }
-
-    public static bool IsValid(string? apiKey, Caller allowed = Caller.Trusted)
+    public static bool IsValid(string? apiKey)
     {
         if (Matches(apiKey, Environment.GetEnvironmentVariable("PartnerDirectoryApiKey")))
-        {
-            return true;
-        }
-
-        if (allowed == Caller.SetupService &&
-            Matches(apiKey, Environment.GetEnvironmentVariable("ShopifySetupApiKey")))
         {
             return true;
         }

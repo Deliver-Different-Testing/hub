@@ -1,4 +1,3 @@
-using Hub;
 using Hub.Models;
 using Hub.Services;
 using Microsoft.EntityFrameworkCore;
@@ -107,7 +106,7 @@ public class FeatureResolverInternalLaneTests
             UcclCode = "TEST",
             Smsname = "test",
             CreatedBy = "test",
-            LastModifiedBy = "test",
+            LastModifiedBy = "test"
         });
     }
 
@@ -120,14 +119,14 @@ public class FeatureResolverInternalLaneTests
             Description = "test",
             Category = "HubTile",
             ClientVisible = true,
-            ReleaseStatus = "Live",
+            ReleaseStatus = "Live"
         });
 
         ctx.ClientTypeFeatures.Add(new ClientTypeFeature
         {
             ClientTypeId = clientTypeId,
             FeatureKey = key,
-            Visible = true,
+            Visible = true
         });
     }
 

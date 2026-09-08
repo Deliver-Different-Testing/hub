@@ -8,12 +8,12 @@ using Serilog;
 
 namespace Hub.Controllers;
 
-[Route("api/tenants")]
+[Route("api/tenants/{tenantId:int}")]
 [AllowAnonymous]
 [EnableRateLimiting("api")]
 public class TenantsController(IAuthenticationRepository authenticationRepository) : Controller
 {
-    [HttpGet("{tenantId:int}/connection-string")]
+    [HttpGet("connection-string")]
     public async Task<IActionResult> GetConnectionString(
         [FromHeader(Name = "X-Api-Key")] string? apiKey,
         int tenantId)
@@ -49,7 +49,7 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
     /// booking rules that run in its order-polling sweep, and reads it here so it does not need a
     /// master-controller connection of its own.
     /// </summary>
-    [HttpGet("{tenantId:int}/time-zone")]
+    [HttpGet("time-zone")]
     public async Task<IActionResult> GetTimeZone(
         [FromHeader(Name = "X-Api-Key")] string? apiKey,
         int tenantId)
@@ -80,129 +80,12 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
         }
     }
 
-    /// <summary>
-    /// Which tenant owns a Shopify shop.
-    /// <para>
-    /// The Deliver DFRNT app is a single Shopify listing with one App URL, so install, the
-    /// <c>/api/Rates</c> carrier callback and every webhook arrive at one shared Integration Manager
-    /// deployment serving all tenants. The shop domain is the only tenant identity those requests
-    /// carry, and IM holds no master-controller connection, so it asks here.
-    /// </para>
-    /// <para>
-    /// The shop is a query parameter rather than a route segment on purpose: a shop domain ends in
-    /// <c>.myshopify.com</c>, and a final route segment containing dots is the case where IIS and
-    /// the static-file handler take the request before MVC sees it.
-    /// </para>
-    /// </summary>
-    [HttpGet("by-shopify-shop")]
-    public async Task<IActionResult> GetByShopifyShop(
-        [FromHeader(Name = "X-Api-Key")] string? apiKey,
-        [FromQuery] string? shop)
-    {
-        if (!IsApiKeyValid(apiKey, ServiceApiKey.Caller.SetupService))
-        {
-            return Unauthorized();
-        }
-
-        if (string.IsNullOrWhiteSpace(shop))
-        {
-            return BadRequest(new { Message = "A shop domain is required." });
-        }
-
-        try
-        {
-            var mapping = await authenticationRepository.GetTenantByShopifyShopAsync(shop);
-
-            // Not an error. A public app URL gets asked about shops that never installed, or
-            // uninstalled long ago; the caller turns this into a rejected request.
-            return mapping == null ? NotFound() : Ok(mapping);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to resolve the tenant for Shopify shop {Shop}", shop);
-            return StatusCode(500);
-        }
-    }
-
-    /// <summary>
-    /// Records that a Shopify shop belongs to a tenant. Idempotent for the same tenant, so a merchant
-    /// signing in again after a failed hand-over is not told something went wrong; a shop already
-    /// recorded against a <em>different</em> tenant is a conflict rather than an update, because
-    /// re-pointing it would move a live merchant's orders into another courier's database.
-    /// </summary>
-    [HttpPut("{tenantId:int}/shopify-shop")]
-    public async Task<IActionResult> PutShopifyShop(
-        [FromHeader(Name = "X-Api-Key")] string? apiKey,
-        int tenantId,
-        [FromBody] ShopifyShopTenantRequest request)
-    {
-        if (!IsApiKeyValid(apiKey))
-        {
-            return Unauthorized();
-        }
-
-        if (string.IsNullOrWhiteSpace(request?.Shop))
-        {
-            return BadRequest(new { Message = "A shop domain is required." });
-        }
-
-        try
-        {
-            return await authenticationRepository.MapShopifyShopAsync(request.Shop, tenantId) switch
-            {
-                ShopifyShopMappingResult.Mapped or ShopifyShopMappingResult.AlreadyMapped => NoContent(),
-                ShopifyShopMappingResult.TenantNotFound => NotFound(),
-                _ => Conflict(new
-                {
-                    Message = $"'{request.Shop}' is already mapped to a different tenant."
-                })
-            };
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to map Shopify shop {Shop} to tenant {TenantId}", request.Shop, tenantId);
-            return StatusCode(500);
-        }
-    }
-
-    /// <summary>
-    /// Detaches a shop from a tenant.
-    /// <para>
-    /// Built for Shopify requires a merchant be able to disconnect a third-party system from inside
-    /// the embedded app, so this is reachable by the merchant's own store rather than only by staff.
-    /// The tenant is in the route and the mapping must belong to it: a delete keyed on the shop
-    /// alone would let the shared deployment detach any store on any tenant's behalf.
-    /// </para>
-    /// </summary>
-    [HttpDelete("{tenantId:int}/shopify-shop")]
-    public async Task<IActionResult> UnmapShopifyShop(
-        [FromHeader(Name = "X-Api-Key")] string? apiKey,
-        int tenantId,
-        [FromQuery] string? shop)
-    {
-        if (!IsApiKeyValid(apiKey, ServiceApiKey.Caller.SetupService))
-        {
-            return Unauthorized();
-        }
-
-        if (string.IsNullOrWhiteSpace(shop))
-        {
-            return BadRequest(new { Message = "A shop domain is required." });
-        }
-
-        try
-        {
-            // NoContent either way: a merchant clicking disconnect twice, or on a store that was
-            // already detached, has got what they asked for.
-            await authenticationRepository.UnmapShopifyShopAsync(shop, tenantId);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to unmap Shopify shop {Shop} from tenant {TenantId}", shop, tenantId);
-            return StatusCode(500);
-        }
-    }
+    // Gone with the front door's move to reading master directly: GET by-shopify-shop, and PUT and
+    // DELETE {tenantId:int}/shopify-shop. Hub answered "which tenant owns this shop" and recorded
+    // the pairing while Integration Manager was one shared deployment with no master connection of
+    // its own. The front door holds that connection now - a login granted the shop map and
+    // dbo.[User], and denied Tenant.DBConnection - so it reads and writes those rows itself and
+    // nothing called these. The table and its entity stay; only the endpoints went.
 
     /// <summary>
     /// Records where a courier's Integration Manager lives, and by doing so switches Shopify on for
@@ -217,7 +100,7 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
     /// exposed service in the estate write it would let it point a courier's merchants elsewhere.
     /// </para>
     /// </summary>
-    [HttpPut("{tenantId:int}/shopify-host")]
+    [HttpPut("shopify-host")]
     public async Task<IActionResult> PutShopifyHost(
         [FromHeader(Name = "X-Api-Key")] string? apiKey,
         int tenantId,
@@ -260,6 +143,5 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
     // The key check itself moved to Hub.Shared.ServiceApiKey when Shopify merchant sign-in became a
     // second controller needing the same two tiers. Aliased rather than rewritten at nine call sites,
     // so this file's diff stays about what left it rather than about punctuation.
-    private static bool IsApiKeyValid(string? apiKey, ServiceApiKey.Caller allowed = ServiceApiKey.Caller.Trusted) =>
-        ServiceApiKey.IsValid(apiKey, allowed);
+    private static bool IsApiKeyValid(string? apiKey) => ServiceApiKey.IsValid(apiKey);
 }
