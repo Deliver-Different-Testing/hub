@@ -58,5 +58,5 @@ public enum TileAccessReason
     NotEnabledForTenant,
 
     /// <summary>Gate 2 closed: the contact's roles are configured, and none grants this tile.</summary>
-    RoleLacksTile,
+    RoleLacksTile
 }

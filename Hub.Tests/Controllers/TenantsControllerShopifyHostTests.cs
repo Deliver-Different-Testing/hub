@@ -20,7 +20,6 @@ namespace Hub.Tests.Controllers;
 public class TenantsControllerShopifyHostTests : IDisposable
 {
     private const string TrustedKey = "trusted-key-123";
-    private const string SetupKey = "setup-key-456";
     private const string Url = "https://tenant42.example.com";
 
     private readonly IAuthenticationRepository _repository = Substitute.For<IAuthenticationRepository>();
@@ -30,14 +29,12 @@ public class TenantsControllerShopifyHostTests : IDisposable
     {
         _controller = new TenantsController(_repository);
         Environment.SetEnvironmentVariable("PartnerDirectoryApiKey", TrustedKey);
-        Environment.SetEnvironmentVariable("ShopifySetupApiKey", SetupKey);
     }
 
     public void Dispose()
     {
         GC.SuppressFinalize(this);
         Environment.SetEnvironmentVariable("PartnerDirectoryApiKey", null);
-        Environment.SetEnvironmentVariable("ShopifySetupApiKey", null);
     }
 
     private Task<IActionResult> Put(string? url, int tenantId = 42, string? apiKey = TrustedKey) =>
@@ -63,14 +60,19 @@ public class TenantsControllerShopifyHostTests : IDisposable
     }
 
     /// <summary>
-    /// Trusted only. The front door reads this table to route a merchant; being able to write it
-    /// would let the most exposed service in the estate point a courier's merchants at a host of its
-    /// choosing.
+    /// The trusted key and nothing else. This table is what routes every merchant on a tenant, so
+    /// writing it has always been the narrowest permission here.
+    /// <para>
+    /// This used to name the Shopify front door's own key, which Hub recognised as a second tier and
+    /// which this endpoint refused. That tier existed for the endpoints the front door called; it
+    /// checks a merchant's credentials against master itself now, so the tier is gone and any key
+    /// but the trusted one is simply unrecognised. Same refusal, one fewer reason for it.
+    /// </para>
     /// </summary>
     [Fact]
-    public async Task PutShopifyHost_WithTheSetupServiceKey_IsRefused()
+    public async Task PutShopifyHost_WithAKeyThatIsNotTheTrustedOne_IsRefused()
     {
-        Assert.IsType<UnauthorizedResult>(await Put(Url, apiKey: SetupKey));
+        Assert.IsType<UnauthorizedResult>(await Put(Url, apiKey: "some-other-key"));
 
         await _repository.DidNotReceive().UpsertShopifyTenantHostAsync(Arg.Any<int>(), Arg.Any<string>());
     }

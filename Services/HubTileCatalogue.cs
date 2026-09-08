@@ -72,18 +72,20 @@ public static class HubTileCatalogue
         bool IsDisabled = false);
 
     /// <summary>Every tile Hub knows how to render, in display order.</summary>
-    public static IReadOnlyList<string> Keys => Definitions.Select(d => d.Key).ToList();
+    public static IReadOnlyList<string> Keys => [.. Definitions.Select(d => d.Key)];
 
     public static IReadOnlyList<HubTile> Resolve(HubTileContext ctx, ISet<string> visibleFeatures)
     {
         ArgumentNullException.ThrowIfNull(ctx);
         ArgumentNullException.ThrowIfNull(visibleFeatures);
 
-        return Definitions
-            .Where(d => visibleFeatures.Contains(d.Key) && d.Available(ctx))
-            .Select(d => new HubTile(
-                d.Key, d.Title, d.Icon, d.IsDisabled ? string.Empty : d.Href(ctx), d.IsDisabled))
-            .ToList();
+        return
+        [
+            .. Definitions
+                .Where(d => visibleFeatures.Contains(d.Key) && d.Available(ctx))
+                .Select(d => new HubTile(
+                    d.Key, d.Title, d.Icon, d.IsDisabled ? string.Empty : d.Href(ctx), d.IsDisabled))
+        ];
     }
 
     /// <summary>
@@ -101,85 +103,85 @@ public static class HubTileCatalogue
     /// </remarks>
     private static readonly Definition[] Definitions =
         [
-            new Definition("hub-tile-accounts", "Accounts", "accounts.svg",
+            new("hub-tile-accounts", "Accounts", "accounts.svg",
                 ctx => ctx.AppUrl("accounts"),
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-adminmanager", "Admin Manager", "admin-manager.svg",
+            new("hub-tile-adminmanager", "Admin Manager", "admin-manager.svg",
                 ctx => ctx.AppUrl("adminmanager"),
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-booking", "Booking/Job List", "booking-page.svg",
+            new("hub-tile-booking", "Booking/Job List", "booking-page.svg",
                 ctx => ctx.AppUrl("booking") + ctx.BookingPath,
-                ctx => true),
+                _ => true),
 
             // The matrix can take Bulk Import away but must never hand it to
             // someone the legacy permission excluded, so this is AND.
-            new Definition("hub-tile-bulk-import", "Bulk Import", "bulk-import.svg",
+            new("hub-tile-bulk-import", "Bulk Import", "bulk-import.svg",
                 ctx => ctx.AppUrl("bulkimport") + "/#/login/",
                 ctx => ctx.HasBulkUploadPermission),
 
-            new Definition("hub-tile-client-manager", "Client Manager", "client-manager.svg",
+            new("hub-tile-client-manager", "Client Manager", "client-manager.svg",
                 ctx => ctx.AppUrl("clientmanager"),
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-couriermanager", "Courier Manager", "courier-manager.svg",
+            new("hub-tile-couriermanager", "Courier Manager", "courier-manager.svg",
                 ctx => ctx.AppUrl("couriermanager"),
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-courier-portal", "Courier Portal", "courier-portal.svg",
+            new("hub-tile-courier-portal", "Courier Portal", "courier-portal.svg",
                 ctx => ctx.AppUrl("courierportal"),
-                ctx => true),
+                _ => true),
 
             // Shown so people know it is coming, but not clickable - the product
             // is not ready. Swap Disabled to false and give it a URL to release.
-            new Definition("hub-tile-dfrntcrm", "Customer Success Platform", "crm-inbox.svg",
-                ctx => string.Empty,
-                ctx => true,
+            new("hub-tile-dfrntcrm", "Customer Success Platform", "crm-inbox.svg",
+                _ => string.Empty,
+                _ => true,
                 IsDisabled: true),
 
-            new Definition("hub-tile-despatchweb", "Dispatch", "dispatch.svg",
+            new("hub-tile-despatchweb", "Dispatch", "dispatch.svg",
                 ctx => ctx.AppUrl("despatch"),
-                ctx => true),
+                _ => true),
 
             // Only exists on the urgent tenant. Not a permission - the page is
             // simply not there anywhere else.
-            new Definition("hub-tile-fuel-surcharge", "Fuel Surcharge", "fuel icon.svg",
+            new("hub-tile-fuel-surcharge", "Fuel Surcharge", "fuel icon.svg",
                 ctx => ctx.FuelSurchargeUrl,
                 ctx => ctx.ShowFuelSurcharge),
 
-            new Definition("hub-tile-integration-manager", "Integration Manager", "integration-hub.svg",
+            new("hub-tile-integration-manager", "Integration Manager", "integration-hub.svg",
                 ctx => ctx.AppUrl("integrationmanager") + "/auth/entry",
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-tracking", "Job Search", "tracker.svg",
+            new("hub-tile-tracking", "Job Search", "tracker.svg",
                 ctx => ctx.AppUrl("tracking"),
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-print", "Print", "print.svg",
+            new("hub-tile-print", "Print", "print.svg",
                 ctx => ctx.AppUrl("runviewer") + "/#/print",
                 ctx => !ctx.IsAsureUser),
 
-            new Definition("hub-tile-route-builder", "Route Builder", "route-builder.svg",
+            new("hub-tile-route-builder", "Route Builder", "route-builder.svg",
                 ctx => ctx.AppUrl("runbuilder"),
-                ctx => true),
+                _ => true),
 
             // The Route Builder successor, running alongside it until parity is
             // signed off.
-            new Definition("hub-tile-routed-operations", "Routed Operations", "route-builder.svg",
+            new("hub-tile-routed-operations", "Routed Operations", "route-builder.svg",
                 ctx => ctx.AppUrl("routedoperations"),
-                ctx => true),
+                _ => true),
 
-            new Definition("hub-tile-routeviewer", "Route Viewer", "route-viewer.svg",
+            new("hub-tile-routeviewer", "Route Viewer", "route-viewer.svg",
                 ctx => ctx.AppUrl("runviewer"),
                 ctx => !ctx.IsAsureUser),
 
             // Renamed from Workflows 2026-08-31. Couriers and NPs used to see
             // this same tile labelled "DFRNT Drive"; one list means one label,
             // and Steve confirmed on 2026-09-01 that the label is not the point.
-            new Definition("hub-tile-configurator", "Settings", "workflow.png",
+            new("hub-tile-configurator", "Settings", "workflow.png",
                 ctx => ctx.AppUrl("dfrntdriveconfig"),
-                ctx => true),
+                _ => true)
         ];
 }
 

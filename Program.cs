@@ -1,7 +1,5 @@
-using System.Security.AccessControl;
+﻿using System.Security.AccessControl;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
-using Hub;
 using Hub.Extensions;
 using Hub.Services;
 using Microsoft.AspNetCore.DataProtection;
@@ -136,54 +134,19 @@ builder.Services.AddRateLimiter(options =>
     // eighty-bit pairing code. This limit is load-bearing rather than belt-and-braces.
     //
     // Partitioned by shop, and that is the point: every request arrives from the front door's egress
-    // address, so an IP partition would put every merchant on every tenant in one bucket and let a
-    // single merchant's typos lock the estate out. The shop travels in the query string precisely so
-    // a partitioner - which sees the HttpContext and never a deserialised body - can reach it.
+    // The one real policy here was Shopify merchant sign-in, partitioned by shop with a global cap
+    // behind it across every shop at once. Both went with the endpoints: the front door checks a
+    // merchant's password against master itself now, and rate-limits it there - see
+    // RateLimitPolicies.SignIn in dfrnt-shopify-app, which is the limiter that matters, because it
+    // is the one in front of the PBKDF2 verification.
     //
-    // A global cap sits behind it, below, because per-shop alone bounds nothing against a spray
-    // across thousands of shop domains.
-    options.AddPolicy(RateLimitPolicies.ShopifyMerchantSignIn, context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            ShopPartitionKey(context),
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
-
-    // The other half of that: one ceiling across every shop at once. It has to live on the global
-    // limiter rather than in the policy above, because a policy resolves to exactly one partition
-    // and cannot bound two things.
-    //
-    // Every other path returns NoLimiter, so this adds a bound to the Shopify sign-in surface and
-    // changes nothing anywhere else - which matters, because the global limiter is the one piece of
-    // this that every request in the application passes through.
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-        context.Request.Path.StartsWithSegments("/api/shopify")
-            ? RateLimitPartition.GetFixedWindowLimiter(
-                "all-shopify-signins",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 300,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit = 0
-                })
-            : RateLimitPartition.GetNoLimiter<string>("unlimited"));
+    // With /api/shopify gone the GlobalLimiter had nothing left to bound - every other path
+    // resolved to NoLimiter - so it went too rather than staying as a no-op wrapped around every
+    // request in the application.
 });
 
-// A request with no shop is refused by the endpoint anyway; keying those by caller stops them
-// sharing one partition and starving each other on the way to that refusal.
-static string ShopPartitionKey(HttpContext context)
-{
-    var shop = context.Request.Query["shop"].ToString().Trim().ToLowerInvariant();
-
-    return shop.Length > 0 ? $"shop:{shop}" : $"ip:{context.Connection.RemoteIpAddress}";
-}
-
 var app = builder.Build();
+
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/healthz");
 app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) =>
@@ -224,3 +187,4 @@ app.MapControllerRoute(
 
 
 app.Run();
+return;

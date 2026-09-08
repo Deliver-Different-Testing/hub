@@ -1,4 +1,3 @@
-using Hub;
 using Hub.Models;
 using Hub.Services;
 using Microsoft.EntityFrameworkCore;
@@ -78,14 +77,14 @@ public class FeatureResolverReleaseStateTests
             Description = "test",
             Category = "HubTile",
             ClientVisible = clientVisible,
-            ReleaseStatus = status,
+            ReleaseStatus = status
         });
 
         ctx.ClientTypeFeatures.Add(new ClientTypeFeature
         {
             ClientTypeId = TenantType,
             FeatureKey = key,
-            Visible = true,
+            Visible = true
         });
     }
 
