@@ -134,13 +134,20 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
     private static HashSet<string> ApplyCountryScope(
         IEnumerable<(string FeatureKey, string? AvailableCountries)> rows, string? countryCode)
     {
-        var keys = string.IsNullOrEmpty(countryCode)
-            ? rows.Select(r => r.FeatureKey)
-            : rows.Where(r => string.IsNullOrEmpty(r.AvailableCountries)
-                              || r.AvailableCountries
-                                  .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                                  .Contains(countryCode, StringComparer.OrdinalIgnoreCase))
-                   .Select(r => r.FeatureKey);
+        // Early return rather than a ternary so IsNullOrEmpty's [NotNullWhen]
+        // narrows countryCode for the rest of the method - otherwise the
+        // Contains below takes a string? where a string is wanted.
+        if (string.IsNullOrEmpty(countryCode))
+        {
+            return new HashSet<string>(rows.Select(r => r.FeatureKey), StringComparer.OrdinalIgnoreCase);
+        }
+
+        var keys = rows
+            .Where(r => string.IsNullOrEmpty(r.AvailableCountries)
+                        || r.AvailableCountries
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Contains(countryCode, StringComparer.OrdinalIgnoreCase))
+            .Select(r => r.FeatureKey);
 
         return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
     }
