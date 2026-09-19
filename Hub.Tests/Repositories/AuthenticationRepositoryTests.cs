@@ -1,5 +1,3 @@
-using FluentAssertions;
-using Hub.Models.Master;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
 using Hub.ViewModels;
@@ -8,247 +6,334 @@ namespace Hub.Tests.Repositories;
 
 public class AuthenticationRepositoryTests
 {
-    private static (AuthenticationRepository repo, MasterContext context) CreateRepo()
+    private static AuthenticationRepository CreateRepo()
     {
         var context = TestMasterContextFactory.CreateWithSeedData();
-        var repo = new AuthenticationRepository(context);
-        return (repo, context);
+        return new AuthenticationRepository(context);
     }
 
     // GetUserByEmail tests
     [Fact]
     public async Task GetUserByEmail_StaffUser_WithIsCourierFalse_ReturnsStaff()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("staff@test.com", false);
+        var user = await repo.GetUserByEmailAsync("staff@test.com", false);
 
-        user.Should().NotBeNull();
-        user.Email.Should().Be("staff@test.com");
-        user.IsCourier.Should().Be(false);
+        Assert.NotNull(user);
+        Assert.Equal("staff@test.com", user.Email);
+        Assert.Equal(false, user.IsCourier);
     }
 
     [Fact]
     public async Task GetUserByEmail_CourierUser_WithIsCourierTrue_ReturnsCourier()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("courier@test.com", true);
+        var user = await repo.GetUserByEmailAsync("courier@test.com", true);
 
-        user.Should().NotBeNull();
-        user.Email.Should().Be("courier@test.com");
-        user.IsCourier.Should().Be(true);
+        Assert.NotNull(user);
+        Assert.Equal("courier@test.com", user.Email);
+        Assert.Equal(true, user.IsCourier);
     }
 
     [Fact]
     public async Task GetUserByEmail_WithoutFilter_ReturnsUser()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("staff@test.com");
+        var user = await repo.GetUserByEmailAsync("staff@test.com");
 
-        user.Should().NotBeNull();
-        user.Email.Should().Be("staff@test.com");
+        Assert.NotNull(user);
+        Assert.Equal("staff@test.com", user.Email);
     }
 
     [Fact]
     public async Task GetUserByEmail_IncludesCurrentTenant()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("staff@test.com");
+        var user = await repo.GetUserByEmailAsync("staff@test.com");
 
-        user.Should().NotBeNull();
-        user.CurrentTenant.Should().NotBeNull();
-        user.CurrentTenant!.Code.Should().Be("test");
+        Assert.NotNull(user);
+        Assert.NotNull(user.CurrentTenant);
+        Assert.Equal("test", user.CurrentTenant!.Code);
     }
 
     [Fact]
     public async Task GetUserByEmail_NotFound_ReturnsNull()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("nonexistent@test.com");
+        var user = await repo.GetUserByEmailAsync("nonexistent@test.com");
 
-        user.Should().BeNull();
+        Assert.Null(user);
     }
 
     [Fact]
     public async Task GetUserByEmail_StaffFilterForCourier_ReturnsNull()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByEmail("courier@test.com", false);
+        var user = await repo.GetUserByEmailAsync("courier@test.com", false);
 
-        user.Should().BeNull();
+        Assert.Null(user);
     }
 
     // GetUserById tests
     [Fact]
     public async Task GetUserById_Found_ReturnsUser()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserById(1);
+        var user = await repo.GetUserByIdAsync(1);
 
-        user.Should().NotBeNull();
-        user.Email.Should().Be("staff@test.com");
+        Assert.NotNull(user);
+        Assert.Equal("staff@test.com", user.Email);
     }
 
     [Fact]
     public async Task GetUserById_IncludesCurrentTenant()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserById(1);
+        var user = await repo.GetUserByIdAsync(1);
 
-        user!.CurrentTenant.Should().NotBeNull();
+        Assert.NotNull(user!.CurrentTenant);
     }
 
     [Fact]
     public async Task GetUserById_NotFound_ReturnsNull()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserById(999);
+        var user = await repo.GetUserByIdAsync(999);
 
-        user.Should().BeNull();
+        Assert.Null(user);
     }
 
     // GetUserByResetKey tests
     [Fact]
     public async Task GetUserByResetKey_Found_ReturnsUser()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByResetKey("valid-reset-key");
+        var user = await repo.GetUserByResetKeyAsync("valid-reset-key");
 
-        user.Should().NotBeNull();
-        user.Email.Should().Be("reset@test.com");
+        Assert.NotNull(user);
+        Assert.Equal("reset@test.com", user.Email);
     }
 
     [Fact]
     public async Task GetUserByResetKey_NotFound_ReturnsNull()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var user = await repo.GetUserByResetKey("invalid-key");
+        var user = await repo.GetUserByResetKeyAsync("invalid-key");
 
-        user.Should().BeNull();
+        Assert.Null(user);
     }
 
     // GetTenantsByUserIdAsync tests
     [Fact]
     public async Task GetTenantsByUserIdAsync_WithTenants_ReturnsTenants()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
         var tenants = await repo.GetTenantsByUserIdAsync(1);
 
-        tenants.Should().HaveCount(2);
+        Assert.Equal(2, tenants.Count);
     }
 
     [Fact]
     public async Task GetTenantsByUserIdAsync_NoTenants_ReturnsEmpty()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
         var tenants = await repo.GetTenantsByUserIdAsync(999);
 
-        tenants.Should().BeEmpty();
+        Assert.Empty(tenants);
     }
 
     // UpdateCurrentTenantIdAsync tests
     [Fact]
     public async Task UpdateCurrentTenantIdAsync_ValidUpdate_ReturnsTrue()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
         var result = await repo.UpdateCurrentTenantIdAsync(1, 2);
 
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Fact]
     public async Task UpdateCurrentTenantIdAsync_PersistsChange()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
         await repo.UpdateCurrentTenantIdAsync(1, 2);
 
-        var user = await repo.GetUserById(1);
-        user!.CurrentTenantId.Should().Be(2);
+        var user = await repo.GetUserByIdAsync(1);
+        Assert.Equal(2, user!.CurrentTenantId);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentTenantIdAsync_GetUserById_ReturnsNewTenant()
+    {
+        // Regression: ba04c0e added NoTracking default to MasterContext which caused
+        // UpdateCurrentTenantIdAsync to silently not persist, so GetUserById returned
+        // the old tenant — breaking tenant switching and passing wrong tenant to apps.
+        var repo = CreateRepo();
+
+        await repo.UpdateCurrentTenantIdAsync(1, 2);
+
+        var user = await repo.GetUserByIdAsync(1);
+        Assert.NotNull(user!.CurrentTenant);
+        Assert.Equal(2, user.CurrentTenant!.TenantId);
+        Assert.Equal("second", user.CurrentTenant.Code);
     }
 
     [Fact]
     public async Task UpdateCurrentTenantIdAsync_NotAssociated_ReturnsFalse()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
         // User 2 (courier) is only associated with tenant 1, not tenant 2
         var result = await repo.UpdateCurrentTenantIdAsync(2, 2);
 
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
     public async Task UpdateCurrentTenantIdAsync_NonExistentUser_ReturnsFalse()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
         var result = await repo.UpdateCurrentTenantIdAsync(999, 1);
 
-        result.Should().BeFalse();
+        Assert.False(result);
+    }
+
+    // IsUserAssociatedWithTenantAsync tests
+    [Fact]
+    public async Task IsUserAssociatedWithTenantAsync_Associated_ReturnsTrue()
+    {
+        var repo = CreateRepo();
+
+        // User 1 (staff) is associated with both tenant 1 and tenant 2
+        Assert.True(await repo.IsUserAssociatedWithTenantAsync(1, 2));
+    }
+
+    [Fact]
+    public async Task IsUserAssociatedWithTenantAsync_NotAssociated_ReturnsFalse()
+    {
+        var repo = CreateRepo();
+
+        // User 2 (courier) is only associated with tenant 1, not tenant 2
+        Assert.False(await repo.IsUserAssociatedWithTenantAsync(2, 2));
+    }
+
+    // CreateUserAsync tests
+    [Fact]
+    public async Task CreateUserAsync_TenantUser_SetsIsNetworkPartnerFalseWithResetKey()
+    {
+        var repo = CreateRepo();
+
+        var user = await repo.CreateUserAsync("newtenant@test.com", 1, isNetworkPartner: false);
+
+        Assert.NotNull(user);
+        Assert.False(user.IsNetworkPartner!.Value);
+        Assert.False(user.IsCourier ?? false);
+        Assert.False(string.IsNullOrEmpty(user.ResetKey));
+        Assert.Equal(1, user.CurrentTenantId);
+    }
+
+    [Fact]
+    public async Task CreateUserAsync_ExistingEmail_ReturnsNull()
+    {
+        var repo = CreateRepo();
+
+        // staff@test.com already exists in Master.User (seed UserId 1).
+        var user = await repo.CreateUserAsync("staff@test.com", 1, isNetworkPartner: false);
+
+        Assert.Null(user);
+    }
+
+    [Fact]
+    public async Task CreateNpUserAsync_StillSetsIsNetworkPartnerTrue()
+    {
+        var repo = CreateRepo();
+
+        var user = await repo.CreateNpUserAsync("newnp@test.com", 1);
+
+        Assert.NotNull(user);
+        Assert.True(user.IsNetworkPartner!.Value);
     }
 
     // GetUserSettings tests
     [Fact]
     public async Task GetUserSettings_WithSettings_ReturnsSettings()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var settings = await repo.GetUserSettings(1, 1);
+        var settings = await repo.GetUserSettingsAsync(1, 1);
 
         var tenantUserSettingViewModels = settings as TenantUserSettingViewModel[] ?? settings.ToArray();
-        tenantUserSettingViewModels.Should().ContainSingle();
-        tenantUserSettingViewModels.First().Name.Should().Be("Theme");
-        tenantUserSettingViewModels.First().Value.Should().Be("Dark");
+        Assert.Single(tenantUserSettingViewModels);
+        Assert.Equal("Theme", tenantUserSettingViewModels.First().Name);
+        Assert.Equal("Dark", tenantUserSettingViewModels.First().Value);
     }
 
     [Fact]
     public async Task GetUserSettings_NoSettings_ReturnsEmpty()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
 
-        var settings = await repo.GetUserSettings(2, 2);
+        var settings = await repo.GetUserSettingsAsync(2, 2);
 
-        settings.Should().BeEmpty();
+        Assert.Empty(settings);
     }
 
     // SaveUserSetting tests
     [Fact]
     public async Task SaveUserSetting_NewSetting_CreatesIt()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
         var viewModel = new TenantUserSettingViewModel { Name = "Language", Value = "en" };
 
-        await repo.SaveUserSetting(viewModel, 1, 1);
+        await repo.SaveUserSettingAsync(viewModel, 1, 1);
 
-        var settings = await repo.GetUserSettings(1, 1);
-        settings.Should().Contain(s => s.Name == "Language" && s.Value == "en");
+        var settings = await repo.GetUserSettingsAsync(1, 1);
+        Assert.Contains(settings, s => s is { Name: "Language", Value: "en" });
     }
 
     [Fact]
     public async Task SaveUserSetting_ExistingSetting_UpdatesIt()
     {
-        var (repo, _) = CreateRepo();
+        var repo = CreateRepo();
         var viewModel = new TenantUserSettingViewModel { Name = "Theme", Value = "Light" };
 
-        await repo.SaveUserSetting(viewModel, 1, 1);
+        await repo.SaveUserSettingAsync(viewModel, 1, 1);
 
-        var settings = await repo.GetUserSettings(1, 1);
-        var tenantUserSettingViewModels = settings.ToList();
-        tenantUserSettingViewModels.Should().ContainSingle(s => s.Name == "Theme");
-        tenantUserSettingViewModels.First(s => s.Name == "Theme").Value.Should().Be("Light");
+        var settings = await repo.GetUserSettingsAsync(1, 1);
+        Assert.Single(settings, s => s.Name == "Theme");
+        Assert.Equal("Light", settings.First(s => s.Name == "Theme").Value);
     }
+
+    [Fact]
+    public async Task SaveUserSetting_ExistingSetting_PersistsAcrossReads()
+    {
+        // Regression: NoTracking default on MasterContext caused SaveUserSetting to
+        // load existing settings as untracked entities, so modifications were never saved.
+        var repo = CreateRepo();
+
+        await repo.SaveUserSettingAsync(new TenantUserSettingViewModel { Name = "Theme", Value = "Blue" }, 1, 1);
+        // Read again to confirm persistence (not just in-memory)
+        var settings = await repo.GetUserSettingsAsync(1, 1);
+
+        Assert.Equal("Blue", settings.First(s => s.Name == "Theme").Value);
+    }
+
+    // ------------------------------------------------------------------ Shopify shop -> tenant
+
 }

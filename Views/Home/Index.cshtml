@@ -1,191 +1,99 @@
-@using Hub.Services
+@model Hub.ViewModels.HomeViewModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "App Hub";
+    ViewBag.PageId = "home";
+
+    var contactId = Model.ContactId;
+
+    // Couriers are the one audience the matrix cannot drive: they have no
+    // ClientType, so FeatureResolver returns an empty set for them and there is
+    // no audience row to configure. Their tiles stay hardcoded below. Every
+    // other audience is resolved from the catalogue in HomeController.
+    var isCourier = bool.TryParse(User.FindFirst("IsCourier")?.Value, out var c) && c;
+
+    string AppUrl(string appName) =>
+        Environment.GetEnvironmentVariable("TenantURL")!.Replace("app_name", appName);
+
+    var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
 }
-@inject ITenantService TenantService
-@{
-    var clientId = ViewBag.ClientID;
-
-    var clientInternal = false;
-    if (ViewBag.ClientInternal != null)
-    {
-        if (ViewBag.ClientInternal is bool)
-        {
-            clientInternal = (bool)ViewBag.ClientInternal;
-        }
-        else
-        {
-            bool.TryParse(ViewBag.ClientInternal.ToString(), out clientInternal);
-        }
-    }
-
-    // Check if user is a courier
-    var isCourier = false;
-    var isCourierClaim = User.FindFirst("IsCourier")?.Value;
-    if (!string.IsNullOrEmpty(isCourierClaim))
-    {
-        bool.TryParse(isCourierClaim, out isCourier);
-    }
-
-    var contactId = ViewBag.ContactID;
-    var greetingString = ViewBag.GreetingString;
-    var userEmail = ViewBag.UserEmail;
-    var tenantCode = ViewBag.TenantCode;
-
-    // Check if this is the special urgent/asure user that needs custom redirect
-    bool isUrgentAsureUser = !string.IsNullOrEmpty(userEmail) &&
-                             !string.IsNullOrEmpty(tenantCode) &&
-                             userEmail.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase) &&
-                             tenantCode.Equals("urgent", StringComparison.OrdinalIgnoreCase);
-
-    var bookingAppUrl = Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "booking");
-    var bookingAppPath = isUrgentAsureUser ? "/#/asure" : "/#/login/";
-    var bookingAppFullUrl = bookingAppUrl + bookingAppPath;
-
-    var bookJobPermission = false;
-    if (ViewBag.BookJobPermission != null)
-    {
-        if (ViewBag.BookJobPermission is bool)
-        {
-            bookJobPermission = (bool)ViewBag.BookJobPermission;
-        }
-        else
-        {
-            bool.TryParse(ViewBag.BookJobPermission.ToString(), out bookJobPermission);
-        }
-    }
-
-    var bulkUploadPermission = false;
-    if (ViewBag.BulkUploadPermission != null)
-    {
-        if (ViewBag.BulkUploadPermission is bool)
-        {
-            bulkUploadPermission = (bool)ViewBag.BulkUploadPermission;
-        }
-        else
-        {
-            bool.TryParse(ViewBag.BulkUploadPermission.ToString(), out bulkUploadPermission);
-        }
-    }
-}
-<script>
-    var ClientID = '@clientId';
-    var ContactID = '@contactId';
-    var GreetingString = '@greetingString';
-</script>
-
-<div id="urgent-hub">
+<div id="urgent-hub" class="hub-surface" data-contact-id="@contactId">
     <div class="hub-header">
-        @await Component.InvokeAsync("TenantLogo", new { cssClass = "logo", alt = "Deliver Different" })
-        <h4>App Hub</h4>
+        <div class="hub-brand">
+            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver DFRNT" })
+            <span class="hub-eyebrow">App Hub</span>
+        </div>
+        <p class="hub-subtitle">@dateLabel</p>
     </div>
 
-    <div class="app-grid">
-        @if (isCourier)
-        {
-            @if (ViewBag.ShowAfterHours == true)
+    @if (isCourier)
+    {
+        <div class="app-grid">
+            @if (Model.ShowAfterHours)
             {
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "afterhours")')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">dark_mode</span></div>
+                <a class="app-card" href="@AppUrl("afterhours")" target="_blank" rel="noopener noreferrer">
+                    <div class="app-card-icon"><img src="~/images/icons/dispatch.svg" alt="" /></div>
                     <div class="app-card-title">After Hours</div>
-                </div>
+                </a>
             }
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">local_shipping</span></div>
+            <a class="app-card" href="@AppUrl("courierportal")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/courier-portal.svg" alt="" /></div>
                 <div class="app-card-title">Courier Portal</div>
-            </div>
-        }
-        else if (!clientInternal)
-        {
-            <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">menu_book</span></div>
-                <div class="app-card-title">Booking Page</div>
-            </div>
-            @if (bulkUploadPermission)
+            </a>
+            @* Courier-portal cutover: the new React portal is served by the
+               configurator (dfrntdriveconfig) at /drive/{slug}. We ADD it
+               alongside the legacy Courier Portal tile rather than swapping,
+               so couriers can use either while the new portal is validated on
+               staging. The configurator auto-redirects a courier landing at
+               its root into /drive/{slug}/dashboard (App.tsx), so we point at
+               the root and let the SPA derive the (cosmetic) tenant slug —
+               no slug logic duplicated here. Swap out the legacy tile once
+               cutover completes. *@
+            <a class="app-card" href="@AppUrl("dfrntdriveconfig")" target="_blank" rel="noopener noreferrer">
+                <div class="app-card-icon"><img src="~/images/icons/workflow.png" alt="" /></div>
+                <div class="app-card-title">DFRNT Drive</div>
+            </a>
+        </div>
+    }
+    else
+    {
+        @*
+            ONE LIST, DECIDED BY THE MATRIX.
+
+            This replaced four hardcoded audience blocks on 2026-09-01 (Steve
+            decision note). Each block listed the tiles someone had written into
+            it, so Tile Access could only ever HIDE a tile a block already
+            contained and never add one — which is why ticking Settings for
+            Customer changed the setting correctly and showed nothing, and why a
+            customer could reach 6 of 17 tiles regardless of configuration.
+
+            HomeController resolves Model.Tiles from the catalogue, so "which
+            tiles does this audience get" is now answered entirely by
+            ClientTypeFeature and the role grid. Adding a tile to an audience is
+            a setting, not a code change.
+        *@
+        <div class="app-grid">
+            @foreach (var tile in Model.Tiles)
             {
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">upload_file</span></div>
-                    <div class="app-card-title">Bulk Import</div>
-                </div>
+                if (tile.IsDisabled)
+                {
+                    <div class="app-card app-card--soon" aria-disabled="true" title="Coming soon">
+                        <div class="app-card-icon"><img src="~/images/icons/@tile.Icon" alt="" /></div>
+                        <div class="app-card-title">@tile.Title</div>
+                        <span class="app-card-chip">Coming soon</span>
+                    </div>
+                }
+                else
+                {
+                    <a class="app-card" href="@tile.Href" target="_blank" rel="noopener noreferrer">
+                        <div class="app-card-icon"><img src="~/images/icons/@tile.Icon" alt="" /></div>
+                        <div class="app-card-title">@tile.Title</div>
+                    </a>
+                }
             }
-            @if (!isUrgentAsureUser)
-            {
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">print</span></div>
-                    <div class="app-card-title">Print</div>
-                </div>
-                <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                    <div class="app-card-icon"><span class="material-symbols-outlined">map</span></div>
-                    <div class="app-card-title">Route Viewer</div>
-                </div>
-            }
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
-                <div class="app-card-title">Tracker</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Url.Action("FuelSurcharge", "Home")', '_blank')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">local_gas_station</span></div>
-                <div class="app-card-title">Fuel Surcharge</div>
-            </div>
-        }
-        else
-        {
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "accounts")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">account_balance</span></div>
-                <div class="app-card-title">Accounts</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "adminmanager")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">admin_panel_settings</span></div>
-                <div class="app-card-title">Admin Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@bookingAppFullUrl')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">menu_book</span></div>
-                <div class="app-card-title">Booking Page</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "bulkimport")' + '/#/login/')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">upload_file</span></div>
-                <div class="app-card-title">Bulk Import</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "clientmanager")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">person_add</span></div>
-                <div class="app-card-title">Client Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "couriermanager")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">package_2</span></div>
-                <div class="app-card-title">Courier Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "courierportal")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">local_shipping</span></div>
-                <div class="app-card-title">Courier Portal</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "despatch")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">desktop_windows</span></div>
-                <div class="app-card-title">Dispatch</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")' + '/#/print')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">print</span></div>
-                <div class="app-card-title">Print</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runviewer")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">map</span></div>
-                <div class="app-card-title">Route Viewer</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "runbuilder")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">account_tree</span></div>
-                <div class="app-card-title">Route Builder</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "tracking")')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">route</span></div>
-                <div class="app-card-title">Tracker</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Environment.GetEnvironmentVariable("TenantURL").Replace("app_name", "integrationmanager")' + '/auth/entry')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">extension</span></div>
-                <div class="app-card-title">Integration Manager</div>
-            </div>
-            <div class="app-card" onclick="window.open('@Url.Action("FuelSurcharge", "Home")', '_blank')">
-                <div class="app-card-icon"><span class="material-symbols-outlined">local_gas_station</span></div>
-                <div class="app-card-title">Fuel Surcharge</div>
-            </div>
-        }
-    </div>
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script src="~/dist/home.js" asp-append-version="true"></script>
+}

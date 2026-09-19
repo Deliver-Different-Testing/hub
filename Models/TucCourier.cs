@@ -269,6 +269,8 @@ public partial class TucCourier
 
     public decimal? BonusPercentage { get; set; }
 
+    public int? NpAgentId { get; set; }
+
     public virtual ICollection<TblAfterhoursCourier> TblAfterhoursCouriers { get; set; } = new List<TblAfterhoursCourier>();
 
     public virtual ICollection<TblUser> TblUsers { get; set; } = new List<TblUser>();

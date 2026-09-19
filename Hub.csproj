@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Hub.Tests\**" />
@@ -13,18 +14,34 @@
     <None Include="efpt.Master.config.json.user" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Amazon.AspNetCore.DataProtection.SSM" Version="4.0.1" />
-    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
-    <PackageReference Include="AWSSDK.Core" Version="4.0.3.15" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.23" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.18.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.3" />
-    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.3" />
+    <PackageReference Include="Amazon.AspNetCore.DataProtection.SSM" />
+    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" />
+    <PackageReference Include="AWSSDK.Core" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" />
+    <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" />
   </ItemGroup>
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="ClientApp\obj\ClientApp.esproj.nuget.dgspec.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\obj\project.assets.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\obj\project.packagespec.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\package-lock.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\package.json" />
+    <_ContentIncludedByDefault Remove="ClientApp\tsconfig.json" />
+  </ItemGroup>
+  <Target Name="NpmInstall" BeforeTargets="NpmBuild"
+          Inputs="package-lock.json" Outputs="node_modules\.install-stamp">
+    <Exec Command="npm install" />
+    <Touch Files="node_modules\.install-stamp" AlwaysCreate="true" />
+  </Target>
+  <Target Name="NpmBuild" BeforeTargets="BeforeBuild">
+    <Exec Command="npm run build" />
+  </Target>
 </Project>

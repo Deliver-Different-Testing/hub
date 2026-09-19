@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using FluentAssertions;
 using Hub.ViewModels;
 
 namespace Hub.Tests.ViewModels;
@@ -20,7 +19,7 @@ public class ViewModelValidationTests
     {
         var model = new LoginViewModel { Email = "user@test.com", Password = "password" };
 
-        ValidateModel(model).Should().BeEmpty();
+        Assert.Empty(ValidateModel(model));
     }
 
     [Fact]
@@ -28,7 +27,7 @@ public class ViewModelValidationTests
     {
         var model = new LoginViewModel { Email = null!, Password = "password" };
 
-        ValidateModel(model).Should().Contain(r => r.MemberNames.Contains("Email"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Email"));
     }
 
     [Fact]
@@ -36,7 +35,7 @@ public class ViewModelValidationTests
     {
         var model = new LoginViewModel { Email = "user@test.com", Password = null! };
 
-        ValidateModel(model).Should().Contain(r => r.MemberNames.Contains("Password"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Password"));
     }
 
     [Fact]
@@ -44,7 +43,7 @@ public class ViewModelValidationTests
     {
         var model = new LoginViewModel { Email = "not-an-email", Password = "password" };
 
-        ValidateModel(model).Should().Contain(r => r.MemberNames.Contains("Email"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Email"));
     }
 
     // ResetPasswordViewModel tests
@@ -59,7 +58,7 @@ public class ViewModelValidationTests
             Code = "abc"
         };
 
-        ValidateModel(model).Should().BeEmpty();
+        Assert.Empty(ValidateModel(model));
     }
 
     [Fact]
@@ -73,7 +72,7 @@ public class ViewModelValidationTests
             Code = "abc"
         };
 
-        ValidateModel(model).Should().NotBeEmpty();
+        Assert.NotEmpty(ValidateModel(model));
     }
 
     [Fact]
@@ -87,7 +86,7 @@ public class ViewModelValidationTests
             Code = "abc"
         };
 
-        ValidateModel(model).Should().Contain(r => r.MemberNames.Contains("ConfirmPassword"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("ConfirmPassword"));
     }
 
     [Fact]
@@ -97,10 +96,11 @@ public class ViewModelValidationTests
         {
             Email = null!,
             Password = "Pa$$w0rd!",
-            ConfirmPassword = "Pa$$w0rd!"
+            ConfirmPassword = "Pa$$w0rd!",
+            Code = "test-code"
         };
 
-        ValidateModel(model).Should().Contain(r => r.MemberNames.Contains("Email"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Email"));
     }
 
     // ForgotPasswordViewModel tests
@@ -109,7 +109,7 @@ public class ViewModelValidationTests
     {
         var model = new ForgotPasswordViewModel { Email = "user@test.com" };
 
-        ValidateModel(model).Should().BeEmpty();
+        Assert.Empty(ValidateModel(model));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class ViewModelValidationTests
     {
         var model = new ForgotPasswordViewModel { Email = null! };
 
-        ValidateModel(model).Should().Contain(r => r.MemberNames.Contains("Email"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Email"));
     }
 
     [Fact]
@@ -131,6 +131,6 @@ public class ViewModelValidationTests
             Code = "abc"
         };
 
-        ValidateModel(model).Should().NotBeEmpty();
+        Assert.NotEmpty(ValidateModel(model));
     }
 }

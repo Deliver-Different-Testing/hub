@@ -1,23 +1,22 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+using Hub.Interfaces;
 using Hub.Models.Master;
-using Hub.Repositories;
-using Microsoft.AspNetCore.Hosting;
 
 namespace Hub.Services;
 
-public class TenantService(AuthenticationRepository authenticationRepository, IWebHostEnvironment hostingEnvironment)
+public sealed class TenantService(IAuthenticationRepository authenticationRepository,
+    IWebHostEnvironment hostingEnvironment)
     : ITenantService
 {
-    public async Task<List<Tenant>> GetTenantsForUserAsync(int userId) =>
+    public async Task<IReadOnlyList<Tenant>> GetTenantsForUserAsync(int userId) =>
         await authenticationRepository.GetTenantsByUserIdAsync(userId);
 
     public string GetTenantLogoPath(string tenantCode)
     {
         const string defaultLogo = "~/images/DFRNT_HorizLogo_RGB.png"; // Default logo
         if (string.IsNullOrEmpty(tenantCode))
+        {
             return defaultLogo;
+        }
 
 
         var tenantLogoPath = $"~/images/{tenantCode}Logo.png";
@@ -33,10 +32,20 @@ public class TenantService(AuthenticationRepository authenticationRepository, IW
     private bool LogoFileExists(string virtualPath)
     {
         // Convert virtual path (~/...) to physical path
-        var path = virtualPath.Replace("~/", "");
+        var path = virtualPath.Replace("~/", string.Empty);
         var physicalPath = Path.Combine(hostingEnvironment.WebRootPath, path);
 
         // Check if the file exists
         return File.Exists(physicalPath);
+    }
+
+    /// <summary>
+    /// Gets the current date/time converted to the tenant's timezone.
+    /// </summary>
+    public async Task<DateTime> GetCurrentTenantTimeAsync(int tenantId)
+    {
+        var timeZoneId = await authenticationRepository.GetTenantTimeZoneAsync(tenantId);
+        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId ?? "UTC");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
     }
 }

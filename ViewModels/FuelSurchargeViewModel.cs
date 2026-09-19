@@ -1,29 +1,23 @@
-using System;
-using System.Collections.Generic;
-
 namespace Hub.ViewModels;
 
-public class FuelSurchargeViewModel
+public sealed record FuelSurchargeRow
 {
-    public string TenantName { get; set; } = "Fuel Surcharge";
-    public bool IsInternalUser { get; set; }
-    public int? ClientId { get; set; }
-    public string? ClientName { get; set; }
-    public FuelSurchargeItemViewModel? CurrentStandard { get; set; }
-    public FuelSurchargeItemViewModel? CurrentClientSpecific { get; set; }
-    public List<FuelSurchargeItemViewModel> History { get; set; } = new();
+    public int FuelSurchargeId { get; init; }
+    public int? ClientId { get; init; }
+    public string? ClientName { get; init; }
+    public decimal Rate { get; init; }
+    public decimal? PumpPrice { get; init; }
+    public DateTime Start { get; init; }
+    public DateTime? End { get; init; }
+    public bool Active { get; init; }
+    public bool IsCurrent { get; init; }
+    public string ScopeLabel => ClientId.HasValue ? "Client-specific" : "Standard";
 }
 
-public class FuelSurchargeItemViewModel
+public sealed record FuelSurchargeCardViewModel
 {
-    public int FuelSurchargeId { get; set; }
-    public int? ClientId { get; set; }
-    public string ScopeLabel { get; set; } = "Standard";
-    public string? ClientName { get; set; }
-    public decimal Rate { get; set; }
-    public decimal? PumpPrice { get; set; }
-    public DateTime Start { get; set; }
-    public DateTime? End { get; set; }
-    public bool Active { get; set; }
-    public bool IsCurrent { get; set; }
+    public bool HasData { get; init; }
+    public FuelSurchargeRow? CurrentStandard { get; init; }
+    public IReadOnlyList<FuelSurchargeRow> History { get; init; } = [];
+public decimal? PumpPrice { get; init; }
 }

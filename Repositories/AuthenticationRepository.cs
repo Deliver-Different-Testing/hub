@@ -1,17 +1,14 @@
-﻿#nullable enable
+﻿using Hub.Interfaces;
 using Hub.Models.Master;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Hub.ViewModels;
 
 namespace Hub.Repositories;
 
-public class AuthenticationRepository(MasterContext context)
+public sealed class AuthenticationRepository(MasterContext context) : IAuthenticationRepository
 {
-    public async Task<User?> GetUserByEmail(string email, bool? isCourier = null)
+    public async Task<User?> GetUserByEmailAsync(string email, bool? isCourier = null)
     {
         var query = context.Users
             .Include(u => u.CurrentTenant)
@@ -23,16 +20,53 @@ public class AuthenticationRepository(MasterContext context)
             // Looking for courier: IsCourier must be true
             query = isCourier.Value
                 ? query.Where(u => u.IsCourier == true)
-                :
-                // Looking for staff: IsCourier must be false or null
-                query.Where(u => u.IsCourier == false || u.IsCourier == null);
+                : query.Where(u => u.IsCourier == false || u.IsCourier == null);
         }
 
         return await query.FirstOrDefaultAsync();
     }
 
-    public async Task<IEnumerable<TenantUserSettingViewModel>> GetUserSettings(int tenantId, int userId) =>
+    /// <summary>
+    /// Records where a tenant's Integration Manager lives, creating the row or updating it. False if
+    /// there is no such tenant.
+    /// <para>
+    /// The row's existence is the on/off switch for Shopify on that courier, so this is also how a
+    /// courier is switched on. Nothing wrote it before - the comments that said pairing-code issuance
+    /// did were describing an intention, not code - which left the table empty and every merchant
+    /// with no courier to connect to.
+    /// </para>
+    /// </summary>
+    public async Task<bool> UpsertShopifyTenantHostAsync(int tenantId, string integrationManagerUrl)
+    {
+        if (!await context.Tenants.AnyAsync(t => t.TenantId == tenantId))
+        {
+            return false;
+        }
+
+        var host = await context.ShopifyTenantHosts.FirstOrDefaultAsync(h => h.TenantId == tenantId);
+
+        if (host == null)
+        {
+            context.ShopifyTenantHosts.Add(new ShopifyTenantHost
+            {
+                TenantId = tenantId,
+                IntegrationManagerUrl = integrationManagerUrl,
+                UpdatedAtUtc = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            host.IntegrationManagerUrl = integrationManagerUrl;
+            host.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        await context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<IReadOnlyList<TenantUserSettingViewModel>> GetUserSettingsAsync(int tenantId, int userId) =>
         await context.TenantUserSettings
+            .AsNoTracking()
             .Where(tus => tus.TenantId == tenantId && tus.UserId == userId)
             .Select(tus => new TenantUserSettingViewModel
             {
@@ -42,7 +76,7 @@ public class AuthenticationRepository(MasterContext context)
             })
             .ToListAsync();
 
-    public async Task SaveUserSetting(TenantUserSettingViewModel viewModel, int tenantId, int userId)
+    public async Task SaveUserSettingAsync(TenantUserSettingViewModel viewModel, int tenantId, int userId)
     {
         // Check if setting already exists
         var existingSetting = await context.TenantUserSettings
@@ -75,33 +109,54 @@ public class AuthenticationRepository(MasterContext context)
 
     public async Task SaveAsync() => await context.SaveChangesAsync();
 
-    public async Task<User?> GetUserById(int id) =>
+    public async Task<User?> GetUserByIdAsync(int id) =>
         await context.Users
+            .AsNoTracking()
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.UserId == id);
 
-    public async Task<User?> GetUserByResetKey(string resetKey) =>
+    public async Task<User?> GetUserByResetKeyAsync(string resetKey) =>
         await context.Users
             .Include(u => u.CurrentTenant)
             .FirstOrDefaultAsync(u => u.ResetKey == resetKey);
 
-    public async Task<List<Tenant>> GetTenantsByUserIdAsync(int userId) =>
-        await context.TenantUsers.Where(tu => tu.UserId == userId).Select(tu => tu.Tenant)
+    public async Task<IReadOnlyList<Tenant>> GetTenantsByUserIdAsync(int userId) =>
+        await context.TenantUsers.AsNoTracking().Where(tu => tu.UserId == userId).Select(tu => tu.Tenant)
             .Distinct()
             .ToListAsync();
+
+    public async Task<string?> GetTenantTimeZoneAsync(int tenantId) =>
+        await context.Tenants
+            .AsNoTracking()
+            .Where(t => t.TenantId == tenantId)
+            .Select(t => t.TimeZone)
+            .FirstOrDefaultAsync();
+
+    public async Task<string?> GetTenantConnectionStringAsync(int tenantId) =>
+        await context.Tenants
+            .AsNoTracking()
+            .Where(t => t.TenantId == tenantId)
+            .Select(t => t.Dbconnection)
+            .FirstOrDefaultAsync();
+
+    public async Task<bool> IsUserAssociatedWithTenantAsync(int userId, int tenantId) =>
+        await context.TenantUsers
+            .AnyAsync(tu => tu.UserId == userId && tu.TenantId == tenantId);
 
     public async Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId)
     {
         var user = await context.Users.FindAsync(userId);
 
-        if (user == null) return false;
+        if (user == null)
+        {
+            return false;
+        }
 
         // Check if the user is associated with the tenant
-        var isAssociated = await context.TenantUsers
-            .AnyAsync(tu => tu.UserId == userId && tu.TenantId == tenantId);
-
-        if (!isAssociated)
+        if (!await IsUserAssociatedWithTenantAsync(userId, tenantId))
+        {
             return false;
+        }
 
         user.CurrentTenantId = tenantId;
 
@@ -116,4 +171,48 @@ public class AuthenticationRepository(MasterContext context)
             return false;
         }
     }
+
+    public async Task<User?> CreateNpUserAsync(string email, int currentTenantId) =>
+        await CreateUserAsync(email, currentTenantId, isNetworkPartner: true);
+
+    public async Task<User?> CreateUserAsync(string email, int currentTenantId, bool isNetworkPartner)
+    {
+        // 409-shape: don't insert if email already exists in Master.User.
+        // Caller surfaces this to the operator as "user already exists in
+        // Hub — manual remediation needed". Re-invite-existing is a
+        // separate slice (idempotency Open Question #3 in the brief).
+        var existing = await context.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.Email == email);
+
+        if (existing)
+        {
+            return null;
+        }
+
+        var user = new User
+        {
+            Email = email,
+            // Password / Salt are empty until the invitee sets their
+            // password via the reset-key flow. IsLegacyHash=false marks
+            // this row as PBKDF2/SHA256-ready when the password gets set.
+            Password = string.Empty,
+            Salt = string.Empty,
+            IsLegacyHash = false,
+            ResetKey = Guid.NewGuid().ToString(),
+            CurrentTenantId = currentTenantId,
+            // Tenant users (configurator Team page) and Network Partners share
+            // this provisioning path; only the IsNetworkPartner data-scope flag
+            // differs. Neither is a courier.
+            IsNetworkPartner = isNetworkPartner,
+            IsCourier = false
+        };
+
+        await context.Users.AddAsync(user);
+        await context.SaveChangesAsync();
+        return user;
+    }
+
+    public async Task<bool> EmailExistsAsync(string email) =>
+        await context.Users.AsNoTracking().AnyAsync(u => u.Email == email);
 }

@@ -1,22 +1,17 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.IO;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Hub.Repositories;
-using System.Linq;
+using Hub.Interfaces;
 using Hub.Shared;
 using Hub.ViewModels;
 
@@ -24,13 +19,13 @@ namespace Hub.Controllers;
 
 public class AccountController(
     IConnectionStringManager connectionStringManager,
-    Repository despatchRepository,
-    AuthenticationRepository authenticationRepository,
+    IDespatchRepository despatchRepository,
+    IAuthenticationRepository authenticationRepository,
     HttpClient httpClient) : Controller
 {
     // GET: /Account/Login
     [AllowAnonymous]
-    public ActionResult Login(string returnUrl)
+    public ActionResult Login(string? returnUrl)
     {
         ViewBag.ReturnUrl = returnUrl;
         ViewBag.IsValid = true;
@@ -41,7 +36,8 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
-    public async Task<ActionResult> Login(LoginViewModel model, string returnUrl)
+    [EnableRateLimiting("auth")]
+    public async Task<ActionResult> Login(LoginViewModel model, string? returnUrl)
     {
         if (!ModelState.IsValid)
         {
@@ -66,7 +62,7 @@ public class AccountController(
         }
 
         // Get user by email and login type (IsCourierLogin determines if we look for courier or staff account)
-        var masterUser = await authenticationRepository.GetUserByEmail(model.Email, model.IsCourierLogin);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(model.Email, model.IsCourierLogin);
 
         if (masterUser == null)
         {
@@ -74,7 +70,8 @@ public class AccountController(
                 model.IsCourierLogin);
             ViewBag.LoginFailed = true;
             var loginTypeText = model.IsCourierLogin ? "Courier Login" : "Staff Login";
-            ModelState.AddModelError(string.Empty, $"Invalid login attempt. No {loginTypeText} account found for this email.");
+            ModelState.AddModelError(string.Empty,
+                $"Invalid login attempt. No {loginTypeText} account found for this email.");
             return View(model);
         }
 
@@ -86,51 +83,20 @@ public class AccountController(
             return View(model);
         }
 
-        var salted = masterUser.Salt;
-        var userPassword = masterUser.Password;
+        if (!VerifyPassword(model.Password, masterUser.Salt, masterUser.Password, masterUser.IsLegacyHash))
+        {
+            Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
+            ViewBag.LoginFailed = true;
+            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+            return View(model);
+        }
 
         if (masterUser.IsLegacyHash)
         {
-            var hashedPassword = PasswordHelper.HashPasswordLegacy(model.Password, salted);
-
-            if (hashedPassword != userPassword)
-            {
-                Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
-                ViewBag.LoginFailed = true;
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                return View(model);
-            }
-
-            // Generate new hash with the improved method
-            var newHash = PasswordHelper.HashPassword(model.Password, salted);
-
-            masterUser.Password = newHash;
-            masterUser.IsLegacyHash = false;
-            await authenticationRepository.SaveAsync();
-        }
-        else
-        {
-            var hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
-
-            if (hashedPassword != userPassword)
-            {
-                Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
-                ViewBag.LoginFailed = true;
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                return View(model);
-            }
+            await UpgradeLegacyHashAsync(masterUser, model.Password);
         }
 
-
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
-
-        connectionStringManager.SetConnectionString(connectionString + credentials);
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         // Fetch AccountsMode once for use in all code paths
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
@@ -140,37 +106,38 @@ public class AccountController(
 
         if (isCourier)
         {
-            var courierId = await despatchRepository.ValidateCourierByEmail(model.Email);
+            var courierId = await despatchRepository.ValidateCourierByEmailAsync(model.Email);
             if (!courierId.HasValue)
             {
                 Log.Warning(
                     "User {ModelEmail} is marked as courier but no active tucCourier record found in Despatch DB",
                     model.Email);
                 ViewBag.LoginFailed = true;
-                ModelState.AddModelError(string.Empty, "Invalid login attempt. Courier account not properly configured.");
+                ModelState.AddModelError(string.Empty,
+                    "Invalid login attempt. Courier account not properly configured.");
                 return View(model);
             }
 
             Log.Information("Courier validated with ID: {CourierId}", courierId.Value);
 
             // Courier users don't need staff user validation - skip to claims generation with default values
-            var claims = GenerateClaims(
-                model.Email,
-                masterUser.UserId,
-                masterUser.CurrentTenant.TenantId,
-                "0", // No ContactID for courier
-                "0", // No ClientID for courier
-                string.Empty, // No StaffID for courier
-                masterUser.CurrentTenant.Dbconnection,
-                model.RememberMe,
-                masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code ?? string.Empty,
-                false, // Couriers are not internal tenant users
-                true,
-                courierId,
-                accountsMode
-            );
+            var claims = GenerateClaims(new ClaimsInput(
+                Email: model.Email,
+                UserId: masterUser.UserId,
+                CurrentTenantId: masterUser.CurrentTenant.TenantId,
+                ContactId: "0",
+                ClientId: "0",
+                StaffId: string.Empty,
+                Connection: masterUser.CurrentTenant.Dbconnection,
+                RememberMe: model.RememberMe,
+                CountryCode: masterUser.CurrentTenant.CountryCode,
+                TimeZone: masterUser.CurrentTenant.TimeZone,
+                TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+                InternalTenantUser: false,
+                IsCourier: true,
+                CourierId: courierId,
+                AccountsMode: accountsMode
+            ));
 
             await SignInUserAsync(claims, model.RememberMe);
 
@@ -180,7 +147,7 @@ public class AccountController(
         else
         {
             // For non-courier users, validate staff login in Despatch DB
-            var user = await despatchRepository.FetchUserByUsername(model.Email);
+            var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
             if (user == null)
             {
@@ -191,34 +158,27 @@ public class AccountController(
                 return View(model);
             }
 
-            despatchRepository.UpdateUserAccessed(user.UcctId, model.RememberMe);
+            await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe,
+                masterUser.CurrentTenant.TenantId);
 
             var claims = GenerateClaims(
-                model.Email,
-                masterUser.UserId,
-                masterUser.CurrentTenant.TenantId,
-                user.UcctId.ToString(),
-                user.UcctClientId.ToString(),
-                user.StaffId?.ToString() ?? string.Empty,
-                masterUser.CurrentTenant.Dbconnection,
-                model.RememberMe,
-                masterUser.CurrentTenant.CountryCode,
-                masterUser.CurrentTenant.TimeZone,
-                masterUser.CurrentTenant.Code ?? string.Empty,
-                user.UcctClient.UcclInternal,
-                false,
-                null,
-                accountsMode
-            );
+                BuildStaffClaimsInput(masterUser, user, accountsMode, model.RememberMe, model.Email));
 
             await SignInUserAsync(claims, model.RememberMe);
 
             // Special redirect for asure@urgent.co.nz to booking app with /asure param
             if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
-                || !masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+                || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))
+            {
                 return RedirectToAction("Index", "Home");
+            }
+
             var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-            if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
+            if (string.IsNullOrEmpty(tenantUrl))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
             var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
             Log.Information("Redirecting user {ModelEmail} to booking app with asure param: {BookingUrl}",
                 model.Email, bookingUrl);
@@ -234,9 +194,14 @@ public class AccountController(
     [AllowAnonymous]
     public async Task<ActionResult> CreditCard()
     {
-        // Define the preset credentials
-        const string presetEmail = "creditcard@urgent.co.nz";
-        const string presetPassword = "AiZAy671pL";
+        var presetEmail = Environment.GetEnvironmentVariable("CreditCardEmail") ?? string.Empty;
+        var presetPassword = Environment.GetEnvironmentVariable("CreditCardPassword") ?? string.Empty;
+
+        if (string.IsNullOrEmpty(presetEmail) || string.IsNullOrEmpty(presetPassword))
+        {
+            Log.Warning("Credit card auto-login credentials not configured in environment variables");
+            return RedirectToAction("Login", new { error = "Auto-login not configured." });
+        }
 
         // Create a login model with preset credentials
         var model = new LoginViewModel
@@ -248,7 +213,7 @@ public class AccountController(
         };
 
         // Get user by email and login type
-        var masterUser = await authenticationRepository.GetUserByEmail(model.Email, model.IsCourierLogin);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(model.Email, model.IsCourierLogin);
 
         if (masterUser == null)
         {
@@ -262,53 +227,22 @@ public class AccountController(
             return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
         }
 
-        var salted = masterUser.Salt;
-        var userPassword = masterUser.Password;
+        if (!VerifyPassword(model.Password, masterUser.Salt, masterUser.Password, masterUser.IsLegacyHash))
+        {
+            Log.Warning("Credit card auto-login failed: Invalid password for {ModelEmail}", model.Email);
+            return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
+        }
 
-        // Verify password
-        string hashedPassword;
         if (masterUser.IsLegacyHash)
         {
-            hashedPassword = PasswordHelper.HashPasswordLegacy(model.Password, salted);
-
-            if (hashedPassword != userPassword)
-            {
-                Log.Warning("Credit card auto-login failed: Invalid password for {ModelEmail}", model.Email);
-                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
-            }
-
-            // Upgrade to new hash
-            var newHash = PasswordHelper.HashPassword(model.Password, salted);
-            masterUser.Password = newHash;
-            masterUser.IsLegacyHash = false;
-            await authenticationRepository.SaveAsync();
-        }
-        else
-        {
-            hashedPassword = PasswordHelper.HashPassword(model.Password, salted);
-
-            if (hashedPassword != userPassword)
-            {
-                Log.Warning("Credit card auto-login failed: Invalid password for {ModelEmail}", model.Email);
-                return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
-            }
+            await UpgradeLegacyHashAsync(masterUser, model.Password);
         }
 
-        // Set connection string
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
-
-        connectionStringManager.SetConnectionString(connectionString + credentials);
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
-        var isCourier = masterUser.IsCourier ?? false;
 
-        var user = await despatchRepository.FetchUserByUsername(model.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
         if (user == null)
         {
@@ -316,32 +250,21 @@ public class AccountController(
             return RedirectToAction("Login", new { error = "Auto-login failed. Please login manually." });
         }
 
-        despatchRepository.UpdateUserAccessed(user.UcctId, false);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            model.Email,
-            masterUser.UserId,
-            masterUser.CurrentTenant.TenantId,
-            user.UcctId.ToString(),
-            user.UcctClientId.ToString(),
-            user.StaffId?.ToString() ?? string.Empty,
-            masterUser.CurrentTenant.Dbconnection,
-            false,
-            masterUser.CurrentTenant.CountryCode,
-            masterUser.CurrentTenant.TimeZone,
-            masterUser.CurrentTenant.Code ?? string.Empty,
-            user.UcctClient.UcclInternal,
-            isCourier,
-            null,
-            accountsMode
-        );
+            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, model.Email));
 
         await SignInUserAsync(claims, false);
 
         Log.Information("Credit card user {ModelEmail} auto-logged in successfully", model.Email);
 
         var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-        if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
+        if (string.IsNullOrEmpty(tenantUrl))
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         var bookingUrl = tenantUrl.Replace("app_name", "booking");
         Log.Information("Redirecting user {ModelEmail} to booking app with creca param: {BookingUrl}", model.Email,
             bookingUrl);
@@ -357,8 +280,11 @@ public class AccountController(
             return RedirectToActionPermanent("Index", "Home");
         }
 
-        var masterUser = await authenticationRepository.GetUserByResetKey(code);
-        if (masterUser == null) return RedirectToActionPermanent("Index", "Home");
+        var masterUser = await authenticationRepository.GetUserByResetKeyAsync(code);
+        if (masterUser == null)
+        {
+            return RedirectToActionPermanent("Index", "Home");
+        }
 
         var model = new ResetPasswordViewModel
         {
@@ -373,6 +299,7 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult> ResetPassword(ResetPasswordViewModel model)
     {
         if (!ModelState.IsValid)
@@ -381,7 +308,7 @@ public class AccountController(
             return View(model);
         }
 
-        var masterUser = await authenticationRepository.GetUserByResetKey(model.Code);
+        var masterUser = await authenticationRepository.GetUserByResetKeyAsync(model.Code);
         if (masterUser == null)
         {
             Log.Debug("Failed to find user via reset key {ModelCode}", model.Code);
@@ -395,20 +322,11 @@ public class AccountController(
         masterUser.ResetKey = null;
         await authenticationRepository.SaveAsync();
 
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
-        connectionStringManager.SetConnectionString(connectionString + credentials);
-
-        // Fetch AccountsMode once for use in claims generation
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
-        var user = await despatchRepository.FetchUserByUsername(model.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
         if (user == null)
         {
@@ -416,34 +334,26 @@ public class AccountController(
             return View(model);
         }
 
-        despatchRepository.UpdateUserAccessed(user.UcctId, false);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            model.Email,
-            masterUser.UserId,
-            masterUser.CurrentTenant.TenantId,
-            user.UcctId.ToString(),
-            user.UcctClientId.ToString(),
-            user.StaffId?.ToString() ?? string.Empty,
-            masterUser.CurrentTenant.Dbconnection,
-            false,
-            masterUser.CurrentTenant.CountryCode,
-            masterUser.CurrentTenant.TimeZone,
-            masterUser.CurrentTenant.Code ?? string.Empty,
-            user.UcctClient.UcclInternal,
-            masterUser.IsCourier ?? false,
-            null,
-            accountsMode
-        );
+            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, model.Email));
 
         await SignInUserAsync(claims, false);
 
         // Special redirect for asure@urgent.co.nz to booking app with /asure param
         if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
-            || !masterUser.CurrentTenant.Code.Equals("urgent", StringComparison.OrdinalIgnoreCase))
+            || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
             return RedirectToAction("Index", "Home");
+        }
+
         var tenantUrl = Environment.GetEnvironmentVariable("TenantURL");
-        if (string.IsNullOrEmpty(tenantUrl)) return RedirectToAction("Index", "Home");
+        if (string.IsNullOrEmpty(tenantUrl))
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         var bookingUrl = tenantUrl.Replace("app_name", "booking") + "/#/asure";
         Log.Information("Redirecting user {ModelEmail} to booking app with asure param: {BookingUrl}",
             model.Email, bookingUrl);
@@ -458,41 +368,49 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
         if (!ModelState.IsValid)
+        {
             return Json(new { success = false, message = "Please check your input and try again." });
+        }
 
 
-        var reCaptchaResponse = await VerifyReCaptcha(Request.Form["g-recaptcha-response"]);
+        var reCaptchaResponse = await VerifyReCaptcha(Request.Form["g-recaptcha-response"].ToString());
 
         if (!reCaptchaResponse.Success || reCaptchaResponse.Score < 0.5)
+        {
             return Json(new { success = false, message = "reCAPTCHA validation failed. Please try again." });
+        }
 
         // Check if email address exists in system
-        var masterUser = await authenticationRepository.GetUserByEmail(model.Email);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(model.Email);
 
         if (masterUser == null)
+        {
+            // The RESPONSE stays deliberately identical to the ModelState-invalid
+            // one above, so this page cannot be used to discover which addresses
+            // have accounts. The LOG is the other half of that trade: without it
+            // the two branches are indistinguishable to us as well, and "password
+            // reset does not work" costs a source read to answer.
+            //
+            // Server-side only, so it gives away nothing. Debug matches the
+            // sibling login-failure line a few actions up.
+            Log.Debug("Password reset requested for {ModelEmail}, which has no Master.User row.",
+                model.Email);
             return Json(new { success = false, message = "Please check your input and try again." });
+        }
 
         masterUser.ResetKey = Guid.NewGuid().ToString();
         await authenticationRepository.SaveAsync();
-        var reply = Environment.GetEnvironmentVariable("ReplyEmail");
+        var reply = Environment.GetEnvironmentVariable("ReplyEmail") ?? string.Empty;
         var baseLink = Environment.GetEnvironmentVariable("ResetBaseLink");
         var link = $"{baseLink}?code={masterUser.ResetKey}";
 
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
-        connectionStringManager.SetConnectionString(connectionString + credentials);
-
-
-        var user = await despatchRepository.FetchUserByUsername(model.Email);
+        var user = await despatchRepository.FetchUserByUsernameAsync(model.Email);
 
         if (user == null)
         {
@@ -501,7 +419,7 @@ public class AccountController(
             return Json(new { success = false, message = "Reset failed due to contact validation failure" });
         }
 
-        await despatchRepository.InitiatePasswordReset(user.UcctId, model.Email, reply, link);
+        await despatchRepository.InitiatePasswordResetAsync(user.UcctId, model.Email, reply, link);
 
 
         return Json(new { success = true, message = "Password reset instructions have been sent to your email." });
@@ -509,7 +427,7 @@ public class AccountController(
 
     private async Task<ReCaptchaResponse> VerifyReCaptcha(string token)
     {
-        var secretKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey");
+        var secretKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey") ?? string.Empty;
         var content = new FormUrlEncodedContent([
             new KeyValuePair<string, string>("secret", secretKey),
             new KeyValuePair<string, string>("response", token)
@@ -523,7 +441,8 @@ public class AccountController(
             PropertyNameCaseInsensitive = true
         };
 
-        return JsonSerializer.Deserialize<ReCaptchaResponse>(responseString, options);
+        return JsonSerializer.Deserialize<ReCaptchaResponse>(responseString, options)
+               ?? new ReCaptchaResponse();
     }
 
 
@@ -533,36 +452,157 @@ public class AccountController(
 
         [JsonPropertyName("score")] public double Score { get; init; }
 
-        [JsonPropertyName("action")] public string Action { get; init; }
+        [JsonPropertyName("action")] public string Action { get; init; } = string.Empty;
 
         [JsonPropertyName("challenge_ts")] public DateTime ChallengeTs { get; init; }
 
-        [JsonPropertyName("hostname")] public string Hostname { get; init; }
+        [JsonPropertyName("hostname")] public string Hostname { get; init; } = string.Empty;
     }
 
-    private static List<Claim> GenerateClaims(string email, int userId, int currentTenantId, string contactId,
-        string clientId,
-        string staffId, string connection, bool rememberMe, string countryCode, string timeZone, string tenantCode,
-        bool internalTenantUser, bool isCourier = false, int? courierId = null, int? accountsMode = null)
+    private record ClaimsInput(
+        string Email,
+        int UserId,
+        int CurrentTenantId,
+        string ContactId,
+        string ClientId,
+        string StaffId,
+        string Connection,
+        bool RememberMe,
+        string CountryCode,
+        string TimeZone,
+        string TenantCode,
+        bool InternalTenantUser,
+        bool IsCourier = false,
+        int? CourierId = null,
+        int? AccountsMode = null,
+        string FirstName = "",
+        string Surname = "",
+        bool IsNetworkPartner = false,
+        // Phase 5+28a §B.1 — tucClientContact.ContactRoleId for NP users.
+        // Emitted as the `NpRoleId` claim so consuming apps
+        // (DfrntDriveConfigurator's authorization policies) can gate
+        // surfaces by role. Null for non-NP users / users without an
+        // assigned contact role.
+        int? ContactRoleId = null,
+        // Phase 5+ data-scope (CLIENT-TYPE-FILTERING) — tucClient.ClientTypeId.
+        // Drives the per-request scope-predicate branch in consuming apps. Null
+        // for couriers (no tucClient).
+        int? ClientTypeId = null,
+        // Phase 5+ data-scope — tucClient.NpAgentId. The NP's Agent reference;
+        // consuming apps filter scoped tables by it for NetworkPartner users.
+        // Null for non-NP users / couriers.
+        int? NpAgentId = null);
+
+    private static List<Claim> GenerateClaims(ClaimsInput input) =>
+    [
+        new(ClaimTypes.Name, input.Email),
+        new("UserID", input.UserId.ToString()),
+        new("CurrentTenantID", input.CurrentTenantId.ToString()),
+        new("ContactID", input.ContactId),
+        new("ClientID", input.ClientId),
+        new("StaffID", input.StaffId),
+        new("Connection", input.Connection),
+        new("CountryCode", input.CountryCode),
+        new("TimeZone", input.TimeZone),
+        new("TenantCode", input.TenantCode),
+        new("RememberMe", input.RememberMe.ToString()),
+        new("Internal", input.InternalTenantUser.ToString()),
+        new("IsCourier", input.IsCourier.ToString()),
+        new("IsNetworkPartner", input.IsNetworkPartner.ToString()),
+        new("CourierID", input.CourierId?.ToString() ?? string.Empty),
+        new("AccountsMode", input.AccountsMode?.ToString() ?? "1"),
+        new("FirstName", input.FirstName),
+        new("Surname", input.Surname),
+        // Phase 5+28a §B.1 — see ClaimsInput.ContactRoleId. Emitting the
+        // raw ID rather than a friendly name keeps Hub agnostic to the
+        // tenant-DB tblContactRole table (seeded 1=NpAdmin / 2=NpDispatcher
+        // / 3=NpReadOnly by 20260513123935_NPMarketplaceAndQuotes.sql);
+        // consuming apps map ID → friendly name themselves.
+        new("NpRoleId", input.ContactRoleId?.ToString() ?? string.Empty),
+        // Unified Permissions (spec v1.1 §5) — RoleId supersedes NpRoleId as
+        // the role claim for ALL contact types (not just NP). Emitted as a
+        // TRANSITIONAL DUAL-WRITE: same value as NpRoleId so already-issued
+        // cookies keep working while consumers migrate to read `RoleId ??
+        // NpRoleId`. NpRoleId is dropped once all sessions have refreshed.
+        // (Role STACKING — a contact holding multiple roles — is resolved
+        // downstream from the existing `ContactID` claim = tucClientContact
+        // PK, which already keys tblContactContactRole; no extra claim needed.)
+        new("RoleId", input.ContactRoleId?.ToString() ?? string.Empty),
+        // Phase 5+ data-scope (CLIENT-TYPE-FILTERING) — see ClaimsInput.ClientTypeId.
+        // The single signal that downstream apps branch on to build the row-level
+        // scope predicate: Customer/Internal → ucjbClientID; NetworkPartner (3) →
+        // NpAgentId; DFRNTAdmin (5) → bypass; ConnectedTenant (6) → reject at auth.
+        // Consuming apps derive "DF admin" from ClientTypeId == 5 — no separate
+        // dfrnt_admin claim. Empty for couriers (gated at the Courier Portal API).
+        new("ClientTypeId", input.ClientTypeId?.ToString() ?? string.Empty),
+        // Phase 5+ data-scope — see ClaimsInput.NpAgentId. Lets NP-scoped apps
+        // apply WHERE NpAgentId = <claim> without a per-request tucClient lookup.
+        new("NpAgentId", input.NpAgentId?.ToString() ?? string.Empty)
+    ];
+
+    // Single source of truth for STAFF (non-courier) login claims. Every staff
+    // auth path — Login, CreditCard, ResetPassword, UpdateCurrentTenant,
+    // AcceptTenantSwitchToken — funnels through here so the claim set can't
+    // drift between them. (It previously had: AcceptTenantSwitchToken silently
+    // omitted IsNetworkPartner.) The courier path builds its own minimal
+    // ClaimsInput inline since couriers have no tucClient / ClientType.
+    // ClientTypeId + NpAgentId come straight off the already-Included UcctClient
+    // nav, so this adds zero extra DB queries.
+    private static ClaimsInput BuildStaffClaimsInput(
+        Models.Master.User masterUser,
+        Models.TucClientContact user,
+        int? accountsMode,
+        bool rememberMe,
+        string email) =>
+        new(
+            Email: email,
+            UserId: masterUser.UserId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
+            ContactId: user.UcctId.ToString(),
+            ClientId: user.UcctClientId?.ToString() ?? "0",
+            StaffId: user.StaffId?.ToString() ?? string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: rememberMe,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: user.UcctClient.UcclInternal,
+            IsCourier: masterUser.IsCourier ?? false,
+            AccountsMode: accountsMode,
+            FirstName: user.UcctFirstname ?? string.Empty,
+            Surname: user.UcctSurname ?? string.Empty,
+            IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
+            ContactRoleId: user.ContactRoleId,
+            ClientTypeId: user.UcctClient.ClientTypeId,
+            NpAgentId: user.UcctClient.NpAgentId);
+
+    private void SetTenantConnectionString(string dbConnection)
     {
-        return
-        [
-            new Claim(ClaimTypes.Name, email),
-            new Claim("UserID", userId.ToString()),
-            new Claim("CurrentTenantID", currentTenantId.ToString()),
-            new Claim("ContactID", contactId),
-            new Claim("ClientID", clientId),
-            new Claim("StaffID", staffId ?? string.Empty),
-            new Claim("Connection", connection),
-            new Claim("CountryCode", countryCode),
-            new Claim("TimeZone", timeZone),
-            new Claim("TenantCode", tenantCode),
-            new Claim("RememberMe", rememberMe.ToString()),
-            new Claim("Internal", internalTenantUser.ToString()),
-            new Claim("IsCourier", isCourier.ToString()),
-            new Claim("CourierID", courierId?.ToString() ?? string.Empty),
-            new Claim("AccountsMode", accountsMode?.ToString() ?? "1")
-        ];
+        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        if (string.IsNullOrEmpty(credentials))
+        {
+            throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
+        connectionStringManager.SetConnectionString(dbConnection + credentials);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Obsolete", "CS0618",
+        Justification = "Legacy hash needed to verify users not yet upgraded")]
+    private static bool VerifyPassword(string password, string salt, string storedHash, bool isLegacy)
+    {
+        var hash = isLegacy
+            ? PasswordHelper.HashPasswordLegacy(password, salt)
+            : PasswordHelper.HashPassword(password, salt);
+        return hash == storedHash;
+    }
+
+    private async Task UpgradeLegacyHashAsync(Models.Master.User masterUser, string password)
+    {
+        var newHash = PasswordHelper.HashPassword(password, masterUser.Salt);
+        masterUser.Password = newHash;
+        masterUser.IsLegacyHash = false;
+        await authenticationRepository.SaveAsync();
     }
 
     private async Task SignInUserAsync(List<Claim> claims, bool isPersistent)
@@ -582,6 +622,7 @@ public class AccountController(
             authProperties);
     }
 
+    [Authorize]
     public async Task<IActionResult> Logout()
     {
         // Clear the existing external cookie
@@ -594,21 +635,75 @@ public class AccountController(
 
 
     [HttpPost]
+    [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel model)
+    public async Task<IActionResult> UpdateCurrentTenant([FromBody] TenantUpdateModel? model)
     {
         var userId = User.FindFirst("UserID")?.Value;
         if (userId == null)
+        {
             return Json(new { success = false, message = "User not found" });
+        }
 
         if (model == null || model.TenantId == 0)
+        {
             return Json(new { success = false, message = "Invalid tenant ID" });
+        }
 
-        var success = await authenticationRepository.UpdateCurrentTenantIdAsync(int.Parse(userId), model.TenantId);
+        var userIdInt = int.Parse(userId);
+        var email = User.Identity?.Name ?? string.Empty;
 
-        if (!success) return Json(new { success = false, message = "Update database failed" });
+        // Master-side access gate: the user must be linked to the target tenant.
+        if (!await authenticationRepository.IsUserAssociatedWithTenantAsync(userIdInt, model.TenantId))
+        {
+            return Json(new { success = false, message = "You don't have access to that tenant." });
+        }
 
-        var masterUser = await authenticationRepository.GetUserById(int.Parse(userId));
+        // Resolve the target tenant's Despatch DB WITHOUT persisting the switch yet.
+        var tenantConnection = await authenticationRepository.GetTenantConnectionStringAsync(model.TenantId);
+        if (string.IsNullOrEmpty(tenantConnection))
+        {
+            Log.Error("Tenant switch blocked: tenant {TenantId} has no database connection (user {UserId}).",
+                model.TenantId, userId);
+            return Json(new
+            {
+                success = false,
+                message = "That tenant isn't fully configured (no database connection). Contact an administrator."
+            });
+        }
+
+        // Validate-before-write: confirm the user actually has an active operator
+        // record (tucClientContact) in the target tenant's Despatch DB BEFORE we
+        // commit CurrentTenantId. Persisting first and only then discovering the
+        // missing contact is what used to strand users on an unusable tenant —
+        // CurrentTenant pointed at a DB with no contact, silently breaking both
+        // login and password-reset until the row was corrected by hand.
+        SetTenantConnectionString(tenantConnection);
+        var user = await despatchRepository.FetchUserByUsernameAsync(email);
+
+        if (user == null)
+        {
+            Log.Warning(
+                "Tenant switch blocked: user {UserId} ({Email}) is associated with tenant {TenantId} in Master "
+                + "but has no active tucClientContact there — provisioning gap; CurrentTenant left unchanged.",
+                userIdInt, email, model.TenantId);
+            return Json(new
+            {
+                success = false,
+                message = $"Your account isn't set up in that tenant yet — there's no operator record for {email} "
+                          + "there. Ask an administrator to add you to that tenant before switching."
+            });
+        }
+
+        // Contact verified — now it's safe to persist the tenant switch.
+        var success = await authenticationRepository.UpdateCurrentTenantIdAsync(userIdInt, model.TenantId);
+
+        if (!success)
+        {
+            return Json(new { success = false, message = "Update database failed" });
+        }
+
+        var masterUser = await authenticationRepository.GetUserByIdAsync(userIdInt);
 
         if (masterUser == null)
         {
@@ -622,55 +717,250 @@ public class AccountController(
             return Json(new { success = false, message = $"Current Tenant Not Set for user {userId}" });
         }
 
-        //Changed Tenant - switch connection
-        var connectionString = masterUser.CurrentTenant.Dbconnection;
-        Log.Debug("Changed Current Tenant. Setting new connection: {ConnectionString}", connectionString);
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
+        // Defensive consistency check: the just-persisted CurrentTenant must match the
+        // requested tenant. If it doesn't, the update silently failed (stale EF entity,
+        // SaveChanges no-op, etc.) and we must NOT mint a cookie that mixes the new
+        // TenantId claim with the old tenant's other attributes — that exact mismatch is
+        // what produced the OTGCargo cache poisoning incident on 2026-04-14.
+        if (masterUser.CurrentTenant.TenantId != model.TenantId)
         {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
+            Log.Error("Tenant switch did not persist: requested {Requested}, persisted {Persisted} for user {UserId}",
+                model.TenantId, masterUser.CurrentTenant.TenantId, userId);
+            return Json(new { success = false, message = "Tenant update did not persist" });
         }
 
-        connectionStringManager.SetConnectionString(connectionString + credentials);
+        //Changed Tenant - switch connection
+        Log.Debug("Changed Current Tenant for user {UserId}", userId);
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
 
-        // Fetch AccountsMode once for use in claims generation
         var accountsMode = await despatchRepository.GetAccountsModeAsync();
 
-        var user = await despatchRepository.FetchUserByUsername(User.Identity?.Name);
-
-        if (user == null)
-        {
-            Log.Debug("Failed to authenticate Despatch User {IdentityName}. Invalid username.", User.Identity?.Name);
-            return Json(new { success = false, message = "Despatch User not found" });
-        }
-
         var rememberMe = bool.Parse(User.FindFirst("RememberMe")?.Value ?? "false");
-        despatchRepository.UpdateUserAccessed(user.UcctId, rememberMe);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, rememberMe, masterUser.CurrentTenant.TenantId);
         Log.Debug("About to write Claim details. ContactID: {ToString}", user.UcctId.ToString());
         Log.Debug("About to write Claim details. Connection: {CurrentTenantDbconnection}",
             masterUser.CurrentTenant.Dbconnection);
 
-        var claims = GenerateClaims(
-            User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
-            masterUser.UserId,
-            model.TenantId,
-            user.UcctId.ToString(),
-            user.UcctClientId.ToString(),
-            user.StaffId?.ToString() ?? string.Empty,
-            masterUser.CurrentTenant.Dbconnection,
-            rememberMe,
-            masterUser.CurrentTenant.CountryCode,
-            masterUser.CurrentTenant.TimeZone,
-            masterUser.CurrentTenant.Code ?? string.Empty,
-            user.UcctClient.UcclInternal,
-            masterUser.IsCourier ?? false,
-            accountsMode
-        );
+        var claims = GenerateClaims(BuildStaffClaimsInput(
+            masterUser, user, accountsMode, rememberMe,
+            User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty));
 
         await SignInUserAsync(claims, rememberMe);
 
-        return Json(new { success = true });
+        // Phase 2: build a short-lived SSO token and return the destination Hub URL.
+        // The frontend redirects the browser there; the destination Hub validates the
+        // token and issues a fresh cookie scoped to its own subdomain. This restores
+        // "URL matches active tenant" once the user lands.
+        var destHost =
+            BuildDestinationHubHost(HttpContext.Request.Host.Host, masterUser.CurrentTenant.Code ?? string.Empty);
+        if (destHost == null)
+        {
+            // Couldn't infer destination — return success without a redirectUrl so
+            // the frontend falls back to in-place reload (Phase 1 behaviour).
+            return Json(new { success = true });
+        }
+
+        var token = JsonSerializer.Serialize(new
+        {
+            masterUser.UserId,
+            masterUser.CurrentTenant.TenantId,
+            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+        });
+        var encryptedToken = EncryptClaims(token, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
+        var redirectUrl =
+            $"https://{destHost}/Account/AcceptTenantSwitchToken?t={Uri.EscapeDataString(encryptedToken)}";
+
+        return Json(new { success = true, redirectUrl });
+    }
+
+    [HttpGet("Account/AcceptTenantSwitchToken")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AcceptTenantSwitchToken([FromQuery] string t)
+    {
+        if (string.IsNullOrWhiteSpace(t))
+        {
+            Log.Warning("AcceptTenantSwitchToken: empty token");
+            return RedirectToAction("Login");
+        }
+
+        TenantSwitchTokenPayload? payload;
+        try
+        {
+            var decrypted = DecryptClaims(t, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
+            payload = JsonSerializer.Deserialize<TenantSwitchTokenPayload>(decrypted,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "AcceptTenantSwitchToken: failed to decrypt or parse token");
+            return RedirectToAction("Login");
+        }
+
+        if (payload == null || payload.UserId <= 0 || payload.TenantId <= 0)
+        {
+            Log.Warning("AcceptTenantSwitchToken: token payload invalid");
+            return RedirectToAction("Login");
+        }
+
+        if (payload.ExpiresAt < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+        {
+            Log.Warning("AcceptTenantSwitchToken: token expired (issued for user {UserId}, tenant {TenantId})",
+                payload.UserId, payload.TenantId);
+            return RedirectToAction("Login");
+        }
+
+        var masterUser = await authenticationRepository.GetUserByIdAsync(payload.UserId);
+        if (masterUser?.CurrentTenant == null)
+        {
+            Log.Warning("AcceptTenantSwitchToken: user {UserId} or current tenant not found", payload.UserId);
+            return RedirectToAction("Login");
+        }
+
+        // Verify this Hub serves the tenant the token was issued for. Prevents a token
+        // generated for one tenant being replayed at another tenant's Hub.
+        var hostTenant = ExtractTenantFromHost(HttpContext.Request.Host.Host);
+        if (hostTenant == null ||
+            !string.Equals(hostTenant, masterUser.CurrentTenant.Code, StringComparison.OrdinalIgnoreCase) ||
+            masterUser.CurrentTenant.TenantId != payload.TenantId)
+        {
+            Log.Warning(
+                "AcceptTenantSwitchToken: token tenant {TokenTenant}/{TokenCode} does not match host {HostTenant} (user {UserId})",
+                payload.TenantId, masterUser.CurrentTenant.Code, hostTenant, payload.UserId);
+            return RedirectToAction("Login");
+        }
+
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
+
+        var accountsMode = await despatchRepository.GetAccountsModeAsync();
+        var user = await despatchRepository.FetchUserByUsernameAsync(masterUser.Email);
+        if (user == null)
+        {
+            Log.Warning("AcceptTenantSwitchToken: despatch user not found for {Email}", masterUser.Email);
+            return RedirectToAction("Login");
+        }
+
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
+
+        var claims = GenerateClaims(
+            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, masterUser.Email));
+
+        await SignInUserAsync(claims, false);
+
+        return RedirectToAction("Index", "Home");
+    }
+
+    private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt);
+
+    // The "stack" tenant used for end-to-end testing of the staging stack. Its DNS
+    // is special-cased to live at the bare staging hostname (hub.staging.deliverdifferent.com)
+    // rather than at hub.dfrnt.staging.deliverdifferent.com.
+    private const string StackTenantCode = "dfrnt";
+
+    /// <summary>
+    /// Builds the destination Hub host for a tenant switch.
+    /// Recognised host shapes (under deliverdifferent.com):
+    ///   prod   : app.tenant.deliverdifferent.com
+    ///   staging: app.tenant.staging.deliverdifferent.com   (regular tenant)
+    ///            app.staging.deliverdifferent.com          (dfrnt stack tenant)
+    ///   local  : app.local.deliverdifferent.com            (single-host, cookie-only)
+    /// Returns null when no cross-domain redirect is possible (local/dev, prod target
+    /// of dfrnt, or unrecognised host shape) — caller falls back to in-place reload.
+    /// </summary>
+    public static string? BuildDestinationHubHost(string requestHost, string destinationTenantCode)
+    {
+        if (string.IsNullOrWhiteSpace(destinationTenantCode))
+        {
+            return null;
+        }
+
+        if (ParseHost(requestHost) is not { } parsed)
+        {
+            return null;
+        }
+
+        var env = parsed.Env;
+        if (env is "local" or "dev")
+        {
+            return null;
+        }
+
+        var isStackTenant = string.Equals(destinationTenantCode, StackTenantCode, StringComparison.OrdinalIgnoreCase);
+
+        // Stack tenant only exists in staging — prod has no env-bare equivalent.
+        if (isStackTenant && env == null)
+        {
+            return null;
+        }
+
+        return (env, isStackTenant) switch
+        {
+            (null, _) => $"hub.{destinationTenantCode}.deliverdifferent.com",
+            (_, true) => $"hub.{env}.deliverdifferent.com",
+            (_, false) => $"hub.{destinationTenantCode}.{env}.deliverdifferent.com"
+        };
+    }
+
+    /// <summary>
+    /// Returns the tenant code served by a request host, or null if the host has no
+    /// identifiable tenant (local/dev shared host, unrecognised shape).
+    /// </summary>
+    public static string? ExtractTenantFromHost(string host)
+    {
+        if (ParseHost(host) is not { } parsed)
+        {
+            return null;
+        }
+
+        if (parsed.Env is "local" or "dev")
+        {
+            return null;
+        }
+
+        // Staging-bare host (hub.staging.deliverdifferent.com) serves the stack tenant.
+        return parsed is { Env: "staging", Tenant: null }
+            ? StackTenantCode
+            : parsed.Tenant;
+    }
+
+    /// <summary>
+    /// Parses a deliverdifferent.com host into (env, tenant) segments.
+    /// env is "staging"/"local"/"dev" or null for prod. tenant is the tenant code
+    /// or null when the env subdomain itself serves a default tenant (e.g. staging
+    /// stack, local dev). Returns null when the host doesn't match a known shape —
+    /// callers must distinguish that from a parsed-but-tenantless prod host.
+    /// </summary>
+    private static (string? Env, string? Tenant)? ParseHost(string host)
+    {
+        if (string.IsNullOrEmpty(host))
+        {
+            return null;
+        }
+
+        if (!host.EndsWith("deliverdifferent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var parts = host.Split('.');
+        if (parts.Length < 4)
+        {
+            return null;
+        }
+
+        // Layout: [app] . [tenant?] . [env?] . deliverdifferent . com
+        // Middle segments sit between parts[0] and the trailing "deliverdifferent.com" pair.
+        var middle = parts[1..^2];
+
+        return middle.Length switch
+        {
+            1 => IsEnv(middle[0]) ? (middle[0].ToLowerInvariant(), null) : (null, middle[0]),
+            2 when IsEnv(middle[1]) => (middle[1].ToLowerInvariant(), middle[0]),
+            _ => null
+        };
+
+        static bool IsEnv(string s) => s.Equals("staging", StringComparison.OrdinalIgnoreCase)
+                                       || s.Equals("local", StringComparison.OrdinalIgnoreCase)
+                                       || s.Equals("dev", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string EncryptClaims(string claims, string key)
@@ -693,75 +983,63 @@ public class AccountController(
         return Convert.ToBase64String(msEncrypt.ToArray());
     }
 
+    private static string DecryptClaims(string encryptedClaims, string key)
+    {
+        var fullCipherText = Convert.FromBase64String(encryptedClaims);
+        using var aesAlg = Aes.Create();
+        var keyBytes = Convert.FromBase64String(key);
+        aesAlg.Key = keyBytes;
+
+        // The IV was written at the beginning of the ciphertext during encryption.
+        var ivLength = aesAlg.BlockSize / 8;
+        if (fullCipherText.Length < ivLength)
+        {
+            throw new ArgumentException("Encrypted payload too short to contain an IV.", nameof(encryptedClaims));
+        }
+
+        var iv = new byte[ivLength];
+        Array.Copy(fullCipherText, 0, iv, 0, ivLength);
+        aesAlg.IV = iv;
+
+        var cipherTextWithoutIv = new byte[fullCipherText.Length - ivLength];
+        Array.Copy(fullCipherText, ivLength, cipherTextWithoutIv, 0, cipherTextWithoutIv.Length);
+
+        using var decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+        using var msDecrypt = new MemoryStream(cipherTextWithoutIv);
+        using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+        using var srDecrypt = new StreamReader(csDecrypt);
+        return srDecrypt.ReadToEnd();
+    }
+
 
     [HttpPost]
+    [Authorize]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> GenerateApiKey()
     {
         try
         {
-            var email = HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
-            if (email == null)
+            var email = GetClaim(ClaimTypes.Name);
+            var clientId = GetClaim("ClientID");
+            var tenantId = GetClaim("CurrentTenantID");
+            var connection = GetClaim("Connection");
+            var timeZone = GetClaim("TimeZone");
+            var contactId = GetClaim("ContactID");
+            var userId = GetClaim("UserID");
+            var tenantCode = GetClaim("TenantCode");
+
+            if (email == null || clientId == null || tenantId == null || connection == null ||
+                timeZone == null || contactId == null || userId == null || tenantCode == null)
             {
-                Log.Debug("Failed to generate API key: email is not found");
+                Log.Debug("Failed to generate API key: one or more required claims missing");
                 return Json(new { success = false, message = "Failed to generate API key" });
             }
 
-            var uid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserID")?.Value;
-            if (uid == null)
-            {
-                Log.Debug("Failed to generate API key: UserID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var clientId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
-            if (clientId == null)
-            {
-                Log.Debug("Failed to generate API key: ClientID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var tenantId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CurrentTenantID")?.Value;
-            if (tenantId == null)
-            {
-                Log.Debug("Failed to generate API key: CurrentTenantID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var connection = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
-            if (connection == null)
-            {
-                Log.Debug("Failed to generate API key: Connection is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var timeZone = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TimeZone")?.Value;
-            if (timeZone == null)
-            {
-                Log.Debug("Failed to generate API key: TimeZone is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var contactId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
-            if (contactId == null)
-            {
-                Log.Debug("Failed to generate API key: ContactID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var userId = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "UserID")?.Value;
-            if (userId == null)
-            {
-                Log.Debug("Failed to generate API key: UserID is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
-
-            var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
-            if (tenantCode == null)
-            {
-                Log.Debug("Failed to generate API key: tenantCode is not found");
-                return Json(new { success = false, message = "Failed to generate API key" });
-            }
+            // This is a standalone request: the scoped ConnectionStringManager is
+            // empty (it's only populated inside the login/tenant-switch actions).
+            // FetchSubAccountsAsync hits the tenant Despatch DB, so rehydrate the
+            // connection from the Connection claim first, like the auth paths do.
+            SetTenantConnectionString(connection);
 
             var subAccounts = await despatchRepository.FetchSubAccountsAsync(int.Parse(clientId));
 
@@ -774,8 +1052,10 @@ public class AccountController(
                 Value = respToken
             };
 
-            await authenticationRepository.SaveUserSetting(viewModel, int.Parse(tenantId), int.Parse(userId));
+            await authenticationRepository.SaveUserSettingAsync(viewModel, int.Parse(tenantId), int.Parse(userId));
             return Json(new { success = true, message = "Successfully generated API key", apiKey = respToken });
+
+            string? GetClaim(string type) => User.FindFirst(type)?.Value;
         }
         catch (Exception ex)
         {
@@ -803,7 +1083,8 @@ public class AccountController(
             TimeZone = tenantTimeZone,
             TenantCode = tenantCode
         });
-        var encryptedClaims = EncryptClaims(sensitiveClaims, Environment.GetEnvironmentVariable("ClaimsKey"));
+        var encryptedClaims = EncryptClaims(sensitiveClaims,
+            Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, name),
@@ -819,9 +1100,10 @@ public class AccountController(
         );
     }
 
+    [Authorize]
     public async Task<ActionResult> Settings()
     {
-        var data = new List<TenantUserSettingViewModel>();
+        IReadOnlyList<TenantUserSettingViewModel> data = [];
         var email = HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
 
         if (email == null)
@@ -830,7 +1112,7 @@ public class AccountController(
             return View(data);
         }
 
-        var masterUser = await authenticationRepository.GetUserByEmail(email);
+        var masterUser = await authenticationRepository.GetUserByEmailAsync(email);
 
         if (masterUser == null)
         {
@@ -838,18 +1120,8 @@ public class AccountController(
             return View(data);
         }
 
-        var us = await authenticationRepository.GetUserSettings(masterUser.CurrentTenant.TenantId, masterUser.UserId);
-        data = us.ToList();
+        data = await authenticationRepository.GetUserSettingsAsync(masterUser.CurrentTenant.TenantId, masterUser.UserId);
 
-
-        var other1 = new TenantUserSettingViewModel
-        {
-            Id = 2,
-            Name = "Test Setting",
-            Value = "Testing Settings"
-        };
-
-        data.Add(other1);
         return View(data);
     }
 }

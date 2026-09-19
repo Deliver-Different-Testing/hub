@@ -1,16 +1,19 @@
-﻿using Hub.Repositories;
+﻿using Hub.Interfaces;
 using Hub.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Hub.Services;
 using Hub.Models;
 
 namespace Hub.Controllers;
 
-public class HomeController(IConnectionStringManager connectionStringManager, Repository despatchRepository)
+[Authorize]
+public class HomeController(
+    IConnectionStringManager connectionStringManager,
+    IDespatchRepository despatchRepository,
+    IFeatureResolver featureResolver,
+    ITileAccessResolver tileAccessResolver)
     : Controller
 {
     public async Task<IActionResult> Index()
@@ -21,167 +24,135 @@ public class HomeController(IConnectionStringManager connectionStringManager, Re
         var userEmail = HttpContext.User.Claims.FirstOrDefault(x => x.Type == System.Security.Claims.ClaimTypes.Name)
             ?.Value;
         var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
-        if (cid == null || connectionString == null) return RedirectToAction("Login", "Account");
-        Log.Debug("Found Identity for ContactID:{Cid}", cid);
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
-        {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
-        }
-
-        connectionStringManager.SetConnectionString(connectionString + credentials);
-        //var contactDetail = await despatchRepository.GetContact(int.Parse(cid));
-        //var clientDetail = await despatchRepository.GetClient((int)contactDetail.ClientID);
-
-        var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissions(int.Parse(cid));
-
-        ViewBag.ContactID = int.Parse(cid);
-        //ViewBag.ContactName = contactDetail.FirstName;
-        //ViewBag.ContactFullName = contactDetail.FirstName + " " + contactDetail.SurName;
-        //ViewBag.ContactEmail = contactDetail.UserName;
-        //ViewBag.ContactCreated = (int)(contactDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
-        ViewBag.GreetingString = GetGreetingString();
-        ViewBag.DespatchWebPermission = GetPermission(internetPermissions, 12);
-        ViewBag.BookJobPermission = GetPermission(internetPermissions, 2);
-        ViewBag.BulkUploadPermission = GetPermission(internetPermissions, 11);
-        ViewBag.UserEmail = userEmail;
-        ViewBag.TenantCode = tenantCode;
-
-        //ViewBag.ClientName = clientDetail.Name;
-        ViewBag.ClientInternal = internalTenantUser;
-        //ViewBag.ClientID = contactDetail.ClientID;
-        //ViewBag.ClientCreated = (Int32)(clientDetail.Created.ToUniversalTime().Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
-        //ViewBag.ClientStripe = clientDetail.StripeClient;
-
-        // Check if courier is authorized for after-hours on current day
-        ViewBag.ShowAfterHours = await IsAfterHoursAuthorizedAsync();
-
-        return View();
-    }
-
-    public async Task<IActionResult> FuelSurcharge()
-    {
-        var cid = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ContactID")?.Value;
-        var connectionString = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Connection")?.Value;
-        var internalTenantUser = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "Internal")?.Value;
-        var tenantName = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantName")?.Value
-                         ?? HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value
-                         ?? "Tenant";
-
         if (cid == null || connectionString == null)
         {
             return RedirectToAction("Login", "Account");
         }
 
-        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
-        if (string.IsNullOrEmpty(credentials))
+        Log.Debug("Found Identity for ContactID:{Cid}", cid);
+        SetTenantConnectionString(connectionString);
+
+        var contactId = int.Parse(cid);
+        var internetPermissions = await despatchRepository.GetDespatchWebInternetPermissionsAsync(contactId);
+
+        // Phase 5+31 R2 §2 — resolve the user's visible hub-tile-* feature keys
+        // against the ClientType × Feature matrix. Drives EVERY non-courier
+        // tile as of 2026-09-01: the per-audience blocks in Index.cshtml are
+        // gone, so this set plus the role gate below is the whole answer.
+        var clientIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "ClientID")?.Value;
+        int? clientId = int.TryParse(clientIdClaim, out var ci) && ci > 0 ? ci : null;
+        // DF-admin (ClientType=5) bypass is determined inside the resolver from
+        // the client's ClientType — no longer the legacy UserGroupID==1 check.
+        //
+        // isInternal is passed so the tenant's own staff resolve as Tenant
+        // (ClientType 4) rather than Customer (2) — they sit on Customer clients
+        // carrying ucclInternal=1, and resolving that literally would strip most
+        // of their tiles. See FeatureResolver for the full reasoning.
+        var isInternalStaff = bool.TryParse(internalTenantUser, out var iu) && iu;
+        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId, isInternalStaff);
+
+        // Gate 2 - tile-level access (Steve 2026-08-26). Gate 1 above says which
+        // features DF Admin enabled for the tenant; this says which of the hub
+        // tiles the contact's ROLES may see. A tile needs both to render.
+        //
+        // Only hub-tile-* keys are removed: everything else in the set is
+        // sub-tile detail that the tile model does not govern.
+        var tileDecisions = await tileAccessResolver.ResolveAsync(contactId, clientId, visibleFeatures);
+        foreach (var denied in tileDecisions.Where(d => !d.Granted))
         {
-            throw new InvalidOperationException(
-                "Could not find a environment variable string named 'SQLCredentials'.");
+            visibleFeatures.Remove(denied.TileKey);
         }
 
-        connectionStringManager.SetConnectionString(connectionString + credentials);
+        // Debug-logged because it is the only way to answer "why can't this user
+        // see that tile". The tile is simply absent either way, and which gate
+        // closed is not recoverable after the fact.
+        Log.Debug("Tile access for ContactID:{Cid} - {Decisions}",
+            contactId,
+            string.Join(", ", tileDecisions.Select(d => $"{d.TileKey}={d.Reason}")));
 
-        var isInternalUser = false;
-        if (!string.IsNullOrWhiteSpace(internalTenantUser))
+        // Resolve the launcher tiles here rather than in the view. The view used
+        // to carry five hardcoded audience blocks, which is why the matrix could
+        // only hide a tile a block already listed and never add one.
+        //
+        // The four conditions passed in are real runtime facts the matrix cannot
+        // express: a legacy per-contact permission, a page that exists on one
+        // tenant only, and one account with a bespoke rule. They stay as AND
+        // conditions on top of the matrix, never as a way to grant.
+        var tenantCodeValue = tenantCode ?? string.Empty;
+        var isAsureUser = string.Equals(userEmail, "asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
+                          && string.Equals(tenantCodeValue, "urgent", StringComparison.OrdinalIgnoreCase);
+        var isCourier = string.Equals(HttpContext.User.FindFirst("IsCourier")?.Value, "True",
+                                      StringComparison.OrdinalIgnoreCase);
+
+        var tiles = HubTileCatalogue.Resolve(
+            new HubTileContext(
+                AppUrl: TenantAppUrl,
+                FuelSurchargeUrl: Url.Action("Index", "FuelSurcharge") ?? "/FuelSurcharge",
+                BookingPath: isAsureUser ? "/#/asure" : "/#/login/",
+                HasBulkUploadPermission: GetPermission(internetPermissions, 11),
+                ShowFuelSurcharge: !isCourier
+                    && string.Equals(tenantCodeValue, "urgent", StringComparison.OrdinalIgnoreCase),
+                IsAsureUser: isAsureUser),
+            visibleFeatures);
+
+        var model = new HomeViewModel
         {
-            bool.TryParse(internalTenantUser, out isInternalUser);
-        }
+            Tiles = tiles,
+            ContactId = contactId,
 
-        int? clientId = null;
-        string? clientName = null;
-
-        if (User.Identity?.Name != null)
-        {
-            var contact = await despatchRepository.FetchUserByUsername(User.Identity.Name);
-            clientId = contact?.UcctClientId;
-            if (clientId.HasValue)
-            {
-                clientName = await despatchRepository.GetClientNameAsync(clientId.Value);
-            }
-        }
-
-        var history = await despatchRepository.GetFuelSurchargeHistoryAsync(clientId, isInternalUser);
-        ViewBag.FaviconPath = Url.Content("~/images/fuel-pump-favicon.svg");
-
-        var model = new FuelSurchargeViewModel
-        {
-            TenantName = tenantName,
-            IsInternalUser = isInternalUser,
-            ClientId = clientId,
-            ClientName = clientName,
-            History = history
+            DespatchWebPermission = GetPermission(internetPermissions, 12),
+            BookJobPermission = GetPermission(internetPermissions, 2),
+            BulkUploadPermission = GetPermission(internetPermissions, 11),
+            UserEmail = userEmail,
+            TenantCode = tenantCode,
+            ClientInternal = internalTenantUser,
+            ShowAfterHours = await IsAfterHoursAuthorizedAsync(),
+            VisibleFeatures = visibleFeatures
         };
-
-        model.CurrentStandard = history.FirstOrDefault(x => x.ClientId == null && x.IsCurrent);
-        model.CurrentClientSpecific = history.FirstOrDefault(x => clientId.HasValue && x.ClientId == clientId.Value && x.IsCurrent);
 
         return View(model);
     }
 
-    private static string GetGreetingString()
+    private void SetTenantConnectionString(string dbConnection)
     {
-        var greetings = new[]
+        var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        if (string.IsNullOrEmpty(credentials))
         {
-            "Hi", "Hello", "Welcome", "Greetings", "G'day", "Hey", "Good to see you,", "How are you",
-            "Hope it's swell,", "How's it going", "What's good", "Howdy", "Kia ora", "Tēnā koe",
-            "The world is yours,", "Hi", "Hello", "Hey", "All the best,", "Enjoy,", "Seize the day,", "Kia ora"
-        };
-        var random = new Random();
-        return greetings[random.Next(greetings.Length)];
+            throw new InvalidOperationException("Could not find a environment variable string named 'SQLCredentials'.");
+        }
+
+        connectionStringManager.SetConnectionString(dbConnection + credentials);
     }
 
     private static bool GetPermission(List<RVW_stpValidateInternetPermissionsResult> internetPermissions,
         int internetPermissionId) => internetPermissions.Any(i => i.InternetPermissionID == internetPermissionId);
 
+    /// <summary>
+    /// Per-tenant app URL from an app slug. Was a local function in the view;
+    /// moved here when tile resolution did.
+    /// </summary>
+    private static string TenantAppUrl(string appName) =>
+        (Environment.GetEnvironmentVariable("TenantURL") ?? string.Empty).Replace("app_name", appName);
+
     private async Task<bool> IsAfterHoursAuthorizedAsync()
     {
         try
         {
-            // Check if user is a courier
             var isCourierClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "IsCourier")?.Value;
             var courierIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CourierID")?.Value;
 
             var isCourier = !string.IsNullOrEmpty(isCourierClaim) &&
                             bool.TryParse(isCourierClaim, out var courierFlag) && courierFlag;
 
-            // If not a courier, don't show AfterHours tile
             if (!isCourier || string.IsNullOrEmpty(courierIdClaim) || !int.TryParse(courierIdClaim, out var courierId))
+            {
                 return false;
-
-            // Get tenant timezone from claims
-            var timeZoneClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TimeZone")?.Value;
-            DateTime tenantCurrentTime;
-
-            if (!string.IsNullOrEmpty(timeZoneClaim))
-            {
-                try
-                {
-                    var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneClaim);
-                    tenantCurrentTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
-                }
-                catch (TimeZoneNotFoundException)
-                {
-                    Log.Warning("TimeZone '{TimeZoneClaim}' not found, falling back to server time", timeZoneClaim);
-                    tenantCurrentTime = DateTime.Now;
-                }
-            }
-            else
-            {
-                Log.Warning("TimeZone claim not found, falling back to server time");
-                tenantCurrentTime = DateTime.Now;
             }
 
-            // Get current day of week in tenant timezone (0 = Sunday, 6 = Saturday)
-            var currentDayOfWeek = (int)tenantCurrentTime.DayOfWeek;
+            var isAuthorized = await despatchRepository.IsAfterHoursAuthorizedAsync(courierId);
 
-            // Check if courier is scheduled for after-hours on current day
-            var isAuthorized = await despatchRepository.IsAfterHoursAuthorized(courierId, currentDayOfWeek);
-
-            Log.Information(
-                "AfterHours authorization check for courier {CourierId} on {DayOfWeek} (tenant time: {TenantCurrentTime:yyyy-MM-dd HH:mm:ss}, timezone: {TimeZoneClaim}): {IsAuthorized}",
-                courierId, tenantCurrentTime.DayOfWeek, tenantCurrentTime, timeZoneClaim ?? "N/A", isAuthorized);
+            Log.Information("AfterHours authorization check for courier {CourierId}: {IsAuthorized}",
+                courierId, isAuthorized);
 
             return isAuthorized;
         }

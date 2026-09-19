@@ -1,0 +1,39 @@
+<!-- Lucide "mail" icon - lucide-static v1.25.0, ISC licence.
+     Lucide is the sanctioned set for generic UI chrome per the DFRNT brand book
+     ("Iconography - UI"), and is already a dependency for the <dfrnt-icon>
+     TagHelper. Copied here as a static file because the app-grid tiles render
+     their icons through <img src="~/images/icons/*.svg">, which the TagHelper
+     does not feed.
+
+     Two deliberate changes from upstream:
+
+     1. stroke="currentColor" -> "#000". Inside an <img> there is no CSS cascade
+        for currentColor to inherit from. The tile sits on a light
+        primary-container gradient in both themes, so black is correct either
+        way, and it matches the neighbouring icons (which are filled black paths
+        with no fill attribute).
+
+     2. stroke-width 2 -> 0.7. This is the important one. Lucide draws at
+        stroke-width 2 on a 24-unit viewBox = 8.3% of icon width. Every other
+        icon in this grid is filled outline art on a large viewBox with a much
+        finer line: client-manager.svg uses 3-unit bars on a 94.39 viewBox
+        (3.2%), route-viewer.svg has 1.95-unit rings on 86.4 (2.3%). At the
+        stock weight this icon rendered roughly 3x heavier than its neighbours
+        and read as noticeably bolder/darker on the tile. 0.7/24 = 2.9% puts it
+        mid-range of the set (~1.1px at the 38px render size). Do not "restore"
+        this to Lucide's default without re-checking it against the grid. -->
+<svg
+  class="lucide lucide-mail"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="#000"
+  stroke-width="0.7"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" />
+  <rect x="2" y="4" width="20" height="16" rx="2" />
+</svg>

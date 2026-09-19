@@ -1,11 +1,11 @@
-using System;
-using System.Threading.Tasks;
-using Hub.Services;
+using Hub.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Hub.Controllers;
 
 [Route("api/[controller]")]
+[EnableRateLimiting("api")]
 public class LogoController(ITenantLogoService tenantLogoService) : Controller
 {
     [HttpGet]
@@ -17,7 +17,9 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
 
             // If it's a local path, serve the file directly
             if (logoUrl != null && logoUrl.StartsWith('/'))
+            {
                 return Json(new { success = true, logoUrl, isLocal = true });
+            }
 
             // If it's an S3 URL, return the pre-signed URL
             return Json(new { success = true, logoUrl, isLocal = false });
@@ -37,7 +39,7 @@ public class LogoController(ITenantLogoService tenantLogoService) : Controller
             var exists = await tenantLogoService.LogoExistsAsync();
             return Json(new { success = true, exists });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Json(new { success = false, exists = false });
         }

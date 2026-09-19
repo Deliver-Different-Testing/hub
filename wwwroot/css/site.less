@@ -1,0 +1,2466 @@
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@color_1: var(--dd-on-surface);
+@color_2: var(--dd-primary);
+@color_3: var(--dd-primary-hover);
+@color_4: var(--dd-on-primary);
+@color_5: var(--dd-on-surface-secondary);
+@color_6: var(--dd-primary-active);
+@color_7: var(--dd-on-primary-container);
+@color_8: #000;
+@color_9: var(--dd-success-text);
+@font_family_1: var(--font-body);
+@font_family_2: var(--font-heading);
+@background_color_2: var(--dd-surface-container-low);
+@background_color_3: rgba(var(--dd-on-primary-rgb), .12);
+@background_color_4: #000;
+@background_color_5: var(--dd-primary);
+@background_color_6: var(--dd-primary-hover);
+@background_color_7: var(--dd-primary-active);
+@background_color_8: var(--dd-surface-variant);
+@background_color_9: var(--dd-primary-container);
+@background_color_10: rgba(var(--dd-primary-rgb), .18);
+@background_color_11: rgba(var(--dd-primary-rgb), .06);
+@background_color_12: #0d0c2c;  // Ink Blue — the login field ground
+@background_color_13: rgba(var(--dd-on-primary-rgb), .15);
+@background_color_14: rgba(var(--dd-on-primary-rgb), .22);
+@border_color_1: var(--dd-primary-hover);
+@border_color_2: var(--dd-primary-active);
+@border_color_3: var(--dd-outline);
+@border_color_4: var(--dd-primary);
+@border_color_5: var(--dd-outline-variant);
+@border_color_6: rgba(var(--dd-state-rgb), .14);
+@border_bottom_color_1: transparent;
+
+// Login backdrop palette — the ambient glows layered behind the auth card.
+// Named so the two tenant variants (default slate, non-US warm) derive from the
+// same values; kept byte-identical to the previous inline rgba() literals via
+// fade(). The chevron SVG strokes stay inline: CSS/LESS vars can't cross into a
+// data: URI string.
+@login_glow_sky: #3bc7f4; // DFRNT Cyan accent glow behind the auth card
+
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes menuReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+:root {
+  // DFRNT brand palette (Feb 2026). Interactive/foreground colour is split from
+  // the fill-only accent: --dd-primary (Reflex Blue) must read on white AND
+  // carry white text, so it drives links/focus/standard buttons. Cyan fails as
+  // a foreground on white (~1.6:1), so it lives as --dd-accent — a fill-only
+  // spotlight (dark Ink text on it) reserved for the primary CTA.
+  --dd-primary: #2a4eff;              // Reflex Blue
+  --dd-primary-rgb: 42, 78, 255;
+  --dd-primary-hover: #1f3fe0;
+  --dd-primary-active: #1834c4;
+  --dd-primary-container: #d4dcff;    // Reflex Blue 20%
+  --dd-on-primary: #ffffff;
+  --dd-on-primary-rgb: 255, 255, 255;
+  --dd-on-primary-container: #1834c4;
+  --dd-secondary: #6e6d80;            // Ink Blue 60%
+  --dd-secondary-rgb: 110, 109, 128;
+  --dd-on-secondary: #ffffff;
+  // Cyan — fill-only accent (dark Ink text on it) + the CTA/highlight colour.
+  --dd-accent: #3bc7f4;               // Cyan
+  --dd-accent-rgb: 59, 199, 244;
+  --dd-on-accent: #0d0c2c;            // Ink Blue text on cyan ≈ 11:1
+  --dd-accent-container: #d8f4fd;     // Cyan 20%
+  // Ink Blue — the brand's dark ground: navbar chrome + primary text.
+  --dd-ink: #0d0c2c;
+  --dd-ink-rgb: 13, 12, 44;
+  --dd-on-ink: #f4f2f1;               // Light Grey — chrome that sits on the ink bar
+  --dd-surface: #ffffff;
+  --dd-surface-dim: #ecebe9;          // warm, a touch darker — app background
+  --dd-surface-variant: #f4f2f1;      // brand Light Grey
+  --dd-surface-container-lowest: #ffffff;
+  --dd-surface-container-low: #faf9f8;
+  --dd-surface-container: #f4f2f1;
+  --dd-surface-container-high: #ecebe9;
+  --dd-surface-container-highest: #e4e2df;
+  --dd-on-surface: #0d0c2c;           // Ink Blue text (~15:1 on white)
+  --dd-on-surface-rgb: 13, 12, 44;    // rgb of --dd-on-surface (for rgba() consumers, e.g. Bootstrap)
+  --dd-on-surface-secondary: #6e6d80; // Ink 60% — sparingly; prefer lighter WEIGHT
+  // MD3 inverse roles — a dark chip on the light theme (used by the plain
+  // tooltip); flipped to a light chip in .dd-dark-scheme().
+  --dd-inverse-surface: #0d0c2c;
+  --dd-inverse-on-surface: #f4f2f1;
+  --dd-outline: #cfced5;              // Ink 20% — keyline dividers/borders
+  --dd-outline-variant: #e6e4e9;      // lighter keyline
+  --dd-error: #dc3246;
+  --dd-on-error: #ffffff;
+  --dd-success: #13b964;
+  --dd-success-rgb: 19, 185, 100;
+  --dd-success-text: #0e8f4d;
+  --dd-warning: #fe811a;
+  --dd-warning-strong: #e6740f;
+  --dd-info: #2a4eff;
+  --dd-state-rgb: var(--dd-primary-rgb);
+  // Flattened elevation — near-flat surfaces; a real shadow only on overlays
+  // (menus/dropdowns) so cards read as keyline-bounded, not boxed & shadowed.
+  --elevation-1: none;
+  --elevation-2: 0 1px 2px rgba(13, 12, 44, .05);
+  --elevation-3: 0 6px 20px rgba(13, 12, 44, .10);
+  --elevation-4: 0 10px 28px rgba(13, 12, 44, .12);
+  --elevation-5: 0 16px 40px rgba(13, 12, 44, .16);
+  // Plus Jakarta Sans — the brand UI typeface.
+  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-body);
+  --ease-standard: cubic-bezier(.4, 0, .2, 1);
+  --ease-decelerate: cubic-bezier(0, 0, .2, 1);
+  --ease-spring: cubic-bezier(.22, .9, .36, 1);
+  --ease-emphasized: cubic-bezier(.2, 0, 0, 1);
+  --ease-emphasized-decelerate: cubic-bezier(.05, .7, .1, 1);
+  --duration-short: 150ms;
+  --duration-medium: 250ms;
+  --duration-long: 350ms;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+  --radius-circle: 50%;
+
+  // Bootstrap bridge — point Bootstrap's core CSS vars at the --dd-* tokens so
+  // Bootstrap components (form controls, selects, dropdown surfaces, cards, links)
+  // inherit brand colour AND dark mode for free: the --dd-* values flip in
+  // .dd-dark-scheme(), and these var() references resolve at use-time, so a field
+  // background / dropdown surface tracks the active theme without per-component
+  // dark rules. Replaces the old @material/web system-token bridge.
+  --bs-body-bg: var(--dd-surface);
+  --bs-body-color: var(--dd-on-surface);
+  // Bootstrap builds muted text + the .form-floating label colour from the *-rgb
+  // triple; without this it stays near-black and renders dark-on-dark in dark mode.
+  --bs-body-color-rgb: var(--dd-on-surface-rgb);
+  --bs-secondary-color: var(--dd-on-surface-secondary);
+  --bs-border-color: var(--dd-outline);
+  --bs-primary: var(--dd-primary);
+  --bs-primary-rgb: var(--dd-primary-rgb);
+  --bs-emphasis-color: var(--dd-on-surface);
+  --bs-tertiary-bg: var(--dd-surface-container);
+  --bs-link-color: var(--dd-primary);
+  --bs-link-color-rgb: var(--dd-primary-rgb);
+  --bs-link-hover-color: var(--dd-primary-hover);
+}
+
+// Neutrals-only dark scheme. Only the NEUTRAL roles (surface / on-surface /
+// outline) flip to an Ink-Blue-tinted ramp — the brand/primary/accent block is
+// intentionally left at its light values. The navbar is a CONSTANT Ink Blue bar
+// with light (--dd-on-ink) chrome in both themes, so no per-theme navbar flip is
+// needed (that logic was removed in the DFRNT rebrand). The --bs-* bridge in
+// :root re-reads these --dd-* tokens, so every Bootstrap component (form fields,
+// selects, dropdown surfaces, cards) tracks dark mode for free.
+//
+// Activation (see layout.ts + the _Layout no-flash script):
+//   data-theme unset / "system" → follow the OS (prefers-color-scheme)
+//   data-theme="dark"           → forced dark
+//   data-theme="light"          → forced light (wins over a dark OS)
+.dd-dark-scheme() {
+  // Neutral soft-charcoal dark ramp, ported 1:1 from the Integration Manager app
+  // (its md3.ts `darkSurface` ladder) so the two DFRNT apps share one dark surface.
+  // The page surface is warm-neutral charcoal rather than navy — only the fixed
+  // navbar/sidebar stay Ink Blue (#0d0c2c, set once at base level). The container
+  // ladder stays monotonic (lowest → highest gets progressively lighter),
+  // preserving tonal elevation. Text is a cool near-white.
+  --dd-surface: #2c2a30;
+  --dd-surface-dim: #28262c;
+  --dd-surface-variant: #56535c;
+  --dd-surface-container-lowest: #252429;
+  --dd-surface-container-low: #312f36;
+  --dd-surface-container: #37353c;
+  --dd-surface-container-high: #413f47;
+  --dd-surface-container-highest: #4c4952;
+  --dd-on-surface: rgba(230, 225, 233, .92);
+  --dd-on-surface-rgb: 230, 225, 233;  // rgb of the dark on-surface (Bootstrap rgba() consumers)
+  --dd-on-surface-secondary: rgba(230, 225, 233, .60);
+  // Inverse roles flip: a light chip carrying dark text on the dark scheme.
+  --dd-inverse-surface: #f4f2f1;
+  --dd-inverse-on-surface: #0d0c2c;
+  // Outline neutrals in the charcoal family — matches IM's dark border tone.
+  --dd-outline: #56535c;
+  --dd-outline-variant: #413f47;
+  // Lighter success text so the fuel "current" chip stays legible on dark fills.
+  --dd-success-text: #6ee7a8;
+
+  // Keep the App Hub's geometric backdrop in dark mode — the same SVG paths and
+  // opacities as the light #home pattern, but the strokes/fills flip to white so
+  // they read on the dark surface, and the bright central white glow drops to a
+  // faint sheen so it doesn't glare. The layer count (1 tiled pattern + 3 glows)
+  // matches the base body#home background-repeat / -attachment, which still apply.
+  body#home {
+    background-color: var(--dd-surface-dim);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.08'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.08'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.06'/%3E%3Ccircle cx='118' cy='32' r='3' fill='%23ffffff' stroke='none' opacity='0.09'/%3E%3Cpath d='M118 35 L118 44' opacity='0.09'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.05'/%3E%3Cpath d='M70 26 L82 26' opacity='0.06'/%3E%3Ccircle cx='140' cy='80' r='1.8' fill='%23ffffff' stroke='none' opacity='0.09'/%3E%3Ccircle cx='12' cy='80' r='1.2' fill='%23ffffff' stroke='none' opacity='0.07'/%3E%3C/svg%3E"), radial-gradient(ellipse at 15% 85%, rgba(var(--dd-primary-rgb), .10) 0%, transparent 55%), radial-gradient(ellipse at 85% 10%, rgba(var(--dd-accent-rgb), .07) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, .03) 0%, transparent 65%);
+  }
+
+  // NOTE: the navbar is now a constant Ink Blue bar with light (--dd-on-ink)
+  // chrome in BOTH themes, so the old dark-mode chrome flips (#tenantDropdown,
+  // .tenant-label/.username/.dropdown-arrow, #themeToggle) and the app-bar logo
+  // swap are gone — those are handled once at base level. Only page-surface art
+  // still flips with the theme, below.
+
+  // The in-page hub logo is asset-swapped, not plated: hide the light artwork
+  // and reveal the dark variant (light wordmark, transparent bg), so it sits
+  // cleanly on the dark page surface with no box behind it.
+  .hub-brand-logo.logo-light { display: none; }
+  .hub-brand-logo.logo-dark { display: block; }
+
+  // App Hub tiles: on hover the title flips to --dd-primary-active (a dark blue)
+  // which is muddy on the dark cards — lift it to the brighter --dd-primary.
+  .app-card:hover .app-card-title {
+    color: var(--dd-primary);
+  }
+
+  // Status chips: the primary brand block isn't flipped in dark mode, so the
+  // "Active" chip's text (--dd-on-primary-container, #1834c4 dark blue) renders
+  // dark-on-dark and its 12% tint all but vanishes on the ink surface. Lift the
+  // text to a light Reflex Blue and strengthen the fill — the same rescue the
+  // "Current" chip got via --dd-success-text (#6ee7a8). Inactive/scope chips
+  // read fine (they use flipped neutral tokens) and are left alone.
+  .fuel-chip-active {
+    background: rgba(var(--dd-primary-rgb), .22);
+    color: #aebdff;
+  }
+
+  // The exceptions are brand art we can't recolour — arbitrary S3 tenant logos
+  // and the login mascot's baked-in white background. These sit on a light MD3
+  // inverse-surface chip so they stay legible whatever colour they are; it reads
+  // as a deliberate container, not a stray white box. Light-mode is untouched
+  // (these rules only exist in the dark scope).
+  .s3-logo {
+    padding: .5rem .75rem;
+    background: var(--dd-inverse-surface);
+    border-radius: var(--radius-md);
+    // Soft elevation so the light chip reads as a deliberate lifted tile against
+    // the dark page rather than a flat, glaring white box.
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+  }
+
+  // Login mascot: hide the light variant, reveal the dark one. Its baked backing
+  // is now a translucent frosted panel (in the _dark.json), so instead of a hard
+  // white box it reads as a soft themed surface behind the mascot — just round
+  // its corners so it settles into the card.
+  .auth-lottie.auth-lottie-light { display: none; }
+  .auth-lottie.auth-lottie-dark {
+    display: block;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+}
+
+// Explicit user choice wins over the OS.
+:root[data-theme="dark"] {
+  .dd-dark-scheme();
+}
+
+// System default: apply dark unless the user has explicitly forced light.
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    .dd-dark-scheme();
+  }
+}
+
+// DFRNT is the universal brand — the former US-blue / non-US-gold per-tenant
+// colour switch (and its login-background variant) was removed in the Feb 2026
+// rebrand, and tenants otherwise differ by LOGO only (see TenantLogoService /
+// TenantLogo view component).
+//
+// EXCEPTION — the Urgent tenant keeps its gold brand (the theming skill's
+// urgentPrimaryPalette, #f4c430), reintroduced Aug 2026 and scoped to the
+// urgent tenant ONLY; every other tenant stays pure DFRNT. The --dd-primary*
+// block flips to gold (dark Ink text on it), and the app-bar ground flips too:
+// --dd-ink → gold with dark (--dd-on-ink) chrome, so the whole navbar (bg,
+// tenant selector, toggler, theme toggle, dropdowns) repaints from the tokens
+// it already reads. The Cyan --dd-accent CTA and all neutral/surface tokens are
+// unchanged, and the brand/ink block isn't flipped in .dd-dark-scheme(), so
+// gold persists on the charcoal page in dark mode (same as DFRNT's own
+// primary). The --bs-* bridge in :root re-reads these tokens, so Bootstrap
+// links/buttons/focus follow for free. The hook is the data-tenant-code emitted
+// on <body> in _Layout.cshtml; login is pre-auth (no TenantCode claim) so it
+// stays DFRNT.
+body[data-tenant-code="urgent"] {
+  --dd-primary: #f4c430;
+  --dd-primary-rgb: 244, 196, 48;
+  --dd-primary-hover: #e5b52a;
+  --dd-primary-active: #d4a324;
+  --dd-primary-container: #fef9e7;
+  --dd-on-primary: #1c1917;
+  --dd-on-primary-rgb: 28, 25, 23;
+  --dd-on-primary-container: #a87614;
+  --dd-state-rgb: 28, 25, 23;
+  // Gold app bar — the navbar paints from --dd-ink with --dd-on-ink chrome, so
+  // flipping these two turns the whole bar gold with dark Ink chrome on it.
+  --dd-ink: #f4c430;
+  --dd-ink-rgb: 244, 196, 48;
+  --dd-on-ink: #1c1917;
+}
+
+// Urgent's app bar is a LIGHT gold surface, so the app-bar logo must use the
+// dark-ink artwork (the .logo-light variant) rather than the white-wordmark
+// (.logo-dark) variant the always-dark Ink Blue bar uses — reverse the base
+// `.navbar .logo` swap for this tenant. The bar stays gold in dark mode too
+// (the brand/ink block isn't flipped in .dd-dark-scheme()), so this holds in
+// both themes; the extra body[data-tenant-code] specificity out-weighs the
+// base rule. Only local logos ship both variants — S3 logos are a single
+// plated image and are unaffected.
+body[data-tenant-code="urgent"] .navbar .logo.logo-light {
+  display: block;
+}
+
+body[data-tenant-code="urgent"] .navbar .logo.logo-dark {
+  display: none;
+}
+
+html {
+  font-size: 15px;
+  min-height: 100%;
+  overflow-x: clip; // kill phantom h-scroll from dropdown popovers
+  scrollbar-width: thin;
+  scrollbar-color: var(--dd-outline) transparent;
+}
+
+body {
+  font-family: @font_family_1;
+  color: @color_1;
+  background-color: @background_color_2;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-family: @font_family_2;
+}
+
+h2 {
+  font-family: @font_family_2;
+}
+
+h3 {
+  font-family: @font_family_2;
+}
+
+h4 {
+  font-family: @font_family_2;
+}
+
+h5 {
+  font-family: @font_family_2;
+}
+
+h6 {
+  font-family: @font_family_2;
+}
+
+a {
+  color: @color_2;
+  text-decoration: none;
+  transition: color var(--duration-short) var(--ease-standard);
+
+  &:hover {
+    color: @color_3;
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    border-radius: var(--radius-xs);
+  }
+}
+
+::selection {
+  background: rgba(var(--dd-primary-rgb), .18);
+  color: @color_1;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dd-outline);
+  border-radius: var(--radius-xs);
+
+  &:hover {
+    background: var(--dd-on-surface-secondary);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--dd-primary);
+  outline-offset: 2px;
+}
+
+button.accept-policy {
+  font-size: 1rem;
+  line-height: inherit;
+}
+
+.navbar {
+  // The DFRNT brand ground is Ink Blue: the app bar is a constant dark bar with
+  // light (--dd-on-ink) chrome in BOTH themes — no per-theme flip. Flat, no shadow.
+  background: var(--dd-ink) !important;
+  color: var(--dd-on-ink);
+  box-shadow: none;
+  padding: 0;
+  border: none !important;
+  min-height: 56px;
+  z-index: 1030;
+
+  .container {
+    gap: .75rem;
+  }
+
+  .navbar-toggler-icon {
+    background-image: none;
+    -webkit-mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='white' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+    mask-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='white' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+    background-color: var(--dd-on-ink);
+  }
+}
+
+.navbar.navbar-floating {
+  background: var(--dd-ink) !important;
+  border: none !important;
+  border-radius: 0;
+  margin: 0;
+  max-width: none;
+  padding: 0 .75rem;
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+a.navbar-brand {
+  white-space: normal;
+  text-align: center;
+  word-break: normal;
+  padding: .125rem 0;
+}
+
+.navbar-brand {
+  img {
+    max-height: 48px;
+    width: auto;
+    transition: opacity var(--duration-short) var(--ease-standard);
+  }
+
+  .logo {
+    max-height: 48px;
+    width: auto;
+    transition: opacity var(--duration-short) var(--ease-standard);
+  }
+
+  &:hover {
+    img {
+      opacity: .85;
+    }
+
+    .logo {
+      opacity: .85;
+    }
+  }
+}
+
+.navbar-toggler {
+  border: 2px solid rgba(var(--dd-on-primary-rgb), .3);
+  border-radius: var(--radius-sm);
+  padding: .375rem .625rem;
+  transition: border-color var(--duration-short) var(--ease-standard), background-color var(--duration-short) var(--ease-standard);
+
+  &:hover {
+    background-color: @background_color_3;
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba(var(--dd-on-primary-rgb), .2);
+  }
+}
+
+.footer {
+  width: 100%;
+  background: var(--dd-surface-container);
+  border-top: none;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, .04);
+  padding: .75rem 0;
+  margin-top: auto;
+
+  .footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    font-family: @font_family_1;
+    color: @color_5;
+  }
+
+  .footer-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+    white-space: nowrap;
+
+    code {
+      font-size: .75rem;
+      font-weight: 600;
+      color: @color_1;
+      background: var(--dd-surface-container-high);
+      padding: .075rem .4rem;
+      border-radius: var(--radius-xs);
+      letter-spacing: .02em;
+    }
+  }
+
+  .footer-support {
+    a {
+      color: @color_6;
+      font-weight: 600;
+
+      &:hover {
+        color: @color_2;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .footer-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .footer-meta + .footer-meta,
+  .footer-nav {
+    position: relative;
+    padding-left: 1.25rem;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 3px;
+      height: 3px;
+      border-radius: var(--radius-circle);
+      background: var(--dd-outline);
+      transform: translateY(-50%);
+    }
+  }
+
+  .footer-link {
+    color: @color_5;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color var(--duration-short) var(--ease-standard);
+
+    &:hover {
+      color: @color_2;
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      color: @color_2;
+      text-decoration: underline;
+    }
+  }
+}
+
+.btn {
+  font-family: @font_family_1;
+  font-weight: 600;
+  letter-spacing: .02em;
+  // Lozenge / pill — the DFRNT main-button shape.
+  border-radius: var(--radius-full);
+  transition: all var(--duration-short) var(--ease-standard);
+  position: relative;
+  overflow: hidden;
+  // Align an inline <dfrnt-icon> + label inside the button.
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+
+// Bare icon button (theme toggle in the navbar). Circular, transparent, chrome
+// tint on hover — replaces the old <md-icon-button>.
+.icon-btn {
+  padding: .375rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: inherit;
+  // Base .btn sets overflow:hidden for the .btn-primary ripple overlay; the icon
+  // button has no ripple and hosts the .dd-tooltip ::after, which must escape.
+  overflow: visible;
+
+  &:hover,
+  &:focus {
+    background: @background_color_3;
+  }
+}
+
+.btn-primary {
+  background-color: @background_color_5;
+  border: none;
+  color: @color_4;
+  padding: .625rem 1.5rem;
+  border-radius: var(--radius-full);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0);
+    transition: background var(--duration-short) var(--ease-standard);
+    pointer-events: none;
+  }
+
+  &:hover {
+    &::before {
+      background: rgba(255, 255, 255, .08);
+    }
+
+    // Flat: darken on hover, no elevation shadow (the "no boxing" brand rule).
+    background-color: @background_color_6;
+    border-color: @border_color_1;
+  }
+
+  &:active {
+    &::before {
+      background: rgba(255, 255, 255, .12);
+    }
+
+    background-color: @background_color_7 !important;
+    border-color: @border_color_2 !important;
+  }
+
+  &:focus {
+    background-color: @background_color_6;
+    border-color: @border_color_1;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(var(--dd-primary-rgb), .4);
+    outline-offset: 2px;
+  }
+}
+
+// Signature CTA — the single spotlight action (the brand's cyan "+ Add new"
+// pill). Solid Cyan with dark Ink text (~11:1) — accessible and matches the
+// brand mockup. The cyan→reflex atom gradient is reserved for text-free accent
+// lines (see .hub-surface / .app-card), never behind text. Use sparingly.
+.btn-cta {
+  background-color: var(--dd-accent);
+  border: none;
+  color: var(--dd-on-accent);
+  font-weight: 700;
+  padding: .625rem 1.5rem;
+  border-radius: var(--radius-full);
+
+  &:hover,
+  &:focus {
+    color: var(--dd-on-accent);
+    filter: brightness(.96);
+  }
+
+  &:active {
+    filter: brightness(.92);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(var(--dd-accent-rgb), .5);
+    outline-offset: 2px;
+  }
+}
+
+.btn-outline-secondary {
+  border-color: @border_color_3;
+  color: @color_1;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    background-color: @background_color_8;
+    border-color: @border_color_3;
+    color: @color_1;
+  }
+}
+
+.btn-tonal {
+  background-color: @background_color_9;
+  color: @color_7;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+
+  &:hover {
+    box-shadow: var(--elevation-1);
+    background-color: @background_color_10;
+    color: @color_7;
+  }
+}
+
+.nav-pills {
+  .nav-link.active {
+    background-color: @background_color_5;
+    border-color: @border_color_4;
+    color: @color_4;
+  }
+
+  .show {
+    > .nav-link {
+      background-color: @background_color_5;
+      border-color: @border_color_4;
+      color: @color_4;
+    }
+  }
+}
+
+.card {
+  // Flat, keyline-bounded — no elevation, a single hairline border instead of
+  // a shadowed box (the "fewer boxes / keyline dividers" brand direction).
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  background: var(--dd-surface);
+  overflow: hidden;
+}
+
+.card-header {
+  // Keyline divider, not a filled/shaded header band.
+  background: transparent;
+  border-bottom: 1px solid var(--dd-outline-variant);
+  padding: 1rem 1.25rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: @color_1;
+    font-family: @font_family_2;
+  }
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.form-control {
+  font-family: @font_family_1;
+  border: 1px solid var(--dd-outline);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-short) var(--ease-standard), box-shadow var(--duration-short) var(--ease-standard);
+
+  &:focus {
+    border-color: @border_color_4;
+    box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12);
+  }
+}
+
+// Browser autofill paints its own pale-blue background + near-black text through
+// an internal layer that ignores our theme — in dark mode the field turns
+// whitish-blue and the (light) floating label disappears against it. Mask the
+// fill with an inset shadow the colour of the field surface and force the themed
+// text/caret colour. Applies in BOTH themes (autofill glares in light mode too);
+// the huge inset box-shadow tracks --dd-surface, which flips with the theme.
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--dd-on-surface);
+  caret-color: var(--dd-on-surface);
+  -webkit-box-shadow: 0 0 0 1000px var(--dd-surface) inset;
+  box-shadow: 0 0 0 1000px var(--dd-surface) inset;
+  // Chrome animates the fill in ~150ms; a far-future transition keeps our masked
+  // colours from flashing back to the browser default.
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
+.form-control:-webkit-autofill:focus {
+  // Keep the focus ring while still masking the autofill background (both shadows
+  // layered: outset ring + inset surface fill).
+  -webkit-box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12), 0 0 0 1000px var(--dd-surface) inset;
+  box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12), 0 0 0 1000px var(--dd-surface) inset;
+}
+
+.form-select {
+  font-family: @font_family_1;
+  border: 1px solid var(--dd-outline);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-short) var(--ease-standard), box-shadow var(--duration-short) var(--ease-standard);
+
+  &:focus {
+    border-color: @border_color_4;
+    box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12);
+  }
+}
+
+.form-label {
+  font-family: @font_family_1;
+  font-weight: 500;
+  font-size: .875rem;
+  color: @color_1;
+  margin-bottom: .375rem;
+}
+
+.form-check-input {
+  &:checked {
+    background-color: @background_color_5;
+    border-color: @border_color_4;
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .15);
+    border-color: @border_color_4;
+  }
+}
+
+.input-group {
+  .form-control {
+    &:not(:last-child) {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+  }
+
+  .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+}
+
+.table {
+  border-color: @border_color_5;
+  --bs-table-bg: transparent;
+  // Bootstrap forces cell text to --bs-table-color (near-black, fixed for both
+  // themes). Route it through the theme token so tbody data cells stay readable
+  // in dark mode instead of rendering dark-on-dark.
+  --bs-table-color: var(--dd-on-surface);
+
+  > thead {
+    > tr {
+      > th {
+        font-family: @font_family_1;
+        font-weight: 600;
+        font-size: .8125rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: @color_5;
+        border-bottom-width: 2px;
+        padding: .875rem .75rem;
+      }
+    }
+  }
+
+  > tbody {
+    > tr {
+      > td {
+        padding: .75rem;
+        vertical-align: middle;
+      }
+
+      transition: background-color var(--duration-short) var(--ease-standard);
+    }
+  }
+}
+
+.table-hover {
+  > tbody {
+    > tr {
+      &:hover {
+        background-color: @background_color_8;
+      }
+    }
+  }
+}
+
+.dropdown-menu {
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-3);
+  border: 1px solid rgba(var(--dd-primary-rgb), .06);
+  padding: .375rem;
+  max-height: 320px;
+  overflow-y: auto;
+  animation: menuReveal .2s var(--ease-emphasized-decelerate);
+}
+
+.dropdown-item {
+  border-radius: var(--radius-xs);
+  padding: .5rem .875rem;
+  font-size: .875rem;
+  font-weight: 500;
+  font-family: @font_family_1;
+  transition: background-color var(--duration-short) var(--ease-standard);
+  // Align a leading <dfrnt-icon> with the label.
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+
+  &:hover {
+    background-color: @background_color_11;
+    color: @color_1;
+  }
+
+  &:focus {
+    background-color: @background_color_11;
+    color: @color_1;
+  }
+
+  &:active {
+    background-color: @background_color_5;
+    color: @color_4;
+  }
+}
+
+.dropdown-item.active {
+  background-color: @background_color_5;
+  color: @color_4;
+}
+
+.dropdown-toggle {
+  &::after {
+    margin-left: .5em;
+    vertical-align: .2em;
+  }
+}
+
+#urgent-hub {
+  position: relative;
+
+  &::before {
+    display: none;
+  }
+}
+
+.hub-header {
+  text-align: center;
+  padding: 1.5rem 1rem 0;
+  max-width: 880px;
+  margin: 0 auto;
+  animation: fadeInUp .5s var(--ease-emphasized-decelerate) both;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .hub-subtitle {
+    font-family: @font_family_1;
+    font-size: .875rem;
+    font-weight: 500;
+    color: @color_5;
+    margin: 1.25rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--dd-outline-variant);
+    letter-spacing: .01em;
+    align-self: stretch;
+    text-align: center;
+  }
+}
+
+.hub-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.hub-brand-logo {
+  max-height: 84px;
+  width: auto;
+  display: block;
+}
+
+// Theme-swapped local logo: show the light-mode (black) artwork by default and
+// keep the dark variant hidden everywhere. The dark scheme reveals the
+// light-wordmark variant for the in-page .hub-brand-logo and the app-bar .logo
+// (the latter only on the blue default/US bar — see .dd-dark-scheme()).
+.logo-dark {
+  display: none;
+}
+
+// App-bar logo sits on the always-dark Ink Blue navbar, so it always uses the
+// white-wordmark (dark) variant regardless of theme — out-specifies the generic
+// `.logo-dark { display: none }` above. The in-page .hub-brand-logo still
+// theme-swaps (handled in the dark scheme).
+.navbar .logo.logo-light {
+  display: none;
+}
+
+.navbar .logo.logo-dark {
+  display: block;
+}
+
+// Arbitrary S3 tenant logos have no white-wordmark variant, so on the dark bar
+// they'd vanish. Plate them on a light chip in BOTH themes (the dark-scheme
+// .s3-logo rule handles in-page S3 art elsewhere).
+.navbar .s3-logo {
+  padding: .25rem .5rem;
+  background: var(--dd-surface-container-lowest);
+  border-radius: var(--radius-md);
+  // Subtle lift so the chip settles onto the Ink Blue bar as a tile, not a
+  // pasted-on box.
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
+
+// The login mascot ships the same way (two <lottie-player>s). The compound
+// selector out-specifies login.css's `.auth-lottie { display: block }` so the
+// dark variant stays hidden in light mode regardless of stylesheet order.
+.auth-lottie.auth-lottie-dark {
+  display: none;
+}
+
+.hub-eyebrow {
+  font-family: @font_family_1;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: @color_5;
+  padding-left: 1.75rem;
+  border-left: 1px solid var(--dd-outline-variant);
+  line-height: 1;
+}
+
+.hub-surface {
+  max-width: 960px;
+  margin: .5rem auto 2.5rem;
+  padding: 2rem 2rem 2.25rem;
+  background: var(--dd-surface-container-lowest);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--dd-outline-variant);
+  box-shadow: none;
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUp .55s var(--ease-emphasized-decelerate) both;
+
+  // Signature keyline: a slim cyan→reflex-blue atom-gradient rule across the top.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--dd-accent) 30%,
+      var(--dd-primary) 70%,
+      transparent 100%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  > .hub-header {
+    padding-top: 0;
+    max-width: none;
+    margin: 0;
+  }
+
+  > .app-grid {
+    max-width: none;
+    margin: 0;
+    padding: 1.5rem 0 0;
+  }
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding: 1rem 1rem 1.5rem;
+  max-width: 880px;
+  margin: 0 auto;
+  position: relative;
+
+  .app-card {
+    &:nth-child(1) {
+      animation-delay: 0ms;
+    }
+
+    &:nth-child(2) {
+      animation-delay: 40ms;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 80ms;
+    }
+
+    &:nth-child(4) {
+      animation-delay: 120ms;
+    }
+
+    &:nth-child(5) {
+      animation-delay: 160ms;
+    }
+
+    &:nth-child(6) {
+      animation-delay: 200ms;
+    }
+
+    &:nth-child(7) {
+      animation-delay: 240ms;
+    }
+
+    &:nth-child(8) {
+      animation-delay: 280ms;
+    }
+
+    &:nth-child(9) {
+      animation-delay: 320ms;
+    }
+
+    &:nth-child(10) {
+      animation-delay: 360ms;
+    }
+
+    &:nth-child(11) {
+      animation-delay: 400ms;
+    }
+
+    &:nth-child(12) {
+      animation-delay: 440ms;
+    }
+
+    &:nth-child(13) {
+      animation-delay: 480ms;
+    }
+
+    &:nth-child(14) {
+      animation-delay: 520ms;
+    }
+
+    &:nth-child(15) {
+      animation-delay: 560ms;
+    }
+
+    &:nth-child(16) {
+      animation-delay: 600ms;
+    }
+
+    &:nth-child(17) {
+      animation-delay: 640ms;
+    }
+  }
+}
+
+.app-sections {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1.5rem 0 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+}
+
+.app-section {
+  animation: fadeInUp .5s var(--ease-emphasized-decelerate) both;
+
+  &:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  &:nth-child(2) {
+    animation-delay: 80ms;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 160ms;
+  }
+
+  &:nth-child(4) {
+    animation-delay: 240ms;
+  }
+
+  .app-grid {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+.app-section-header {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  padding: 0 .25rem .625rem;
+  border-bottom: 1px solid var(--dd-outline-variant);
+  margin-bottom: 1rem;
+}
+
+.app-section-title {
+  font-family: @font_family_2;
+  font-size: .9375rem;
+  font-weight: 600;
+  color: @color_1;
+  letter-spacing: .01em;
+  margin: 0;
+}
+
+.app-section-count {
+  font-family: @font_family_1;
+  font-size: .6875rem;
+  font-weight: 500;
+  color: @color_7;
+  background: var(--dd-primary-container);
+  border-radius: var(--radius-full);
+  padding: .125rem .5rem;
+  letter-spacing: .02em;
+}
+
+.app-card {
+  --card-accent-scale: 0;
+  --card-state-layer: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .875rem;
+  background: linear-gradient(180deg, var(--dd-surface-container-lowest) 0%, var(--dd-surface-container-low) 100%);
+  border-radius: var(--radius-lg);
+  padding: 1.625rem 1rem 1.375rem;
+  cursor: pointer;
+  text-decoration: none;
+  color: @color_1;
+  border: 1px solid var(--dd-outline-variant);
+  box-shadow: var(--elevation-1);
+  transition: transform var(--duration-medium) var(--ease-emphasized), box-shadow var(--duration-medium) var(--ease-emphasized), border-color var(--duration-medium) var(--ease-standard);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  user-select: none;
+  animation: cardEntrance .55s var(--ease-emphasized-decelerate) both;
+
+  &:hover {
+    text-decoration: none;
+    color: @color_1;
+    --card-accent-scale: 1;
+    --card-state-layer: .05;
+    // Flatter hover: a gentle lift and a whisper of shadow, not a floating card.
+    transform: translateY(-2px);
+    box-shadow: var(--elevation-2);
+    border-color: @border_color_6;
+
+    .app-card-icon {
+      transform: scale(1.06) translateY(-1px);
+      box-shadow: inset 0 0 0 1px rgba(var(--dd-state-rgb), .14), inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 14px rgba(var(--dd-state-rgb), .12);
+    }
+
+    .app-card-title {
+      color: @color_6;
+    }
+  }
+
+  &:focus {
+    text-decoration: none;
+    color: @color_1;
+  }
+
+  &:active {
+    text-decoration: none;
+    color: @color_1;
+    --card-state-layer: .08;
+    transform: translateY(-1px) scale(.99);
+    box-shadow: var(--elevation-2);
+    transition-duration: var(--duration-short);
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--dd-accent) 30%, var(--dd-primary) 70%, transparent 100%);
+    transform: scaleX(var(--card-accent-scale));
+    transform-origin: center;
+    transition: transform var(--duration-long) var(--ease-emphasized);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--dd-state-rgb), var(--card-state-layer));
+    border-radius: inherit;
+    pointer-events: none;
+    transition: background var(--duration-medium) var(--ease-standard);
+    z-index: 1;
+  }
+
+  &:focus-visible {
+    --card-accent-scale: 1;
+    outline: 2px solid var(--dd-primary);
+    outline-offset: 3px;
+    box-shadow: var(--elevation-2);
+  }
+}
+
+// Disabled "coming soon" tile: visible (so staff know it's coming) but inert -
+// no navigation, no hover lift, no accent bar; icon + title dimmed while the
+// chip stays fully legible.
+.app-card--soon {
+  cursor: default;
+
+  &:hover {
+    transform: none;
+    box-shadow: var(--elevation-1);
+    border-color: var(--dd-outline-variant);
+  }
+
+  &:hover .app-card-icon {
+    transform: none;
+    box-shadow: inset 0 0 0 1px rgba(var(--dd-primary-rgb), .08), inset 0 1px 0 rgba(255, 255, 255, .4);
+  }
+
+  &:hover .app-card-title {
+    color: var(--dd-on-surface-secondary);
+  }
+
+  &::before {
+    display: none; // no top accent bar
+  }
+
+  .app-card-icon,
+  .app-card-title {
+    opacity: .55;
+  }
+
+  .app-card-title {
+    color: var(--dd-on-surface-secondary);
+  }
+}
+
+.app-card-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 120% at 30% 20%, rgba(255, 255, 255, .55) 0%, transparent 55%), linear-gradient(140deg, var(--dd-primary-container) 0%, rgba(var(--dd-primary-rgb), .10) 100%);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px rgba(var(--dd-primary-rgb), .08), inset 0 1px 0 rgba(255, 255, 255, .4);
+  transition: transform var(--duration-medium) var(--ease-spring), box-shadow var(--duration-medium) var(--ease-standard);
+  position: relative;
+  z-index: 2;
+
+  img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    position: relative;
+    z-index: 1;
+  }
+
+}
+
+.app-card-title {
+  font-family: @font_family_2;
+  font-size: .8125rem;
+  font-weight: 600;
+  color: @color_1;
+  text-align: center;
+  line-height: 1.3;
+  letter-spacing: .005em;
+  position: relative;
+  z-index: 2;
+  transition: color var(--duration-medium) var(--ease-standard);
+}
+
+// "Coming soon" chip for disabled tiles - modeled on .fuel-chip / .fuel-chip-inactive.
+// Sits above the card's ::after state layer (z-index:1) and clips to the card's
+// rounded corners (the card is already overflow:hidden).
+.app-card-chip {
+  position: absolute;
+  top: .6rem;
+  right: .6rem;
+  z-index: 3;
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: var(--radius-full);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--dd-surface-container);
+  color: var(--dd-on-surface-secondary);
+  border: 1px solid var(--dd-outline-variant);
+}
+
+body#home {
+  background-color: var(--dd-surface-dim);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%231e293b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.08'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.08'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.06'/%3E%3Ccircle cx='118' cy='32' r='3' fill='%231e293b' stroke='none' opacity='0.09'/%3E%3Cpath d='M118 35 L118 44' opacity='0.09'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.05'/%3E%3Cpath d='M70 26 L82 26' opacity='0.06'/%3E%3Ccircle cx='140' cy='80' r='1.8' fill='%231e293b' stroke='none' opacity='0.09'/%3E%3Ccircle cx='12' cy='80' r='1.2' fill='%231e293b' stroke='none' opacity='0.07'/%3E%3C/svg%3E"), radial-gradient(ellipse at 15% 85%, rgba(var(--dd-primary-rgb), .10) 0%, transparent 55%), radial-gradient(ellipse at 85% 10%, rgba(var(--dd-primary-rgb), .07) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, .35) 0%, transparent 65%);
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+  background-attachment: fixed, fixed, fixed, fixed;
+}
+
+body#login {
+  background-color: @background_color_12;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.16'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.16'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.12'/%3E%3Ccircle cx='118' cy='32' r='3' fill='%23ffffff' stroke='none' opacity='0.18'/%3E%3Cpath d='M118 35 L118 44' opacity='0.18'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.10'/%3E%3Cpath d='M70 26 L82 26' opacity='0.12'/%3E%3Ccircle cx='140' cy='80' r='1.8' fill='%23ffffff' stroke='none' opacity='0.18'/%3E%3Ccircle cx='12' cy='80' r='1.2' fill='%23ffffff' stroke='none' opacity='0.14'/%3E%3C/svg%3E"), radial-gradient(ellipse at 15% 80%, rgba(var(--dd-primary-rgb), .2) 0%, transparent 50%), radial-gradient(ellipse at 85% 15%, fade(@login_glow_sky, 12%) 0%, transparent 45%), radial-gradient(ellipse at 50% 50%, fade(@background_color_12, 85%) 0%, transparent 80%);
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+  background-attachment: fixed, fixed, fixed, fixed;
+
+  header {
+    display: none;
+  }
+
+  .footer {
+    display: none;
+  }
+}
+
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  padding: 6rem 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--dd-surface-container-lowest);
+  border-radius: var(--radius-lg);
+  // Soft ink-tinted lift — a light card resting on the dark Ink Blue login field,
+  // not a hard drop-shadowed box.
+  box-shadow: var(--elevation-4);
+  padding: 2.5rem 2rem;
+  border: 1px solid var(--dd-outline-variant);
+  animation: fadeInUp .5s var(--ease-emphasized-decelerate) both;
+
+  .auth-logo {
+    max-height: 80px;
+    width: auto;
+    margin-bottom: 1.25rem;
+  }
+
+  h2 {
+    font-family: @font_family_2;
+    font-size: 1.625rem;
+    font-weight: 700;
+    color: @color_1;
+    margin-bottom: .25rem;
+    text-align: center;
+  }
+
+  .auth-subtitle {
+    text-align: center;
+    color: @color_5;
+    font-size: .9375rem;
+    margin-bottom: 1.5rem;
+    font-family: @font_family_1;
+  }
+
+  // zxcvbn strength meter under the New Password field. The bar colour tracks
+  // the crackability score (0-4) via [data-score]; the label/feedback echo
+  // zxcvbn's own wording. Hidden until the user types (the [hidden] attribute).
+  .password-strength {
+    margin-top: .5rem;
+
+    .progress {
+      height: 4px;
+      background: rgba(var(--dd-state-rgb), .12);
+      border-radius: var(--radius-full);
+    }
+
+    .progress-bar {
+      background-color: var(--dd-error);
+      border-radius: var(--radius-full);
+      transition: width var(--duration-medium) var(--ease-standard);
+    }
+
+    &[data-score="2"] .progress-bar {
+      background-color: var(--dd-warning-strong);
+    }
+
+    &[data-score="3"] .progress-bar,
+    &[data-score="4"] .progress-bar {
+      background-color: var(--dd-primary);
+    }
+
+    &__label {
+      margin: .375rem 0 0;
+      font-family: @font_family_1;
+      font-size: .8125rem;
+      font-weight: 600;
+      color: @color_5;
+    }
+
+    &__feedback {
+      margin: .125rem 0 0;
+      font-family: @font_family_1;
+      font-size: .75rem;
+      color: var(--dd-on-surface-secondary);
+    }
+  }
+
+  // Model-level validation summary, styled as an MD3 error container. The
+  // empty/valid placeholder that unobtrusive validation renders stays hidden
+  // until there are actual errors to show.
+  .auth-form-error {
+    &.validation-summary-valid {
+      display: none;
+    }
+
+    &.validation-summary-errors {
+      background: color-mix(in srgb, var(--dd-error) 12%, transparent);
+      color: var(--dd-error);
+      border-radius: var(--radius-sm);
+      padding: .75rem 1rem;
+      margin-bottom: 1rem;
+      font-family: @font_family_1;
+      font-size: .8125rem;
+
+      ul {
+        margin: 0;
+        padding-left: 1.1rem;
+      }
+    }
+  }
+}
+
+.tenant-selector {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+
+  .btn-primary.dropdown-toggle {
+    background-color: @background_color_13;
+    color: var(--dd-on-ink);
+    border: none;
+    border-radius: var(--radius-xl);
+    font-size: .8125rem;
+    font-weight: 600;
+    padding: .375rem .875rem;
+
+    &::after {
+      color: var(--dd-on-ink);
+    }
+
+    &:hover,
+    &:focus {
+      background-color: @background_color_14;
+      color: var(--dd-on-ink);
+      box-shadow: none;
+      transform: none;
+
+      &::before {
+        background: transparent;
+      }
+    }
+  }
+}
+
+.tenant-label {
+  color: var(--dd-on-ink);
+  font-family: @font_family_1;
+  font-weight: 700;
+  font-size: .6875rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+// Theme toggle — an icon button on the Ink Blue navbar that opens a small
+// Light / Dark / System dropdown. The icon matches the navbar chrome (light
+// on-ink); the dropdown surface flips with the scheme it controls.
+#themeToggle {
+  color: var(--dd-on-ink);
+}
+
+// DFRNT UI icon system (brand book "Iconography - UI"): Lucide for chrome,
+// Tabler for logistics, inlined by the <dfrnt-icon> TagHelper at stroke width
+// 1.25. The SVGs use stroke:currentColor, so they inherit the element's colour
+// (and thus the active --dd-* theme colour). Width/height are baked in;
+// this only fixes inline alignment.
+.dfrnt-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  fill: none;
+}
+
+// The theme toggle inlines all three icons and shows the one matching the
+// active choice; layout.ts sets data-theme-icon on the .theme-toggle-icon wrapper.
+.theme-toggle-icon {
+  .dfrnt-icon {
+    display: none;
+  }
+
+  &[data-theme-icon="light"] .dfrnt-icon[data-theme-choice="light"],
+  &[data-theme-icon="dark"] .dfrnt-icon[data-theme-choice="dark"],
+  &[data-theme-icon="system"] .dfrnt-icon[data-theme-choice="system"] {
+    display: block;
+  }
+}
+
+#themeMenu {
+  min-width: 160px;
+
+  // The selected choice reads as brand-tinted text on a transparent row (not a
+  // filled pill), so it doesn't compete with the hover state.
+  .dropdown-item.active {
+    background-color: transparent;
+    color: var(--dd-primary);
+    font-weight: 600;
+  }
+}
+
+// The organisation selector is a dropdown button ON the dark Ink Blue bar. Its
+// translucent light fill + on-ink label/caret (a lighter chip on the dark bar)
+// are defined by `.tenant-selector .btn-primary.dropdown-toggle` above; this only
+// spaces the loading spinner. Constant across themes (the bar is always dark).
+#tenantDropdown {
+  .spinner-border {
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+}
+
+.profile-dropdown {
+  position: relative;
+  cursor: pointer;
+}
+
+.profile-icon-username {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .375rem .875rem;
+  border-radius: var(--radius-xl);
+  transition: background-color var(--duration-short) var(--ease-standard);
+
+  &:hover {
+    background-color: @background_color_3;
+  }
+}
+
+.profile-icon {
+  color: @color_8;
+  background: rgba(var(--dd-on-primary-rgb), .9);
+  border-radius: var(--radius-circle);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variation-settings: 'FILL' 1;
+}
+
+.username {
+  color: var(--dd-on-ink);
+  font-weight: 500;
+  font-size: .875rem;
+}
+
+.dropdown-arrow {
+  color: var(--dd-on-ink);
+  font-size: .65rem;
+  transition: transform var(--duration-medium) var(--ease-standard);
+  margin-left: .125rem;
+}
+
+// Bootstrap toggles `.show` on the dropdown trigger while the menu is open.
+.profile-icon-username.show {
+  .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+}
+
+// CSS-only "plain tooltip": a small inverse-surface chip that labels the theme
+// toggle on hover/keyboard-focus. `data-tooltip` on the host carries the text;
+// once the dropdown opens focus leaves .dd-tooltip, so the tip auto-hides.
+.dd-tooltip {
+  position: relative;
+  display: inline-flex;
+
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: .25rem;
+    z-index: 1090;
+    // MD3 plain-tooltip container: inverse surface + body-small label.
+    background: var(--dd-inverse-surface);
+    color: var(--dd-inverse-on-surface);
+    font-family: var(--font-body);
+    font-size: .75rem;
+    font-weight: 500;
+    line-height: 1rem;
+    padding: .25rem .5rem;
+    min-height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-short) var(--ease-standard);
+  }
+
+  &:hover::after,
+  &:focus-within::after {
+    opacity: 1;
+  }
+
+  // While the dropdown is open (Bootstrap adds .show to the toggle) suppress the
+  // tooltip so it doesn't hang over the open menu.
+  &.show::after {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-tooltip::after {
+    transition: none;
+  }
+}
+
+// Profile dropdown — Bootstrap dropdown restyled to match the master appearance
+// (surface bg, rounded corners, ~240px width, badge email header, inset divider,
+// brand-tinted hover). The pill trigger above is unchanged.
+#profileMenu {
+  min-width: 240px;
+  max-width: 240px; // pin the width so a long email truncates instead of widening the menu
+  border-radius: var(--radius-lg);
+
+  .dropdown-item .dfrnt-icon {
+    color: @color_5;
+  }
+
+  // Email header (the first, non-interactive row) — badge icon + muted, truncated
+  // email text.
+  .profile-email {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+    padding: .5rem .875rem;
+    font-size: .8125rem;
+    color: @color_5;
+
+    .dfrnt-icon {
+      flex: 0 0 auto;
+      color: @color_7;
+      background: var(--dd-primary-container);
+      border-radius: var(--radius-circle);
+      padding: .25rem;
+    }
+
+    .profile-email-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .dropdown-divider {
+    border-top-color: var(--dd-outline-variant);
+    margin: .375rem .75rem;
+    opacity: 1;
+  }
+}
+
+.settings-page {
+  max-width: 800px;
+  animation: fadeInUp .4s var(--ease-emphasized-decelerate) both;
+
+  h2 {
+    font-weight: 700;
+    font-size: 1.75rem;
+    color: @color_1;
+    margin-bottom: 2rem;
+  }
+
+  .card {
+    border: 1px solid rgba(var(--dd-primary-rgb), .06);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elevation-1);
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: var(--dd-surface-container);
+    border-bottom: 1px solid var(--dd-outline-variant);
+    padding: 1rem 1.5rem;
+
+    h3 {
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+  }
+
+  .btn-primary[type="submit"] {
+    margin-top: 1.5rem;
+    padding: .625rem 2rem;
+  }
+}
+
+.alert {
+  border-radius: var(--radius-sm);
+  font-size: .875rem;
+  font-weight: 500;
+}
+
+.fuel-surcharge-card {
+  max-width: 880px;
+  margin: .75rem auto 0;
+  padding: 0 1rem;
+  animation: fadeInUp .5s var(--ease-emphasized-decelerate) both;
+}
+
+.fuel-surcharge-toggle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: .875rem 1.25rem;
+  background: var(--dd-surface-container-lowest);
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  color: @color_1;
+  transition: background var(--duration-short) var(--ease-standard), border-color var(--duration-short) var(--ease-standard), border-radius var(--duration-medium) var(--ease-emphasized);
+
+  &:hover {
+    background: var(--dd-surface-container-low);
+    border-color: @border_color_3;
+    outline: none;
+
+    .fuel-surcharge-chevron {
+      color: @color_1;
+    }
+  }
+
+  &:focus-visible {
+    background: var(--dd-surface-container-low);
+    border-color: @border_color_3;
+    outline: none;
+  }
+}
+
+.fuel-surcharge-toggle[aria-expanded="true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: @border_bottom_color_1;
+
+  .fuel-surcharge-chevron {
+    transform: rotate(180deg);
+    color: @color_2;
+  }
+}
+
+.fuel-surcharge-icon {
+  font-size: 24px;
+  color: @color_2;
+  flex: 0 0 auto;
+}
+
+.fuel-surcharge-heading {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.fuel-surcharge-title {
+  font-family: @font_family_2;
+  font-weight: 700;
+  font-size: .9375rem;
+  letter-spacing: -.005em;
+  line-height: 1.2;
+}
+
+.fuel-surcharge-summary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .55rem;
+  font-family: @font_family_1;
+  font-size: .8125rem;
+  color: @color_5;
+  line-height: 1.4;
+}
+
+.fuel-summary-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .35rem;
+}
+
+.fuel-summary-label {
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: @color_5;
+}
+
+.fuel-summary-value {
+  font-family: @font_family_2;
+  font-weight: 700;
+  font-size: .9375rem;
+  color: @color_1;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-summary-muted {
+  font-style: italic;
+}
+
+.fuel-summary-divider {
+  width: 1px;
+  height: .85rem;
+  background: var(--dd-outline-variant);
+}
+
+.fuel-surcharge-chevron {
+  font-size: 22px;
+  color: @color_5;
+  flex: 0 0 auto;
+  transition: transform var(--duration-medium) var(--ease-emphasized), color var(--duration-short) var(--ease-standard);
+}
+
+.fuel-surcharge-body {
+  background: var(--dd-surface-container-lowest);
+  border: 1px solid var(--dd-outline-variant);
+  border-top: 0;
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+.fuel-surcharge-body-static {
+  border-top: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+}
+
+.fuel-surcharge-empty {
+  padding: 1.5rem;
+  text-align: center;
+  background: var(--dd-surface-container-lowest);
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+}
+
+.fuel-surcharge-empty-text {
+  margin: 0;
+  color: @color_5;
+  font-family: @font_family_1;
+  font-size: .9375rem;
+}
+
+.fuel-surcharge-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  padding: 1.25rem;
+}
+
+.fuel-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: .35rem;
+  padding: .875rem 1rem;
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-md);
+  background: var(--dd-surface-container-low);
+}
+
+.fuel-stat-label {
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: @color_5;
+}
+
+.fuel-stat-value {
+  font-family: @font_family_2;
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.05;
+  color: @color_1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+
+.fuel-stat-caption {
+  font-size: .75rem;
+  color: @color_5;
+  line-height: 1.35;
+}
+
+.fuel-history {
+  border-top: 1px solid var(--dd-outline-variant);
+  padding: 1.25rem;
+}
+
+.fuel-history-header {
+  margin-bottom: .875rem;
+}
+
+.fuel-history-title {
+  font-family: @font_family_2;
+  font-weight: 600;
+  font-size: .9375rem;
+  margin: 0 0 .15rem;
+  letter-spacing: -.005em;
+}
+
+.fuel-history-subtitle {
+  font-size: .8125rem;
+  color: @color_5;
+  margin: 0;
+}
+
+.fuel-history-table {
+  font-size: .875rem;
+  margin-bottom: 0;
+
+  thead {
+    th {
+      font-size: .6875rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: @color_5;
+      background: var(--dd-surface-container-low);
+      border-bottom: 1px solid var(--dd-outline-variant);
+      padding: .65rem 1rem;
+      white-space: nowrap;
+
+      &:first-child {
+        padding-left: 1.25rem;
+      }
+
+      &:last-child {
+        padding-right: 1.25rem;
+      }
+    }
+
+    th[data-fuel-sort] {
+      cursor: pointer;
+      user-select: none;
+
+      &:hover {
+        color: @color_1;
+        outline: none;
+      }
+
+      &:focus-visible {
+        color: @color_1;
+        outline: none;
+      }
+
+      &::after {
+        content: '↕';
+        display: inline-block;
+        width: .75em;
+        margin-left: .5rem;
+        text-align: center;
+        opacity: .35;
+        font-size: .9em;
+      }
+    }
+
+    th[aria-sort='ascending'] {
+      &::after {
+        content: '↑';
+        opacity: 1;
+        color: @color_1;
+      }
+    }
+
+    th[aria-sort='descending'] {
+      &::after {
+        content: '↓';
+        opacity: 1;
+        color: @color_1;
+      }
+    }
+  }
+
+  tbody {
+    td {
+      &:first-child {
+        padding-left: 1.25rem;
+      }
+
+      &:last-child {
+        padding-right: 1.25rem;
+      }
+
+      vertical-align: middle;
+      border-bottom: 1px solid var(--dd-outline-variant);
+      padding: .65rem 1rem;
+    }
+
+    tr {
+      &:last-child {
+        td {
+          border-bottom: 0;
+        }
+      }
+    }
+  }
+
+  .fuel-num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.fuel-chip {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: var(--radius-full);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.fuel-chip-current {
+  background: rgba(var(--dd-success-rgb), .14);
+  color: @color_9;
+}
+
+.fuel-chip-active {
+  background: rgba(var(--dd-primary-rgb), .12);
+  color: @color_7;
+}
+
+.fuel-chip-inactive {
+  background: var(--dd-surface-container);
+  color: @color_5;
+  border-color: @border_color_5;
+}
+
+.fuel-chip-scope {
+  background: transparent;
+  color: @color_5;
+  border-color: @border_color_5;
+}
+
+.fuel-row-hidden {
+  display: none;
+}
+
+.fuel-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+  padding-top: 1rem;
+  margin-top: .5rem;
+  border-top: 1px solid var(--dd-outline-variant);
+}
+
+.fuel-pagination-range {
+  font-size: .75rem;
+  color: @color_5;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.fuel-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--dd-surface-container-lowest);
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-sm);
+  color: @color_1;
+  cursor: pointer;
+  transition: background var(--duration-short) var(--ease-standard), border-color var(--duration-short) var(--ease-standard), color var(--duration-short) var(--ease-standard);
+
+  &:hover {
+    &:not(:disabled) {
+      background: rgba(var(--dd-state-rgb), .08);
+      border-color: @border_color_3;
+      outline: none;
+    }
+  }
+
+  &:focus-visible {
+    &:not(:disabled) {
+      background: rgba(var(--dd-state-rgb), .08);
+      border-color: @border_color_3;
+      outline: none;
+    }
+  }
+
+  &:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+}
+
+.fuel-page-status {
+  font-size: .75rem;
+  font-weight: 500;
+  color: @color_5;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+  padding: 0 .5rem;
+  min-width: 5.5rem;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 576px) {
+  .navbar {
+    min-height: 64px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .app-sections {
+    gap: 1.75rem;
+    padding-top: 1rem;
+  }
+
+  .app-section-header {
+    padding-bottom: .5rem;
+    margin-bottom: .75rem;
+  }
+
+  .auth-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .hub-header {
+    padding-top: 1.5rem;
+  }
+
+  .hub-brand {
+    gap: 1rem;
+  }
+
+  .hub-brand-logo {
+    max-height: 48px;
+  }
+
+  .hub-eyebrow {
+    font-size: .875rem;
+    padding-left: 1rem;
+  }
+
+  .hub-surface {
+    padding: 1.5rem 1.25rem 1.75rem;
+    margin-top: .25rem;
+    margin-bottom: 2rem;
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 576px) {
+  .navbar.navbar-floating {
+    border-radius: var(--radius-lg);
+    margin: .5rem .5rem 1rem;
+    max-width: 100%;
+  }
+
+  .navbar-nav.align-items-center {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: .625rem;
+    padding: .5rem 0;
+  }
+
+  .tenant-selector {
+    width: 100%;
+  }
+
+  .app-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+  }
+
+  .app-sections {
+    gap: 1.5rem;
+  }
+
+  .app-section-title {
+    font-size: .875rem;
+  }
+
+  .app-section-count {
+    font-size: .625rem;
+  }
+
+  .app-card {
+    padding: 1.375rem .75rem 1.125rem;
+    gap: .75rem;
+  }
+
+  .app-card-icon {
+    width: 56px;
+    height: 56px;
+
+    img {
+      width: 34px;
+      height: 34px;
+    }
+  }
+
+  .app-card-title {
+    font-size: .8125rem;
+  }
+
+  .hub-surface {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-grid {
+    grid-template-columns: 1fr;
+    gap: .625rem;
+  }
+
+  .app-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    padding: .875rem 1rem;
+    gap: 1rem;
+
+    &:hover {
+      transform: translateX(2px);
+    }
+  }
+
+  .app-card-icon {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+
+    img {
+      width: 30px;
+      height: 30px;
+    }
+  }
+
+  .app-card-title {
+    text-align: left;
+    font-size: .9375rem;
+    flex: 1;
+  }
+
+  .auth-card {
+    border-radius: var(--radius-lg);
+    padding: 1.75rem 1.25rem;
+  }
+}
+
+@media (max-width: 880px) {
+  .fuel-surcharge-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .fuel-surcharge-card {
+    padding: 0 .5rem;
+  }
+
+  .fuel-surcharge-toggle {
+    padding: .75rem 1rem;
+    gap: .75rem;
+  }
+
+  .fuel-surcharge-summary {
+    gap: .4rem;
+  }
+
+  .fuel-surcharge-stats {
+    padding: 1rem;
+  }
+
+  .fuel-history {
+    padding: 1rem;
+  }
+
+  .fuel-pagination {
+    justify-content: center;
+  }
+
+  .fuel-pagination-range {
+    width: 100%;
+    text-align: center;
+  }
+}

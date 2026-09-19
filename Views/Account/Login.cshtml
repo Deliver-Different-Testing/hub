@@ -1,67 +1,63 @@
 @model LoginViewModel
 @{
     ViewBag.Title = "Log in";
-    ViewBag.PageTitle = "Login";
     ViewBag.PageId = "login";
-    ViewBag.MenuClass = "solid";
-    ViewBag.PageDescription = "";
+    ViewBag.LoginFailedData = ViewBag.LoginFailed == true ? "true" : "false";
 }
 
-<div class="auth-wrapper">
+<div class="auth-wrapper" data-login-failed="@ViewBag.LoginFailedData">
     <div class="auth-card">
+        <div class="auth-progress" id="loginProgress" role="progressbar" aria-label="Signing in" aria-hidden="true">
+            <div class="auth-progress-bar"></div>
+        </div>
+        @* Two mascot variants, theme-toggled by CSS (no flash: the theme is
+           resolved before paint). The dark variant knocks its baked-in white
+           backing back to a translucent panel so it melts into the card instead
+           of sitting in a white box. login.ts plays whichever is visible. *@
         <div class="text-center">
-            <img src="~/images/Atomloop.gif" alt="Atomloop Logo" class="auth-logo" />
+            <lottie-player class="auth-lottie auth-lottie-light" src="/images/Auto-mate-Ready%20state%20(2).json" background="transparent" speed="1" loop></lottie-player>
+            <lottie-player class="auth-lottie auth-lottie-dark" src="/images/Auto-mate-Ready%20state%20(2)_dark.json" background="transparent" speed="1" loop></lottie-player>
         </div>
         <h2>Welcome back</h2>
         <p class="auth-subtitle">Sign in to your account</p>
 
-        <div class="auth-info-box">
-            <div class="icon">
-                <span class="material-symbols-outlined">location_on</span>
-            </div>
-            Login to our customer area
-        </div>
-
         <form asp-controller="Account" asp-action="Login" asp-route-returnurl="@ViewBag.ReturnUrl" method="post" class="needs-validation" novalidate id="loginForm">
             @Html.AntiForgeryToken()
-            @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+            @Html.ValidationSummary(true, "", new { @class = "auth-form-error" })
 
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label">Email</label>
-                <input asp-for="Email" class="form-control" required type="email" placeholder="you@company.com" />
-                <div class="invalid-feedback">
-                    Please enter a valid email address.
-                </div>
+            <div class="mb-3 form-floating">
+                <input asp-for="Email" type="email" class="form-control" placeholder="you@company.com"
+                       required autocomplete="username" />
+                <label asp-for="Email">Email</label>
+                <div class="invalid-feedback"></div>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label">Password</label>
-                <input asp-for="Password" class="form-control" type="password" required placeholder="Enter your password" />
-                <div class="invalid-feedback">
-                    Please enter your password.
-                </div>
+            <div class="mb-3 form-floating">
+                <input asp-for="Password" type="password" class="form-control" placeholder="Enter your password"
+                       required autocomplete="current-password" />
+                <label asp-for="Password">Password</label>
+                <div class="invalid-feedback"></div>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="IsCourierLogin" class="form-label">Login Type</label>
-                <select asp-for="IsCourierLogin" class="form-select" required>
+            <div class="mb-3 form-floating">
+                <select name="IsCourierLogin" id="IsCourierLogin" class="form-select" required>
                     <option value="false" selected>Customer Login</option>
                     <option value="true">Courier Login</option>
                 </select>
-                <div class="valid-feedback">
-                    Looks good!
-                </div>
+                <label for="IsCourierLogin">Login Type</label>
             </div>
 
-            <div class="mb-4 form-check d-flex justify-content-center">
-                <input asp-for="RememberMe" type="checkbox" class="form-check-input" />
-                <label asp-for="RememberMe" class="form-check-label">Remember me</label>
+            <div class="mb-4 text-center">
+                <label class="remember-me">
+                    <input class="form-check-input m-0" type="checkbox" name="RememberMe" value="true" />
+                    <span>Remember me</span>
+                </label>
             </div>
 
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary" id="loginButton">
-                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    <span class="button-text">Log in</span>
+            <div class="mb-3 text-center">
+                <button type="submit" id="loginButton" class="btn btn-primary">
+                    <dfrnt-icon set="lucide" name="log-in" />
+                    <span class="button-label">Log in</span>
                 </button>
             </div>
 
@@ -73,157 +69,6 @@
 </div>
 
 @section Scripts {
-    <style>
-        /* Login button state management */
-        #loginButton {
-            position: relative;
-            z-index: 1;
-        }
-
-        #loginButton:disabled {
-            opacity: 0.85;
-        }
-
-        #loginButton .spinner-border,
-        #loginButton .button-text {
-            position: relative;
-            z-index: 2;
-        }
-
-        .was-validated #loginButton,
-        .was-validated #loginButton:disabled {
-            background-color: var(--dd-primary) !important;
-            border-color: var(--dd-primary) !important;
-        }
-
-        #loginButton:hover,
-        #loginButton:focus,
-        #loginButton:active,
-        #loginButton:focus-visible {
-            background-color: var(--dd-primary-hover) !important;
-            border-color: var(--dd-primary-hover) !important;
-            color: white !important;
-            outline: none !important;
-        }
-
-        #loginButton:active {
-            background-color: var(--dd-primary-active) !important;
-            border-color: var(--dd-primary-active) !important;
-        }
-
-        #loginButton,
-        #loginButton * {
-            transition: none !important;
-        }
-
-        .valid-feedback,
-        .invalid-feedback {
-            position: relative;
-            z-index: 0;
-            margin-bottom: 0.25rem;
-        }
-
-        #loginForm.submitting .valid-feedback,
-        #loginForm.submitting .invalid-feedback {
-            display: none !important;
-        }
-
-        #loginForm.submitting .form-control.is-valid,
-        #loginForm.submitting .form-control.is-invalid,
-        #loginForm.submitting .form-select.is-valid,
-        #loginForm.submitting .form-select.is-invalid {
-            border-color: var(--dd-outline) !important;
-            background-image: none !important;
-        }
-
-        #loginButton .spinner-border {
-            color: white;
-            border-color: currentColor;
-            border-right-color: transparent;
-        }
-    </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var form = document.getElementById('loginForm');
-            var button = document.getElementById('loginButton');
-            var spinner = button.querySelector('.spinner-border');
-            var buttonText = button.querySelector('.button-text');
-            var emailInput = document.getElementById('Email');
-            var emailFeedback = emailInput.nextElementSibling;
-
-            function resetButton() {
-                button.disabled = false;
-                spinner.classList.add('d-none');
-                buttonText.textContent = 'Log in';
-            }
-
-            function validateEmail(email) {
-                @Html.Raw("var re = /^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$/;")
-                return re.test(String(email).toLowerCase());
-            }
-
-            function updateEmailValidationUI() {
-                if (emailInput.value) {
-                    if (validateEmail(emailInput.value)) {
-                        emailInput.classList.remove('is-invalid');
-                        emailInput.classList.add('is-valid');
-                        emailFeedback.style.display = 'none';
-                    } else {
-                        emailInput.classList.remove('is-valid');
-                        emailInput.classList.add('is-invalid');
-                        emailFeedback.style.display = 'block';
-                    }
-                } else {
-                    emailInput.classList.remove('is-valid', 'is-invalid');
-                    emailFeedback.style.display = 'none';
-                }
-            }
-
-            @if (ViewBag.LoginFailed == true)
-            {
-                <text>
-                resetButton();
-                </text>
-            }
-
-            form.addEventListener('submit', function(e) {
-                if (form.checkValidity() && validateEmail(emailInput.value)) {
-                    form.classList.add('submitting');
-                    if (document.activeElement) {
-                        document.activeElement.blur();
-                    }
-                    button.blur();
-                    button.disabled = true;
-                    spinner.classList.remove('d-none');
-                    buttonText.textContent = 'Logging in...';
-                } else {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    updateEmailValidationUI();
-                }
-                form.classList.add('was-validated');
-            });
-
-            emailInput.addEventListener('input', function() {
-                updateEmailValidationUI();
-            });
-
-            emailInput.addEventListener('blur', function() {
-                updateEmailValidationUI();
-            });
-
-            form.querySelectorAll('input, select').forEach(function(element) {
-                element.addEventListener('input', function() {
-                    if (this !== emailInput && form.classList.contains('was-validated')) {
-                        form.classList.remove('was-validated');
-                    }
-                });
-                element.addEventListener('change', function() {
-                    if (this !== emailInput && form.classList.contains('was-validated')) {
-                        form.classList.remove('was-validated');
-                    }
-                });
-            });
-        });
-    </script>
+    <link rel="stylesheet" href="~/dist/login.css" asp-append-version="true" />
+    <script src="~/dist/login.js" asp-append-version="true"></script>
 }

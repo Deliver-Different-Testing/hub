@@ -1,8 +1,8 @@
-﻿namespace Hub.ViewModels;
+namespace Hub.ViewModels;
 
-public class TenantUserSettingViewModel
+public sealed record TenantUserSettingViewModel
 {
-    public int Id { get; set; }
-    public string Name { get; init; }
-    public string Value { get; init; }
+    public int Id { get; init; }
+    public required string Name { get; init; }
+    public required string Value { get; init; }
 }

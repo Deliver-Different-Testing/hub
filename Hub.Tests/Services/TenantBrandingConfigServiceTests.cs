@@ -1,26 +1,25 @@
-using FluentAssertions;
+﻿using Hub.Interfaces;
 using Hub.Services;
 using Hub.Tests.Helpers;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Services;
 
 public class TenantBrandingConfigServiceTests
 {
-    private readonly Mock<ITenantLogoService> _mockLogoService;
+    private readonly ITenantLogoService _mockLogoService;
 
     public TenantBrandingConfigServiceTests()
     {
-        _mockLogoService = new Mock<ITenantLogoService>();
-        _mockLogoService
-            .Setup(s => s.GetLogoUrlAsync())
-            .ReturnsAsync("https://s3.amazonaws.com/logo.png");
+        _mockLogoService = Substitute.For<ITenantLogoService>();
+        _mockLogoService.GetLogoUrlAsync()
+            .Returns("https://s3.amazonaws.com/logo.png");
     }
 
     private TenantBrandingConfigService CreateService()
     {
         var context = TestMasterContextFactory.CreateWithSeedData();
-        return new TenantBrandingConfigService(context, _mockLogoService.Object);
+        return new TenantBrandingConfigService(context, _mockLogoService);
     }
 
     [Fact]
@@ -30,12 +29,12 @@ public class TenantBrandingConfigServiceTests
 
         var result = await service.GetReportConfigAsync(1);
 
-        result.Should().NotBeNull();
-        result.TenantId.Should().Be(1);
-        result.CompanyName.Should().Be("Test Company");
-        result.Phone.Should().Be("+64 9 123 4567");
-        result.PrimaryColour.Should().Be("#FF0000");
-        result.PaperSize.Should().Be("A4");
+        Assert.NotNull(result);
+        Assert.Equal(1, result.TenantId);
+        Assert.Equal("Test Company", result.CompanyName);
+        Assert.Equal("+64 9 123 4567", result.Phone);
+        Assert.Equal("#FF0000", result.PrimaryColour);
+        Assert.Equal("A4", result.PaperSize);
     }
 
     [Fact]
@@ -45,7 +44,7 @@ public class TenantBrandingConfigServiceTests
 
         var result = await service.GetReportConfigAsync(999);
 
-        result.Should().BeNull();
+        Assert.Null(result);
     }
 
     [Fact]
@@ -56,9 +55,9 @@ public class TenantBrandingConfigServiceTests
         var result = await service.GetReportConfigAsync(1);
 
         // AddressLine3 is null in seed data, so should be filtered out
-        result!.AddressLines.Should().HaveCount(2);
-        result.AddressLines.Should().Contain("123 Test St");
-        result.AddressLines.Should().Contain("Suite 100");
+        Assert.Equal(2, result!.AddressLines.Length);
+        Assert.Contains("123 Test St", result.AddressLines);
+        Assert.Contains("Suite 100", result.AddressLines);
     }
 
     [Fact]
@@ -68,7 +67,7 @@ public class TenantBrandingConfigServiceTests
 
         var result = await service.GetReportConfigAsync(1);
 
-        result!.LogoUrl.Should().Be("https://s3.amazonaws.com/logo.png");
+        Assert.Equal("https://s3.amazonaws.com/logo.png", result!.LogoUrl);
     }
 
     [Fact]
@@ -78,8 +77,8 @@ public class TenantBrandingConfigServiceTests
 
         var result = await service.GetReportConfigAsync(1);
 
-        result!.TimeZoneId.Should().Be("New Zealand Standard Time");
-        result.CountryCode.Should().Be("NZ");
+        Assert.Equal("New Zealand Standard Time", result!.TimeZoneId);
+        Assert.Equal("NZ", result.CountryCode);
     }
 
     [Fact]
@@ -89,7 +88,7 @@ public class TenantBrandingConfigServiceTests
 
         var result = await service.GetReportConfigAsync(1);
 
-        result!.HeaderTextColour.Should().Be("#FFFFFF");
-        result.AccentColour.Should().Be("#00FF00");
+        Assert.Equal("#FFFFFF", result!.HeaderTextColour);
+        Assert.Equal("#00FF00", result.AccentColour);
     }
 }

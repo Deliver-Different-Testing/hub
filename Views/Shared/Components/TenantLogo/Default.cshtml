@@ -1,17 +1,35 @@
 @model Hub.ViewComponents.TenantLogoViewComponent.TenantLogoViewModel
-@using Serilog
 
-@{
-    Log.Information("Rendering logo view - LogoUrl: {LogoUrl}, CssClass: {CssClass}, IsS3Logo: {IsS3Logo}",
-        Model.LogoUrl ?? "null", Model.CssClass ?? "null", Model.IsS3Logo);
+@if (Model.DarkLogoUrl != null)
+{
+    @* Local logo: ship both variants and let CSS reveal the right one per theme
+       (data-theme override + prefers-color-scheme), so the wordmark stays legible
+       on the dark surface without a plate behind it. *@
+    <img src="@Model.LogoUrl"
+         alt="@Model.AltText"
+         class="@Model.CssClass local-logo logo-light"
+         loading="lazy"
+         onerror="console.error('Failed to load logo:', this.src);">
+    @* Both variants keep the alt: only one is ever display:block, and the
+       display:none one is ignored by assistive tech — so the logo always has an
+       accessible name whichever theme is active. *@
+    <img src="@Model.DarkLogoUrl"
+         alt="@Model.AltText"
+         class="@Model.CssClass local-logo logo-dark"
+         loading="lazy"
+         onerror="console.error('Failed to load logo:', this.src);">
 }
-
-<img src="@Model.LogoUrl"
-     alt="@Model.AltText"
-     class="@Model.CssClass @(Model.IsS3Logo ? "s3-logo" : "local-logo")"
-     loading="lazy"
-     onerror="console.error('Failed to load logo:', this.src); Serilog.Log.Error('Failed to load logo image: {Src}', this.src);"
-     onload="console.log('Logo loaded successfully:', this.src);">
+else
+{
+    @* If the S3 pre-signed URL fails to load, swap to the tenant fallback
+       (urgent's own brand art, else the DFRNT wordmark) instead of leaving a
+       broken-image icon. Clear onerror first so a failing fallback can't loop. *@
+    <img src="@Model.LogoUrl"
+         alt="@Model.AltText"
+         class="@Model.CssClass s3-logo"
+         loading="lazy"
+         onerror="console.error('Failed to load logo:', this.src); this.onerror=null; this.src='@Model.FallbackLogoUrl';">
+}
 
 <script>
     // Pre-load next logo URL to avoid expiration issues
@@ -20,12 +38,11 @@
             const response = await fetch('/api/logo');
             const data = await response.json();
             if (data.success && !data.isLocal) {
-                // Pre-cache the next logo URL
                 const img = new Image();
                 img.src = data.logoUrl;
             }
         } catch (e) {
             console.warn('Failed to pre-load logo URL:', e);
         }
-    }, 30 * 60 * 1000); // Refresh after 30 minutes
+    }, 30 * 60 * 1000);
 </script>

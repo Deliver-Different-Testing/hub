@@ -13,6 +13,14 @@ public partial class MasterContext : DbContext
     {
     }
 
+    public virtual DbSet<IntMgrPartnerDirectoryLinkRequest> IntMgrPartnerDirectoryLinkRequests { get; set; }
+
+    public virtual DbSet<IntMgrPartnerDirectoryListing> IntMgrPartnerDirectoryListings { get; set; }
+
+    public virtual DbSet<ShopifyShopTenant> ShopifyShopTenants { get; set; }
+
+    public virtual DbSet<ShopifyTenantHost> ShopifyTenantHosts { get; set; }
+
     public virtual DbSet<Tenant> Tenants { get; set; }
 
     public virtual DbSet<TenantBranding> TenantBrandings { get; set; }
@@ -26,6 +34,119 @@ public partial class MasterContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.UseCollation("Latin1_General_CI_AS");
+
+        modelBuilder.Entity<IntMgrPartnerDirectoryLinkRequest>(entity =>
+        {
+            entity.ToTable("IntMgrPartnerDirectoryLinkRequest");
+
+            entity.HasIndex(e => new { e.RequestingTenantId, e.TargetTenantId, e.Status }, "IX_LinkRequest_Pending");
+
+            entity.HasIndex(e => e.RequestingTenantId, "IX_LinkRequest_RequestingTenantId");
+
+            entity.HasIndex(e => e.TargetTenantId, "IX_LinkRequest_TargetTenantId");
+
+            entity.Property(e => e.CreatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_LinkRequest_CreatedAtUtc")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeclineReason).HasMaxLength(500);
+            entity.Property(e => e.Message).HasMaxLength(500);
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("Pending", "DF_LinkRequest_Status");
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_LinkRequest_UpdatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.RequestingTenant).WithMany(p => p.IntMgrPartnerDirectoryLinkRequestRequestingTenants)
+                .HasForeignKey(d => d.RequestingTenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_LinkRequest_RequestingTenant");
+
+            entity.HasOne(d => d.TargetTenant).WithMany(p => p.IntMgrPartnerDirectoryLinkRequestTargetTenants)
+                .HasForeignKey(d => d.TargetTenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_LinkRequest_TargetTenant");
+        });
+
+        modelBuilder.Entity<IntMgrPartnerDirectoryListing>(entity =>
+        {
+            entity.HasKey(e => e.TenantId);
+
+            entity.ToTable("IntMgrPartnerDirectoryListing");
+
+            entity.HasIndex(e => e.IsActive, "IX_IntMgrPartnerDirectoryListing_IsActive");
+
+            entity.Property(e => e.TenantId).ValueGeneratedNever();
+            entity.Property(e => e.BaseUrl)
+                .IsRequired()
+                .HasMaxLength(500);
+            entity.Property(e => e.CreatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_IntMgrPartnerDirectoryListing_CreatedAtUtc")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true, "DF_IntMgrPartnerDirectoryListing_IsActive");
+            entity.Property(e => e.Region).HasMaxLength(50);
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_IntMgrPartnerDirectoryListing_UpdatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Tenant).WithOne(p => p.IntMgrPartnerDirectoryListing)
+                .HasForeignKey<IntMgrPartnerDirectoryListing>(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_IntMgrPartnerDirectoryListing_Tenant");
+        });
+
+        modelBuilder.Entity<ShopifyShopTenant>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_ShopifyShopTenant");
+
+            entity.ToTable("ShopifyShopTenant");
+
+            entity.HasIndex(e => e.TenantId, "IX_ShopifyShopTenant_TenantId");
+
+            // Not decoration: this is the one-tenant-per-shop rule, and it used to be the primary
+            // key. Two writers racing the same store still resolve at the database rather than in
+            // either application - the loser gets a duplicate-key failure.
+            entity.HasIndex(e => e.Shop, "UX_ShopifyShopTenant_Shop").IsUnique();
+
+            // Assigned in C# rather than by the store, so SQL Server and the InMemory provider the
+            // tests run on write the same value. The NEWID() default in the DDL is there for
+            // hand-written inserts, not for this.
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.Shop).HasMaxLength(255);
+            entity.Property(e => e.ShopName).HasMaxLength(255);
+            entity.Property(e => e.CreatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_ShopifyShopTenant_CreatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Tenant).WithMany(p => p.ShopifyShopTenants)
+                .HasForeignKey(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__ShopifySh__Tenan__367C1819");
+        });
+
+        modelBuilder.Entity<ShopifyTenantHost>(entity =>
+        {
+            // The tenant IS the key. No surrogate, because "one Integration Manager per courier, or
+            // none" is the rule the table exists to state, and a surrogate would let it be broken.
+            entity.HasKey(e => e.TenantId).HasName("PK_ShopifyTenantHost");
+
+            entity.ToTable("ShopifyTenantHost");
+
+            entity.Property(e => e.TenantId).ValueGeneratedNever();
+            entity.Property(e => e.IntegrationManagerUrl)
+                .IsRequired()
+                .HasMaxLength(255);
+            entity.Property(e => e.UpdatedAtUtc)
+                .HasDefaultValueSql("(getutcdate())", "DF_ShopifyTenantHost_UpdatedAtUtc")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Tenant).WithOne(p => p.ShopifyHost)
+                .HasForeignKey<ShopifyTenantHost>(d => d.TenantId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ShopifyTenantHost_Tenant");
+        });
 
         modelBuilder.Entity<Tenant>(entity =>
         {
@@ -108,6 +229,9 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.SettingName)
                 .IsRequired()
                 .HasMaxLength(150);
+            entity.Property(e => e.SettingValue)
+                .IsRequired()
+                .HasMaxLength(200);
 
             entity.HasOne(d => d.Tenant).WithMany(p => p.TenantUserSettings)
                 .HasForeignKey(d => d.TenantId)
@@ -133,7 +257,7 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Email)
                 .IsRequired()
                 .HasMaxLength(250);
-            entity.Property(e => e.IsLegacyHash).HasDefaultValue(true);
+            entity.Property(e => e.IsLegacyHash).HasDefaultValue(true, "DF_User_IsLegacyHash");
             entity.Property(e => e.Password)
                 .IsRequired()
                 .HasMaxLength(200);

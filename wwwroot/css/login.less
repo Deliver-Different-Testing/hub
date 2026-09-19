@@ -1,0 +1,139 @@
+@primary: var(--dd-primary);
+@primary-hover: var(--dd-primary-hover);
+@primary-active: var(--dd-primary-active);
+@outline: var(--dd-outline);
+
+// Indeterminate progress pinned to the top edge of the auth card. The card gets
+// position:relative here (login page only) so the bar can anchor to its top.
+.auth-card {
+  position: relative;
+}
+
+// The mascot illustration above the heading. Sizing lives here (not inline) so
+// it can flex; playback is gated on prefers-reduced-motion from login.ts.
+.auth-lottie {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+.auth-progress {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .2s var(--ease-standard, ease);
+  pointer-events: none;
+  background: rgba(var(--dd-primary-rgb), .15);
+
+  // CSS indeterminate fill — a short segment sweeping left→right, replacing the
+  // old Material linear-progress indeterminate animation.
+  .auth-progress-bar {
+    height: 100%;
+    width: 40%;
+    background: var(--dd-primary);
+    border-radius: inherit;
+    animation: authProgressIndeterminate 1.2s var(--ease-standard) infinite;
+  }
+
+  &.active {
+    opacity: 1;
+  }
+}
+
+@keyframes authProgressIndeterminate {
+  from { margin-left: -40%; }
+  to { margin-left: 100%; }
+}
+
+#loginButton {
+  position: relative;
+  z-index: 1;
+  transition: none !important;
+
+  &:disabled {
+    opacity: .85;
+  }
+
+  .spinner-border,
+  .button-text,
+  .button-label {
+    position: relative;
+    z-index: 2;
+  }
+
+  .spinner-border {
+    color: var(--dd-on-primary);
+    border-color: currentColor;
+    border-right-color: transparent;
+  }
+
+  &:hover,
+  &:focus,
+  &:focus-visible {
+    background-color: @primary-hover !important;
+    border-color: @primary-hover !important;
+    color: var(--dd-on-primary) !important;
+    outline: none !important;
+  }
+
+  &:active {
+    background-color: @primary-active !important;
+    border-color: @primary-active !important;
+    color: var(--dd-on-primary) !important;
+    outline: none !important;
+  }
+
+  * {
+    transition: none !important;
+  }
+}
+
+.was-validated #loginButton {
+  &,
+  &:disabled {
+    background-color: @primary !important;
+    border-color: @primary !important;
+  }
+}
+
+.valid-feedback,
+.invalid-feedback {
+  position: relative;
+  z-index: 0;
+  margin-bottom: .25rem;
+}
+
+#loginForm.submitting {
+  .valid-feedback,
+  .invalid-feedback {
+    display: none !important;
+  }
+
+  .form-control.is-valid,
+  .form-control.is-invalid,
+  .form-select.is-valid,
+  .form-select.is-invalid {
+    border-color: @outline !important;
+    background-image: none !important;
+  }
+}
+
+// "Remember me" — a single tappable row: the wrapping <label> toggles the
+// checkbox, brand body typography + on-surface colour. Centred under the fields
+// via .text-center on its wrapper (the inline-flex label is an inline-level box,
+// so it honours the parent's text-align).
+.remember-me {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-body);
+  font-size: .9375rem;
+  color: var(--dd-on-surface);
+}

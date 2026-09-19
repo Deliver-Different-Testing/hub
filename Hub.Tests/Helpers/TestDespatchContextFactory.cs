@@ -1,4 +1,5 @@
 using Hub.Models;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hub.Tests.Helpers;
@@ -7,9 +8,11 @@ public static class TestDespatchContextFactory
 {
     public static DynamicDespatchDbContext Create(string? dbName = null)
     {
-        dbName ??= Guid.NewGuid().ToString();
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+
         var options = new DbContextOptionsBuilder<DespatchContext>()
-            .UseInMemoryDatabase(dbName)
+            .UseSqlite(connection)
             .Options;
 
         var connectionStringManager = new ConnectionStringManager();
@@ -29,6 +32,21 @@ public static class TestDespatchContextFactory
 
     private static void SeedData(DynamicDespatchDbContext context)
     {
+        // Phase 5+31 R2 §2 — Hub's EF regen made tucClient.ClientTypeId
+        // non-nullable with FK -> ClientType.Id. Without these ClientType
+        // rows the SQLite test DB hits "FOREIGN KEY constraint failed" on
+        // every TucClient INSERT (ClientTypeId defaults to 0 with no
+        // matching ClientType row). Seeding the production set so any
+        // future test that needs a specific type can reference it by Id.
+        context.ClientTypes.AddRange(
+            new ClientType { Id = 1, Name = "Internal" },
+            new ClientType { Id = 2, Name = "Customer" },
+            new ClientType { Id = 3, Name = "NetworkPartner" },
+            new ClientType { Id = 4, Name = "Tenant" },
+            new ClientType { Id = 5, Name = "DFRNTAdmin" },
+            new ClientType { Id = 6, Name = "ConnectedTenant" }
+        );
+
         var client = new TucClient
         {
             UcclId = 1,
@@ -38,6 +56,7 @@ public static class TestDespatchContextFactory
             UcclInternal = false,
             UcclActive = true,
             UcclGroupId = 0,
+            ClientTypeId = 2, // Customer — see ClientType seed above
             Smsname = "TestSMS",
             Created = DateTime.Now,
             CreatedBy = "test",
@@ -54,6 +73,7 @@ public static class TestDespatchContextFactory
             UcclInternal = false,
             UcclActive = true,
             UcclGroupId = 1,
+            ClientTypeId = 2, // Customer — see ClientType seed above
             Smsname = "SubSMS",
             Created = DateTime.Now,
             CreatedBy = "test",
@@ -61,7 +81,28 @@ public static class TestDespatchContextFactory
             LastModifiedBy = "test"
         };
 
-        context.TucClients.AddRange(client, subClient);
+        // NetworkPartner client (ClientType 3) carrying an NpAgentId — the
+        // login flow stamps these onto the ClientTypeId + NpAgentId claims, so
+        // a test can assert the NP data-scope signals are issued correctly.
+        var npClient = new TucClient
+        {
+            UcclId = 3,
+            UcclName = "NP Client",
+            UcclLegalName = "NP Client Ltd",
+            UcclCode = "NP001",
+            UcclInternal = false,
+            UcclActive = true,
+            UcclGroupId = 0,
+            ClientTypeId = 3, // NetworkPartner — see ClientType seed above
+            NpAgentId = 777,
+            Smsname = "NpSMS",
+            Created = DateTime.Now,
+            CreatedBy = "test",
+            LastModified = DateTime.Now,
+            LastModifiedBy = "test"
+        };
+
+        context.TucClients.AddRange(client, subClient, npClient);
 
         var activeContact = new TucClientContact
         {
@@ -134,7 +175,26 @@ public static class TestDespatchContextFactory
             LastModifiedBy = "test"
         };
 
-        context.TucClientContacts.AddRange(activeContact, inactiveContact, staffContact, legacyContact);
+        var npContact = new TucClientContact
+        {
+            UcctId = 5,
+            UcctClientId = 3, // NP client (ClientType 3, NpAgentId 777)
+            UcctFirstname = "Network",
+            UcctSurname = "Partner",
+            UcctEmail = "np@test.com",
+            UserName = "np@test.com",
+            Active = true,
+            HasEmail = true,
+            ValidatedEmail = true,
+            StaffId = 13,
+            ContactRoleId = 1, // NpAdmin — drives the NpRoleId/RoleId dual-write claims
+            Created = DateTime.Now,
+            CreatedBy = "test",
+            LastModified = DateTime.Now,
+            LastModifiedBy = "test"
+        };
+
+        context.TucClientContacts.AddRange(activeContact, inactiveContact, staffContact, legacyContact, npContact);
 
         var activeCourier = new TucCourier
         {

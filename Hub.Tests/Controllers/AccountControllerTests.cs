@@ -1,5 +1,7 @@
-using FluentAssertions;
+﻿using System.Security.Cryptography;
+using System.Text.Json;
 using Hub.Controllers;
+using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
 using Hub.Repositories;
@@ -9,7 +11,7 @@ using Hub.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Controllers;
 
@@ -21,8 +23,8 @@ public class AccountControllerTests : IDisposable
 
     public AccountControllerTests()
     {
-        _originalCredentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? "";
-        _originalRecaptchaKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey") ?? "";
+        _originalCredentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        _originalRecaptchaKey = Environment.GetEnvironmentVariable("GoogleRecaptchaSecretKey") ?? string.Empty;
         Environment.SetEnvironmentVariable("SQLCredentials", ";User=test;Password=test;");
         Environment.SetEnvironmentVariable("GoogleRecaptchaSecretKey", "test-recaptcha-key");
         Environment.SetEnvironmentVariable("ReplyEmail", "noreply@test.com");
@@ -33,6 +35,7 @@ public class AccountControllerTests : IDisposable
     {
         Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
         Environment.SetEnvironmentVariable("GoogleRecaptchaSecretKey", _originalRecaptchaKey);
+        GC.SuppressFinalize(this);
     }
 
     private static (AccountController controller, MasterContext masterCtx, DynamicDespatchDbContext despatchCtx) CreateController(
@@ -58,24 +61,27 @@ public class AccountControllerTests : IDisposable
 #pragma warning restore CS0618
         legacyUser.Salt = "11111";
 
+        var npUser = masterCtx.Users.Find(5)!;
+        npUser.Password = PasswordHelper.HashPassword("NpPass1!", "55555");
+        npUser.Salt = "55555";
+
         masterCtx.SaveChanges();
 
         // Mock stored procedures
-        var mockProcs = new Mock<IDespatchContextProcedures>();
-        mockProcs
-            .Setup(p => p.RVW_stpValidateInternetPermissionsAsync(
-                It.IsAny<int?>(), It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-        mockProcs
-            .Setup(p => p.NET_stpContact_ResetPasswordAsync(
-                It.IsAny<int?>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-        despatchCtx.Procedures = mockProcs.Object;
+        var mockProcs = Substitute.For<IDespatchContextProcedures>();
+        mockProcs.RVW_stpValidateInternetPermissionsAsync(
+                Arg.Any<int?>(), Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        mockProcs.NET_stpContact_ResetPasswordAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        despatchCtx.Procedures = mockProcs;
 
         var connectionStringManager = new ConnectionStringManager();
         var authRepo = new AuthenticationRepository(masterCtx);
-        var despatchRepo = new Repository(despatchCtx);
+        var tenantService = Substitute.For<ITenantService>();
+        var despatchRepo = new Repository(despatchCtx, tenantService);
 
         httpClient ??= MockHttpMessageHandler.CreateReCaptchaClient();
 
@@ -93,7 +99,7 @@ public class AccountControllerTests : IDisposable
 
         var result = controller.Login("/home") as ViewResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
         Assert.Equal("/home", (string)controller.ViewBag.ReturnUrl);
     }
 
@@ -107,7 +113,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!);
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
@@ -118,8 +124,8 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -132,13 +138,13 @@ public class AccountControllerTests : IDisposable
             UserId = 10, Email = "notenant@test.com", Password = "x", Salt = "x",
             CurrentTenantId = null, IsLegacyHash = false, IsCourier = false
         });
-        await masterCtx.SaveChangesAsync();
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
         var model = new LoginViewModel { Email = "notenant@test.com", Password = "pass", IsCourierLogin = false };
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -149,8 +155,8 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -161,10 +167,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!);
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("Index");
-        redirect.ControllerName.Should().Be("Home");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("Home", redirect.ControllerName);
     }
 
     [Fact]
@@ -175,9 +180,68 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!);
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("Index");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Login_Post_NetworkPartner_IssuesIsNetworkPartnerClaim()
+    {
+        var (controller, _, _) = CreateController();
+        var model = new LoginViewModel { Email = "np@test.com", Password = "NpPass1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, null!);
+
+        Assert.IsType<RedirectToActionResult>(result);
+
+        var authService = (Microsoft.AspNetCore.Authentication.IAuthenticationService)
+            controller.HttpContext.RequestServices.GetService(
+                typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService))!;
+
+        await authService.Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<System.Security.Claims.ClaimsPrincipal>(p =>
+                p.HasClaim("IsNetworkPartner", "True") &&
+                p.HasClaim("IsCourier", "False") &&
+                // Data-scope claims: NP contact sits on the NetworkPartner
+                // client (ClientType 3, NpAgentId 777) seeded in the factory.
+                p.HasClaim("ClientTypeId", "3") &&
+                p.HasClaim("NpAgentId", "777") &&
+                // Unified Permissions §5 — RoleId is a transitional dual-write
+                // of the same value as NpRoleId (NpAdmin = 1 from the factory).
+                p.HasClaim("NpRoleId", "1") &&
+                p.HasClaim("RoleId", "1")),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_Post_StaffLogin_IsNetworkPartnerClaimIsFalse()
+    {
+        var (controller, _, _) = CreateController();
+        var model = new LoginViewModel { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, null!);
+
+        Assert.IsType<RedirectToActionResult>(result);
+
+        var authService = (Microsoft.AspNetCore.Authentication.IAuthenticationService)
+            controller.HttpContext.RequestServices.GetService(
+                typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService))!;
+
+        await authService.Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<System.Security.Claims.ClaimsPrincipal>(p =>
+                p.HasClaim("IsNetworkPartner", "False") &&
+                // staff@test.com sits on the Customer client (ClientType 2,
+                // no NpAgentId) — the data-scope claims reflect that.
+                p.HasClaim("ClientTypeId", "2") &&
+                p.HasClaim("NpAgentId", "") &&
+                // Unified Permissions §5 — staff contact has no role; RoleId
+                // dual-writes the same empty value as NpRoleId.
+                p.HasClaim("RoleId", "")),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>());
     }
 
     [Fact]
@@ -188,11 +252,11 @@ public class AccountControllerTests : IDisposable
 
         await controller.Login(model, null!);
 
-        var user = (await masterCtx.Users.FindAsync(3))!;
-        user.IsLegacyHash.Should().BeFalse();
+        var user = (await masterCtx.Users.FindAsync([3], TestContext.Current.CancellationToken))!;
+        Assert.False(user.IsLegacyHash);
         // Password should now be the modern hash
         var expectedHash = PasswordHelper.HashPassword("LegacyPass1!", "11111");
-        user.Password.Should().Be(expectedHash);
+        Assert.Equal(expectedHash, user.Password);
     }
 
     [Fact]
@@ -207,13 +271,13 @@ public class AccountControllerTests : IDisposable
             CurrentTenantId = 1, IsLegacyHash = false, IsCourier = true
         });
         masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 20, TenantId = 1, UserId = 20 });
-        await masterCtx.SaveChangesAsync();
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
         var model = new LoginViewModel { Email = "ghost-courier@test.com", Password = "Pass1!", IsCourierLogin = true };
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -227,13 +291,13 @@ public class AccountControllerTests : IDisposable
             CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
         });
         masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 21, TenantId = 1, UserId = 21 });
-        await masterCtx.SaveChangesAsync();
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
         var model = new LoginViewModel { Email = "ghost-staff@test.com", Password = "Pass1!", IsCourierLogin = false };
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
     }
 
     [Fact]
@@ -245,8 +309,21 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Login(model, null!) as ViewResult;
 
-        result.Should().NotBeNull();
-        ((bool)controller.ViewBag.LoginFailed).Should().BeTrue();
+        Assert.NotNull(result);
+        Assert.True((bool)controller.ViewBag.LoginFailed);
+    }
+
+    [Fact]
+    public async Task Login_Post_AlreadyAuthenticatedAsSameUser_ProceedsWithLogin()
+    {
+        var existingUser = ClaimsPrincipalFactory.Create(email: "staff@test.com");
+        var (controller, _, _) = CreateController(existingUser);
+        var model = new LoginViewModel { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, null!);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
     }
 
     // ResetPassword GET tests
@@ -257,7 +334,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword((string)null!);
 
-        result.Should().BeOfType<RedirectToActionResult>();
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
@@ -267,7 +344,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword("invalid-code");
 
-        result.Should().BeOfType<RedirectToActionResult>();
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
@@ -277,10 +354,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword("valid-reset-key") as ViewResult;
 
-        result.Should().NotBeNull();
-        var model = result.Model as ResetPasswordViewModel;
-        model.Should().NotBeNull();
-        model.Email.Should().Be("reset@test.com");
+        Assert.NotNull(result);
+        var model = Assert.IsType<ResetPasswordViewModel>(result.Model);
+        Assert.Equal("reset@test.com", model.Email);
     }
 
     // ResetPassword POST tests
@@ -289,11 +365,11 @@ public class AccountControllerTests : IDisposable
     {
         var (controller, _, _) = CreateController();
         controller.ModelState.AddModelError("Password", "Required");
-        var model = new ResetPasswordViewModel();
+        var model = new ResetPasswordViewModel { Email = "", Code = "" };
 
         var result = await controller.ResetPassword(model);
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
@@ -307,7 +383,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ResetPassword(model);
 
-        result.Should().BeOfType<RedirectToActionResult>();
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
@@ -321,7 +397,7 @@ public class AccountControllerTests : IDisposable
             UcctSurname = "User", Active = true, HasEmail = true, ValidatedEmail = true,
             Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
         });
-        await despatchCtx.SaveChangesAsync();
+        await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var model = new ResetPasswordViewModel
         {
@@ -330,9 +406,9 @@ public class AccountControllerTests : IDisposable
 
         await controller.ResetPassword(model);
 
-        var user = (await masterCtx.Users.FindAsync(4))!;
-        user.ResetKey.Should().BeNull();
-        user.Password.Should().NotBe("RESETPASSWORD");
+        var user = (await masterCtx.Users.FindAsync([4], TestContext.Current.CancellationToken))!;
+        Assert.Null(user.ResetKey);
+        Assert.NotEqual("RESETPASSWORD", user.Password);
     }
 
     // ForgotPassword tests
@@ -343,7 +419,7 @@ public class AccountControllerTests : IDisposable
 
         var result = controller.ForgotPassword();
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
@@ -355,9 +431,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ForgotPassword(model) as JsonResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
         var value = result.Value;
-        value.Should().BeEquivalentTo(new { success = false, message = "Please check your input and try again." });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Please check your input and try again." }, value);
     }
 
     [Fact]
@@ -370,9 +446,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ForgotPassword(model) as JsonResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
         var value = result.Value;
-        value.Should().BeEquivalentTo(new { success = false, message = "reCAPTCHA validation failed. Please try again." });
+        AssertHelper.JsonEquivalent(new { success = false, message = "reCAPTCHA validation failed. Please try again." }, value);
     }
 
     [Fact]
@@ -384,7 +460,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.ForgotPassword(model) as JsonResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -396,8 +472,8 @@ public class AccountControllerTests : IDisposable
 
         _ = await controller.ForgotPassword(model) as JsonResult;
 
-        var user = (await masterCtx.Users.FindAsync(1))!;
-        user.ResetKey.Should().NotBeNullOrEmpty();
+        var user = (await masterCtx.Users.FindAsync([1], TestContext.Current.CancellationToken))!;
+        Assert.False(string.IsNullOrEmpty(user.ResetKey));
     }
 
     // Logout tests
@@ -408,10 +484,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Logout();
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("login");
-        redirect.ControllerName.Should().Be("Account");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("login", redirect.ActionName);
+        Assert.Equal("Account", redirect.ControllerName);
     }
 
     // UpdateCurrentTenant tests
@@ -423,7 +498,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 1 }) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "User not found" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "User not found" }, result!.Value);
     }
 
     [Fact]
@@ -433,7 +508,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.UpdateCurrentTenant(null!) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Invalid tenant ID" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Invalid tenant ID" }, result!.Value);
     }
 
     [Fact]
@@ -443,19 +518,21 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 0 }) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Invalid tenant ID" });
+        AssertHelper.JsonEquivalent(new { success = false, message = "Invalid tenant ID" }, result!.Value);
     }
 
     [Fact]
-    public async Task UpdateCurrentTenant_UpdateFails_ReturnsFailure()
+    public async Task UpdateCurrentTenant_NotAssociated_ReturnsFailure()
     {
         var user = ClaimsPrincipalFactory.Create(userId: 2);
         var (controller, _, _) = CreateController(user);
 
-        // User 2 not associated with tenant 2
+        // User 2 not associated with tenant 2 — blocked at the master-side access gate
+        // before any DB write or Despatch lookup is attempted.
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
 
-        result!.Value.Should().BeEquivalentTo(new { success = false, message = "Update database failed" });
+        AssertHelper.JsonEquivalent(
+            new { success = false, message = "You don't have access to that tenant." }, result!.Value);
     }
 
     [Fact]
@@ -467,7 +544,7 @@ public class AccountControllerTests : IDisposable
         var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
 
         // Staff user (userId=1) is associated with both tenants
-        result!.Value.Should().BeEquivalentTo(new { success = true });
+        AssertHelper.JsonEquivalent(new { success = true }, result!.Value);
     }
 
     // Settings tests
@@ -479,7 +556,7 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Settings() as ViewResult;
 
-        result.Should().NotBeNull();
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -490,10 +567,9 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Settings() as ViewResult;
 
-        result.Should().NotBeNull();
-        var model = result.Model as List<TenantUserSettingViewModel>;
-        // Should have at least the hardcoded "Test Setting" added in Settings action
-        model.Should().NotBeNull();
+        Assert.NotNull(result);
+        var model = Assert.IsType<IReadOnlyList<TenantUserSettingViewModel>>(result.Model, exactMatch: false);
+        Assert.Empty(model);
     }
 
     [Fact]
@@ -504,12 +580,556 @@ public class AccountControllerTests : IDisposable
 
         var result = await controller.Settings() as ViewResult;
 
-        result.Should().NotBeNull();
-        var model = result.Model as List<TenantUserSettingViewModel>;
-        model.Should().NotBeNull();
-        // Should include "Theme" from seed data + "Test Setting" hardcoded
-        model.Should().Contain(s => s.Name == "Theme");
-        model.Should().Contain(s => s.Name == "Test Setting");
+        Assert.NotNull(result);
+        var model = Assert.IsAssignableFrom<IReadOnlyList<TenantUserSettingViewModel>>(result.Model);
+        Assert.Contains(model, s => s.Name == "Theme");
+    }
+
+    // GenerateApiKey tests
+    [Fact]
+    public async Task GenerateApiKey_MissingClaims_ReturnsFailure()
+    {
+        var anonymous = ClaimsPrincipalFactory.CreateAnonymous();
+        var (controller, _, _) = CreateController(anonymous);
+
+        var result = await controller.GenerateApiKey() as JsonResult;
+
+        Assert.NotNull(result);
+        AssertHelper.JsonEquivalent(new { success = false, message = "Failed to generate API key" }, result.Value);
+    }
+
+    [Fact]
+    public async Task GenerateApiKey_ValidUser_ReturnsApiKey()
+    {
+        Environment.SetEnvironmentVariable("JWTSecretKey", "ThisIsASecretKeyForTestingThatMustBeLongEnough123!");
+        Environment.SetEnvironmentVariable("ClaimsKey", Convert.ToBase64String(new byte[32]));
+        Environment.SetEnvironmentVariable("Issuer", "test-issuer");
+        Environment.SetEnvironmentVariable("Audience", "test-audience");
+        try
+        {
+            var user = ClaimsPrincipalFactory.Create(email: "staff@test.com");
+            var (controller, _, _) = CreateController(user);
+
+            var result = await controller.GenerateApiKey() as JsonResult;
+
+            Assert.NotNull(result);
+            var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+            Assert.Contains("\"success\":true", json);
+            Assert.Contains("apiKey", json);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JWTSecretKey", null);
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+            Environment.SetEnvironmentVariable("Issuer", null);
+            Environment.SetEnvironmentVariable("Audience", null);
+        }
+    }
+
+    // SetTenantConnectionString branch: missing SQLCredentials
+    [Fact]
+    public async Task Login_Post_MissingSQLCredentials_Throws()
+    {
+        var original = Environment.GetEnvironmentVariable("SQLCredentials");
+        Environment.SetEnvironmentVariable("SQLCredentials", "");
+        try
+        {
+            var (controller, _, _) = CreateController();
+            var model = new LoginViewModel
+                { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => controller.Login(model, null!));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SQLCredentials", original);
+        }
+    }
+
+    // CreditCard tests
+    [Fact]
+    public async Task CreditCard_MissingCredentials_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", string.Empty);
+        Environment.SetEnvironmentVariable("CreditCardPassword", string.Empty);
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_UserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "nobody@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "pass");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_NullTenant_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "notenant@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "Pass1!");
+        try
+        {
+            var (controller, masterCtx, _) = CreateController();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 30, Email = "notenant@test.com",
+                Password = PasswordHelper.HashPassword("Pass1!", "99999"), Salt = "99999",
+                CurrentTenantId = null, IsLegacyHash = false, IsCourier = false
+            });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_WrongPassword_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "WrongPassword!");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_DespatchUserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "nodespatch@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "Pass1!");
+        try
+        {
+            var (controller, masterCtx, _) = CreateController();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 31, Email = "nodespatch@test.com",
+                Password = PasswordHelper.HashPassword("Pass1!", "88888"), Salt = "88888",
+                CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 31, TenantId = 1, UserId = 31 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_ValidLogin_NoTenantUrl_RedirectsToHome()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "TestPassword1!");
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+            Assert.Equal("Home", redirect.ControllerName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_ValidLogin_WithTenantUrl_RedirectsToBooking()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "staff@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "TestPassword1!");
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
+        try
+        {
+            var (controller, _, _) = CreateController();
+
+            var result = await controller.CreditCard();
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Contains("booking", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task CreditCard_LegacyHash_UpgradesPassword()
+    {
+        Environment.SetEnvironmentVariable("CreditCardEmail", "legacy@test.com");
+        Environment.SetEnvironmentVariable("CreditCardPassword", "LegacyPass1!");
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, masterCtx, _) = CreateController();
+
+            await controller.CreditCard();
+
+            var user = (await masterCtx.Users.FindAsync([3], TestContext.Current.CancellationToken))!;
+            Assert.False(user.IsLegacyHash);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CreditCardEmail", null);
+            Environment.SetEnvironmentVariable("CreditCardPassword", null);
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    // ResetPassword POST edge cases
+    [Fact]
+    public async Task ResetPassword_Post_ValidCode_DespatchUserNotFound_ReturnsView()
+    {
+        var (controller, _, _) = CreateController();
+        // reset@test.com has valid-reset-key but no despatch contact (not in seed data)
+        var model = new ResetPasswordViewModel
+        {
+            Email = "reset@test.com", Password = "NewStrong1!", ConfirmPassword = "NewStrong1!", Code = "valid-reset-key"
+        };
+
+        var result = await controller.ResetPassword(model);
+
+        Assert.IsType<ViewResult>(result);
+    }
+
+    // ForgotPassword POST - despatch user not found
+    [Fact]
+    public async Task ForgotPassword_Post_DespatchUserNotFound_ReturnsError()
+    {
+        var (controller, masterCtx, _) = CreateController();
+        masterCtx.Users.Add(new User
+        {
+            UserId = 32, Email = "nodespatch2@test.com",
+            Password = "x", Salt = "x",
+            CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+        });
+        masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 32, TenantId = 1, UserId = 32 });
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        SetFormValues(controller, "token");
+        var model = new ForgotPasswordViewModel { Email = "nodespatch2@test.com" };
+
+        var result = await controller.ForgotPassword(model) as JsonResult;
+
+        Assert.NotNull(result);
+        AssertHelper.JsonEquivalent(
+            new { success = false, message = "Reset failed due to contact validation failure" }, result.Value);
+    }
+
+    // GenerateApiKey exception catch block
+    [Fact]
+    public async Task GenerateApiKey_CryptoException_ReturnsFailure()
+    {
+        Environment.SetEnvironmentVariable("JWTSecretKey", "ThisIsASecretKeyForTestingThatMustBeLongEnough123!");
+        Environment.SetEnvironmentVariable("ClaimsKey", "not-valid-base64!!!");
+        Environment.SetEnvironmentVariable("Issuer", "test-issuer");
+        Environment.SetEnvironmentVariable("Audience", "test-audience");
+        try
+        {
+            var user = ClaimsPrincipalFactory.Create(email: "staff@test.com");
+            var (controller, _, _) = CreateController(user);
+
+            var result = await controller.GenerateApiKey() as JsonResult;
+
+            Assert.NotNull(result);
+            AssertHelper.JsonEquivalent(new { success = false, message = "Failed to generate API key" }, result.Value);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JWTSecretKey", null);
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+            Environment.SetEnvironmentVariable("Issuer", null);
+            Environment.SetEnvironmentVariable("Audience", null);
+        }
+    }
+
+    // Login - asure redirect
+    [Fact]
+    public async Task Login_Post_AsureUser_WithTenantUrl_RedirectsToBooking()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            // Add "urgent" tenant
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            var asureUser = new User
+            {
+                UserId = 40, Email = "asure@urgent.co.nz",
+                Password = PasswordHelper.HashPassword("AsurePass1!", "77777"), Salt = "77777",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            };
+            masterCtx.Users.Add(asureUser);
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 40, TenantId = 3, UserId = 40 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            // Add despatch contact for asure user
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 40, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "User", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new LoginViewModel
+                { Email = "asure@urgent.co.nz", Password = "AsurePass1!", IsCourierLogin = false };
+
+            var result = await controller.Login(model, null!);
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Contains("booking", redirect.Url);
+            Assert.Contains("asure", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task Login_Post_AsureUser_NoTenantUrl_RedirectsToHome()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            masterCtx.Users.Add(new User
+            {
+                UserId = 41, Email = "asure@urgent.co.nz",
+                Password = PasswordHelper.HashPassword("AsurePass1!", "77778"), Salt = "77778",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 41, TenantId = 3, UserId = 41 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 41, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "User2", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new LoginViewModel
+                { Email = "asure@urgent.co.nz", Password = "AsurePass1!", IsCourierLogin = false };
+
+            var result = await controller.Login(model, null!);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    // ResetPassword - asure redirect
+    [Fact]
+    public async Task ResetPassword_Post_AsureUser_WithTenantUrl_RedirectsToBooking()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.example.com");
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            masterCtx.Users.Add(new User
+            {
+                UserId = 42, Email = "asure@urgent.co.nz",
+                Password = "OLD", Salt = "77779",
+                ResetKey = "asure-reset-key",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 42, TenantId = 3, UserId = 42 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 42, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "Reset", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new ResetPasswordViewModel
+            {
+                Email = "asure@urgent.co.nz", Password = "NewStrong1!",
+                ConfirmPassword = "NewStrong1!", Code = "asure-reset-key"
+            };
+
+            var result = await controller.ResetPassword(model);
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Contains("booking", redirect.Url);
+            Assert.Contains("asure", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task ResetPassword_Post_AsureUser_NoTenantUrl_RedirectsToHome()
+    {
+        Environment.SetEnvironmentVariable("TenantURL", string.Empty);
+        try
+        {
+            var (controller, masterCtx, despatchCtx) = CreateController();
+            masterCtx.Tenants.Add(new Tenant
+            {
+                TenantId = 3, Name = "Urgent", Dbconnection = "Server=test;Database=TestDB;",
+                Code = "urgent", CountryCode = "NZ", TimeZone = "New Zealand Standard Time"
+            });
+            masterCtx.Users.Add(new User
+            {
+                UserId = 43, Email = "asure@urgent.co.nz",
+                Password = "OLD", Salt = "77780",
+                ResetKey = "asure-reset-key-2",
+                CurrentTenantId = 3, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 43, TenantId = 3, UserId = 43 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+            despatchCtx.TucClientContacts.Add(new TucClientContact
+            {
+                UcctId = 43, UcctClientId = 1, UserName = "asure@urgent.co.nz",
+                UcctFirstname = "Asure", UcctSurname = "Reset2", Active = true,
+                HasEmail = true, ValidatedEmail = true,
+                Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+            });
+            await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var model = new ResetPasswordViewModel
+            {
+                Email = "asure@urgent.co.nz", Password = "NewStrong1!",
+                ConfirmPassword = "NewStrong1!", Code = "asure-reset-key-2"
+            };
+
+            var result = await controller.ResetPassword(model);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    // UpdateCurrentTenant - associated with a tenant that has no DB connection
+    [Fact]
+    public async Task UpdateCurrentTenant_TenantHasNoConnection_ReturnsFailureWithoutWriting()
+    {
+        var user = ClaimsPrincipalFactory.Create(userId: 1, email: "staff@test.com");
+        var (controller, masterCtx, _) = CreateController(user);
+        // Associate the user with a tenant id that has no Tenant row (no Dbconnection).
+        masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 40, TenantId = 999, UserId = 1 });
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 999 }) as JsonResult;
+
+        AssertHelper.JsonEquivalent(
+            new { success = false,
+                message = "That tenant isn't fully configured (no database connection). Contact an administrator." },
+            result!.Value);
+        // Validate-before-write: the bad switch must not have been persisted.
+        var persisted = masterCtx.Users.Find(1)!;
+        Assert.Equal(1, persisted.CurrentTenantId);
+    }
+
+    // UpdateCurrentTenant - associated in Master but no Despatch contact in the target tenant.
+    // This is the provisioning-gap that previously stranded users (e.g. Eve on dfrnt):
+    // the switch must be refused AND CurrentTenant left unchanged.
+    [Fact]
+    public async Task UpdateCurrentTenant_NoDespatchContact_ReturnsFailureWithoutWriting()
+    {
+        var user = ClaimsPrincipalFactory.Create(userId: 1, email: "nodespatch@test.com");
+        var (controller, masterCtx, _) = CreateController(user);
+
+        var result = await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }) as JsonResult;
+
+        AssertHelper.JsonEquivalent(
+            new { success = false,
+                message = "Your account isn't set up in that tenant yet — there's no operator record for "
+                        + "nodespatch@test.com there. Ask an administrator to add you to that tenant before switching." },
+            result!.Value);
+        // The corrupting write that caused the original incident must not happen.
+        var persisted = masterCtx.Users.Find(1)!;
+        Assert.Equal(1, persisted.CurrentTenantId);
     }
 
     private static void SetFormValues(AccountController controller, string reCaptchaToken)
@@ -521,5 +1141,269 @@ public class AccountControllerTests : IDisposable
             });
         controller.HttpContext.Request.ContentType = "application/x-www-form-urlencoded";
         controller.HttpContext.Request.Form = formCollection;
+    }
+
+    // AcceptTenantSwitchToken tests
+    private const string TestClaimsKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; // 32-byte base64
+
+    private static string EncryptTenantSwitchToken(int userId, int tenantId, long? expiresAt = null)
+    {
+        var token = JsonSerializer.Serialize(new
+        {
+            UserId = userId,
+            TenantId = tenantId,
+            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+        });
+        using var aes = Aes.Create();
+        aes.Key = Convert.FromBase64String(TestClaimsKey);
+        aes.GenerateIV();
+        using var ms = new MemoryStream();
+        ms.Write(aes.IV, 0, aes.IV.Length);
+        using (var encryptor = aes.CreateEncryptor())
+        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        using (var sw = new StreamWriter(cs))
+            sw.Write(token);
+        return Convert.ToBase64String(ms.ToArray());
+    }
+
+    private static (AccountController controller, MasterContext masterCtx) CreateForAccept(string host = "hub.test.deliverdifferent.com")
+    {
+        var (controller, masterCtx, _) = CreateController(ClaimsPrincipalFactory.CreateAnonymous());
+        controller.HttpContext.Request.Host = new HostString(host);
+        return (controller, masterCtx);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_EmptyToken_RedirectsToLogin()
+    {
+        var (controller, _) = CreateForAccept();
+
+        var result = await controller.AcceptTenantSwitchToken("");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_WhitespaceToken_RedirectsToLogin()
+    {
+        var (controller, _) = CreateForAccept();
+
+        var result = await controller.AcceptTenantSwitchToken("   ");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_GarbageCiphertext_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+
+            var result = await controller.AcceptTenantSwitchToken("not-base64!@#");
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ZeroUserId_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 0, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ZeroTenantId_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 0);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ExpiredToken_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var expired = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds();
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1, expiresAt: expired);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_UserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept();
+            var token = EncryptTenantSwitchToken(userId: 9999, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_HostDoesNotExposeTenant_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // localhost has no tenant segment -> ExtractTenantFromHost returns null
+            var (controller, _) = CreateForAccept(host: "localhost");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_HostTenantMismatch_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // user 1's current tenant code is "test"; host says "second"
+            var (controller, _) = CreateForAccept(host: "hub.second.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_TokenTenantMismatch_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            // host matches "test" and so does the user's current tenant, but the token claims tenant 2
+            var (controller, _) = CreateForAccept(host: "hub.test.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 2);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_DespatchUserNotFound_RedirectsToLogin()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, masterCtx) = CreateForAccept();
+            masterCtx.Users.Add(new User
+            {
+                UserId = 50, Email = "ghost@test.com",
+                Password = "x", Salt = "x", CurrentTenantId = 1, IsLegacyHash = false, IsCourier = false
+            });
+            masterCtx.TenantUsers.Add(new TenantUser { TenantUserId = 50, TenantId = 1, UserId = 50 });
+            await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var token = EncryptTenantSwitchToken(userId: 50, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Login", redirect.ActionName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptTenantSwitchToken_ValidToken_RedirectsToHomeIndex()
+    {
+        Environment.SetEnvironmentVariable("ClaimsKey", TestClaimsKey);
+        try
+        {
+            var (controller, _) = CreateForAccept(host: "hub.test.deliverdifferent.com");
+            var token = EncryptTenantSwitchToken(userId: 1, tenantId: 1);
+
+            var result = await controller.AcceptTenantSwitchToken(token);
+
+            var redirect = Assert.IsType<RedirectToActionResult>(result);
+            Assert.Equal("Index", redirect.ActionName);
+            Assert.Equal("Home", redirect.ControllerName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ClaimsKey", null);
+        }
     }
 }

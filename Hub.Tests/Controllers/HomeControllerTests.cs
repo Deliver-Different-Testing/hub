@@ -1,10 +1,11 @@
-using FluentAssertions;
-using Hub.Controllers;
+﻿using Hub.Controllers;
+using Hub.Interfaces;
 using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
+using Hub.ViewModels;
 using Microsoft.AspNetCore.Mvc;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Controllers;
 
@@ -19,87 +20,106 @@ public class HomeControllerTests : IDisposable
         Environment.SetEnvironmentVariable("SQLCredentials", ";User=test;Password=test;");
     }
 
-    public void Dispose() => Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
+        GC.SuppressFinalize(this);
+    }
 
-    private static (HomeController controller, DynamicDespatchDbContext context) CreateController(
+    private static HomeController CreateController(
         System.Security.Claims.ClaimsPrincipal? user = null)
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
         var connectionStringManager = new ConnectionStringManager();
-        var repo = new Repository(context);
+        var tenantService = Substitute.For<ITenantService>();
+        var repo = new Repository(context, tenantService);
 
         // Mock the stored procedures
-        var mockProcs = new Mock<IDespatchContextProcedures>();
-        mockProcs
-            .Setup(p => p.RVW_stpValidateInternetPermissionsAsync(
-                It.IsAny<int?>(), It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([
+        var mockProcs = Substitute.For<IDespatchContextProcedures>();
+        mockProcs.RVW_stpValidateInternetPermissionsAsync(
+                Arg.Any<int?>(), Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns([
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 2, ClientContactID = 1 },
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 12, ClientContactID = 1 },
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 11, ClientContactID = 1 }
             ]);
-        context.Procedures = mockProcs.Object;
+        context.Procedures = mockProcs;
 
-        var controller = new HomeController(connectionStringManager, repo);
+        // Phase 5+31 R2 §2 — HomeController.Index now resolves the user's
+        // visible-feature set via IFeatureResolver before populating the
+        // ViewModel. These tests don't exercise tile rendering (controller
+        // returns ViewResult; the Razor view isn't executed), so the mock
+        // can return an empty set safely. Returning null would NRE on the
+        // ViewModel assignment.
+        var featureResolver = Substitute.For<IFeatureResolver>();
+        featureResolver.ResolveForClientAsync(Arg.Any<int?>())
+            .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
+        // Gate 2 (tile access) is substituted to "no decisions", i.e. it removes
+        // nothing from the visible set. These tests cover the controller wiring,
+        // not the tile rules - those live in TileAccessResolverTests.
+        var tileAccessResolver = Substitute.For<ITileAccessResolver>();
+        tileAccessResolver.ResolveAsync(Arg.Any<int>(), Arg.Any<int?>(), Arg.Any<ISet<string>>())
+            .Returns(new List<TileAccess>());
+
+        var controller = new HomeController(
+            connectionStringManager, repo, featureResolver, tileAccessResolver);
         ControllerTestBase.SetupHttpContext(controller, user);
 
-        return (controller, context);
+        return controller;
+    }
+
+    private static HomeViewModel GetModel(IActionResult result)
+    {
+        var viewResult = (ViewResult)result;
+        return (HomeViewModel)viewResult.Model!;
     }
 
     [Fact]
     public async Task Index_NotAuthenticated_RedirectsToLogin()
     {
         var anonymous = ClaimsPrincipalFactory.CreateAnonymous();
-        var (controller, _) = CreateController(anonymous);
+        var controller = CreateController(anonymous);
 
         var result = await controller.Index();
 
-        result.Should().BeOfType<RedirectToActionResult>();
-        var redirect = (RedirectToActionResult)result;
-        redirect.ActionName.Should().Be("Login");
-        redirect.ControllerName.Should().Be("Account");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Login", redirect.ActionName);
+        Assert.Equal("Account", redirect.ControllerName);
     }
 
     [Fact]
     public async Task Index_Authenticated_ReturnsView()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
         var result = await controller.Index();
 
-        result.Should().BeOfType<ViewResult>();
+        Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
     public async Task Index_SetsViewBagPermissions()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((bool)controller.ViewBag.DespatchWebPermission).Should().BeTrue();
-        ((bool)controller.ViewBag.BookJobPermission).Should().BeTrue();
-        ((bool)controller.ViewBag.BulkUploadPermission).Should().BeTrue();
+        var model = GetModel(result);
+        Assert.True(model.DespatchWebPermission);
+        Assert.True(model.BookJobPermission);
+        Assert.True(model.BulkUploadPermission);
     }
 
     [Fact]
     public async Task Index_SetsViewBagContactId()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((int)controller.ViewBag.ContactID).Should().Be(1);
-    }
-
-    [Fact]
-    public async Task Index_SetsViewBagGreetingString()
-    {
-        var (controller, _) = CreateController();
-
-        await controller.Index();
-
-        ((string)controller.ViewBag.GreetingString).Should().NotBeNullOrEmpty();
+        var model = GetModel(result);
+        Assert.Equal(1, model.ContactId);
     }
 
     [Fact]
@@ -112,42 +132,35 @@ public class HomeControllerTests : IDisposable
             contactId: "1",
             timeZone: "New Zealand Standard Time"
         );
-        var (controller, _) = CreateController(courierUser);
+        var controller = CreateController(courierUser);
 
-        await controller.Index();
+        var result = await controller.Index();
 
         // Courier 1 has after-hours record in seed data
-        ((bool)controller.ViewBag.ShowAfterHours).Should().BeTrue();
+        var model = GetModel(result);
+        Assert.True(model.ShowAfterHours);
     }
 
     [Fact]
     public async Task Index_NonCourierUser_ShowAfterHoursFalse()
     {
         var staffUser = ClaimsPrincipalFactory.Create(isCourier: false);
-        var (controller, _) = CreateController(staffUser);
+        var controller = CreateController(staffUser);
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((bool)controller.ViewBag.ShowAfterHours).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task Index_GreetingStringIsNotEmpty()
-    {
-        var (controller, _) = CreateController();
-
-        await controller.Index();
-
-        ((string)controller.ViewBag.GreetingString).Should().NotBeNullOrEmpty();
+        var model = GetModel(result);
+        Assert.False(model.ShowAfterHours);
     }
 
     [Fact]
     public async Task Index_SetsViewBagTenantCode()
     {
-        var (controller, _) = CreateController();
+        var controller = CreateController();
 
-        await controller.Index();
+        var result = await controller.Index();
 
-        ((string)controller.ViewBag.TenantCode).Should().Be("test");
+        var model = GetModel(result);
+        Assert.Equal("test", model.TenantCode);
     }
 }

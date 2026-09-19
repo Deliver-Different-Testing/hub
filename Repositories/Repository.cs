@@ -1,55 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using Hub.Interfaces;
 using Hub.Models;
-using Hub.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace Hub.Repositories;
 
-public partial class Repository(DynamicDespatchDbContext context)
+public sealed class Repository(
+    DynamicDespatchDbContext context,
+    ITenantService tenantService) : IDespatchRepository
 {
-    private void LogConnectionDetails()
+    public async Task<TucClientContact?> FetchUserByUsernameAsync(string email)
     {
         try
         {
-            var connection = context.Database.GetDbConnection();
-            var maskedConnectionString = MaskSensitiveInfo(connection.ConnectionString);
+            Log.Debug("Attempting to fetch user with email: {Email}", email);
 
-            Log.Information("Current Connection Details:");
-            Log.Information("Data Source: {ConnectionDataSource}", connection.DataSource);
-            Log.Information("Database: {ConnectionDatabase}", connection.Database);
-            Log.Information("Masked Connection String: {MaskedConnectionString}", maskedConnectionString);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error logging connection details");
-        }
-    }
-
-    private static string MaskSensitiveInfo(string connectionString)
-    {
-        // Mask password
-        var maskedString = PasswordRegex().Replace(connectionString, "$1=********");
-
-        // Mask user id if present
-        maskedString = UserNameRegex().Replace(maskedString, "$1=********");
-
-        return maskedString;
-    }
-
-    public async Task<TucClientContact> FetchUserByUsername(string email)
-    {
-        LogConnectionDetails();
-        try
-        {
-            Log.Information("Attempting to fetch user with email: {Email}", email);
-
-            return await context.TucClientContacts.Where(x => x.Active && x.UserName == email)
+            return await context.TucClientContacts
+                .AsNoTracking()
                 .Include(c => c.UcctClient)
+                .Where(x => x.Active && x.UserName == email)
                 .FirstOrDefaultAsync();
         }
         catch (Exception ex)
@@ -61,51 +30,54 @@ public partial class Repository(DynamicDespatchDbContext context)
 
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
-        var subAccounts = await context.TucClients.Where(x => x.UcclGroupId == clientId).Select(y => y.UcclId)
+        var subAccounts = await context.TucClients
+            .AsNoTracking()
+            .Where(x => x.UcclGroupId == clientId)
+            .Select(y => y.UcclId)
             .ToListAsync();
-        return string.Join(",", subAccounts.Select(n => n.ToString()).ToArray());
+        return string.Join(",", subAccounts);
     }
 
-    public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissions(int contactId)
+    public async Task<List<RVW_stpValidateInternetPermissionsResult>> GetDespatchWebInternetPermissionsAsync(int contactId)
     {
         var data = await context.Procedures.RVW_stpValidateInternetPermissionsAsync(contactId);
         return data;
     }
 
-
-    public async Task InitiatePasswordReset(int contactId, string recoveryEmail, string replyEmail, string link) =>
+    public async Task InitiatePasswordResetAsync(int contactId, string recoveryEmail, string replyEmail, string link) =>
         await context.Procedures.NET_stpContact_ResetPasswordAsync(contactId, recoveryEmail, replyEmail, link);
 
-    public void UpdateUserAccessed(int id, bool rememberMe)
+    public async Task UpdateUserAccessedAsync(int id, bool rememberMe, int tenantId)
     {
-        var contact = context.TucClientContacts.FirstOrDefault(x => x.UcctId == id);
-        if (contact == null) return;
-        contact.LastAccessed = DateTime.Now;
-        contact.HasEmail = contact.WhenEmailValidated == null || contact.HasEmail;
-        contact.ValidatedEmail = contact.WhenEmailValidated == null || contact.ValidatedEmail;
-        contact.WhenEmailValidated ??= DateTime.Now;
-        contact.WhenEmailValidatedSent = contact.WhenEmailValidated == null
-            ? DateTime.Now
-            : contact.WhenEmailValidatedSent;
-        contact.AllowCookieLogin = rememberMe;
-        context.SaveChangesAsync();
+        var tenantTime = await tenantService.GetCurrentTenantTimeAsync(tenantId);
+        await context.TucClientContacts
+            .Where(x => x.UcctId == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.LastAccessed, tenantTime)
+                .SetProperty(x => x.HasEmail, x => x.WhenEmailValidated == null || x.HasEmail)
+                .SetProperty(x => x.ValidatedEmail, x => x.WhenEmailValidated == null || x.ValidatedEmail)
+                .SetProperty(x => x.WhenEmailValidatedSent,
+                    x => x.WhenEmailValidated == null ? tenantTime : x.WhenEmailValidatedSent)
+                .SetProperty(x => x.WhenEmailValidated, x => x.WhenEmailValidated ?? tenantTime)
+                .SetProperty(x => x.AllowCookieLogin, rememberMe));
     }
 
-    public async Task<int?> ValidateCourierByEmail(string email)
+    public async Task<int?> ValidateCourierByEmailAsync(string email)
     {
-        LogConnectionDetails();
         try
         {
-            Log.Information("Attempting to validate courier with email: {Email}", email);
+            Log.Debug("Validating courier with email: {Email}", email);
 
-            // Get the tucCourier record with the given email
-            var courier = await context.TucCouriers
-                .FirstOrDefaultAsync(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim() == email);
+            var courierId = await context.TucCouriers
+                .AsNoTracking()
+                .Where(x => x.Active && x.UccrEmail != null && x.UccrEmail.Trim() == email)
+                .Select(x => (int?)x.UccrId)
+                .FirstOrDefaultAsync();
 
-            if (courier != null)
+            if (courierId.HasValue)
             {
-                Log.Information("Found courier with ID: {CourierUccrId}", courier.UccrId);
-                return courier.UccrId;
+                Log.Debug("Found courier with ID: {CourierId}", courierId.Value);
+                return courierId;
             }
 
             Log.Warning("No active courier found with email: {Email}", email);
@@ -120,20 +92,15 @@ public partial class Repository(DynamicDespatchDbContext context)
 
     public async Task<int?> GetAccountsModeAsync()
     {
-        LogConnectionDetails();
         try
         {
-            Log.Information("Fetching AccountsMode from TblSettings");
+            var accountsMode = await context.TblSettings
+                .AsNoTracking()
+                .Select(s => s.AccountsMode)
+                .FirstOrDefaultAsync();
 
-            var settings = await context.TblSettings.FirstOrDefaultAsync();
-            if (settings == null)
-            {
-                Log.Warning("TblSettings record not found");
-                return null;
-            }
-
-            Log.Information("AccountsMode: {ToString}", settings.AccountsMode?.ToString() ?? "NULL");
-            return settings.AccountsMode;
+            Log.Debug("AccountsMode: {AccountsMode}", accountsMode?.ToString() ?? "NULL");
+            return accountsMode;
         }
         catch (Exception ex)
         {
@@ -142,87 +109,21 @@ public partial class Repository(DynamicDespatchDbContext context)
         }
     }
 
-    public async Task<string?> GetClientNameAsync(int clientId)
+    public async Task<bool> IsAfterHoursAuthorizedAsync(int courierId)
     {
-        return await context.TucClients
-            .Where(x => x.UcclId == clientId)
-            .Select(x => x.UcclName)
-            .FirstOrDefaultAsync();
-    }
-
-    public async Task<List<FuelSurchargeItemViewModel>> GetFuelSurchargeHistoryAsync(int? clientId, bool isInternalUser)
-    {
-        LogConnectionDetails();
-
-        var today = DateTime.UtcNow.Date;
-        var historyStart = today.AddMonths(-3);
-
-        var query = context.TblFuelSurcharges.AsNoTracking()
-            .Where(x => x.Start <= today && (!x.End.HasValue || x.End.Value >= historyStart));
-
-        if (!isInternalUser)
-        {
-            var hasClientSpecific = clientId.HasValue && await context.TblFuelSurcharges.AsNoTracking()
-                .AnyAsync(x => x.ClientId == clientId.Value
-                               && x.Start <= today
-                               && (!x.End.HasValue || x.End.Value >= historyStart));
-
-            query = hasClientSpecific
-                ? query.Where(x => clientId.HasValue && x.ClientId == clientId.Value)
-                : query.Where(x => x.ClientId == null);
-        }
-
-        var items = await query
-            .GroupJoin(context.TucClients,
-                surcharge => surcharge.ClientId,
-                client => (int?)client.UcclId,
-                (surcharge, clients) => new { surcharge, client = clients.FirstOrDefault() })
-            .OrderByDescending(x => x.surcharge.Start)
-            .ThenByDescending(x => x.surcharge.FuelSurchargeId)
-            .Select(x => new FuelSurchargeItemViewModel
-            {
-                FuelSurchargeId = x.surcharge.FuelSurchargeId,
-                ClientId = x.surcharge.ClientId,
-                ClientName = x.client != null ? x.client.UcclName : null,
-                ScopeLabel = x.surcharge.ClientId == null ? "Standard" : "Client-specific",
-                Rate = x.surcharge.Rate,
-                PumpPrice = x.surcharge.PumpPrice,
-                Start = x.surcharge.Start,
-                End = x.surcharge.End,
-                Active = x.surcharge.Active,
-                IsCurrent = x.surcharge.Active && x.surcharge.Start <= today && (!x.surcharge.End.HasValue || x.surcharge.End.Value >= today)
-            })
-            .ToListAsync();
-
-        return items;
-    }
-
-    public async Task<bool> IsAfterHoursAuthorized(int courierId, int dayOfWeek)
-    {
-        LogConnectionDetails();
         try
         {
-            Log.Information("Checking after-hours authorization for courier {CourierId} on day {DayOfWeek}", courierId,
-                dayOfWeek);
-
-            // Check if a tblAfterHoursCourier record exists for this courier.
-            // 2026-01-20 New logic from George - ignore day/time. Just existence of courier qualifies for auth.
+            // 2026-01-20 New logic from George - just existence of courier qualifies for auth.
             var isAuthorized = await context.TblAfterhoursCouriers
+                .AsNoTracking()
                 .AnyAsync(ah => ah.CourierId == courierId);
 
             return isAuthorized;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error checking after-hours authorization for courier {CourierId} on day {DayOfWeek}",
-                courierId, dayOfWeek);
+            Log.Error(ex, "Error checking after-hours authorization for courier {CourierId}", courierId);
             return false;
         }
     }
-
-    [GeneratedRegex("(Password|Pwd)=[^;]*", RegexOptions.IgnoreCase, "en-NZ")]
-    private static partial Regex PasswordRegex();
-
-    [GeneratedRegex("(User ID|Uid)=[^;]*", RegexOptions.IgnoreCase, "en-NZ")]
-    private static partial Regex UserNameRegex();
 }

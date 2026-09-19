@@ -1,48 +1,47 @@
-using FluentAssertions;
 using Hub.Repositories;
 using Hub.Services;
 using Hub.Tests.Helpers;
 using Microsoft.AspNetCore.Hosting;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Services;
 
 public class TenantServiceTests
 {
-    private readonly Mock<IWebHostEnvironment> _mockHostEnv;
+    private readonly IWebHostEnvironment _mockHostEnv;
 
     public TenantServiceTests()
     {
-        _mockHostEnv = new Mock<IWebHostEnvironment>();
-        _mockHostEnv.Setup(e => e.WebRootPath).Returns(Path.GetTempPath());
+        _mockHostEnv = Substitute.For<IWebHostEnvironment>();
+        _mockHostEnv.WebRootPath.Returns(Path.GetTempPath());
     }
 
     private (TenantService service, AuthenticationRepository authRepo) CreateService()
     {
         var context = TestMasterContextFactory.CreateWithSeedData();
         var authRepo = new AuthenticationRepository(context);
-        var service = new TenantService(authRepo, _mockHostEnv.Object);
+        var service = new TenantService(authRepo, _mockHostEnv);
         return (service, authRepo);
     }
 
     [Fact]
     public async Task GetTenantsForUserAsync_WithTenants_ReturnsTenants()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var tenants = await service.GetTenantsForUserAsync(1);
 
-        tenants.Should().HaveCount(2);
+        Assert.Equal(2, tenants.Count);
     }
 
     [Fact]
     public async Task GetTenantsForUserAsync_NoTenants_ReturnsEmpty()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var tenants = await service.GetTenantsForUserAsync(999);
 
-        tenants.Should().BeEmpty();
+        Assert.Empty(tenants);
     }
 
     [Fact]
@@ -56,11 +55,11 @@ public class TenantServiceTests
 
         try
         {
-            var (service, _) = CreateService();
+            var service = CreateService().service;
 
             var result = service.GetTenantLogoPath("test");
 
-            result.Should().Be("~/images/testLogo.png");
+            Assert.Equal("~/images/testLogo.png", result);
         }
         finally
         {
@@ -71,30 +70,55 @@ public class TenantServiceTests
     [Fact]
     public void GetTenantLogoPath_LogoNotExists_ReturnsDefault()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var result = service.GetTenantLogoPath("nonexistent");
 
-        result.Should().Be("~/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
     public void GetTenantLogoPath_NullCode_ReturnsDefault()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var result = service.GetTenantLogoPath(null!);
 
-        result.Should().Be("~/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
     }
 
     [Fact]
     public void GetTenantLogoPath_EmptyCode_ReturnsDefault()
     {
-        var (service, _) = CreateService();
+        var service = CreateService().service;
 
         var result = service.GetTenantLogoPath(string.Empty);
 
-        result.Should().Be("~/images/DFRNT_HorizLogo_RGB.png");
+        Assert.Equal("~/images/DFRNT_HorizLogo_RGB.png", result);
+    }
+
+    [Fact]
+    public async Task GetCurrentTenantTimeAsync_ValidTenant_ReturnsConvertedTime()
+    {
+        var service = CreateService().service;
+
+        var result = await service.GetCurrentTenantTimeAsync(1);
+
+        // Tenant 1 has "New Zealand Standard Time" which is UTC+12/+13
+        // The converted time should differ from UTC
+        var utcNow = DateTime.UtcNow;
+        Assert.NotEqual(utcNow.Hour, result.Hour);
+    }
+
+    [Fact]
+    public async Task GetCurrentTenantTimeAsync_UnknownTenant_FallsBackToUtc()
+    {
+        var service = CreateService().service;
+
+        // Tenant 999 doesn't exist, GetTenantTimeZoneAsync returns null, falls back to "UTC"
+        var result = await service.GetCurrentTenantTimeAsync(999);
+
+        var utcNow = DateTime.UtcNow;
+        Assert.True(Math.Abs((result - utcNow).TotalSeconds) < 5);
     }
 }

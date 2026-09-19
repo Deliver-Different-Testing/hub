@@ -19,6 +19,16 @@ public partial class Tenant
 
     public string TimeZone { get; set; }
 
+    public virtual ICollection<IntMgrPartnerDirectoryLinkRequest> IntMgrPartnerDirectoryLinkRequestRequestingTenants { get; set; } = new List<IntMgrPartnerDirectoryLinkRequest>();
+
+    public virtual ICollection<IntMgrPartnerDirectoryLinkRequest> IntMgrPartnerDirectoryLinkRequestTargetTenants { get; set; } = new List<IntMgrPartnerDirectoryLinkRequest>();
+
+    public virtual IntMgrPartnerDirectoryListing IntMgrPartnerDirectoryListing { get; set; }
+
+    public virtual ShopifyTenantHost ShopifyHost { get; set; }
+
+    public virtual ICollection<ShopifyShopTenant> ShopifyShopTenants { get; set; } = new List<ShopifyShopTenant>();
+
     public virtual ICollection<TenantUserSetting> TenantUserSettings { get; set; } = new List<TenantUserSetting>();
 
     public virtual ICollection<TenantUser> TenantUsers { get; set; } = new List<TenantUser>();

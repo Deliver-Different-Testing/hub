@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <!-- OpenCover format includes cyclomatic complexity for CRAP scores -->
+          <Format>cobertura,opencover</Format>
+
+          <!-- Exclude test assemblies, startup code, and auto-generated EF Core Power Tools code -->
+          <Exclude>[*.Tests]*,[Hub]Program,[Hub]Hub.Models.DespatchContextProcedures,[Hub]Hub.Models.DbContextExtensions,[Hub]Hub.Models.OutputParameter*</Exclude>
+
+          <!-- Exclude generated code, obsolete members, and explicit exclusions -->
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+
+          <!-- Exclude source-generated files and migrations -->
+          <ExcludeByFile>**/obj/**/*,**/*.g.cs,**/*.designer.cs,**/Migrations/**/*</ExcludeByFile>
+
+          <!-- Exclude test projects -->
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+
+          <!-- Optimization flags -->
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>true</UseSourceLink>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

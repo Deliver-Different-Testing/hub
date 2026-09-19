@@ -1,21 +1,21 @@
 namespace Hub.ViewModels;
 
-public class TenantBrandingResponse
+public sealed record TenantBrandingResponse
 {
-    public int TenantId { get; set; }
-    public string CompanyName { get; set; }
-    public string[] AddressLines { get; set; }
-    public string Country { get; set; }
-    public string Phone { get; set; }
-    public string Email { get; set; }
-    public string Website { get; set; }
-    public string LogoUrl { get; set; }
-    public string PrimaryColour { get; set; }
-    public string HeaderTextColour { get; set; }
-    public string AccentColour { get; set; }
-    public string FooterText { get; set; }
-    public string DisclaimerText { get; set; }
-    public string PaperSize { get; set; }
-    public string TimeZoneId { get; set; }
-    public string CountryCode { get; set; }
+    public int TenantId { get; init; }
+    public required string CompanyName { get; init; }
+    public required string[] AddressLines { get; init; }
+    public required string Country { get; init; }
+    public required string Phone { get; init; }
+    public required string Email { get; init; }
+    public required string Website { get; init; }
+    public required string LogoUrl { get; init; }
+    public required string PrimaryColour { get; init; }
+    public required string HeaderTextColour { get; init; }
+    public required string AccentColour { get; init; }
+    public required string FooterText { get; init; }
+    public required string DisclaimerText { get; init; }
+    public required string PaperSize { get; init; }
+    public required string TimeZoneId { get; init; }
+    public required string CountryCode { get; init; }
 }

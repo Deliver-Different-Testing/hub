@@ -1,0 +1,859 @@
+using Hub.Controllers;
+using Hub.Interfaces;
+using Hub.Models;
+using Hub.Models.Master;
+using Hub.Repositories;
+using Hub.Tests.Helpers;
+using Microsoft.AspNetCore.Mvc;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
+
+namespace Hub.Tests.Controllers;
+
+[Collection("EnvironmentVariables")]
+public class AdminUsersControllerTests : IDisposable
+{
+    private const string ValidApiKey = "test-configurator-key";
+
+    private readonly string _originalApiKey;
+    private readonly string _originalCredentials;
+    private readonly string _originalReply;
+    private readonly string _originalResetLink;
+
+    private readonly IConnectionStringManager _connectionStringManager;
+    private readonly IAuthenticationRepository _authRepo;
+    private readonly IDespatchRepository _despatchRepo;
+    private readonly AdminUsersController _controller;
+
+    public AdminUsersControllerTests()
+    {
+        _originalApiKey = Environment.GetEnvironmentVariable("ConfiguratorApiKey") ?? string.Empty;
+        _originalCredentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
+        _originalReply = Environment.GetEnvironmentVariable("ReplyEmail") ?? string.Empty;
+        _originalResetLink = Environment.GetEnvironmentVariable("ResetBaseLink") ?? string.Empty;
+
+        Environment.SetEnvironmentVariable("ConfiguratorApiKey", ValidApiKey);
+        Environment.SetEnvironmentVariable("SQLCredentials", ";User=test;Password=test;");
+        Environment.SetEnvironmentVariable("ReplyEmail", "noreply@test.com");
+        Environment.SetEnvironmentVariable("ResetBaseLink", "https://test.com/reset");
+
+        _connectionStringManager = Substitute.For<IConnectionStringManager>();
+        _authRepo = Substitute.For<IAuthenticationRepository>();
+        _despatchRepo = Substitute.For<IDespatchRepository>();
+        _controller = new AdminUsersController(_connectionStringManager, _authRepo, _despatchRepo);
+    }
+
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable("ConfiguratorApiKey", _originalApiKey);
+        Environment.SetEnvironmentVariable("SQLCredentials", _originalCredentials);
+        Environment.SetEnvironmentVariable("ReplyEmail", _originalReply);
+        Environment.SetEnvironmentVariable("ResetBaseLink", _originalResetLink);
+        GC.SuppressFinalize(this);
+    }
+
+    private static (AdminUsersController controller, MasterContext masterCtx) CreateControllerWithDb()
+    {
+        var masterCtx = TestMasterContextFactory.CreateWithSeedData();
+        var despatchCtx = TestDespatchContextFactory.CreateWithSeedData();
+
+        var mockProcs = Substitute.For<IDespatchContextProcedures>();
+        mockProcs.NET_stpContact_ResetPasswordAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        despatchCtx.Procedures = mockProcs;
+
+        var connectionStringManager = new ConnectionStringManager();
+        var authRepo = new AuthenticationRepository(masterCtx);
+        var tenantService = Substitute.For<ITenantService>();
+        var despatchRepo = new Repository(despatchCtx, tenantService);
+
+        var controller = new AdminUsersController(connectionStringManager, authRepo, despatchRepo);
+        ControllerTestBase.SetupHttpContext(controller);
+        return (controller, masterCtx);
+    }
+
+    private static AdminUsersController.CreateNpUserRequest ValidRequest(
+        string email = "new.user@example.com",
+        int tenantId = 42)
+        => new(email, tenantId);
+
+    private static User UserStub(int userId = 100, string email = "new.user@example.com", string resetKey = "RESET-KEY-ABC")
+        => new()
+        {
+            UserId = userId,
+            Email = email,
+            ResetKey = resetKey,
+            Password = string.Empty,
+            Salt = string.Empty
+        };
+
+    private static TucClientContact ContactStub(int ucctId = 555)
+        => new()
+        {
+            UcctId = ucctId,
+            UcctFirstname = "First",
+            UcctSurname = "Last",
+            UcctEmail = "new.user@example.com"
+        };
+
+    // --- API-key gate (mock-based, exercise Create NP endpoint) -----------
+
+    [Fact]
+    public async Task Create_MissingApiKey_Returns401()
+    {
+        var result = await _controller.Create(null, ValidRequest());
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _authRepo.DidNotReceive().CreateUserAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Fact]
+    public async Task Create_WrongApiKey_Returns401()
+    {
+        var result = await _controller.Create("wrong-key", ValidRequest());
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _authRepo.DidNotReceive().CreateUserAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Fact]
+    public async Task Create_EnvVarNotSet_Returns401()
+    {
+        Environment.SetEnvironmentVariable("ConfiguratorApiKey", null);
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task Create_EnvVarEmpty_Returns401()
+    {
+        // Defence-in-depth: even if both the header and env var are empty
+        // strings, the request must NOT authenticate.
+        Environment.SetEnvironmentVariable("ConfiguratorApiKey", "");
+
+        var result = await _controller.Create("", ValidRequest());
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    // --- Request validation ---------------------------------------------
+
+    [Fact]
+    public async Task Create_NullRequest_ReturnsBadRequest()
+    {
+        var result = await _controller.Create(ValidApiKey, null!);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().CreateUserAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task Create_BlankEmail_ReturnsBadRequest(string? email)
+    {
+        var result = await _controller.Create(ValidApiKey, new AdminUsersController.CreateNpUserRequest(email!, 1));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().CreateUserAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Create_NonPositiveTenantId_ReturnsBadRequest(int tenantId)
+    {
+        var result = await _controller.Create(ValidApiKey, ValidRequest(tenantId: tenantId));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().CreateUserAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    // --- Master.User outcomes -------------------------------------------
+
+    [Fact]
+    public async Task Create_DuplicateEmail_Returns409()
+    {
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true).Returns((User?)null);
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        Assert.IsType<ConflictObjectResult>(result);
+        await _authRepo.DidNotReceive().GetTenantConnectionStringAsync(Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task Create_TenantHasNoConnectionString_ReturnsOkWithInviteFalse()
+    {
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true).Returns(UserStub());
+        _authRepo.GetTenantConnectionStringAsync(42).Returns(string.Empty);
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.CreateNpUserResponse>(ok.Value);
+        Assert.Equal(100, body.UserId);
+        Assert.Equal("new.user@example.com", body.Email);
+        Assert.False(body.InviteEmailSent);
+        _connectionStringManager.DidNotReceive().SetConnectionString(Arg.Any<string>());
+        await _despatchRepo.DidNotReceive().FetchUserByUsernameAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task Create_ContactMissingOnTenant_ReturnsOkWithInviteFalse()
+    {
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true).Returns(UserStub());
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=tenant-db;Database=foo;");
+        _despatchRepo.FetchUserByUsernameAsync("new.user@example.com").Returns((TucClientContact?)null);
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.CreateNpUserResponse>(ok.Value);
+        Assert.False(body.InviteEmailSent);
+        _connectionStringManager.Received(1)
+            .SetConnectionString("Server=tenant-db;Database=foo;;User=test;Password=test;");
+        await _despatchRepo.DidNotReceive()
+            .InitiatePasswordResetAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task Create_InviteEmailThrows_ReturnsOkWithInviteFalse()
+    {
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true).Returns(UserStub());
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=tenant-db;Database=foo;");
+        _despatchRepo.FetchUserByUsernameAsync("new.user@example.com").Returns(ContactStub());
+        _despatchRepo.InitiatePasswordResetAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .ThrowsAsync(new InvalidOperationException("smtp down"));
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.CreateNpUserResponse>(ok.Value);
+        Assert.False(body.InviteEmailSent);
+    }
+
+    [Fact]
+    public async Task Create_HappyPath_Returns201AndDispatchesInvite()
+    {
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true)
+            .Returns(UserStub(userId: 100, resetKey: "RESET-KEY-ABC"));
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=tenant-db;Database=foo;");
+        _despatchRepo.FetchUserByUsernameAsync("new.user@example.com").Returns(ContactStub(ucctId: 555));
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var created = Assert.IsType<CreatedAtActionResult>(result);
+        Assert.Equal(nameof(AdminUsersController.Create), created.ActionName);
+        var body = Assert.IsType<AdminUsersController.CreateNpUserResponse>(created.Value);
+        Assert.Equal(100, body.UserId);
+        Assert.Equal("new.user@example.com", body.Email);
+        Assert.True(body.InviteEmailSent);
+
+        await _despatchRepo.Received(1).InitiatePasswordResetAsync(
+            555,
+            "new.user@example.com",
+            "noreply@test.com",
+            "https://test.com/reset?code=RESET-KEY-ABC");
+    }
+
+    [Fact]
+    public async Task Create_HappyPath_WithMissingEmailEnvVars_UsesEmptyStrings()
+    {
+        // ReplyEmail / ResetBaseLink absent — link is still dispatched but
+        // built from empty strings (the configurator's deployment contract
+        // is to set these, so absence is non-fatal at the call boundary).
+        Environment.SetEnvironmentVariable("ReplyEmail", null);
+        Environment.SetEnvironmentVariable("ResetBaseLink", null);
+
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true)
+            .Returns(UserStub(resetKey: "RK"));
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=tenant-db;Database=foo;");
+        _despatchRepo.FetchUserByUsernameAsync("new.user@example.com").Returns(ContactStub(ucctId: 555));
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        Assert.IsType<CreatedAtActionResult>(result);
+        await _despatchRepo.Received(1)
+            .InitiatePasswordResetAsync(555, "new.user@example.com", string.Empty, "?code=RK");
+    }
+
+    // --- Outer try/catch: unexpected failures ---------------------------
+
+    [Fact]
+    public async Task Create_AuthRepoThrows_Returns500()
+    {
+        _authRepo.CreateUserAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>())
+            .ThrowsAsync(new InvalidOperationException("db down"));
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_TenantLookupThrows_Returns500()
+    {
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true).Returns(UserStub());
+        _authRepo.GetTenantConnectionStringAsync(42)
+            .ThrowsAsync(new InvalidOperationException("lookup broke"));
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_SqlCredentialsMissing_Returns500()
+    {
+        // SetTenantConnectionString throws InvalidOperationException when
+        // the SQLCredentials env var is unset; the outer catch turns it
+        // into a 500 (no rollback of the Master.User row by design).
+        Environment.SetEnvironmentVariable("SQLCredentials", null);
+
+        _authRepo.CreateUserAsync("new.user@example.com", 42, true).Returns(UserStub());
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=tenant-db;Database=foo;");
+
+        var result = await _controller.Create(ValidApiKey, ValidRequest());
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+        _connectionStringManager.DidNotReceive().SetConnectionString(Arg.Any<string>());
+    }
+
+    // --- CreateTenantUser endpoint (DB-context based) -------------------
+
+    [Fact]
+    public async Task CreateTenantUser_InvalidApiKey_ReturnsUnauthorized()
+    {
+        var (controller, _) = CreateControllerWithDb();
+
+        var result = await controller.CreateTenantUser("wrong-key",
+            new AdminUsersController.CreateNpUserRequest("john@test.com", 1));
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task CreateTenantUser_MissingEmail_ReturnsBadRequest()
+    {
+        var (controller, _) = CreateControllerWithDb();
+
+        var result = await controller.CreateTenantUser(ValidApiKey,
+            new AdminUsersController.CreateNpUserRequest("", 1));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task CreateTenantUser_NewUserWithContact_CreatesTenantMasterRowAndSendsInvite()
+    {
+        var (controller, masterCtx) = CreateControllerWithDb();
+
+        // john@test.com has an active tucClientContact (UcctId 1) but no Master.User yet.
+        var result = await controller.CreateTenantUser(ValidApiKey,
+            new AdminUsersController.CreateNpUserRequest("john@test.com", 1));
+
+        var created = Assert.IsType<CreatedAtActionResult>(result);
+        var body = Assert.IsType<AdminUsersController.CreateNpUserResponse>(created.Value);
+        Assert.True(body.InviteEmailSent);
+
+        // The Master row must exist, be a tenant user (NOT a network partner),
+        // not a courier, and carry a ResetKey for the invite link.
+        var user = masterCtx.Users.Single(u => u.Email == "john@test.com");
+        Assert.False(user.IsNetworkPartner!.Value);
+        Assert.False(user.IsCourier ?? false);
+        Assert.False(string.IsNullOrEmpty(user.ResetKey));
+    }
+
+    [Fact]
+    public async Task CreateTenantUser_EmailAlreadyExists_ReturnsConflict()
+    {
+        var (controller, _) = CreateControllerWithDb();
+
+        // staff@test.com already exists in Master.User (seed UserId 1).
+        var result = await controller.CreateTenantUser(ValidApiKey,
+            new AdminUsersController.CreateNpUserRequest("staff@test.com", 1));
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task CreateTenantUser_NoDespatchContact_CreatesRowButInviteNotSent()
+    {
+        var (controller, masterCtx) = CreateControllerWithDb();
+
+        // ghost@test.com has neither a Master.User nor a tucClientContact.
+        var result = await controller.CreateTenantUser(ValidApiKey,
+            new AdminUsersController.CreateNpUserRequest("ghost@test.com", 1));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.CreateNpUserResponse>(ok.Value);
+        Assert.False(body.InviteEmailSent);
+
+        // Row is still created as a tenant user (partial-success contract).
+        var user = masterCtx.Users.Single(u => u.Email == "ghost@test.com");
+        Assert.False(user.IsNetworkPartner!.Value);
+    }
+
+    [Fact]
+    public async Task Create_NpEndpoint_StillStampsIsNetworkPartnerTrue()
+    {
+        var (controller, masterCtx) = CreateControllerWithDb();
+
+        var result = await controller.Create(ValidApiKey,
+            new AdminUsersController.CreateNpUserRequest("john@test.com", 1));
+
+        Assert.IsType<CreatedAtActionResult>(result);
+        var user = masterCtx.Users.Single(u => u.Email == "john@test.com");
+        Assert.True(user.IsNetworkPartner!.Value);
+    }
+
+    // === Item 7b — SetPassword (staff password set) =====================
+
+    // ── Which tenant database gets searched (2026-09-04) ───────────────────
+    //
+    // THE BUG THESE EXIST FOR. SendReset resolved the tenant from
+    // Master.User.CurrentTenant - where the user last signed in - not from the
+    // tenant the administrator was working in. On 2026-09-03 an admin in urgent
+    // reset a contact whose Master record pointed at medical; Hub searched
+    // medical, found nothing, and reported "email not sent" with no hint that it
+    // had looked in the wrong database.
+    //
+    // Only staff spanning several tenants are affected - a single-tenant
+    // customer's pointer always matches - which is why nobody caught it.
+
+    [Fact]
+    public async Task SendReset_UsesTheCallerTenant_NotTheUsersCurrentTenant()
+    {
+        // THE REGRESSION TEST. The user's own pointer says one database; the
+        // caller says another. The caller must win.
+        var user = StaffUserWithTenant("Server=WRONG-users-last-tenant;");
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _authRepo.GetTenantConnectionStringAsync(42).Returns("Server=RIGHT-callers-tenant;");
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com", TenantId: 42));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value).ResetEmailSent);
+        _connectionStringManager.Received(1).SetConnectionString("Server=RIGHT-callers-tenant;;User=test;Password=test;");
+        _connectionStringManager.DidNotReceive().SetConnectionString("Server=WRONG-users-last-tenant;;User=test;Password=test;");
+    }
+
+    [Fact]
+    public async Task SendReset_WithoutATenant_FallsBackToTheUsersCurrentTenant()
+    {
+        // Deploy-order safety. An older configurator sends no tenant, and must
+        // keep working exactly as it did rather than failing outright.
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false)
+            .Returns(StaffUserWithTenant("Server=users-last-tenant;"));
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.True(Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value).ResetEmailSent);
+        _connectionStringManager.Received(1).SetConnectionString("Server=users-last-tenant;;User=test;Password=test;");
+    }
+
+    [Fact]
+    public async Task SendReset_CallerTenantWithNoConnection_ReturnsOkWithResetFalse()
+    {
+        // A tenant id that resolves to nothing must not silently fall through to
+        // the user's own tenant - that would reintroduce the bug by the back
+        // door, sending a reset for a database the caller never asked for.
+        var user = StaffUserWithTenant("Server=users-last-tenant;");
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _authRepo.GetTenantConnectionStringAsync(999).Returns((string?)null);
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com", TenantId: 999));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.False(Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value).ResetEmailSent);
+        _connectionStringManager.DidNotReceive().SetConnectionString(Arg.Any<string>());
+        Assert.Equal("OLD-RESET-KEY", user.ResetKey);
+    }
+
+    // ── The reset key is not rotated until the send can happen ─────────────
+
+    [Fact]
+    public async Task SendReset_ContactMissing_DoesNotRotateTheResetKey()
+    {
+        // The 2026-09-03 incident in miniature: two failed clicks each rotated
+        // the key, so any link the user already held was destroyed by an
+        // operation that sent nothing.
+        var user = StaffUserWithTenant();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns((TucClientContact?)null);
+
+        await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        Assert.Equal("OLD-RESET-KEY", user.ResetKey);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SendReset_Success_DoesRotateTheResetKey()
+    {
+        // The other half of the pair - the key must still rotate when the send
+        // actually happens, or the emailed link would be the previous one.
+        var user = StaffUserWithTenant();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+
+        await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        Assert.NotEqual("OLD-RESET-KEY", user.ResetKey);
+        await _authRepo.Received(1).SaveAsync();
+    }
+
+    private static User StaffUserStub(int userId = 100, string email = "staff.user@example.com")
+        => new()
+        {
+            UserId = userId,
+            Email = email,
+            ResetKey = "OLD-RESET-KEY",
+            Password = "OLD-HASH",
+            Salt = "OLD-SALT",
+            IsLegacyHash = true
+        };
+
+    private static User StaffUserWithTenant(string dbConnection = "Server=tenant-db;Database=foo;")
+    {
+        var u = StaffUserStub();
+        u.CurrentTenant = new Tenant { Dbconnection = dbConnection };
+        return u;
+    }
+
+    [Fact]
+    public async Task SetPassword_MissingApiKey_Returns401()
+    {
+        var result = await _controller.SetPassword(null,
+            new AdminUsersController.SetPasswordRequest("staff.user@example.com", "Password1!"));
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _authRepo.DidNotReceive().GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>());
+    }
+
+    [Theory]
+    [InlineData("", "Password1!")]
+    [InlineData("   ", "Password1!")]
+    [InlineData("staff.user@example.com", "")]
+    [InlineData("staff.user@example.com", "short")]   // < 8 chars
+    public async Task SetPassword_InvalidInput_ReturnsBadRequest(string email, string password)
+    {
+        var result = await _controller.SetPassword(ValidApiKey,
+            new AdminUsersController.SetPasswordRequest(email, password));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetPassword_UserNotFound_Returns404()
+    {
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns((User?)null);
+
+        var result = await _controller.SetPassword(ValidApiKey,
+            new AdminUsersController.SetPasswordRequest("staff.user@example.com", "Password1!"));
+
+        Assert.IsType<NotFoundObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetPassword_HappyPath_HashesAndClearsResetKey()
+    {
+        var user = StaffUserStub();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+
+        var result = await _controller.SetPassword(ValidApiKey,
+            new AdminUsersController.SetPasswordRequest("staff.user@example.com", "Password1!"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.SetPasswordResponse>(ok.Value);
+        Assert.Equal(100, body.UserId);
+
+        Assert.NotEqual("OLD-HASH", user.Password);
+        Assert.NotEqual("OLD-SALT", user.Salt);
+        Assert.False(string.IsNullOrEmpty(user.Password));
+        Assert.False(user.IsLegacyHash);          // re-hashed with the modern scheme
+        Assert.Null(user.ResetKey);               // any outstanding reset link voided
+        await _authRepo.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetPassword_LooksUpStaffNotCourier()
+    {
+        var user = StaffUserStub();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+
+        await _controller.SetPassword(ValidApiKey,
+            new AdminUsersController.SetPasswordRequest("staff.user@example.com", "Password1!"));
+
+        // isCourier:false scopes the lookup to staff — couriers use a separate scheme.
+        await _authRepo.Received(1).GetUserByEmailAsync("staff.user@example.com", false);
+    }
+
+    [Fact]
+    public async Task SetPassword_AuthRepoThrows_Returns500()
+    {
+        _authRepo.GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>())
+            .ThrowsAsync(new InvalidOperationException("db down"));
+
+        var result = await _controller.SetPassword(ValidApiKey,
+            new AdminUsersController.SetPasswordRequest("staff.user@example.com", "Password1!"));
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+    }
+
+    // === Item 7b — SendReset (staff reset email) ========================
+
+    [Fact]
+    public async Task SendReset_MissingApiKey_Returns401()
+    {
+        var result = await _controller.SendReset(null,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _authRepo.DidNotReceive().GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SendReset_BlankEmail_ReturnsBadRequest(string email)
+    {
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest(email));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SendReset_UserNotFound_Returns404()
+    {
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns((User?)null);
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        Assert.IsType<NotFoundObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SendReset_NoTenantConnection_ReturnsOkWithResetFalse()
+    {
+        var user = StaffUserStub();   // no CurrentTenant
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value);
+        Assert.False(body.ResetEmailSent);
+        // CHANGED 2026-09-04. This used to assert the key WAS rotated, which is
+        // what the code did - and it is the bug. A send that cannot happen must
+        // not invalidate a reset link the user is already holding.
+        Assert.Equal("OLD-RESET-KEY", user.ResetKey);
+        await _authRepo.DidNotReceive().SaveAsync();
+        _connectionStringManager.DidNotReceive().SetConnectionString(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task SendReset_ContactMissingOnTenant_ReturnsOkWithResetFalse()
+    {
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(StaffUserWithTenant());
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns((TucClientContact?)null);
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value);
+        Assert.False(body.ResetEmailSent);
+        _connectionStringManager.Received(1)
+            .SetConnectionString("Server=tenant-db;Database=foo;;User=test;Password=test;");
+        await _despatchRepo.DidNotReceive()
+            .InitiatePasswordResetAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task SendReset_EmailThrows_ReturnsOkWithResetFalse()
+    {
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(StaffUserWithTenant());
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub());
+        _despatchRepo.InitiatePasswordResetAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .ThrowsAsync(new InvalidOperationException("smtp down"));
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value);
+        Assert.False(body.ResetEmailSent);
+    }
+
+    [Fact]
+    public async Task SendReset_HappyPath_DispatchesResetEmailWithFreshKey()
+    {
+        var user = StaffUserWithTenant();
+        _authRepo.GetUserByEmailAsync("staff.user@example.com", false).Returns(user);
+        _despatchRepo.FetchUserByUsernameAsync("staff.user@example.com").Returns(ContactStub(ucctId: 555));
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.SendResetResponse>(ok.Value);
+        Assert.True(body.ResetEmailSent);
+
+        await _despatchRepo.Received(1).InitiatePasswordResetAsync(
+            555,
+            "staff.user@example.com",
+            "noreply@test.com",
+            $"https://test.com/reset?code={user.ResetKey}");
+    }
+
+    [Fact]
+    public async Task SendReset_AuthRepoThrows_Returns500()
+    {
+        _authRepo.GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>())
+            .ThrowsAsync(new InvalidOperationException("db down"));
+
+        var result = await _controller.SendReset(ValidApiKey,
+            new AdminUsersController.SendResetRequest("staff.user@example.com"));
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+    }
+
+    // ── ChangeEmail (login-email sync from the configurator) ────────────────
+    // Regression cover for the urgent-prod 2026-08-17 desync: the tenant row's
+    // UserName moved to a new address while Master.User kept the old one, which
+    // broke that user's password reset because Hub matches the two.
+
+    [Fact]
+    public async Task ChangeEmail_MissingApiKey_Returns401()
+    {
+        var result = await _controller.ChangeEmail(null,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _authRepo.DidNotReceive().GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>());
+    }
+
+    [Theory]
+    [InlineData("", "new@example.com")]
+    [InlineData("old@example.com", "")]
+    [InlineData("   ", "new@example.com")]
+    public async Task ChangeEmail_BlankEmail_ReturnsBadRequest(string current, string next)
+    {
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest(current, next));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_SameAddress_ReturnsBadRequestAndDoesNotSave()
+    {
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("Same@example.com", "same@example.com"));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_NoHubIdentity_Returns404()
+    {
+        _authRepo.GetUserByEmailAsync("old@example.com", false).Returns((User?)null);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        Assert.IsType<NotFoundObjectResult>(result);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_NewAddressAlreadyHeld_Returns409AndLeavesUserUntouched()
+    {
+        var user = StaffUserStub(email: "old@example.com");
+        _authRepo.GetUserByEmailAsync("old@example.com", false).Returns(user);
+        _authRepo.EmailExistsAsync("new@example.com").Returns(true);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        Assert.IsType<ConflictObjectResult>(result);
+        Assert.Equal("old@example.com", user.Email);
+        await _authRepo.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_Success_UpdatesEmailVoidsResetKeyAndSaves()
+    {
+        var user = StaffUserStub(email: "Operations@taxisgb.co.nz");
+        _authRepo.GetUserByEmailAsync("Operations@taxisgb.co.nz", false).Returns(user);
+        _authRepo.EmailExistsAsync("janelle@taxisgb.co.nz").Returns(false);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("Operations@taxisgb.co.nz", "janelle@taxisgb.co.nz"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var body = Assert.IsType<AdminUsersController.ChangeEmailResponse>(ok.Value);
+        Assert.Equal("janelle@taxisgb.co.nz", body.Email);
+        Assert.Equal(user.UserId, body.UserId);
+        Assert.Equal("janelle@taxisgb.co.nz", user.Email);
+        // The outstanding reset link was issued against the old identity.
+        Assert.Null(user.ResetKey);
+        await _authRepo.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task ChangeEmail_TrimsWhitespaceBeforeLookup()
+    {
+        var user = StaffUserStub(email: "old@example.com");
+        _authRepo.GetUserByEmailAsync("old@example.com", false).Returns(user);
+        _authRepo.EmailExistsAsync("new@example.com").Returns(false);
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("  old@example.com  ", "  new@example.com  "));
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal("new@example.com", user.Email);
+    }
+
+    [Fact]
+    public async Task ChangeEmail_AuthRepoThrows_Returns500()
+    {
+        _authRepo.GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<bool?>())
+            .ThrowsAsync(new InvalidOperationException("db down"));
+
+        var result = await _controller.ChangeEmail(ValidApiKey,
+            new AdminUsersController.ChangeEmailRequest("old@example.com", "new@example.com"));
+
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, status.StatusCode);
+    }
+}

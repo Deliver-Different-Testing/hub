@@ -19,9 +19,11 @@ public partial class User
 
     public int? CurrentTenantId { get; set; }
 
+    public bool? IsCourier { get; set; }
+
     public bool IsLegacyHash { get; set; }
 
-    public bool? IsCourier { get; set; }
+    public bool? IsNetworkPartner { get; set; }
 
     public virtual Tenant CurrentTenant { get; set; }
 

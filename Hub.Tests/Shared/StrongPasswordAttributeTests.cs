@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using FluentAssertions;
 using Hub.ViewModels;
 
 namespace Hub.Tests.Shared;
@@ -15,35 +14,35 @@ public class StrongPasswordAttributeTests
     }
 
     [Fact]
-    public void NullPassword_ReturnsError() => Validate(null).Should().NotBe(ValidationResult.Success);
+    public void NullPassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate(null));
 
     [Fact]
-    public void EmptyPassword_ReturnsError() => Validate("").Should().NotBe(ValidationResult.Success);
+    public void EmptyPassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate(string.Empty));
 
     [Fact]
-    public void WhitespacePassword_ReturnsError() => Validate("   ").Should().NotBe(ValidationResult.Success);
+    public void WhitespacePassword_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("   "));
 
     [Fact]
-    public void MissingUppercase_ReturnsError() => Validate("password1!").Should().NotBe(ValidationResult.Success);
+    public void MissingUppercase_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("password1!"));
 
     [Fact]
-    public void MissingLowercase_ReturnsError() => Validate("PASSWORD1!").Should().NotBe(ValidationResult.Success);
+    public void MissingLowercase_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("PASSWORD1!"));
 
     [Fact]
-    public void MissingDigit_ReturnsError() => Validate("Password!").Should().NotBe(ValidationResult.Success);
+    public void MissingDigit_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("Password!"));
 
     [Fact]
-    public void MissingSpecialChar_ReturnsError() => Validate("Password1").Should().NotBe(ValidationResult.Success);
+    public void MissingSpecialChar_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("Password1"));
 
     [Fact]
-    public void TooShort_ReturnsError() => Validate("Pa1!").Should().NotBe(ValidationResult.Success);
+    public void TooShort_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("Pa1!"));
 
     [Fact]
-    public void ValidPassword_Exact8Chars_ReturnsSuccess() => Validate("Pa$$w0rd").Should().Be(ValidationResult.Success);
+    public void ValidPassword_Exact8Chars_ReturnsSuccess() => Assert.Equal(ValidationResult.Success, Validate("Pa$$w0rd"));
 
     [Fact]
-    public void ValidPassword_Long_ReturnsSuccess() => Validate("MyStr0ng!Password2024").Should().Be(ValidationResult.Success);
+    public void ValidPassword_Long_ReturnsSuccess() => Assert.Equal(ValidationResult.Success, Validate("MyStr0ng!Password2024"));
 
     [Fact]
-    public void ValidPassword_WithMultipleSpecialChars_ReturnsSuccess() => Validate("P@ssw0rd!#").Should().Be(ValidationResult.Success);
+    public void ValidPassword_WithMultipleSpecialChars_ReturnsSuccess() => Assert.Equal(ValidationResult.Success, Validate("P@ssw0rd!#"));
 }

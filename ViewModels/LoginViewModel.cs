@@ -2,17 +2,17 @@
 
 namespace Hub.ViewModels;
 
-public class LoginViewModel
+public sealed class LoginViewModel
 {
     [Required]
     [Display(Name = "Email")]
     [EmailAddress]
-    public string Email { get; init; }
+    public required string Email { get; init; }
 
     [Required]
     [DataType(DataType.Password)]
     [Display(Name = "Password")]
-    public string Password { get; init; }
+    public required string Password { get; init; }
 
     [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
 

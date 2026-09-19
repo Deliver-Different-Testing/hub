@@ -1,8 +1,8 @@
-using FluentAssertions;
+﻿using Hub.Interfaces;
 using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
-using Moq;
+using NSubstitute;
 
 namespace Hub.Tests.Repositories;
 
@@ -11,7 +11,9 @@ public class RepositoryTests
     private static (Repository repo, DynamicDespatchDbContext context) CreateRepo()
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
-        var repo = new Repository(context);
+        var tenantService = Substitute.For<ITenantService>();
+        tenantService.GetCurrentTenantTimeAsync(Arg.Any<int>()).Returns(DateTime.UtcNow);
+        var repo = new Repository(context, tenantService);
         return (repo, context);
     }
 
@@ -21,10 +23,10 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("john@test.com");
+        var user = await repo.FetchUserByUsernameAsync("john@test.com");
 
-        user.Should().NotBeNull();
-        user!.UcctFirstname.Should().Be("John");
+        Assert.NotNull(user);
+        Assert.Equal("John", user.UcctFirstname);
     }
 
     [Fact]
@@ -32,10 +34,10 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("john@test.com");
+        var user = await repo.FetchUserByUsernameAsync("john@test.com");
 
-        user!.UcctClient.Should().NotBeNull();
-        user.UcctClient!.UcclName.Should().Be("Test Client");
+        Assert.NotNull(user!.UcctClient);
+        Assert.Equal("Test Client", user.UcctClient!.UcclName);
     }
 
     [Fact]
@@ -43,9 +45,9 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("jane@test.com");
+        var user = await repo.FetchUserByUsernameAsync("jane@test.com");
 
-        user.Should().BeNull();
+        Assert.Null(user);
     }
 
     [Fact]
@@ -53,9 +55,9 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var user = await repo.FetchUserByUsername("nobody@test.com");
+        var user = await repo.FetchUserByUsernameAsync("nobody@test.com");
 
-        user.Should().BeNull();
+        Assert.Null(user);
     }
 
     // FetchSubAccountsAsync tests
@@ -66,7 +68,7 @@ public class RepositoryTests
 
         var result = await repo.FetchSubAccountsAsync(1);
 
-        result.Should().Contain("2");
+        Assert.Contains("2", result);
     }
 
     [Fact]
@@ -76,7 +78,7 @@ public class RepositoryTests
 
         var result = await repo.FetchSubAccountsAsync(999);
 
-        result.Should().BeEmpty();
+        Assert.Empty(result);
     }
 
     // ValidateCourierByEmail tests
@@ -85,9 +87,9 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var id = await repo.ValidateCourierByEmail("courier@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("courier@test.com");
 
-        id.Should().Be(1);
+        Assert.Equal(1, id);
     }
 
     [Fact]
@@ -95,9 +97,9 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var id = await repo.ValidateCourierByEmail("inactive@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("inactive@test.com");
 
-        id.Should().BeNull();
+        Assert.Null(id);
     }
 
     [Fact]
@@ -105,9 +107,9 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var id = await repo.ValidateCourierByEmail("nobody@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("nobody@test.com");
 
-        id.Should().BeNull();
+        Assert.Null(id);
     }
 
     [Fact]
@@ -128,11 +130,11 @@ public class RepositoryTests
             LastModified = DateTime.Now,
             LastModifiedBy = "test"
         });
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var id = await repo.ValidateCourierByEmail("trimmed@test.com");
+        var id = await repo.ValidateCourierByEmailAsync("trimmed@test.com");
 
-        id.Should().Be(3);
+        Assert.Equal(3, id);
     }
 
     // GetAccountsModeAsync tests
@@ -143,18 +145,19 @@ public class RepositoryTests
 
         var mode = await repo.GetAccountsModeAsync();
 
-        mode.Should().Be(2);
+        Assert.Equal(2, mode);
     }
 
     [Fact]
     public async Task GetAccountsModeAsync_NoSettings_ReturnsNull()
     {
         var context = TestDespatchContextFactory.Create();
-        var repo = new Repository(context);
+        var tenantService = Substitute.For<ITenantService>();
+        var repo = new Repository(context, tenantService);
 
         var mode = await repo.GetAccountsModeAsync();
 
-        mode.Should().BeNull();
+        Assert.Null(mode);
     }
 
     // IsAfterHoursAuthorized tests
@@ -163,9 +166,9 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var result = await repo.IsAfterHoursAuthorized(1, 1);
+        var result = await repo.IsAfterHoursAuthorizedAsync(1);
 
-        result.Should().BeTrue();
+        Assert.True(result);
     }
 
     [Fact]
@@ -173,43 +176,34 @@ public class RepositoryTests
     {
         var (repo, _) = CreateRepo();
 
-        var result = await repo.IsAfterHoursAuthorized(999, 1);
+        var result = await repo.IsAfterHoursAuthorizedAsync(999);
 
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
+    // UpdateUserAccessedAsync tests
     [Fact]
-    public async Task IsAfterHoursAuthorized_IgnoresDayOfWeek()
-    {
-        var (repo, _) = CreateRepo();
-
-        // The record has WeekDay=1 but logic ignores day, only checks existence
-        var result = await repo.IsAfterHoursAuthorized(1, 5);
-
-        result.Should().BeTrue();
-    }
-
-    // UpdateUserAccessed tests
-    [Fact]
-    public void UpdateUserAccessed_ExistingContact_UpdatesFields()
+    public async Task UpdateUserAccessedAsync_ExistingContact_UpdatesFields()
     {
         var (repo, context) = CreateRepo();
 
-        repo.UpdateUserAccessed(1, true);
+        await repo.UpdateUserAccessedAsync(1, true, 1);
 
-        var contact = context.TucClientContacts.Find(1);
-        contact!.AllowCookieLogin.Should().BeTrue();
-        contact.LastAccessed.Should().BeCloseTo(DateTime.Now, TimeSpan.FromSeconds(5));
+        // ExecuteUpdateAsync bypasses the change tracker, so clear it before re-querying
+        context.ChangeTracker.Clear();
+        var contact = await context.TucClientContacts.FindAsync([1], TestContext.Current.CancellationToken);
+        Assert.True(contact!.AllowCookieLogin);
+        Assert.NotNull(contact.LastAccessed);
+        Assert.InRange(contact.LastAccessed.Value, DateTime.UtcNow - TimeSpan.FromSeconds(5), DateTime.UtcNow + TimeSpan.FromSeconds(5));
     }
 
     [Fact]
-    public void UpdateUserAccessed_NonExistentContact_NoOp()
+    public async Task UpdateUserAccessedAsync_NonExistentContact_NoOp()
     {
         var (repo, _) = CreateRepo();
 
         // Should not throw
-        var act = () => repo.UpdateUserAccessed(999, false);
-        act.Should().NotThrow();
+        await repo.UpdateUserAccessedAsync(999, false, 1);
     }
 
     // GetDespatchWebInternetPermissions tests (stored proc mock)
@@ -217,19 +211,18 @@ public class RepositoryTests
     public async Task GetDespatchWebInternetPermissions_WithMockedProcedures_ReturnsData()
     {
         var (repo, context) = CreateRepo();
-        var mockProcs = new Mock<IDespatchContextProcedures>();
-        mockProcs
-            .Setup(p => p.RVW_stpValidateInternetPermissionsAsync(
-                It.IsAny<int?>(), It.IsAny<OutputParameter<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([
+        var mockProcs = Substitute.For<IDespatchContextProcedures>();
+        mockProcs.RVW_stpValidateInternetPermissionsAsync(
+                Arg.Any<int?>(), Arg.Any<OutputParameter<int>>(), Arg.Any<CancellationToken>())
+            .Returns([
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 2, ClientContactID = 1 },
                 new RVW_stpValidateInternetPermissionsResult { InternetPermissionID = 12, ClientContactID = 1 }
             ]);
-        context.Procedures = mockProcs.Object;
+        context.Procedures = mockProcs;
 
-        var result = await repo.GetDespatchWebInternetPermissions(1);
+        var result = await repo.GetDespatchWebInternetPermissionsAsync(1);
 
-        result.Should().HaveCount(2);
-        result.Should().Contain(r => r.InternetPermissionID == 12);
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, r => r.InternetPermissionID == 12);
     }
 }

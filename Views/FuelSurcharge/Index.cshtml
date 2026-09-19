@@ -1,0 +1,130 @@
+@model Hub.ViewModels.FuelSurchargeCardViewModel
+@{
+    ViewData["Title"] = "Fuel surcharge";
+
+    var nz = new System.Globalization.CultureInfo("en-NZ");
+    var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
+
+    string FormatPercent(decimal? value) => value.HasValue ? (value.Value * 100m).ToString("0.00", nz) + "%" : "—";
+    string FormatPump(decimal? value) => value.HasValue ? value.Value.ToString("0.0000", nz) : "—";
+    string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("d MMM yyyy", nz) : "Open";
+}
+
+<div id="urgent-hub">
+    <div class="hub-header">
+        <div class="hub-brand">
+            @await Component.InvokeAsync("TenantLogo", new { cssClass = "hub-brand-logo", alt = "Deliver DFRNT" })
+            <span class="hub-eyebrow">Fuel Surcharge</span>
+        </div>
+        <p class="hub-subtitle">@dateLabel</p>
+    </div>
+
+    @if (!Model.HasData)
+    {
+        <section class="fuel-surcharge-card fuel-surcharge-empty">
+            <p class="fuel-surcharge-empty-text">No fuel surcharge records are available for your account.</p>
+        </section>
+    }
+    else
+    {
+        <section class="fuel-surcharge-card" aria-labelledby="fuel-surcharge-heading">
+            <div class="fuel-surcharge-body fuel-surcharge-body-static">
+                <div class="fuel-surcharge-stats">
+                    <div class="fuel-stat">
+                        <span class="fuel-stat-label">Current standard</span>
+                        <span class="fuel-stat-value">@FormatPercent(Model.CurrentStandard?.Rate)</span>
+                        <span class="fuel-stat-caption">
+                            @(Model.CurrentStandard != null
+                                ? "From " + FormatDate(Model.CurrentStandard.Start)
+                                : "No active standard surcharge")
+                        </span>
+                    </div>
+                    <div class="fuel-stat">
+                        <span class="fuel-stat-label">Pump price</span>
+                        <span class="fuel-stat-value">@FormatPump(Model.PumpPrice)</span>
+                        <span class="fuel-stat-caption">Latest current record</span>
+                    </div>
+                    <div class="fuel-stat">
+                        <span class="fuel-stat-label">Visible records</span>
+                        <span class="fuel-stat-value">@Model.History.Count</span>
+                    </div>
+                </div>
+
+                @if (Model.History.Count > 0)
+                {
+                    const int pageSize = 10;
+                    var totalPages = (int)Math.Ceiling(Model.History.Count / (double)pageSize);
+
+                    <div class="fuel-history">
+                        <div class="fuel-history-header">
+                            <h3 class="fuel-history-title">Recent records</h3>
+                            <p class="fuel-history-subtitle">Recent fuel surcharge records.</p>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table fuel-history-table" data-fuel-page-size="@pageSize">
+                                <thead>
+                                <tr>
+                                    <th scope="col" data-fuel-sort="status" aria-sort="none">Status</th>
+                                    <th scope="col" data-fuel-sort="scope" aria-sort="none">Scope</th>
+                                    <th scope="col" class="text-end" data-fuel-sort="rate" aria-sort="none">Rate</th>
+                                    <th scope="col" class="text-end" data-fuel-sort="pump" aria-sort="none">Pump price</th>
+                                    <th scope="col" data-fuel-sort="start" aria-sort="none">Start</th>
+                                    <th scope="col" data-fuel-sort="end" aria-sort="none">End</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @{
+                                    var rowIndex = 0;
+                                    var invariant = System.Globalization.CultureInfo.InvariantCulture;
+                                    string IsoDate(DateTime? d) => d.HasValue ? d.Value.ToString("yyyy-MM-dd", invariant) : "9999-12-31";
+                                    string DecimalSort(decimal? d) => d.HasValue ? d.Value.ToString("0.0000", invariant) : "";
+                                }
+                                @foreach (var row in Model.History)
+                                {
+                                    var statusLabel = row.IsCurrent ? "Current" : row.Active ? "Active" : "Inactive";
+                                    var statusClass = row.IsCurrent ? "fuel-chip fuel-chip-current"
+                                        : row.Active ? "fuel-chip fuel-chip-active"
+                                        : "fuel-chip fuel-chip-inactive";
+                                    var statusSort = row.IsCurrent ? "0" : row.Active ? "1" : "2";
+                                    var hidden = rowIndex >= pageSize ? "fuel-row-hidden" : null;
+                                    rowIndex++;
+                                    <tr class="@hidden">
+                                        <td data-sort-value="@statusSort"><span class="@statusClass">@statusLabel</span></td>
+                                        <td data-sort-value="@row.ScopeLabel"><span class="fuel-chip fuel-chip-scope">@row.ScopeLabel</span></td>
+                                        <td class="text-end fw-semibold fuel-num" data-sort-value="@DecimalSort(row.Rate)">@FormatPercent(row.Rate)</td>
+                                        <td class="text-end fuel-num" data-sort-value="@DecimalSort(row.PumpPrice)">@FormatPump(row.PumpPrice)</td>
+                                        <td class="fuel-num" data-sort-value="@IsoDate(row.Start)">@FormatDate(row.Start)</td>
+                                        <td class="fuel-num" data-sort-value="@IsoDate(row.End)">@FormatDate(row.End)</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (totalPages > 1)
+                        {
+                            <nav class="fuel-pagination" aria-label="Fuel surcharge pagination" data-fuel-pagination
+                                 data-total-rows="@Model.History.Count" data-total-pages="@totalPages">
+                                <span class="fuel-pagination-range" data-fuel-range>
+                                    Showing 1–@(Math.Min(pageSize, Model.History.Count)) of @Model.History.Count
+                                </span>
+                                <div class="fuel-pagination-controls">
+                                    <button type="button" class="fuel-page-btn" data-fuel-prev disabled aria-label="Previous page">
+                                        <dfrnt-icon set="lucide" name="chevron-left" size="18" />
+                                    </button>
+                                    <span class="fuel-page-status" data-fuel-status>Page 1 of @totalPages</span>
+                                    <button type="button" class="fuel-page-btn" data-fuel-next aria-label="Next page">
+                                        <dfrnt-icon set="lucide" name="chevron-right" size="18" />
+                                    </button>
+                                </div>
+                            </nav>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/dist/fuel-surcharge.js" asp-append-version="true"></script>
+}
