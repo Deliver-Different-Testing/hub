@@ -25,7 +25,14 @@ public interface IFeatureResolver
     /// Returns the visible feature keys for the given ClientType.
     /// NULL → 2 (Customer) per the resolver fallback rule.
     /// </summary>
-    Task<HashSet<string>> ResolveVisibleFeaturesAsync(int? clientTypeId);
+    /// <param name="countryCode">
+    /// The tenant's market, from the <c>CountryCode</c> claim Hub stamps at
+    /// login. A feature whose <c>AvailableCountries</c> is set resolves only in
+    /// those markets. NULL or empty means DO NOT FILTER, matching the
+    /// configurator's deliberate fail-open: hiding a market's whole catalogue
+    /// because a claim is missing is worse than briefly over-showing.
+    /// </param>
+    Task<HashSet<string>> ResolveVisibleFeaturesAsync(int? clientTypeId, string? countryCode = null);
 
     /// <summary>
     /// Resolves the visible feature keys for a request: looks up the
@@ -39,5 +46,7 @@ public interface IFeatureResolver
     /// ClientType 4 rather than 2. Without this they would resolve against the
     /// Customer row set and lose most of their tiles.
     /// </param>
-    Task<HashSet<string>> ResolveForClientAsync(int? clientId, bool isInternal = false);
+    /// <param name="countryCode">See <see cref="ResolveVisibleFeaturesAsync"/>.</param>
+    Task<HashSet<string>> ResolveForClientAsync(
+        int? clientId, bool isInternal = false, string? countryCode = null);
 }
