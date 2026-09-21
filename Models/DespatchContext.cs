@@ -76,6 +76,7 @@ public partial class DespatchContext(DbContextOptions<DespatchContext> options) 
             entity.ToTable("Feature");
 
             entity.Property(e => e.FeatureKey).HasMaxLength(80);
+            entity.Property(e => e.AvailableCountries).HasMaxLength(50);
             entity.Property(e => e.Category).HasMaxLength(40);
             entity.Property(e => e.Description).HasMaxLength(400);
             entity.Property(e => e.DisplayName)

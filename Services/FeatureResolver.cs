@@ -32,23 +32,25 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
     // - the two apps read the same catalogue, and a disagreement here shows up
     // as a hub tile that leads to an empty sidebar.
 
-    public async Task<HashSet<string>> ResolveVisibleFeaturesAsync(int? clientTypeId)
+    public async Task<HashSet<string>> ResolveVisibleFeaturesAsync(
+        int? clientTypeId, string? countryCode = null)
     {
         var effectiveId = clientTypeId ?? NullClientTypeFallback;
 
-        var keys = await context.ClientTypeFeatures
+        var rows = await context.ClientTypeFeatures
             .AsNoTracking()
             .Where(ctf => ctf.ClientTypeId == effectiveId && ctf.Visible && ctf.Grantable)
             .Join(context.Features.AsNoTracking()
                      .Where(f => f.ClientVisible && f.ReleaseStatus == LiveReleaseStatus),
-                  ctf => ctf.FeatureKey, f => f.FeatureKey, (ctf, f) => ctf)
-            .Select(ctf => ctf.FeatureKey)
+                  ctf => ctf.FeatureKey, f => f.FeatureKey,
+                  (ctf, f) => new { f.FeatureKey, f.AvailableCountries })
             .ToListAsync();
 
-        return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+        return ApplyCountryScope(rows.Select(r => (r.FeatureKey, r.AvailableCountries)), countryCode);
     }
 
-    public async Task<HashSet<string>> ResolveForClientAsync(int? clientId, bool isInternal = false)
+    public async Task<HashSet<string>> ResolveForClientAsync(
+        int? clientId, bool isInternal = false, string? countryCode = null)
     {
         // Look up the user's ClientType from their client.
         int? clientTypeId = null;
@@ -91,16 +93,62 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         // UserGroupID==1; switched to match the configurator's signal.
         if (clientTypeId != DfAdminClientType)
         {
-            return await ResolveVisibleFeaturesAsync(clientTypeId);
+            return await ResolveVisibleFeaturesAsync(clientTypeId, countryCode);
         }
 
-        var allKeys = await context.ClientTypeFeatures
+        // THE ADMIN UNION TAKES THE SAME RELEASE AND COUNTRY GATES.
+        //
+        // It used to select from ClientTypeFeature alone, with no join to
+        // Feature - so a DF Admin saw Draft and Beta tiles nobody else could,
+        // and saw them in every market. That was an omission rather than a
+        // decision: nothing documented it, no test covered it, and the method
+        // directly above had applied the gate since the release state shipped.
+        //
+        // "DF Admin sees everything" means every CLIENT TYPE's slice, which is
+        // what the union below still gives. It does not mean unreleased work:
+        // a tile whose page is not built yet leads an admin to a dead end just
+        // as it would anyone else. If previewing unreleased features is wanted,
+        // it should be an explicit opt-in rather than a side effect of a
+        // missing join.
+        var rows = await context.ClientTypeFeatures
             .AsNoTracking()
             .Where(ctf => ctf.Visible && ctf.Grantable)
-            .Select(ctf => ctf.FeatureKey)
+            .Join(context.Features.AsNoTracking()
+                     .Where(f => f.ClientVisible && f.ReleaseStatus == LiveReleaseStatus),
+                  ctf => ctf.FeatureKey, f => f.FeatureKey,
+                  (ctf, f) => new { f.FeatureKey, f.AvailableCountries })
             .Distinct()
             .ToListAsync();
-        
-        return new HashSet<string>(allKeys, StringComparer.OrdinalIgnoreCase);
+
+        return ApplyCountryScope(rows.Select(r => (r.FeatureKey, r.AvailableCountries)), countryCode);
+    }
+
+    // Country scope (SEED-SCOPE-ALL-HUBS §2): a feature with AvailableCountries
+    // set is visible only in those markets; NULL or empty = global. The split
+    // does not translate to SQL, so callers materialise first.
+    //
+    // FAIL OPEN ON AN UNKNOWN COUNTRY, matching the configurator's resolver
+    // exactly: when the claim is absent - a stale pre-claim cookie, say - do
+    // not filter at all. Hiding a market's whole catalogue from a legitimate
+    // user on an old cookie is worse than briefly over-showing.
+    private static HashSet<string> ApplyCountryScope(
+        IEnumerable<(string FeatureKey, string? AvailableCountries)> rows, string? countryCode)
+    {
+        // Early return rather than a ternary so IsNullOrEmpty's [NotNullWhen]
+        // narrows countryCode for the rest of the method - otherwise the
+        // Contains below takes a string? where a string is wanted.
+        if (string.IsNullOrEmpty(countryCode))
+        {
+            return new HashSet<string>(rows.Select(r => r.FeatureKey), StringComparer.OrdinalIgnoreCase);
+        }
+
+        var keys = rows
+            .Where(r => string.IsNullOrEmpty(r.AvailableCountries)
+                        || r.AvailableCountries
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Contains(countryCode, StringComparer.OrdinalIgnoreCase))
+            .Select(r => r.FeatureKey);
+
+        return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
     }
 }
