@@ -51,8 +51,20 @@ public class HomeControllerTests : IDisposable
         // returns ViewResult; the Razor view isn't executed), so the mock
         // can return an empty set safely. Returning null would NRE on the
         // ViewModel assignment.
+        // MATCH ALL THREE ARGUMENTS EXPLICITLY. Configuring this with the
+        // clientId alone let C# fill in the optional parameters, so the
+        // substitute was only ever set up for (any, false, null) - it matched
+        // by accident, because these tests happen to run as non-internal staff
+        // and the resolver took no country.
+        //
+        // Adding the countryCode parameter broke that accident: the controller
+        // now passes the CountryCode claim, the call no longer matched, and
+        // NSubstitute returned null - which surfaces as an unrelated-looking
+        // ArgumentNullException on 'visibleFeatures' inside HubTileCatalogue.
+        // Arg.Any on every parameter says what these tests actually mean, which
+        // is that gate 1 is not what they are covering.
         var featureResolver = Substitute.For<IFeatureResolver>();
-        featureResolver.ResolveForClientAsync(Arg.Any<int?>())
+        featureResolver.ResolveForClientAsync(Arg.Any<int?>(), Arg.Any<bool>(), Arg.Any<string?>())
             .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
         // Gate 2 (tile access) is substituted to "no decisions", i.e. it removes
