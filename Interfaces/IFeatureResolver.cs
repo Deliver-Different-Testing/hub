@@ -22,17 +22,12 @@ namespace Hub.Interfaces;
 public interface IFeatureResolver
 {
     /// <summary>
-    /// Returns the visible feature keys for the given ClientType.
-    /// NULL → 2 (Customer) per the resolver fallback rule.
-    /// </summary>
-    Task<HashSet<string>> ResolveVisibleFeaturesAsync(int? clientTypeId);
-
-    /// <summary>
     /// Resolves the visible feature keys for a request: looks up the
     /// supplied client's ClientTypeId, applies the NULL→Customer rule,
     /// and returns the matching matrix slice. ClientType=5 (DFRNTAdmin)
     /// bypasses to the union of every visible key across all ClientTypes.
     /// </summary>
+    /// <param name="clientId"></param>
     /// <param name="isInternal">
     /// The caller's <c>Internal</c> claim (tucClient.ucclInternal). Internal
     /// staff sit on Customer clients but are the tenant, so they resolve as
