@@ -24,7 +24,10 @@ build:
     - dotnet restore
     - dotnet build --no-restore --configuration Release
   rules:
-    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    # Target-branch agnostic. Routine MRs target develop since the 2026-09-18
+    # branch inversion, and an MR pipeline already diffs source vs target, so
+    # pinning the target branch here meant these jobs silently never ran.
+    - if: $CI_MERGE_REQUEST_IID
     - if: $CI_COMMIT_BRANCH == "master"
 
 # Only run deploy on protected branches, not on MR pipelines
@@ -58,5 +61,8 @@ unit-tests:
     reports:
       junit: TestResults/junit.xml
   rules:
-    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    # Target-branch agnostic. Routine MRs target develop since the 2026-09-18
+    # branch inversion, and an MR pipeline already diffs source vs target, so
+    # pinning the target branch here meant these jobs silently never ran.
+    - if: $CI_MERGE_REQUEST_IID
     - if: $CI_COMMIT_BRANCH == "master"

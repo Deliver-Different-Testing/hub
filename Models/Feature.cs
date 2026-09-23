@@ -24,5 +24,13 @@ public partial class Feature
 
     public string ReleaseStatus { get; set; }
 
+    // Country scope (SEED-SCOPE-ALL-HUBS §2). Comma-separated ISO codes; NULL
+    // or empty means available everywhere. Set from the configurator's Feature
+    // Matrix. Hub did not carry this column, so a feature scoped to one market
+    // was filtered out of the configurator's sidebar while its hub tile still
+    // rendered here - the two resolvers disagreeing in exactly the way the
+    // comments on FeatureResolver warn about.
+    public string AvailableCountries { get; set; }
+
     public virtual ICollection<ClientTypeFeature> ClientTypeFeatures { get; set; } = new List<ClientTypeFeature>();
 }
