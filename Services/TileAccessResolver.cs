@@ -29,7 +29,7 @@ public sealed class TileAccessResolver(DynamicDespatchDbContext context) : ITile
     {
         ArgumentNullException.ThrowIfNull(featureEnabledKeys);
 
-        int? clientTypeId = clientId is > 0
+        var clientTypeId = clientId is > 0
             ? await context.TucClients
                 .AsNoTracking()
                 .Where(c => c.UcclId == clientId.Value)
