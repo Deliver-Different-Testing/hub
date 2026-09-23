@@ -46,7 +46,7 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
                   (ctf, f) => new { f.FeatureKey, f.AvailableCountries })
             .ToListAsync();
 
-        return ApplyCountryScope(rows.Select(r => (r.FeatureKey, r.AvailableCountries)), countryCode);
+        return ApplyCountryScope(rows.Select(r => (r.FeatureKey, (string?)r.AvailableCountries)), countryCode);
     }
 
     public async Task<HashSet<string>> ResolveForClientAsync(
@@ -120,7 +120,7 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
             .Distinct()
             .ToListAsync();
 
-        return ApplyCountryScope(rows.Select(r => (r.FeatureKey, r.AvailableCountries)), countryCode);
+        return ApplyCountryScope(rows.Select(r => (r.FeatureKey, (string?)r.AvailableCountries)), countryCode);
     }
 
     // Country scope (SEED-SCOPE-ALL-HUBS §2): a feature with AvailableCountries

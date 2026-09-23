@@ -104,15 +104,13 @@ public class HubTileCatalogueTests
     // ── Rendering details the view depends on ─────────────────────────────
 
     [Fact]
-    public void The_coming_soon_tile_carries_no_link()
+    public void The_csp_tile_is_a_normal_clickable_tile()
     {
         var csp = HubTileCatalogue.Resolve(Permissive(), AllKeys())
             .Single(t => t.Key == "hub-tile-dfrntcrm");
 
-        // The view renders a div rather than an anchor for these. A stray href
-        // would make an unreleased product clickable.
-        Assert.True(csp.IsDisabled);
-        Assert.Equal(string.Empty, csp.Href);
+        Assert.False(csp.IsDisabled);
+        Assert.Equal("https://dfrntcrm.test", csp.Href);
     }
 
     [Fact]
