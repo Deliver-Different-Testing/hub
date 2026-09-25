@@ -24,6 +24,9 @@ public class HomeController(
         var userEmail = HttpContext.User.Claims.FirstOrDefault(x => x.Type == System.Security.Claims.ClaimTypes.Name)
             ?.Value;
         var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
+        // Stamped at login from CurrentTenant.CountryCode. Feeds the per-feature
+        // country scope; absent means "do not filter" rather than "show nothing".
+        var countryCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CountryCode")?.Value;
         if (cid == null || connectionString == null)
         {
             return RedirectToAction("Login", "Account");
@@ -49,7 +52,8 @@ public class HomeController(
         // carrying ucclInternal=1, and resolving that literally would strip most
         // of their tiles. See FeatureResolver for the full reasoning.
         var isInternalStaff = bool.TryParse(internalTenantUser, out var iu) && iu;
-        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId, isInternalStaff);
+        var visibleFeatures = await featureResolver.ResolveForClientAsync(
+            clientId, isInternalStaff, countryCode);
 
         // Gate 2 - tile-level access (Steve 2026-08-26). Gate 1 above says which
         // features DF Admin enabled for the tenant; this says which of the hub

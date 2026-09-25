@@ -612,9 +612,13 @@ public class AccountController(
         var authProperties = new AuthenticationProperties
         {
             AllowRefresh = true,
-            ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7),
             IsPersistent = isPersistent
         };
+
+        if (isPersistent)
+        {
+            authProperties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7);
+        }
 
         await HttpContext.SignInAsync(
             "Identity.Application",
@@ -764,7 +768,8 @@ public class AccountController(
         {
             masterUser.UserId,
             masterUser.CurrentTenant.TenantId,
-            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds(),
+            RememberMe = rememberMe
         });
         var encryptedToken = EncryptClaims(token, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
         var redirectUrl =
@@ -839,17 +844,17 @@ public class AccountController(
             return RedirectToAction("Login");
         }
 
-        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, payload.RememberMe, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, masterUser.Email));
+            BuildStaffClaimsInput(masterUser, user, accountsMode, payload.RememberMe, masterUser.Email));
 
-        await SignInUserAsync(claims, false);
+        await SignInUserAsync(claims, payload.RememberMe);
 
         return RedirectToAction("Index", "Home");
     }
 
-    private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt);
+    private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt, bool RememberMe);
 
     // The "stack" tenant used for end-to-end testing of the staging stack. Its DNS
     // is special-cased to live at the bare staging hostname (hub.staging.deliverdifferent.com)
