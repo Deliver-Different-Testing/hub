@@ -55,6 +55,7 @@ public class AccountController(
                 Log.Warning("User {CurrentEmail} attempting to login as {ModelEmail} without logging out first",
                     currentEmail, model.Email);
                 ViewBag.LoginFailed = true;
+                ViewBag.AlreadyLoggedInAsOtherUser = true;
                 ModelState.AddModelError(string.Empty,
                     $"You are currently logged in as {currentEmail}. Please logout first before logging in as a different user.");
                 return View(model);
