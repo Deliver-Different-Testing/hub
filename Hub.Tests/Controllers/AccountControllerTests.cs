@@ -411,6 +411,32 @@ public class AccountControllerTests : IDisposable
         Assert.NotEqual("RESETPASSWORD", user.Password);
     }
 
+    [Fact]
+    public async Task ResetPassword_Post_LegacyHashUser_ClearsFlagAndNewPasswordVerifies()
+    {
+        var (controller, masterCtx, despatchCtx) = CreateController();
+        despatchCtx.TucClientContacts.Add(new TucClientContact
+        {
+            UcctId = 10, UcctClientId = 1, UserName = "reset@test.com", UcctFirstname = "Reset",
+            UcctSurname = "User", Active = true, HasEmail = true, ValidatedEmail = true,
+            Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+        });
+        await despatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var legacyUser = (await masterCtx.Users.FindAsync([4], TestContext.Current.CancellationToken))!;
+        legacyUser.IsLegacyHash = true;
+        await masterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var model = new ResetPasswordViewModel
+        {
+            Email = "reset@test.com", Password = "NewStrong1!", ConfirmPassword = "NewStrong1!", Code = "valid-reset-key"
+        };
+
+        await controller.ResetPassword(model);
+
+        var user = (await masterCtx.Users.FindAsync([4], TestContext.Current.CancellationToken))!;
+        Assert.False(user.IsLegacyHash);
+        Assert.True(PasswordHelper.Verify("NewStrong1!", user.Salt, user.Password, user.IsLegacyHash));
+    }
+
     // ForgotPassword tests
     [Fact]
     public void ForgotPassword_Get_ReturnsView()
