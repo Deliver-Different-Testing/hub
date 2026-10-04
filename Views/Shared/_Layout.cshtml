@@ -35,6 +35,12 @@
 @{
     var requestToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
 
+    // Footer year in tenant time, not the server clock. Anonymous pages (login)
+    // have no tenant claim and fall back to UTC.
+    var footerYear = int.TryParse(User.FindFirst("CurrentTenantID")?.Value, out var footerTenantId)
+        ? (await TenantService.GetCurrentTenantTimeAsync(footerTenantId)).Year
+        : DateTime.UtcNow.Year;
+
     var userIdClaim = User.FindFirst("UserID");
     var currentTenantIdClaim = User.FindFirst("CurrentTenantID");
 
@@ -195,7 +201,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <footer class="footer">
     <div class="container footer-row">
-        <div class="footer-meta">&copy; @DateTime.Now.Year Deliver DFRNT</div>
+        <div class="footer-meta">&copy; @footerYear Deliver DFRNT</div>
     </div>
 </footer>
 
