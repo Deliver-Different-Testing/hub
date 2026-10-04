@@ -14,6 +14,9 @@ public sealed record HomeViewModel
     public string? ClientInternal { get; init; }
     public bool ShowAfterHours { get; init; }
 
+    /// <summary>Tenant-local "now", for the header date. Never the server clock.</summary>
+    public DateTime Today { get; init; }
+
     // Phase 5+31 R2 §2 — current user's visible hub-tile-* feature keys
     // resolved via IFeatureResolver against the ClientType × Feature matrix.
     // Consulted by Views/Home/Index.cshtml for matrix-driven tile rendering.

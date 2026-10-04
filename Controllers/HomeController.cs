@@ -13,7 +13,8 @@ public class HomeController(
     IConnectionStringManager connectionStringManager,
     IDespatchRepository despatchRepository,
     IFeatureResolver featureResolver,
-    ITileAccessResolver tileAccessResolver)
+    ITileAccessResolver tileAccessResolver,
+    ITenantService tenantService)
     : Controller
 {
     public async Task<IActionResult> Index()
@@ -24,6 +25,7 @@ public class HomeController(
         var userEmail = HttpContext.User.Claims.FirstOrDefault(x => x.Type == System.Security.Claims.ClaimTypes.Name)
             ?.Value;
         var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
+        var tenantIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CurrentTenantID")?.Value;
         // Stamped at login from CurrentTenant.CountryCode. Feeds the per-feature
         // country scope; absent means "do not filter" rather than "show nothing".
         var countryCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CountryCode")?.Value;
@@ -99,8 +101,14 @@ public class HomeController(
                 IsAsureUser: isAsureUser),
             visibleFeatures);
 
+        // Header date must be tenant wall-clock, not the server clock: the host
+        // can be on a different calendar day to the tenant.
+        var tenantId = int.TryParse(tenantIdClaim, out var parsedTenantId) ? parsedTenantId : 0;
+        var today = await tenantService.GetCurrentTenantTimeAsync(tenantId);
+
         var model = new HomeViewModel
         {
+            Today = today,
             Tiles = tiles,
             ContactId = contactId,
 

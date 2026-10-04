@@ -17,6 +17,9 @@ public sealed record FuelSurchargeRow
 public sealed record FuelSurchargeCardViewModel
 {
     public bool HasData { get; init; }
+
+    /// <summary>Tenant-local "now", for the header date. Never the server clock.</summary>
+    public DateTime Today { get; init; }
     public FuelSurchargeRow? CurrentStandard { get; init; }
     public IReadOnlyList<FuelSurchargeRow> History { get; init; } = [];
 public decimal? PumpPrice { get; init; }

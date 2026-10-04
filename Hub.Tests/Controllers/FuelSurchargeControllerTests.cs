@@ -214,6 +214,31 @@ public class FuelSurchargeControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Index_SetsTodayToTenantTime_WhenRowsExist()
+    {
+        var rows = new List<FuelSurchargeRow>
+        {
+            new() { FuelSurchargeId = 1, ClientId = null, Rate = 5.00m, Start = TenantNow.AddDays(-1), Active = true }
+        };
+        var controller = CreateController(MockRepo(rows));
+
+        var model = GetModel(await controller.Index(CancellationToken.None));
+
+        Assert.Equal(TenantNow, model.Today);
+    }
+
+    [Fact]
+    public async Task Index_SetsTodayToTenantTime_WhenNoRows()
+    {
+        var controller = CreateController(MockRepo([]));
+
+        var model = GetModel(await controller.Index(CancellationToken.None));
+
+        Assert.False(model.HasData);
+        Assert.Equal(TenantNow, model.Today);
+    }
+
+    [Fact]
     public async Task Index_PassesParsedCurrentTenantId_ToTenantService()
     {
         var repo = MockRepo([]);
