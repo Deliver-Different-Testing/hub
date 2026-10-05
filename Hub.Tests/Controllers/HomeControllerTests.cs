@@ -27,11 +27,12 @@ public class HomeControllerTests : IDisposable
     }
 
     private static HomeController CreateController(
-        System.Security.Claims.ClaimsPrincipal? user = null)
+        System.Security.Claims.ClaimsPrincipal? user = null,
+        ITenantService? tenantService = null)
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
         var connectionStringManager = new ConnectionStringManager();
-        var tenantService = Substitute.For<ITenantService>();
+        tenantService ??= Substitute.For<ITenantService>();
         var repo = new Repository(context, tenantService);
 
         // Mock the stored procedures
@@ -75,7 +76,7 @@ public class HomeControllerTests : IDisposable
             .Returns(new List<TileAccess>());
 
         var controller = new HomeController(
-            connectionStringManager, repo, featureResolver, tileAccessResolver);
+            connectionStringManager, repo, featureResolver, tileAccessResolver, tenantService);
         ControllerTestBase.SetupHttpContext(controller, user);
 
         return controller;
@@ -174,5 +175,30 @@ public class HomeControllerTests : IDisposable
 
         var model = GetModel(result);
         Assert.Equal("test", model.TenantCode);
+    }
+
+    [Fact]
+    public async Task Index_SetsTodayToTenantTime_NotServerTime()
+    {
+        var tenantNow = new DateTime(2026, 5, 11, 9, 0, 0, DateTimeKind.Unspecified);
+        var tenantService = Substitute.For<ITenantService>();
+        tenantService.GetCurrentTenantTimeAsync(Arg.Any<int>()).Returns(tenantNow);
+        var controller = CreateController(tenantService: tenantService);
+
+        var model = GetModel(await controller.Index());
+
+        Assert.Equal(tenantNow, model.Today);
+    }
+
+    [Fact]
+    public async Task Index_PassesCurrentTenantIdClaim_ToTenantService()
+    {
+        var tenantService = Substitute.For<ITenantService>();
+        var user = ClaimsPrincipalFactory.Create(currentTenantId: 7);
+        var controller = CreateController(user, tenantService);
+
+        await controller.Index();
+
+        await tenantService.Received(1).GetCurrentTenantTimeAsync(7);
     }
 }

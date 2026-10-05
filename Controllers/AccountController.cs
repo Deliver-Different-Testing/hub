@@ -320,6 +320,7 @@ public class AccountController(
 
         masterUser.Password = result.Hashed;
         masterUser.Salt = result.Salt;
+        masterUser.IsLegacyHash = false;
         masterUser.ResetKey = null;
         await authenticationRepository.SaveAsync();
 
