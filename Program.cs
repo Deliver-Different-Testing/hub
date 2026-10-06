@@ -97,7 +97,7 @@ builder.Services.AddAuthentication("Identity.Application")
     .AddCookie("Identity.Application", options =>
     {
         options.Cookie.Name = ".AspNet.SharedCookie";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
         options.SlidingExpiration = true;
         options.AccessDeniedPath = "/Forbidden/";
         options.LoginPath = "/Account/Login";
