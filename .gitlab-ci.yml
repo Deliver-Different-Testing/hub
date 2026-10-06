@@ -1,5 +1,5 @@
 include:
-  - project: 'urgent-couriers/ci-templates'
+  - project: 'deliver-different/ci-templates'
     file: 'ci-template.yml'
     ref: 'main'
 
