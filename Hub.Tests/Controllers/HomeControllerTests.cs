@@ -27,11 +27,12 @@ public class HomeControllerTests : IDisposable
     }
 
     private static HomeController CreateController(
-        System.Security.Claims.ClaimsPrincipal? user = null)
+        System.Security.Claims.ClaimsPrincipal? user = null,
+        ITenantService? tenantService = null)
     {
         var context = TestDespatchContextFactory.CreateWithSeedData();
         var connectionStringManager = new ConnectionStringManager();
-        var tenantService = Substitute.For<ITenantService>();
+        tenantService ??= Substitute.For<ITenantService>();
         var repo = new Repository(context, tenantService);
 
         // Mock the stored procedures
@@ -51,8 +52,20 @@ public class HomeControllerTests : IDisposable
         // returns ViewResult; the Razor view isn't executed), so the mock
         // can return an empty set safely. Returning null would NRE on the
         // ViewModel assignment.
+        // MATCH ALL THREE ARGUMENTS EXPLICITLY. Configuring this with the
+        // clientId alone let C# fill in the optional parameters, so the
+        // substitute was only ever set up for (any, false, null) - it matched
+        // by accident, because these tests happen to run as non-internal staff
+        // and the resolver took no country.
+        //
+        // Adding the countryCode parameter broke that accident: the controller
+        // now passes the CountryCode claim, the call no longer matched, and
+        // NSubstitute returned null - which surfaces as an unrelated-looking
+        // ArgumentNullException on 'visibleFeatures' inside HubTileCatalogue.
+        // Arg.Any on every parameter says what these tests actually mean, which
+        // is that gate 1 is not what they are covering.
         var featureResolver = Substitute.For<IFeatureResolver>();
-        featureResolver.ResolveForClientAsync(Arg.Any<int?>())
+        featureResolver.ResolveForClientAsync(Arg.Any<int?>(), Arg.Any<bool>(), Arg.Any<string?>())
             .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
         // Gate 2 (tile access) is substituted to "no decisions", i.e. it removes
@@ -63,7 +76,7 @@ public class HomeControllerTests : IDisposable
             .Returns(new List<TileAccess>());
 
         var controller = new HomeController(
-            connectionStringManager, repo, featureResolver, tileAccessResolver);
+            connectionStringManager, repo, featureResolver, tileAccessResolver, tenantService);
         ControllerTestBase.SetupHttpContext(controller, user);
 
         return controller;
@@ -162,5 +175,30 @@ public class HomeControllerTests : IDisposable
 
         var model = GetModel(result);
         Assert.Equal("test", model.TenantCode);
+    }
+
+    [Fact]
+    public async Task Index_SetsTodayToTenantTime_NotServerTime()
+    {
+        var tenantNow = new DateTime(2026, 5, 11, 9, 0, 0, DateTimeKind.Unspecified);
+        var tenantService = Substitute.For<ITenantService>();
+        tenantService.GetCurrentTenantTimeAsync(Arg.Any<int>()).Returns(tenantNow);
+        var controller = CreateController(tenantService: tenantService);
+
+        var model = GetModel(await controller.Index());
+
+        Assert.Equal(tenantNow, model.Today);
+    }
+
+    [Fact]
+    public async Task Index_PassesCurrentTenantIdClaim_ToTenantService()
+    {
+        var tenantService = Substitute.For<ITenantService>();
+        var user = ClaimsPrincipalFactory.Create(currentTenantId: 7);
+        var controller = CreateController(user, tenantService);
+
+        await controller.Index();
+
+        await tenantService.Received(1).GetCurrentTenantTimeAsync(7);
     }
 }

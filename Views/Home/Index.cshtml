@@ -14,7 +14,7 @@
     string AppUrl(string appName) =>
         Environment.GetEnvironmentVariable("TenantURL")!.Replace("app_name", appName);
 
-    var dateLabel = DateTime.Now.ToString("dddd, d MMMM");
+    var dateLabel = Model.Today.ToString("dddd, d MMMM");
 }
 <div id="urgent-hub" class="hub-surface" data-contact-id="@contactId">
     <div class="hub-header">

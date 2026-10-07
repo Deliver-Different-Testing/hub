@@ -25,6 +25,15 @@
             @Html.AntiForgeryToken()
             @Html.ValidationSummary(true, "", new { @class = "auth-form-error" })
 
+            @if (ViewBag.AlreadyLoggedInAsOtherUser == true)
+            {
+                <div class="mb-3 text-center">
+                    <a asp-action="Logout" asp-controller="Account" class="btn btn-outline-secondary">
+                        <dfrnt-icon set="lucide" name="log-out" /> Logout
+                    </a>
+                </div>
+            }
+
             <div class="mb-3 form-floating">
                 <input asp-for="Email" type="email" class="form-control" placeholder="you@company.com"
                        required autocomplete="username" />

@@ -55,6 +55,7 @@ public class AccountController(
                 Log.Warning("User {CurrentEmail} attempting to login as {ModelEmail} without logging out first",
                     currentEmail, model.Email);
                 ViewBag.LoginFailed = true;
+                ViewBag.AlreadyLoggedInAsOtherUser = true;
                 ModelState.AddModelError(string.Empty,
                     $"You are currently logged in as {currentEmail}. Please logout first before logging in as a different user.");
                 return View(model);
@@ -319,6 +320,7 @@ public class AccountController(
 
         masterUser.Password = result.Hashed;
         masterUser.Salt = result.Salt;
+        masterUser.IsLegacyHash = false;
         masterUser.ResetKey = null;
         await authenticationRepository.SaveAsync();
 
@@ -612,9 +614,13 @@ public class AccountController(
         var authProperties = new AuthenticationProperties
         {
             AllowRefresh = true,
-            ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7),
             IsPersistent = isPersistent
         };
+
+        if (isPersistent)
+        {
+            authProperties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7);
+        }
 
         await HttpContext.SignInAsync(
             "Identity.Application",
@@ -764,7 +770,8 @@ public class AccountController(
         {
             masterUser.UserId,
             masterUser.CurrentTenant.TenantId,
-            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()
+            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds(),
+            RememberMe = rememberMe
         });
         var encryptedToken = EncryptClaims(token, Environment.GetEnvironmentVariable("ClaimsKey") ?? string.Empty);
         var redirectUrl =
@@ -839,17 +846,17 @@ public class AccountController(
             return RedirectToAction("Login");
         }
 
-        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
+        await despatchRepository.UpdateUserAccessedAsync(user.UcctId, payload.RememberMe, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, masterUser.Email));
+            BuildStaffClaimsInput(masterUser, user, accountsMode, payload.RememberMe, masterUser.Email));
 
-        await SignInUserAsync(claims, false);
+        await SignInUserAsync(claims, payload.RememberMe);
 
         return RedirectToAction("Index", "Home");
     }
 
-    private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt);
+    private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt, bool RememberMe);
 
     // The "stack" tenant used for end-to-end testing of the staging stack. Its DNS
     // is special-cased to live at the bare staging hostname (hub.staging.deliverdifferent.com)

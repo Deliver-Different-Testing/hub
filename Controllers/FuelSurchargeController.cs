@@ -50,7 +50,7 @@ public class FuelSurchargeController(
     {
         if (rows.Count == 0)
         {
-            return new FuelSurchargeCardViewModel();
+            return new FuelSurchargeCardViewModel { Today = now };
         }
 
         // "Current" per scope = most-recently-started active record whose Start has passed.
@@ -88,6 +88,7 @@ public class FuelSurchargeController(
         return new FuelSurchargeCardViewModel
         {
             HasData = true,
+            Today = now,
             CurrentStandard = currentStandard,
             History = historyRows,
             PumpPrice = pumpPrice

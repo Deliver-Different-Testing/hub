@@ -13,7 +13,8 @@ public class HomeController(
     IConnectionStringManager connectionStringManager,
     IDespatchRepository despatchRepository,
     IFeatureResolver featureResolver,
-    ITileAccessResolver tileAccessResolver)
+    ITileAccessResolver tileAccessResolver,
+    ITenantService tenantService)
     : Controller
 {
     public async Task<IActionResult> Index()
@@ -24,6 +25,10 @@ public class HomeController(
         var userEmail = HttpContext.User.Claims.FirstOrDefault(x => x.Type == System.Security.Claims.ClaimTypes.Name)
             ?.Value;
         var tenantCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "TenantCode")?.Value;
+        var tenantIdClaim = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CurrentTenantID")?.Value;
+        // Stamped at login from CurrentTenant.CountryCode. Feeds the per-feature
+        // country scope; absent means "do not filter" rather than "show nothing".
+        var countryCode = HttpContext.User.Claims.FirstOrDefault(x => x.Type == "CountryCode")?.Value;
         if (cid == null || connectionString == null)
         {
             return RedirectToAction("Login", "Account");
@@ -49,7 +54,8 @@ public class HomeController(
         // carrying ucclInternal=1, and resolving that literally would strip most
         // of their tiles. See FeatureResolver for the full reasoning.
         var isInternalStaff = bool.TryParse(internalTenantUser, out var iu) && iu;
-        var visibleFeatures = await featureResolver.ResolveForClientAsync(clientId, isInternalStaff);
+        var visibleFeatures = await featureResolver.ResolveForClientAsync(
+            clientId, isInternalStaff, countryCode);
 
         // Gate 2 - tile-level access (Steve 2026-08-26). Gate 1 above says which
         // features DF Admin enabled for the tenant; this says which of the hub
@@ -95,8 +101,14 @@ public class HomeController(
                 IsAsureUser: isAsureUser),
             visibleFeatures);
 
+        // Header date must be tenant wall-clock, not the server clock: the host
+        // can be on a different calendar day to the tenant.
+        var tenantId = int.TryParse(tenantIdClaim, out var parsedTenantId) ? parsedTenantId : 0;
+        var today = await tenantService.GetCurrentTenantTimeAsync(tenantId);
+
         var model = new HomeViewModel
         {
+            Today = today,
             Tiles = tiles,
             ContactId = contactId,
 

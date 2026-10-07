@@ -229,13 +229,22 @@ public class TileAccessResolverTests
     private static TileAccessReason Reason(IReadOnlyList<TileAccess> r, string key)
         => r.Single(d => d.TileKey == key).Reason;
 
+    // string.GetHashCode() is randomized per process in .NET, so it can't be
+    // used to derive a stable id - an explicit offset is the only safe option.
+    private static readonly Dictionary<string, int> TileIdOffsets = new(StringComparer.Ordinal)
+    {
+        [Configurator] = 1,
+        [DespatchWeb] = 2,
+        [Tracking] = 3,
+    };
+
     private static RolePermission Grant(
         int roleId, string tileKey, int? clientId = null, byte level = 1)
         => new()
         {
             // Deterministic id so a test can seed a global and an override for
             // the same (role, tile) without colliding.
-            RolePermissionId = roleId * 1000 + tileKey.GetHashCode() % 100 + (clientId ?? 0),
+            RolePermissionId = roleId * 1000 + TileIdOffsets[tileKey] + (clientId ?? 0),
             ContactRoleId = roleId,
             PermissionKey = tileKey,
             Allowed = level >= 1,

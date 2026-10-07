@@ -133,12 +133,9 @@ public static class HubTileCatalogue
                 ctx => ctx.AppUrl("courierportal"),
                 _ => true),
 
-            // Shown so people know it is coming, but not clickable - the product
-            // is not ready. Swap Disabled to false and give it a URL to release.
             new("hub-tile-dfrntcrm", "Customer Success Platform", "crm-inbox.svg",
-                _ => string.Empty,
-                _ => true,
-                IsDisabled: true),
+                ctx => ctx.AppUrl("dfrntcrm"),
+                _ => true),
 
             new("hub-tile-despatchweb", "Dispatch", "dispatch.svg",
                 ctx => ctx.AppUrl("despatch"),
