@@ -30,13 +30,14 @@ public static class AgentAccessExtensions
         services.AddDbContext<AgentAccessOpenIddictDbContext>(options =>
         {
             options.UseSqlServer(masterConnectionString);
-            options.UseOpenIddict();
+            options.UseOpenIddict<Guid>();
         });
 
         services.AddOpenIddict()
             .AddCore(core => core
                 .UseEntityFrameworkCore()
-                .UseDbContext<AgentAccessOpenIddictDbContext>())
+                .UseDbContext<AgentAccessOpenIddictDbContext>()
+                .ReplaceDefaultEntities<Guid>())
             .AddServer(server =>
             {
                 server.SetAuthorizationEndpointUris("/connect/authorize")

@@ -1,5 +1,6 @@
 using Hub.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
@@ -15,19 +16,72 @@ public class AgentAccessOAuthRegistrationTests
     private const string UnusedConnection = "Server=unused;Database=unused;";
 
     [Fact]
-    public void Store_model_maps_the_four_OpenIddict_tables()
+    public void Store_model_maps_the_four_McpOAuth_tables()
     {
-        using var ctx = new AgentAccessOpenIddictDbContext(
-            new DbContextOptionsBuilder<AgentAccessOpenIddictDbContext>()
-                .UseSqlServer(UnusedConnection)
-                .UseOpenIddict()
-                .Options);
+        using var ctx = NewContext();
 
         var tables = ctx.Model.GetEntityTypes().Select(e => e.GetTableName()).Order().ToArray();
 
+        // Singular PascalCase with the module prefix, like TenantBranding / IntMgr... in the Master DB.
         Assert.Equal(
-            ["OpenIddictApplications", "OpenIddictAuthorizations", "OpenIddictScopes", "OpenIddictTokens"],
+            ["McpOAuthApplication", "McpOAuthAuthorization", "McpOAuthScope", "McpOAuthToken"],
             tables);
+    }
+
+    [Fact]
+    public void Keys_and_foreign_keys_are_named_after_the_McpOAuth_tables()
+    {
+        using var ctx = NewContext();
+
+        foreach (var entity in ctx.Model.GetEntityTypes())
+        {
+            var table = entity.GetTableName()!;
+            Assert.Equal($"PK_{table}", entity.FindPrimaryKey()!.GetName());
+            Assert.All(entity.GetForeignKeys(), fk => Assert.StartsWith($"FK_{table}_", fk.GetConstraintName()));
+            Assert.All(entity.GetIndexes(), ix => Assert.StartsWith($"IX_{table}_", ix.GetDatabaseName()));
+        }
+    }
+
+    [Fact]
+    public void Every_key_and_foreign_key_is_a_Guid()
+    {
+        using var ctx = NewContext();
+
+        foreach (var entity in ctx.Model.GetEntityTypes())
+        {
+            var key = Assert.Single(entity.FindPrimaryKey()!.Properties);
+            Assert.Equal(typeof(Guid), key.ClrType);
+
+            foreach (var foreignKey in entity.GetForeignKeys())
+            {
+                Assert.All(foreignKey.Properties, p =>
+                    Assert.Equal(typeof(Guid), Nullable.GetUnderlyingType(p.ClrType) ?? p.ClrType));
+            }
+        }
+    }
+
+    [Fact]
+    public void Every_datetime_column_is_UTC_and_named_with_a_Utc_suffix()
+    {
+        using var ctx = NewContext();
+
+        var dateColumns = ctx.Model.GetEntityTypes()
+            .SelectMany(e => e.GetProperties()
+                .Where(p => (Nullable.GetUnderlyingType(p.ClrType) ?? p.ClrType) == typeof(DateTime)
+                            || (Nullable.GetUnderlyingType(p.ClrType) ?? p.ClrType) == typeof(DateTimeOffset))
+                .Select(p => (Table: e.GetTableName()!, Column: p.GetColumnName(StoreObjectIdentifier.Table(e.GetTableName()!, e.GetSchema()))!)))
+            .OrderBy(c => c.Table).ThenBy(c => c.Column)
+            .ToArray();
+
+        // The convention: a datetime is UTC only if its name ends in Utc.
+        Assert.Equal(
+            [
+                ("McpOAuthAuthorization", "CreationDateUtc"),
+                ("McpOAuthToken", "CreationDateUtc"),
+                ("McpOAuthToken", "ExpirationDateUtc"),
+                ("McpOAuthToken", "RedemptionDateUtc")
+            ],
+            dateColumns);
     }
 
     [Fact]
@@ -93,6 +147,14 @@ public class AgentAccessOAuthRegistrationTests
     }
 
     // ---- helpers ----------------------------------------------------------
+
+    private static AgentAccessOpenIddictDbContext NewContext()
+    {
+        // UseOpenIddict<Guid> returns the non-generic builder, so take Options from the typed one.
+        var builder = new DbContextOptionsBuilder<AgentAccessOpenIddictDbContext>().UseSqlServer(UnusedConnection);
+        builder.UseOpenIddict<Guid>();
+        return new AgentAccessOpenIddictDbContext(builder.Options);
+    }
 
     private static OpenIddictServerOptions ServerOptions()
     {
