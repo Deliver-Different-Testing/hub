@@ -37,7 +37,7 @@ public static class AgentAccessExtensions
 
         var metadataOptions = ClientMetadataOptions.Create(settings?.ClientMetadataHosts);
         services.AddSingleton(metadataOptions);
-        services.AddMemoryCache();
+        services.AddSingleton<ClientMetadataFailures>();
         services.AddScoped<IClientMetadataService, ClientMetadataService>();
         services.AddHttpClient<IClientMetadataFetcher, ClientMetadataFetcher>()
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler

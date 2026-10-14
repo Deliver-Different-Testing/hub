@@ -124,7 +124,7 @@ public class ClientMetadataDocumentTests
     [InlineData("https://127.0.0.1/x", false)]
     [InlineData("https://[::1]/x", false)]
     [InlineData("https://localhost/x", false)]
-    [InlineData("https://claude.ai/x?y=1", true)]
+    [InlineData("https://claude.ai/x?y=1", false)]
     [InlineData("https://claude.ai/../x", false)]
     [InlineData("claude.ai/x", false)]
     [InlineData("dfrnt-claude", false)]

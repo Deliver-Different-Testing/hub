@@ -27,17 +27,18 @@ public sealed class ClientMetadataService(
     IOpenIddictApplicationManager applications,
     IClientMetadataFetcher fetcher,
     ClientMetadataOptions options,
-    IMemoryCache failures,
+    ClientMetadataFailures failures,
     TimeProvider time) : IClientMetadataService
 {
     private const string MarkerProperty = "cimd_fetched_utc";
-    private static readonly SemaphoreSlim FetchGate = new(4);
+    private const int MaxConcurrentFetches = 4;
+    private static readonly SemaphoreSlim FetchGate = new(MaxConcurrentFetches);
 
     public async Task<ClientMetadataOutcome> EnsureAsync(string clientId, string? redirectUri, CancellationToken cancellationToken = default)
     {
         if (!options.Enabled) return ClientMetadataOutcome.Rejected("Client ID metadata documents are not enabled.");
         if (!ClientMetadataDocument.IsAcceptableClientIdUrl(clientId, out var url)) return ClientMetadataOutcome.Rejected("The client_id is not an acceptable URL.");
-        if (!options.IsAllowed(url.Host)) return ClientMetadataOutcome.Rejected("This client host is not allowed.");
+        if (!options.IsAllowed(url)) return ClientMetadataOutcome.Rejected("This client URL is not allowed.");
 
         var existing = await applications.FindByClientIdAsync(clientId, cancellationToken);
         DateTimeOffset? fetchedAt = null;
@@ -59,21 +60,35 @@ public sealed class ClientMetadataService(
             }
         }
 
-        if (failures.TryGetValue(FailureKey(clientId), out string? previous))
+        if (failures.TryGet(clientId, out var previous))
         {
-            return KeepOrReject(fetchedAt, previous!);
+            return KeepOrReject(fetchedAt, previous!.Transient, previous.Reason);
         }
 
-        await FetchGate.WaitAsync(cancellationToken);
+        // Never queue: when every slot is busy the request is refused rather than piling up behind a slow server.
+        if (!await FetchGate.WaitAsync(TimeSpan.Zero, cancellationToken))
+        {
+            return ClientMetadataOutcome.Rejected("Too many client documents are being fetched; try again shortly.");
+        }
+
         try
         {
             var fetched = await fetcher.FetchAsync(url, cancellationToken);
             var parsedDocument = fetched.Body is null ? ClientMetadataParseResult.Fail(fetched.Error ?? "The fetch failed.") : ClientMetadataDocument.Parse(fetched.Body, clientId);
             if (parsedDocument.Document is not { } document)
             {
+                var transient = fetched.Body is null;
                 Log.Warning("Client metadata for {ClientId} rejected: {Reason}", clientId, parsedDocument.Error);
-                failures.Set(FailureKey(clientId), parsedDocument.Error!, options.NegativeTtl);
-                return KeepOrReject(fetchedAt, parsedDocument.Error!);
+                failures.Remember(clientId, new ClientMetadataFailure(parsedDocument.Error!, transient), options.NegativeTtl);
+                return KeepOrReject(fetchedAt, transient, parsedDocument.Error!);
+            }
+
+            if (document.RedirectUris.Any(r => !options.IsTrustedRedirectHost(new Uri(r).Host)))
+            {
+                const string reason = "A redirect URI is not on a trusted host.";
+                Log.Warning("Client metadata for {ClientId} rejected: {Reason}", clientId, reason);
+                failures.Remember(clientId, new ClientMetadataFailure(reason, Transient: false), options.NegativeTtl);
+                return KeepOrReject(fetchedAt, transient: false, reason);
             }
 
             var descriptor = AgentAccessClientSeeder.ToDescriptor(new AgentAccessClientOptions
@@ -102,10 +117,30 @@ public sealed class ClientMetadataService(
         }
     }
 
-    // A refresh that fails keeps serving the last known good row for a day, then stops: a client that went away
-    // or turned hostile must not live on from the cache.
-    private ClientMetadataOutcome KeepOrReject(DateTimeOffset? fetchedAt, string reason) =>
-        fetchedAt is { } at && time.GetUtcNow() - at < options.MaxStale ? ClientMetadataOutcome.Ok : ClientMetadataOutcome.Rejected(reason);
+    // Only a transport failure (timeout, 5xx, network) keeps serving the last known good row, and only for two
+    // hours. A document that was reached and is no longer acceptable ends the client straight away: a client that
+    // went away or turned hostile must not live on from the cache. Grants already made are unaffected either way.
+    private ClientMetadataOutcome KeepOrReject(DateTimeOffset? fetchedAt, bool transient, string reason) =>
+        transient && fetchedAt is { } at && time.GetUtcNow() - at < options.MaxStale
+            ? ClientMetadataOutcome.Ok
+            : ClientMetadataOutcome.Rejected(reason);
+}
 
-    private static string FailureKey(string clientId) => "agent-access:cimd-failure:" + clientId;
+public sealed record ClientMetadataFailure(string Reason, bool Transient);
+
+// Remembers recent failures so a bad client URL is not fetched again for a few minutes. Bounded, so a flood of
+// distinct URLs cannot grow it without limit.
+public sealed class ClientMetadataFailures : IDisposable
+{
+    private const int MaxEntries = 1000;
+    private readonly MemoryCache _cache = new(new MemoryCacheOptions { SizeLimit = MaxEntries });
+
+    public bool TryGet(string clientId, out ClientMetadataFailure? failure) => _cache.TryGetValue(clientId, out failure);
+
+    public void Remember(string clientId, ClientMetadataFailure failure, TimeSpan ttl) =>
+        _cache.Set(clientId, failure, new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = ttl });
+
+    public void Forget(string clientId) => _cache.Remove(clientId);
+
+    public void Dispose() => _cache.Dispose();
 }

@@ -33,6 +33,7 @@ public static class ClientMetadataDocument
             || !parsed.IsDefaultPort
             || !string.IsNullOrEmpty(parsed.UserInfo)
             || !string.IsNullOrEmpty(parsed.Fragment)
+            || !string.IsNullOrEmpty(parsed.Query)
             || parsed.HostNameType != UriHostNameType.Dns
             || !parsed.Host.Contains('.')
             || parsed.AbsolutePath is "" or "/"

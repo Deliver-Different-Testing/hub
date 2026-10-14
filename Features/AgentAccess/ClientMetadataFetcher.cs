@@ -15,17 +15,34 @@ public sealed record ClientMetadataOptions(
     TimeSpan MaxStale)
 {
     public static ClientMetadataOptions Create(IEnumerable<string>? allowedHosts) => new(
-        (allowedHosts ?? []).Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h.Trim().ToLowerInvariant()).Distinct().ToList(),
+        (allowedHosts ?? []).Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h.Trim().TrimStart('/').ToLowerInvariant()).Distinct().ToList(),
         Ttl: TimeSpan.FromHours(1),
         MaxBytes: 16 * 1024,
         Timeout: TimeSpan.FromSeconds(5),
         NegativeTtl: TimeSpan.FromMinutes(5),
         RefetchFloor: TimeSpan.FromMinutes(1),
-        MaxStale: TimeSpan.FromHours(24));
+        MaxStale: TimeSpan.FromHours(2));
 
     public bool Enabled => AllowedHosts.Count > 0;
 
-    public bool IsAllowed(string host) => AllowedHosts.Contains(host.ToLowerInvariant());
+    // A client's redirect URIs must live on a host this Hub trusts as much as the client document itself, so a
+    // document on an allowed host can never send an authorization code to somewhere else.
+    public bool IsTrustedRedirectHost(string host) => AllowedHosts.Any(entry =>
+    {
+        var slash = entry.IndexOf('/');
+        return string.Equals(host, slash < 0 ? entry : entry[..slash], StringComparison.OrdinalIgnoreCase);
+    });
+
+    // An entry is a host, optionally followed by a path prefix ("claude.ai/oauth/"). A bare host allows every path
+    // on it, so prefer a prefix: a host that serves user content must not let anyone register a client.
+    public bool IsAllowed(Uri url) => AllowedHosts.Any(entry =>
+    {
+        var slash = entry.IndexOf('/');
+        var host = slash < 0 ? entry : entry[..slash];
+        var prefix = slash < 0 ? string.Empty : entry[slash..];
+        return string.Equals(url.Host, host, StringComparison.OrdinalIgnoreCase)
+               && url.AbsolutePath.StartsWith(prefix, StringComparison.Ordinal);
+    });
 }
 
 public sealed record ClientMetadataFetchResult(string? Body, string? Error);

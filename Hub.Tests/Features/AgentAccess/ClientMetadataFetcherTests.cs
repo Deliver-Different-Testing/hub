@@ -161,15 +161,29 @@ public class ClientMetadataFetcherTests
         Assert.Equal(IPAddress.Parse("8.8.8.8"), await SsrfSafeConnect.ResolvePublicAddressAsync("8.8.8.8", Ct));
     }
 
+    [Theory]
+    [InlineData("https://claude.ai/oauth/mcp-client", true)]
+    [InlineData("https://claude.ai/oauth/", true)]
+    [InlineData("https://claude.ai/oauthevil/x", false)]
+    [InlineData("https://claude.ai/artifacts/abc", false)]
+    [InlineData("https://claude.ai/Oauth/x", false)]
+    [InlineData("https://other.test/oauth/x", false)]
+    public void An_entry_with_a_path_prefix_only_allows_urls_under_that_path(string url, bool expected)
+    {
+        var options = ClientMetadataOptions.Create(["claude.ai/oauth/"]);
+
+        Assert.Equal(expected, options.IsAllowed(new Uri(url)));
+    }
+
     [Fact]
     public void Allowed_hosts_are_matched_exactly_and_case_insensitively_and_empty_means_off()
     {
         var options = ClientMetadataOptions.Create([" Claude.AI ", "", "claude.ai"]);
 
         Assert.Equal(["claude.ai"], options.AllowedHosts);
-        Assert.True(options.IsAllowed("CLAUDE.ai"));
-        Assert.False(options.IsAllowed("evil.claude.ai"));
-        Assert.False(options.IsAllowed("claude.ai.evil.test"));
+        Assert.True(options.IsAllowed(new Uri("https://CLAUDE.ai/oauth/x")));
+        Assert.False(options.IsAllowed(new Uri("https://evil.claude.ai/oauth/x")));
+        Assert.False(options.IsAllowed(new Uri("https://claude.ai.evil.test/oauth/x")));
         Assert.True(options.Enabled);
         Assert.False(ClientMetadataOptions.Create(null).Enabled);
         Assert.False(ClientMetadataOptions.Create([]).Enabled);

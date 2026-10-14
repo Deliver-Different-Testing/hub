@@ -1,6 +1,5 @@
 using Hub.Features.AgentAccess;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using OpenIddict.Abstractions;
@@ -30,7 +29,7 @@ public class ClientMetadataServiceTests
         public ServiceProvider Provider { get; }
         public IClientMetadataFetcher Fetcher { get; } = Substitute.For<IClientMetadataFetcher>();
         public Clock Time { get; } = new(new DateTimeOffset(2026, 10, 15, 0, 0, 0, TimeSpan.Zero));
-        public IMemoryCache Failures { get; } = new MemoryCache(new MemoryCacheOptions());
+        public ClientMetadataFailures Failures { get; } = new();
         public ClientMetadataOptions Options { get; }
 
         public Rig(params string[] allowedHosts)
@@ -213,17 +212,17 @@ public class ClientMetadataServiceTests
     }
 
     [Fact]
-    public async Task A_refresh_that_fails_keeps_the_last_good_row_for_a_day_and_then_stops()
+    public async Task A_refresh_that_fails_to_connect_keeps_the_last_good_row_for_two_hours_and_then_stops()
     {
         await using var rig = new Rig();
         await rig.Ensure();
         rig.Fail();
 
-        rig.Time.Advance(TimeSpan.FromHours(2));
+        rig.Time.Advance(TimeSpan.FromMinutes(70));
         Assert.True((await rig.Ensure()).Ready);
 
-        rig.Time.Advance(TimeSpan.FromHours(23));
-        rig.Failures.Remove("agent-access:cimd-failure:" + Url);
+        rig.Time.Advance(TimeSpan.FromHours(2));
+        rig.Failures.Forget(Url);
         Assert.False((await rig.Ensure()).Ready);
     }
 
@@ -240,6 +239,39 @@ public class ClientMetadataServiceTests
         Assert.True((await rig.Ensure()).Ready);
 
         Assert.Equal("Hand registered", (await rig.Row())!.DisplayName);
+        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+    }
+
+    [Theory]
+    [InlineData("https://evil.example.test/cb")]
+    [InlineData("https://claude.ai.evil.test/cb")]
+    [InlineData("https://sub.claude.ai/cb")]
+    public async Task A_redirect_uri_on_a_host_that_is_not_trusted_rejects_the_whole_document(string callback)
+    {
+        await using var rig = new Rig();
+        rig.Respond(Doc(callback: callback));
+
+        Assert.False((await rig.Ensure(redirect: null)).Ready);
+        Assert.Equal(0, rig.RowCount());
+    }
+
+    [Fact]
+    public async Task A_document_that_was_reached_but_is_no_longer_acceptable_ends_the_client_at_once()
+    {
+        await using var rig = new Rig();
+        await rig.Ensure();
+        rig.Time.Advance(TimeSpan.FromMinutes(90));
+        rig.Respond("""{"client_id":"https://claude.ai/oauth/mcp-client","client_name":"x","redirect_uris":["https://claude.ai/cb"],"client_secret":"s"}""");
+
+        Assert.False((await rig.Ensure(redirect: null)).Ready);
+    }
+
+    [Fact]
+    public async Task A_url_with_a_query_string_is_not_a_client_id()
+    {
+        await using var rig = new Rig();
+
+        Assert.False((await rig.Ensure(Url + "?x=1")).Ready);
         await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
     }
 }
