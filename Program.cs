@@ -69,7 +69,8 @@ builder.Services.AddAgentAccessOAuth(
             : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration),
         Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? [],
         McpResource: Environment.GetEnvironmentVariable("AgentAccessMcpResource"),
-        ClientMetadataHosts: builder.Configuration.GetSection("AgentAccess:ClientMetadata:AllowedHosts").Get<string[]>()));
+        ClientMetadataHosts: builder.Configuration.GetSection("AgentAccess:ClientMetadata:AllowedHosts").Get<string[]>(),
+        McpClientSecret: Environment.GetEnvironmentVariable("AgentAccessMcpClientSecret")));
 
 if (builder.Environment.IsDevelopment())
 {

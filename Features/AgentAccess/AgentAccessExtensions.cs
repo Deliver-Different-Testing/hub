@@ -34,6 +34,8 @@ public static class AgentAccessExtensions
         services.TryAddSingleton<IAgentGrantStore, AgentGrantStore>();
         services.TryAddScoped<IAgentGrantEligibilityChecker, AgentGrantEligibilityChecker>();
         services.TryAddSingleton<IAgentGrantAdmin, AgentGrantAdmin>();
+        services.TryAddScoped<IAgentPassIdentityLoader, AgentPassIdentityLoader>();
+        services.TryAddSingleton<IAgentSubjectTokenValidator, AgentSubjectTokenValidator>();
 
         var metadataOptions = ClientMetadataOptions.Create(settings?.ClientMetadataHosts);
         services.AddSingleton(metadataOptions);
@@ -56,7 +58,8 @@ public static class AgentAccessExtensions
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));
         services.AddSingleton<IAgentAccessClientSeeder>(provider =>
-            new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), clients));
+            new AgentAccessClientSeeder(
+                provider.GetRequiredService<IServiceScopeFactory>(), clients, mcpClientSecret: settings?.McpClientSecret));
         if (bootstrap.State.Persistent)
         {
             Log.Information("Agent access keys are persistent (signing kid {SigningKeyId})", bootstrap.State.SigningKeyId);
@@ -86,6 +89,7 @@ public static class AgentAccessExtensions
 
                 server.AllowAuthorizationCodeFlow()
                     .AllowRefreshTokenFlow()
+                    .AllowTokenExchangeFlow()
                     .RequireProofKeyForCodeExchange();
 
                 // OAuth 2.1: S256 only. OpenIddict accepts "plain" by default.

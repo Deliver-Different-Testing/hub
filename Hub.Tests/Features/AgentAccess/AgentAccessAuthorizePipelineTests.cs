@@ -366,7 +366,7 @@ public partial class AgentAccessAuthorizePipelineTests
         };
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen = true, string[]? metadataHosts = null)
+    private static async Task<WebApplication> StartAsync(bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret")
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
@@ -395,7 +395,11 @@ public partial class AgentAccessAuthorizePipelineTests
         eligibility.CheckAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(AgentGrantEligibility.Eligible);
         builder.Services.AddSingleton(eligibility);
-        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"]));
+        var identities = Substitute.For<IAgentPassIdentityLoader>();
+        identities.LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new AgentPassLoad(AgentGrantEligibility.Eligible, new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "New Zealand Standard Time", "urgent", true, false, 2, 4, null, "Sam", "Staff", 1)));
+        builder.Services.AddSingleton(identities);
+        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret));
         var metadataFetcher = Substitute.For<IClientMetadataFetcher>();
         builder.Services.RemoveAll(typeof(IClientMetadataFetcher));
         builder.Services.AddSingleton(metadataFetcher);

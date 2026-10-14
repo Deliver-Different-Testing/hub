@@ -20,6 +20,7 @@ public interface IAuthenticationRepository
     Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId);
     Task<bool> IsUserAssociatedWithTenantAsync(int userId, int tenantId);
     Task<string?> GetTenantTimeZoneAsync(int tenantId);
+    Task<Tenant?> GetTenantByIdAsync(int tenantId);
     Task<string?> GetTenantConnectionStringAsync(int tenantId);
 
     // Phase 5+28a §B.1 — Network Partner user provisioning, called from

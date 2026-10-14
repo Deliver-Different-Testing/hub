@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
@@ -6,7 +7,7 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Hub.Features.AgentAccess;
 
-public sealed record AgentGrantSummary(string Id, string UserId, string ClientName, DateTimeOffset? CreatedUtc);
+public sealed record AgentGrantSummary(string Id, string UserId, string ClientName, DateTimeOffset? CreatedUtc, DateTimeOffset? LastUsedUtc = null);
 
 public enum AgentGrantRevokeResult
 {
@@ -43,14 +44,16 @@ public sealed class AgentGrantAdmin(IServiceScopeFactory scopes, IAgentGrantStor
                 a.Subject,
                 ClientName = a.Application == null ? null : a.Application.DisplayName,
                 ClientId = a.Application == null ? null : a.Application.ClientId,
-                a.CreationDate
+                a.CreationDate,
+                a.Properties
             })
             .ToListAsync(cancellationToken);
 
         return rows
             .Select(r => new AgentGrantSummary(
                 r.Id.ToString(), r.Subject ?? string.Empty, r.ClientName ?? r.ClientId ?? "AI app",
-                r.CreationDate is { } created ? new DateTimeOffset(DateTime.SpecifyKind(created, DateTimeKind.Utc)) : null))
+                r.CreationDate is { } created ? new DateTimeOffset(DateTime.SpecifyKind(created, DateTimeKind.Utc)) : null,
+                LastUsed(r.Properties)))
             .ToList();
     }
 
@@ -73,6 +76,23 @@ public sealed class AgentGrantAdmin(IServiceScopeFactory scopes, IAgentGrantStor
         await manager.TryRevokeAsync(authorization, cancellationToken);
         await grants.RevokeAsync(authorizationId, cancellationToken);
         return AgentGrantRevokeResult.Revoked;
+    }
+
+    private static DateTimeOffset? LastUsed(string? properties)
+    {
+        if (string.IsNullOrEmpty(properties)) return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(properties);
+            return document.RootElement.TryGetProperty("last_used_utc", out var value) && DateTimeOffset.TryParse(value.GetString(), out var parsed)
+                ? parsed
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static IQueryable<OpenIddictEntityFrameworkCoreAuthorization<Guid>> Live(AgentAccessOpenIddictDbContext context, int tenantId) =>

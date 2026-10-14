@@ -25,10 +25,14 @@ public sealed record AgentAccessClientOptions
 public sealed class AgentAccessClientSeeder(
     IServiceScopeFactory scopes,
     IReadOnlyList<AgentAccessClientOptions> clients,
-    TimeProvider? timeProvider = null) : IAgentAccessClientSeeder
+    TimeProvider? timeProvider = null,
+    string? mcpClientSecret = null) : IAgentAccessClientSeeder
 {
     /// <summary>Reserved for the confidential token-exchange client (phase 1.9); never a pre-registered AI app.</summary>
     public const string ReservedTokenExchangeClientId = "dfrnt-mcp";
+
+    /// <summary>The RFC 8693 token-exchange grant the MCP server uses to turn an agent pass into an app pass.</summary>
+    public const string TokenExchangeGrantType = GrantTypes.TokenExchange;
 
     private const int MaxClientIdLength = 100; // McpOAuthApplication.ClientId is nvarchar(100)
     private static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(1);
@@ -47,7 +51,7 @@ public sealed class AgentAccessClientSeeder(
         {
             if (_done) return;
 
-            if (clients.Count == 0)
+            if (clients.Count == 0 && string.IsNullOrEmpty(mcpClientSecret))
             {
                 _done = true;
                 return;
@@ -100,7 +104,7 @@ public sealed class AgentAccessClientSeeder(
             desired.Add(ToDescriptor(client));
         }
 
-        if (desired.Count == 0) return;
+        if (desired.Count == 0 && string.IsNullOrEmpty(mcpClientSecret)) return;
 
         using var scope = scopes.CreateScope();
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
@@ -109,6 +113,41 @@ public sealed class AgentAccessClientSeeder(
         {
             await UpsertAsync(manager, descriptor, cancellationToken);
         }
+
+        if (!string.IsNullOrEmpty(mcpClientSecret))
+        {
+            await UpsertTokenExchangeClientAsync(manager, mcpClientSecret, cancellationToken);
+        }
+    }
+
+    // The one confidential client: the MCP server for this tenant, with one secret per tenant deployment. A changed
+    // secret in configuration replaces the stored hash.
+    private static async Task UpsertTokenExchangeClientAsync(
+        IOpenIddictApplicationManager manager, string secret, CancellationToken cancellationToken)
+    {
+        var desired = new OpenIddictApplicationDescriptor
+        {
+            ClientId = ReservedTokenExchangeClientId,
+            DisplayName = "DFRNT MCP server",
+            ClientType = ClientTypes.Confidential,
+            ClientSecret = secret
+        };
+        desired.Permissions.UnionWith([Permissions.Endpoints.Token, Permissions.GrantTypes.TokenExchange]);
+
+        var existing = await manager.FindByClientIdAsync(ReservedTokenExchangeClientId, cancellationToken);
+        if (existing is null)
+        {
+            await manager.CreateAsync(desired, cancellationToken);
+            Log.Information("Agent access token-exchange client created");
+            return;
+        }
+
+        var current = new OpenIddictApplicationDescriptor();
+        await manager.PopulateAsync(current, existing, cancellationToken);
+        if (Same(current, desired) && await manager.ValidateClientSecretAsync(existing, secret, cancellationToken)) return;
+
+        await manager.UpdateAsync(existing, desired, cancellationToken);
+        Log.Information("Agent access token-exchange client updated");
     }
 
     // Creates a missing client, updates a changed one in place, leaves an identical one alone.

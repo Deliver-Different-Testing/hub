@@ -36,6 +36,12 @@ public sealed class Repository(
             .Select(c => new AgentContactStatus(c.Active, c.UcctClient == null ? null : c.UcctClient.ClientTypeId))
             .FirstOrDefaultAsync();
 
+    public async Task<TucClientContact?> FetchAgentContactAsync(int contactId) =>
+        await context.TucClientContacts
+            .AsNoTracking()
+            .Include(c => c.UcctClient)
+            .FirstOrDefaultAsync(c => c.UcctId == contactId);
+
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
         var subAccounts = await context.TucClients

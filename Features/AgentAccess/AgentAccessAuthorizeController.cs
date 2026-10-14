@@ -137,7 +137,7 @@ public class AgentAccessAuthorizeController(
         identity.SetClaim(Claims.Subject, user.UserId);
         identity.SetClaim(TenantIdProperty, user.TenantId!.Value.ToString());
         identity.SetScopes(scopes);
-        identity.SetResources(resource.Value!);
+        identity.SetAudiences(resource.Value!, AgentAccessClientSeeder.ReservedTokenExchangeClientId);
         var authorizationId = (await authorizations.GetIdAsync(authorization!))!;
         identity.SetAuthorizationId(authorizationId);
         identity.SetDestinations(_ => [Destinations.AccessToken]);

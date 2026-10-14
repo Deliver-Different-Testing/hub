@@ -46,7 +46,7 @@ public class AgentGrantAdminTests
             return (await apps.GetIdAsync(app, Ct))!;
         }
 
-        public async Task<string> AddGrant(string appId, string userId, int tenantId, string type = AuthorizationTypes.Permanent, string status = Statuses.Valid, DateTimeOffset? created = null)
+        public async Task<string> AddGrant(string appId, string userId, int tenantId, string type = AuthorizationTypes.Permanent, string status = Statuses.Valid, DateTimeOffset? created = null, string? lastUsed = null)
         {
             using var scope = Provider.CreateScope();
             var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictAuthorizationManager>();
@@ -55,6 +55,7 @@ public class AgentGrantAdminTests
                 ApplicationId = appId, Subject = userId, Type = type, Status = status, CreationDate = created ?? Created
             };
             descriptor.Scopes.Add("mcp");
+            if (lastUsed is not null) descriptor.Properties["last_used_utc"] = System.Text.Json.JsonSerializer.SerializeToElement(lastUsed);
             var grant = await manager.CreateAsync(descriptor, Ct);
             var id = (await manager.GetIdAsync(grant, Ct))!;
 
@@ -94,6 +95,20 @@ public class AgentGrantAdminTests
         Assert.Equal("Claude", grant.ClientName);
         Assert.Equal("55", grant.UserId);
         Assert.Equal(Created, grant.CreatedUtc);
+    }
+
+    [Fact]
+    public async Task The_list_says_when_each_grant_was_last_used()
+    {
+        await using var rig = new Rig();
+        var claude = await rig.AddApp("dfrnt-claude", "Claude");
+        await rig.AddGrant(claude, "55", 12, lastUsed: "2026-10-14T01:02:03.0000000+00:00");
+        await rig.AddGrant(claude, "55", 12, created: Created.AddDays(1));
+
+        var grants = await rig.Admin.ListAsync(12, "55", false, Ct);
+
+        Assert.Null(grants[0].LastUsedUtc);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-14T01:02:03+00:00"), grants[1].LastUsedUtc);
     }
 
     [Fact]
