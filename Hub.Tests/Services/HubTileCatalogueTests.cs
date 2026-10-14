@@ -114,6 +114,16 @@ public class HubTileCatalogueTests
     }
 
     [Fact]
+    public void The_setup_dashboard_tile_opens_the_spa_base_path()
+    {
+        // The SPA is served under /setup-dashboard/, not the host root.
+        var setup = HubTileCatalogue.Resolve(Permissive(), AllKeys())
+            .Single(t => t.Key == "hub-tile-setup-dashboard");
+
+        Assert.Equal("https://setupdashboard.test/setup-dashboard/", setup.Href);
+    }
+
+    [Fact]
     public void Every_enabled_tile_has_a_destination_and_an_icon()
     {
         foreach (var tile in HubTileCatalogue.Resolve(Permissive(), AllKeys()).Where(t => !t.IsDisabled))

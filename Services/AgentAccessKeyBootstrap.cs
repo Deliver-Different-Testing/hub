@@ -6,11 +6,13 @@ namespace Hub.Services;
 /// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer.</param>
 /// <param name="KeySource">Where the key parameters are read from.</param>
 /// <param name="LoadTimeout">Upper bound on the startup SSM read (default 10 s).</param>
+/// <param name="Clients">Pre-registered OAuth clients (AgentAccess:Clients); seeded once agent access opens.</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
     string? Issuer = null,
     IAgentAccessKeySource? KeySource = null,
-    TimeSpan? LoadTimeout = null);
+    TimeSpan? LoadTimeout = null,
+    IReadOnlyList<AgentAccessClientOptions>? Clients = null);
 
 public sealed record AgentAccessBootstrapResult(AgentAccessKeys? Keys, Uri? Issuer, AgentAccessKeyState State);
 

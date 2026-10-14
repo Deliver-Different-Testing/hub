@@ -14,7 +14,7 @@ public sealed class AgentAccessEndpointGate(RequestDelegate next)
     private const string ConfigurationPath = "/.well-known/openid-configuration";
     private const string JwksPath = "/.well-known/jwks";
 
-    public async Task InvokeAsync(HttpContext context, IAgentAccessGate gate)
+    public async Task InvokeAsync(HttpContext context, IAgentAccessGate gate, IAgentAccessClientSeeder seeder)
     {
         if (!IsAgentAccessPath(context.Request.Path))
         {
@@ -41,6 +41,22 @@ public sealed class AgentAccessEndpointGate(RequestDelegate next)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
+        }
+
+        // The pre-registered OAuth clients are written to the Master DB only once agent access is open
+        // for a tenant: until then Hub never writes to the OAuth store. The seeder never throws, and a
+        // failure must not take an open endpoint down.
+        try
+        {
+            await seeder.EnsureAsync(context.RequestAborted);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Agent access client seeding failed for {Path}; continuing", context.Request.Path);
         }
 
         await next(context);
