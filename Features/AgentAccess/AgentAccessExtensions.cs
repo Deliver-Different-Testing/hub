@@ -33,6 +33,7 @@ public static class AgentAccessExtensions
             .Configure<TimeProvider>((options, time) => options.TimeProvider = time);
         services.TryAddSingleton<IAgentGrantStore, AgentGrantStore>();
         services.TryAddScoped<IAgentGrantEligibilityChecker, AgentGrantEligibilityChecker>();
+        services.TryAddSingleton<IAgentGrantAdmin, AgentGrantAdmin>();
 
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));
