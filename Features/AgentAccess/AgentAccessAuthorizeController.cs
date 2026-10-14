@@ -24,6 +24,8 @@ public class AgentAccessAuthorizeController(
     IOpenIddictAuthorizationManager authorizations,
     AgentAccessMcpResource resource,
     AgentAccessClientCatalog catalog,
+    IAgentGrantStore grants,
+    TimeProvider time,
     IAntiforgery antiforgery) : Controller
 {
     private const string CookieScheme = "Identity.Application";
@@ -114,7 +116,7 @@ public class AgentAccessAuthorizeController(
                 Subject = user.UserId,
                 Type = AuthorizationTypes.Permanent,
                 Status = Statuses.Valid,
-                CreationDate = DateTimeOffset.UtcNow
+                CreationDate = time.GetUtcNow()
             };
             descriptor.Scopes.UnionWith(scopes);
             descriptor.Properties[TenantIdProperty] = JsonSerializer.SerializeToElement(user.TenantId!.Value);
@@ -135,8 +137,10 @@ public class AgentAccessAuthorizeController(
         identity.SetClaim(TenantIdProperty, user.TenantId!.Value.ToString());
         identity.SetScopes(scopes);
         identity.SetResources(resource.Value!);
-        identity.SetAuthorizationId(await authorizations.GetIdAsync(authorization!));
+        var authorizationId = (await authorizations.GetIdAsync(authorization!))!;
+        identity.SetAuthorizationId(authorizationId);
         identity.SetDestinations(_ => [Destinations.AccessToken]);
+        await grants.MarkLiveAsync(authorizationId, HttpContext.RequestAborted);
 
         return SignIn(new ClaimsPrincipal(identity), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }

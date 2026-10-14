@@ -1,6 +1,7 @@
 using Hub.Interfaces;
 using Hub.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenIddict.Abstractions;
 using Serilog;
 using Hub.Extensions;
@@ -26,6 +27,12 @@ public static class AgentAccessExtensions
         {
             Log.Warning("Agent access has no MCP resource URL (set AgentAccessIssuer to https://hub.<tenant host> or AgentAccessMcpResource); every authorization request will be rejected");
         }
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<OpenIddict.Server.OpenIddictServerOptions>()
+            .Configure<TimeProvider>((options, time) => options.TimeProvider = time);
+        services.TryAddSingleton<IAgentGrantStore, AgentGrantStore>();
+        services.TryAddScoped<IAgentGrantEligibilityChecker, AgentGrantEligibilityChecker>();
 
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));

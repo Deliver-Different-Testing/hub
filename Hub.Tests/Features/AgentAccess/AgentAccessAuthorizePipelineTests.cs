@@ -31,7 +31,7 @@ namespace Hub.Tests.Features.AgentAccess;
 
 // Phase 1.5 end to end on a real ASP.NET Core pipeline: OpenIddict registered exactly as Hub registers it,
 // the open gate, a stand-in for the Hub cookie, the real controllers and the consent view.
-public class AgentAccessAuthorizePipelineTests
+public partial class AgentAccessAuthorizePipelineTests
 {
     private const string Issuer = "https://hub.urgent.example.test";
     private const string Resource = "https://mcp.urgent.example.test/mcp";
@@ -196,21 +196,6 @@ public class AgentAccessAuthorizePipelineTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("invalid_grant", await response.Content.ReadAsStringAsync(Ct));
-    }
-
-    [Fact]
-    public async Task Refresh_grants_are_not_supported_until_phase_1_6()
-    {
-        await using var app = await StartAsync();
-
-        var response = await Client(app).PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["grant_type"] = "refresh_token",
-            ["client_id"] = "dfrnt-claude",
-            ["refresh_token"] = "anything"
-        }), Ct);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -403,6 +388,13 @@ public class AgentAccessAuthorizePipelineTests
         {
             new() { ClientId = "dfrnt-claude", DisplayName = "Claude", Vendor = "Anthropic", RedirectUris = [RedirectUri] }
         };
+        var time = new AdjustableTimeProvider(DateTimeOffset.UtcNow);
+        builder.Services.AddSingleton<TimeProvider>(time);
+        builder.Services.AddSingleton(time);
+        var eligibility = Substitute.For<IAgentGrantEligibilityChecker>();
+        eligibility.CheckAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(AgentGrantEligibility.Eligible);
+        builder.Services.AddSingleton(eligibility);
         builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients));
 
         builder.Services.RemoveAll(typeof(IDbContextOptionsConfiguration<AgentAccessOpenIddictDbContext>));

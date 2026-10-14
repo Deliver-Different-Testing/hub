@@ -1,3 +1,4 @@
+using Hub.Features.AgentAccess;
 using Hub.Models;
 
 namespace Hub.Interfaces;
@@ -12,4 +13,5 @@ public interface IDespatchRepository
     Task<int?> ValidateCourierByEmailAsync(string email);
     Task<int?> GetAccountsModeAsync();
     Task<bool> IsAfterHoursAuthorizedAsync(int courierId);
+    Task<AgentContactStatus?> FetchContactStatusAsync(int contactId);
 }
