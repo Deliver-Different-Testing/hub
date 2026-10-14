@@ -8,47 +8,51 @@ namespace Hub.Tests.Services;
 
 // Agent access gate (Agent Access spec v4, phase 1.1 / D19). Enabled only when the
 // agent-access Feature row is Ready or Live, the tenant switch is on, the tenant
-// lifecycle is Live or Demo, and DF Admin has not forced it off. Anything unknown,
+// lifecycle is Live or Demo, DF Admin has not forced it off, and the OAuth keys are
+// persistent (phase 1.3). Anything unknown,
 // missing or failing means NOT enabled.
 public class AgentAccessGateTests
 {
     private const string Released = "Ready";
     private const string NotReleased = "Draft";
 
-    // ---- the four conditions, every combination ---------------------------
+    // ---- the five conditions, every combination ---------------------------
 
-    public static TheoryData<bool, bool, bool, bool> Combinations()
+    public static TheoryData<bool, bool, bool, bool, bool> Combinations()
     {
-        var data = new TheoryData<bool, bool, bool, bool>();
+        var data = new TheoryData<bool, bool, bool, bool, bool>();
         foreach (var released in new[] { true, false })
         foreach (var lifecycleOk in new[] { true, false })
         foreach (var switchOn in new[] { true, false })
         foreach (var forcedOff in new[] { true, false })
+        foreach (var keysPersistent in new[] { true, false })
         {
-            data.Add(released, lifecycleOk, switchOn, forcedOff);
+            data.Add(released, lifecycleOk, switchOn, forcedOff, keysPersistent);
         }
         return data;
     }
 
     [Theory]
     [MemberData(nameof(Combinations))]
-    public async Task Enabled_only_when_all_four_conditions_hold(
-        bool released, bool lifecycleOk, bool switchOn, bool forcedOff)
+    public async Task Enabled_only_when_all_five_conditions_hold(
+        bool released, bool lifecycleOk, bool switchOn, bool forcedOff, bool keysPersistent)
     {
         var gate = Gate(
             release: released ? Released : NotReleased,
             lifecycle: lifecycleOk ? TenantLifecycleState.Live : TenantLifecycleState.Suspended,
             switchOn: switchOn,
-            forcedOff: forcedOff);
+            forcedOff: forcedOff,
+            keysPersistent: keysPersistent);
 
         var decision = await gate.EvaluateAsync(TestContext.Current.CancellationToken);
 
-        var expectedEnabled = released && lifecycleOk && switchOn && !forcedOff;
+        var expectedEnabled = released && lifecycleOk && switchOn && !forcedOff && keysPersistent;
         Assert.Equal(expectedEnabled, decision.Enabled);
 
-        // First failing condition wins: forced off, release, lifecycle, switch.
+        // First failing condition wins: forced off, keys, release, lifecycle, switch.
         var expectedReason =
             forcedOff ? AgentAccessReason.ForcedOff
+            : !keysPersistent ? AgentAccessReason.KeysNotPersistent
             : !released ? AgentAccessReason.FeatureNotReleased
             : !lifecycleOk ? AgentAccessReason.LifecycleNotAllowed
             : !switchOn ? AgentAccessReason.TenantSwitchOff
@@ -120,7 +124,7 @@ public class AgentAccessGateTests
         features.GetReleaseStatusAsync(Arg.Any<CancellationToken>())
             .Returns<string?>(_ => throw new InvalidOperationException("db down"));
 
-        var decision = await new AgentAccessGate(features, OkState(), OkLifecycle())
+        var decision = await new AgentAccessGate(features, OkState(), OkLifecycle(), OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
@@ -134,7 +138,7 @@ public class AgentAccessGateTests
         state.GetAsync(Arg.Any<CancellationToken>())
             .Returns<AgentAccessTenantState>(_ => throw new InvalidOperationException("db down"));
 
-        var decision = await new AgentAccessGate(OkFeatures(), state, OkLifecycle())
+        var decision = await new AgentAccessGate(OkFeatures(), state, OkLifecycle(), OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
@@ -148,7 +152,7 @@ public class AgentAccessGateTests
         lifecycle.GetAsync(Arg.Any<CancellationToken>())
             .Returns<TenantLifecycleState>(_ => throw new InvalidOperationException("db down"));
 
-        var decision = await new AgentAccessGate(OkFeatures(), OkState(), lifecycle)
+        var decision = await new AgentAccessGate(OkFeatures(), OkState(), lifecycle, OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
@@ -164,7 +168,7 @@ public class AgentAccessGateTests
         features.GetReleaseStatusAsync(Arg.Any<CancellationToken>())
             .Returns<string?>(_ => throw new OperationCanceledException(cts.Token));
 
-        var gate = new AgentAccessGate(features, OkState(), OkLifecycle());
+        var gate = new AgentAccessGate(features, OkState(), OkLifecycle(), OkKeys());
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => gate.EvaluateAsync(cts.Token));
     }
@@ -177,12 +181,34 @@ public class AgentAccessGateTests
         var state = Substitute.For<IAgentAccessTenantState>();
         state.GetAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenantState(SwitchOn: true, ForcedOff: true));
 
-        var decision = await new AgentAccessGate(features, state, lifecycle)
+        var decision = await new AgentAccessGate(features, state, lifecycle, OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(AgentAccessReason.ForcedOff, decision.Reason);
         await features.DidNotReceive().GetReleaseStatusAsync(Arg.Any<CancellationToken>());
         await lifecycle.DidNotReceive().GetAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Non_persistent_keys_keep_the_gate_closed_even_when_everything_else_is_on()
+    {
+        var decision = await Gate(keysPersistent: false).EvaluateAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(decision.Enabled);
+        Assert.Equal(AgentAccessReason.KeysNotPersistent, decision.Reason);
+    }
+
+    [Fact]
+    public async Task Key_state_failure_is_not_enabled()
+    {
+        var keys = Substitute.For<IAgentAccessKeyState>();
+        keys.Persistent.Returns(_ => throw new InvalidOperationException("boom"));
+
+        var decision = await new AgentAccessGate(OkFeatures(), OkState(), OkLifecycle(), keys)
+            .EvaluateAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(decision.Enabled);
+        Assert.Equal(AgentAccessReason.Error, decision.Reason);
     }
 
     // ---- defaults until the real stores land -------------------------------
@@ -208,7 +234,7 @@ public class AgentAccessGateTests
     public async Task Gate_with_the_default_ports_is_never_enabled_even_when_the_feature_is_live()
     {
         var gate = new AgentAccessGate(
-            OkFeatures(), new AgentAccessTenantStateNotConfigured(), new TenantLifecycleNotConfigured());
+            OkFeatures(), new AgentAccessTenantStateNotConfigured(), new TenantLifecycleNotConfigured(), OkKeys());
 
         var decision = await gate.EvaluateAsync(TestContext.Current.CancellationToken);
 
@@ -262,7 +288,8 @@ public class AgentAccessGateTests
         string? release = Released,
         TenantLifecycleState lifecycle = TenantLifecycleState.Live,
         bool switchOn = true,
-        bool forcedOff = false)
+        bool forcedOff = false,
+        bool keysPersistent = true)
     {
         var features = Substitute.For<IAgentAccessFeatureReader>();
         features.GetReleaseStatusAsync(Arg.Any<CancellationToken>()).Returns(release);
@@ -273,8 +300,13 @@ public class AgentAccessGateTests
         var lifecycleReader = Substitute.For<ITenantLifecycleReader>();
         lifecycleReader.GetAsync(Arg.Any<CancellationToken>()).Returns(lifecycle);
 
-        return new AgentAccessGate(features, state, lifecycleReader);
+        return new AgentAccessGate(features, state, lifecycleReader, Keys(keysPersistent));
     }
+
+    private static IAgentAccessKeyState Keys(bool persistent) =>
+        new AgentAccessKeyState(persistent, persistent ? "ok" : "not persistent", persistent ? "kid" : null);
+
+    private static IAgentAccessKeyState OkKeys() => Keys(true);
 
     private static IAgentAccessFeatureReader OkFeatures()
     {

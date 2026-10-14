@@ -44,7 +44,16 @@ builder.Services
     .AddRedisServices(redisConfig)
     .AddAppServices();
 
-builder.Services.AddAgentAccessOAuth(connectionString);
+// Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix; both variables unset = ephemeral keys and a closed gate.
+var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
+builder.Services.AddAgentAccessOAuth(
+    connectionString,
+    new AgentAccessOAuthSettings(
+        agentAccessSsmPrefix,
+        Environment.GetEnvironmentVariable("AgentAccessIssuer"),
+        string.IsNullOrWhiteSpace(agentAccessSsmPrefix)
+            ? null
+            : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration)));
 
 if (builder.Environment.IsDevelopment())
 {
