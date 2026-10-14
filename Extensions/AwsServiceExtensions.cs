@@ -1,3 +1,4 @@
+using Hub.Features.AgentAccess;
 using System.Diagnostics.CodeAnalysis;
 using Amazon;
 using Amazon.Runtime.CredentialManagement;

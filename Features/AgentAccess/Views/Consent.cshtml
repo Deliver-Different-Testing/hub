@@ -1,0 +1,60 @@
+@model AgentAccessConsentViewModel
+@{
+    Layout = null;
+    var app = Model.Vendor is null ? Model.ClientName : $"{Model.ClientName} ({Model.Vendor})";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="robots" content="noindex"/>
+    <title>Connect @Model.ClientName</title>
+    <link rel="stylesheet" href="~/dist/vendor.css"/>
+    <link rel="stylesheet" href="~/dist/site.css" asp-append-version="true"/>
+</head>
+<body>
+<div class="auth-wrapper">
+    <div class="auth-card" id="agentAccessConsent">
+        <h2>Connect @Model.ClientName</h2>
+        <p class="auth-subtitle">@app wants to connect to <strong>@Model.ResourceHost</strong> as you.</p>
+
+        <h3 class="h6">It will be able to</h3>
+        <ul>
+            <li>Read the data you can already see in DFRNT, as you.</li>
+            <li>Keep working for up to 90 days between uses, until you revoke it.</li>
+        </ul>
+
+        <h3 class="h6">It will not be able to</h3>
+        <ul>
+            <li>Change, create or delete anything.</li>
+            <li>Send messages, take payments or touch accounting.</li>
+            <li>See your password or sign in as you anywhere else.</li>
+        </ul>
+
+        <p class="text-muted small">
+            Your tenant administrator can switch AI app access off at any time, and you can revoke this
+            connection from Integration Manager. What @Model.ClientName does with data it reads is covered by its own
+            privacy policy, not DFRNT's.
+        </p>
+
+        <form method="post">
+            @Html.AntiForgeryToken()
+            @* OpenIddict reads a POST from the form body only, so the original request travels as hidden fields. *@
+            @foreach (var parameter in Context.Request.HasFormContentType ? Context.Request.Form.AsEnumerable() : Context.Request.Query.AsEnumerable())
+            {
+                if (parameter.Key == "decision" || parameter.Key == "__RequestVerificationToken") { continue; }
+                foreach (var value in parameter.Value)
+                {
+                    <input type="hidden" name="@parameter.Key" value="@value"/>
+                }
+            }
+            <div class="d-flex gap-2">
+                <button type="submit" name="decision" value="allow" class="btn btn-primary">Allow</button>
+                <button type="submit" name="decision" value="deny" class="btn btn-outline-secondary">Deny</button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

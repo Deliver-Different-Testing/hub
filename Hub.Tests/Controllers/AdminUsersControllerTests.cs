@@ -1,3 +1,4 @@
+using Hub.Features.AgentAccess;
 using Hub.Controllers;
 using Hub.Interfaces;
 using Hub.Models;

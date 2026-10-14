@@ -167,6 +167,13 @@ public class AccountController(
 
             await SignInUserAsync(claims, model.RememberMe);
 
+            // A local return URL brings the user back to what they were doing, such as an AI app's
+            // authorization request. Anything that could leave Hub is ignored.
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return LocalRedirect(returnUrl);
+            }
+
             // Special redirect for asure@urgent.co.nz to booking app with /asure param
             if (!model.Email.Equals("asure@urgent.co.nz", StringComparison.OrdinalIgnoreCase)
                 || !(masterUser.CurrentTenant.Code?.Equals("urgent", StringComparison.OrdinalIgnoreCase) ?? false))

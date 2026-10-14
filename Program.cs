@@ -1,4 +1,5 @@
 ﻿using System.Security.AccessControl;
+using Hub.Features.AgentAccess;
 using System.Threading.RateLimiting;
 using Hub.Extensions;
 using Hub.Services;
@@ -66,7 +67,8 @@ builder.Services.AddAgentAccessOAuth(
         string.IsNullOrWhiteSpace(agentAccessSsmPrefix)
             ? null
             : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration),
-        Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? []));
+        Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? [],
+        McpResource: Environment.GetEnvironmentVariable("AgentAccessMcpResource")));
 
 if (builder.Environment.IsDevelopment())
 {
