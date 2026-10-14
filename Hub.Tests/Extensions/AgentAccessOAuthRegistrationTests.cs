@@ -16,7 +16,7 @@ public class AgentAccessOAuthRegistrationTests
     private const string UnusedConnection = "Server=unused;Database=unused;";
 
     [Fact]
-    public void Store_model_maps_the_four_McpOAuth_tables()
+    public void Store_model_maps_the_three_McpOAuth_tables()
     {
         using var ctx = NewContext();
 
@@ -24,8 +24,9 @@ public class AgentAccessOAuthRegistrationTests
 
         // Singular PascalCase with the module prefix, like TenantBranding / IntMgr... in the Master DB.
         Assert.Equal(
-            ["McpOAuthApplication", "McpOAuthAuthorization", "McpOAuthScope", "McpOAuthToken"],
+            ["McpOAuthApplication", "McpOAuthAuthorization", "McpOAuthToken"],
             tables);
+        // No scope table: the two scopes are fixed and checked by our own allow-list.
     }
 
     [Fact]
@@ -82,6 +83,30 @@ public class AgentAccessOAuthRegistrationTests
                 ("McpOAuthToken", "RedemptionDateUtc")
             ],
             dateColumns);
+    }
+
+    [Fact]
+    public void Authorizations_expose_an_indexed_persisted_TenantId_read_from_the_properties_json()
+    {
+        using var ctx = NewContext();
+        var authorization = ctx.Model.GetEntityTypes().Single(e => e.GetTableName() == "McpOAuthAuthorization");
+
+        var tenantId = authorization.FindProperty("TenantId");
+
+        Assert.NotNull(tenantId);
+        Assert.Equal(typeof(int?), tenantId!.ClrType);
+        Assert.True(tenantId.GetIsStored());
+        var sql = tenantId.GetComputedColumnSql();
+        Assert.Contains("JSON_VALUE", sql);
+        Assert.Contains("$.tenant_id", sql);
+        Assert.Contains(authorization.GetIndexes(), ix => ix.Properties.Select(p => p.Name).SequenceEqual(["TenantId"]));
+    }
+
+    [Fact]
+    public void Scope_validation_is_left_to_our_own_allow_list()
+    {
+        // With no scope table, OpenIddict must not look unknown scopes up in the database.
+        Assert.True(ServerOptions().DisableScopeValidation);
     }
 
     [Fact]

@@ -55,6 +55,10 @@ public static class AgentAccessExtensions
 
                 server.RegisterScopes("mcp", OpenIddictConstants.Scopes.OfflineAccess);
 
+                // Only two fixed scopes and no scope table, so OpenIddict must not look unknown scopes
+                // up in the database. The authorization endpoint (phase 1.5) enforces the allow-list.
+                server.DisableScopeValidation();
+
                 // Persistent RSA keys from SSM when configured (RS256). Otherwise per-pod
                 // ephemeral keys so the options validate; the gate stays closed in that case.
                 if (bootstrap.Keys is { } keys)
