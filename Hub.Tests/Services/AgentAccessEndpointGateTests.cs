@@ -83,7 +83,65 @@ public class AgentAccessEndpointGateTests
         context.Request.Path = "/connect/token";
         var middleware = new AgentAccessEndpointGate(_ => Task.CompletedTask);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => middleware.InvokeAsync(context, gate));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => middleware.InvokeAsync(context, gate, Substitute.For<IAgentAccessClientSeeder>()));
+    }
+
+    // ---- client seeding (phase 1.4): only after the gate has opened ----------
+
+    private static IAgentAccessGate GateWith(bool enabled)
+    {
+        var gate = Substitute.For<IAgentAccessGate>();
+        gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(Decision(enabled));
+        return gate;
+    }
+
+    [Fact]
+    public async Task The_seeder_runs_when_the_gate_is_open_for_an_oauth_path()
+    {
+        var seeder = Substitute.For<IAgentAccessClientSeeder>();
+
+        var (status, nextCalled) = await Invoke("/connect/token", GateWith(true), seeder);
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.True(nextCalled);
+        await seeder.Received(1).EnsureAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("/connect/token")]
+    [InlineData("/.well-known/jwks")]
+    public async Task The_seeder_never_runs_while_the_gate_is_closed(string path)
+    {
+        var seeder = Substitute.For<IAgentAccessClientSeeder>();
+
+        await Invoke(path, GateWith(false), seeder);
+
+        await seeder.DidNotReceive().EnsureAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/Account/Login")]
+    public async Task The_seeder_never_runs_for_other_paths(string path)
+    {
+        var seeder = Substitute.For<IAgentAccessClientSeeder>();
+
+        await Invoke(path, GateWith(true), seeder);
+
+        await seeder.DidNotReceive().EnsureAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_failing_seeder_does_not_block_an_open_gate()
+    {
+        var seeder = Substitute.For<IAgentAccessClientSeeder>();
+        seeder.EnsureAsync(Arg.Any<CancellationToken>()).Returns(_ => throw new InvalidOperationException("boom"));
+
+        var (status, nextCalled) = await Invoke("/connect/token", GateWith(true), seeder);
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.True(nextCalled);
     }
 
     // ---- helpers ----------------------------------------------------------
@@ -100,7 +158,8 @@ public class AgentAccessEndpointGateTests
         return (status, nextCalled, gate);
     }
 
-    private static async Task<(int Status, bool NextCalled)> Invoke(string path, IAgentAccessGate gate)
+    private static async Task<(int Status, bool NextCalled)> Invoke(
+        string path, IAgentAccessGate gate, IAgentAccessClientSeeder? seeder = null)
     {
         var nextCalled = false;
         var middleware = new AgentAccessEndpointGate(_ =>
@@ -112,7 +171,7 @@ public class AgentAccessEndpointGateTests
         var context = new DefaultHttpContext();
         context.Request.Path = path;
 
-        await middleware.InvokeAsync(context, gate);
+        await middleware.InvokeAsync(context, gate, seeder ?? Substitute.For<IAgentAccessClientSeeder>());
 
         return (context.Response.StatusCode, nextCalled);
     }

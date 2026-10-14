@@ -18,6 +18,10 @@ public static class AgentAccessExtensions
     {
         var bootstrap = AgentAccessKeyBootstrap.Resolve(settings);
         services.AddSingleton<IAgentAccessKeyState>(bootstrap.State);
+
+        IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
+        services.AddSingleton<IAgentAccessClientSeeder>(provider =>
+            new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), clients));
         if (bootstrap.State.Persistent)
         {
             Log.Information("Agent access keys are persistent (signing kid {SigningKeyId})", bootstrap.State.SigningKeyId);

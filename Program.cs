@@ -65,7 +65,8 @@ builder.Services.AddAgentAccessOAuth(
         Environment.GetEnvironmentVariable("AgentAccessIssuer"),
         string.IsNullOrWhiteSpace(agentAccessSsmPrefix)
             ? null
-            : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration)));
+            : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration),
+        Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? []));
 
 if (builder.Environment.IsDevelopment())
 {
