@@ -7,9 +7,11 @@ namespace Hub;
 // Tables follow the Master DB convention (singular PascalCase, module prefix) as McpOAuth*;
 // ids are Guids; datetime columns are UTC and end in Utc. Three tables: application,
 // authorization, token (no scope table).
-// Lives on the Master database (MasterSQLConnection): the token endpoint is called by an
+// Lives on the Master database (own login via AgentAccessOAuthSQLConnection, else
+// MasterSQLConnection): the token endpoint is called by an
 // AI app with no Hub login, so there is no tenant connection string to use. Tables are
-// created by Database/1.2-openiddict-master-schema.sql, not by EF migrations (Hub has none).
+// created by hand on the Master database from the DDL this model generates
+// (Database.GenerateCreateScript), not by EF migrations (Hub has none).
 public class AgentAccessOpenIddictDbContext(DbContextOptions<AgentAccessOpenIddictDbContext> options)
     : DbContext(options)
 {
