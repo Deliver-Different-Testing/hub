@@ -44,6 +44,8 @@ builder.Services
     .AddRedisServices(redisConfig)
     .AddAppServices();
 
+builder.Services.AddAgentAccessOAuth(connectionString);
+
 if (builder.Environment.IsDevelopment())
 {
     var keyDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -178,6 +180,7 @@ app.UseSession();
 app.UseCookiePolicy();
 app.UseRouting();
 app.UseRateLimiter();
+app.UseAgentAccessEndpointGate();
 app.UseAuthentication();
 app.UseAuthorization();
 
