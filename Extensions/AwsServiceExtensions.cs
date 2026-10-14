@@ -2,6 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using Amazon;
 using Amazon.Runtime.CredentialManagement;
 using Amazon.S3;
+using Amazon.SimpleSystemsManagement;
+using Hub.Interfaces;
+using Hub.Services;
 using Serilog;
 
 namespace Hub.Extensions;
@@ -30,5 +33,22 @@ public static class AwsServiceExtensions
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// SSM reader for the OAuth keys (phase 1.3). Short timeout and one retry so a slow SSM cannot hold up
+    /// startup; the pod role allows ssm:GetParametersByPath only.
+    /// </summary>
+    public static IAgentAccessKeySource CreateAgentAccessKeySource(IConfiguration configuration)
+    {
+        var awsOptions = configuration.GetAWSOptions();
+        var config = new AmazonSimpleSystemsManagementConfig
+        {
+            RegionEndpoint = awsOptions.Region ?? RegionEndpoint.APSoutheast2,
+            Timeout = TimeSpan.FromSeconds(5),
+            MaxErrorRetry = 1
+        };
+
+        return new SsmAgentAccessKeySource(new AmazonSimpleSystemsManagementClient(config));
     }
 }

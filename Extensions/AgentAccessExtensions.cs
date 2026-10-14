@@ -1,6 +1,8 @@
+using Hub.Interfaces;
 using Hub.Services;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
+using Serilog;
 
 namespace Hub.Extensions;
 
@@ -11,18 +13,31 @@ public static class AgentAccessExtensions
     /// database. Nothing is reachable until <see cref="UseAgentAccessEndpointGate"/> lets a
     /// request through, and no controller handles /connect/* yet.
     /// </summary>
-    public static IServiceCollection AddAgentAccessOAuth(this IServiceCollection services, string masterConnectionString)
+    public static IServiceCollection AddAgentAccessOAuth(
+        this IServiceCollection services, string masterConnectionString, AgentAccessOAuthSettings? settings = null)
     {
+        var bootstrap = AgentAccessKeyBootstrap.Resolve(settings);
+        services.AddSingleton<IAgentAccessKeyState>(bootstrap.State);
+        if (bootstrap.State.Persistent)
+        {
+            Log.Information("Agent access keys are persistent (signing kid {SigningKeyId})", bootstrap.State.SigningKeyId);
+        }
+        else
+        {
+            Log.Warning("Agent access keys are not persistent, so the agent access gate stays closed: {Reason}", bootstrap.State.Reason);
+        }
+
         services.AddDbContext<AgentAccessOpenIddictDbContext>(options =>
         {
             options.UseSqlServer(masterConnectionString);
-            options.UseOpenIddict();
+            options.UseOpenIddict<Guid>();
         });
 
         services.AddOpenIddict()
             .AddCore(core => core
                 .UseEntityFrameworkCore()
-                .UseDbContext<AgentAccessOpenIddictDbContext>())
+                .UseDbContext<AgentAccessOpenIddictDbContext>()
+                .ReplaceDefaultEntities<Guid>())
             .AddServer(server =>
             {
                 server.SetAuthorizationEndpointUris("/connect/authorize")
@@ -40,11 +55,41 @@ public static class AgentAccessExtensions
 
                 server.RegisterScopes("mcp", OpenIddictConstants.Scopes.OfflineAccess);
 
-                // Placeholder keys so the options validate. Per-pod and unusable across pods,
-                // which is fine while the endpoints are dark; phase 1.3 replaces them with
-                // the signing and encryption certificates from SSM.
-                server.AddEphemeralEncryptionKey()
-                    .AddEphemeralSigningKey();
+                // Only two fixed scopes and no scope table, so OpenIddict must not look unknown scopes
+                // up in the database. The authorization endpoint (phase 1.5) enforces the allow-list.
+                server.DisableScopeValidation();
+
+                // Persistent RSA keys from SSM when configured (RS256). Otherwise per-pod
+                // ephemeral keys so the options validate; the gate stays closed in that case.
+                if (bootstrap.Keys is { } keys)
+                {
+                    // OpenIddict signs with the first credential; the previous key is only published.
+                    server.AddSigningKey(keys.Signing);
+                    if (keys.PreviousSigning is { } previous)
+                    {
+                        server.AddSigningKey(previous);
+                    }
+
+                    server.AddEncryptionKey(keys.Encryption);
+                }
+                else
+                {
+                    server.AddEphemeralEncryptionKey()
+                        .AddEphemeralSigningKey();
+                }
+
+                if (bootstrap.Issuer is { } issuer)
+                {
+                    server.SetIssuer(issuer);
+                }
+
+                // Spec v4 Group 1: signed JWT access tokens (20 min), reference refresh tokens
+                // (90 days) with a 30 s reuse leeway.
+                server.DisableAccessTokenEncryption()
+                    .SetAccessTokenLifetime(TimeSpan.FromMinutes(20))
+                    .SetRefreshTokenLifetime(TimeSpan.FromDays(90))
+                    .SetRefreshTokenReuseLeeway(TimeSpan.FromSeconds(30))
+                    .UseReferenceRefreshTokens();
 
                 server.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()

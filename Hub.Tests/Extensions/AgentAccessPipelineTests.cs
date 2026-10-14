@@ -1,6 +1,9 @@
 using System.Net;
+using System.Text.Json;
 using Hub.Extensions;
 using Hub.Interfaces;
+using Hub.Services;
+using Hub.Tests.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -68,6 +71,44 @@ public class AgentAccessPipelineTests
         Assert.Contains("\"keys\"", body);
     }
 
+    [Fact]
+    public async Task Open_gate_publishes_the_current_and_previous_public_keys_only()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        parameters[AgentAccessKeyLoader.PreviousSigningKeyName] = AgentAccessKeyLoaderTests.Pem();
+        var expected = AgentAccessKeyLoader.Load(parameters).Keys!;
+        await using var app = await StartAsync(gateOpen: true, AgentAccessPersistentKeysTests.Settings(parameters));
+
+        var body = await Client(app).GetStringAsync("/.well-known/jwks", TestContext.Current.CancellationToken);
+
+        using var doc = JsonDocument.Parse(body);
+        var keys = doc.RootElement.GetProperty("keys").EnumerateArray().ToList();
+        var kids = keys.Select(k => k.GetProperty("kid").GetString()).ToArray();
+        Assert.Equal(2, kids.Length);
+        Assert.Contains(expected.Signing.KeyId, kids);
+        Assert.Contains(expected.PreviousSigning!.KeyId, kids);
+        Assert.DoesNotContain(keys, k => k.GetProperty("kid").GetString() == expected.Encryption.KeyId);
+        foreach (var key in keys)
+        {
+            foreach (var privateMember in new[] { "d", "p", "q", "dp", "dq", "qi" })
+            {
+                Assert.False(key.TryGetProperty(privateMember, out _), $"JWKS leaked private member {privateMember}");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Discovery_issuer_is_the_configured_issuer_not_the_request_host()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        await using var app = await StartAsync(gateOpen: true, AgentAccessPersistentKeysTests.Settings(parameters));
+
+        var body = await Client(app).GetStringAsync("/.well-known/openid-configuration", TestContext.Current.CancellationToken);
+
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal("https://hub.urgent.example.test/", doc.RootElement.GetProperty("issuer").GetString());
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     // OpenIddict refuses plain HTTP, and GetTestClient returns a fresh client on every call.
@@ -78,7 +119,7 @@ public class AgentAccessPipelineTests
         return client;
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen)
+    private static async Task<WebApplication> StartAsync(bool gateOpen, AgentAccessOAuthSettings? settings = null)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
@@ -89,7 +130,7 @@ public class AgentAccessPipelineTests
         builder.Services.AddSingleton(gate);
         builder.Services.AddAuthentication("Cookies").AddCookie("Cookies");
         builder.Services.AddAuthorization();
-        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;");
+        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", settings);
 
         var app = builder.Build();
         app.UseRouting();

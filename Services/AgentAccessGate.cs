@@ -7,7 +7,8 @@ namespace Hub.Services;
 public sealed class AgentAccessGate(
     IAgentAccessFeatureReader features,
     IAgentAccessTenantState tenantState,
-    ITenantLifecycleReader lifecycle) : IAgentAccessGate
+    ITenantLifecycleReader lifecycle,
+    IAgentAccessKeyState keys) : IAgentAccessGate
 {
     public const string FeatureKey = "agent-access";
 
@@ -20,6 +21,12 @@ public sealed class AgentAccessGate(
             if (state.ForcedOff)
             {
                 return Deny(AgentAccessReason.ForcedOff);
+            }
+
+            // Never open on per-pod ephemeral keys: another pod could not verify the tokens.
+            if (!keys.Persistent)
+            {
+                return Deny(AgentAccessReason.KeysNotPersistent);
             }
 
             var release = await features.GetReleaseStatusAsync(cancellationToken);
