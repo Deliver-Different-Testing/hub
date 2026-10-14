@@ -8,6 +8,7 @@ namespace Hub.Features.AgentAccess;
 /// <param name="KeySource">Where the key parameters are read from.</param>
 /// <param name="LoadTimeout">Upper bound on the startup SSM read (default 10 s).</param>
 /// <param name="Clients">Pre-registered OAuth clients (AgentAccess:Clients); seeded once agent access opens.</param>
+/// <param name="ClientMetadataHosts">Hosts whose client ID metadata documents may be fetched (AgentAccess:ClientMetadata:AllowedHosts). Empty = the feature is off.</param>
 /// <param name="McpResource">Optional override of this tenant's MCP resource URL, from env AgentAccessMcpResource. Unset = derived from the issuer.</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
@@ -15,7 +16,8 @@ public sealed record AgentAccessOAuthSettings(
     IAgentAccessKeySource? KeySource = null,
     TimeSpan? LoadTimeout = null,
     IReadOnlyList<AgentAccessClientOptions>? Clients = null,
-    string? McpResource = null);
+    string? McpResource = null,
+    IReadOnlyList<string>? ClientMetadataHosts = null);
 
 public sealed record AgentAccessBootstrapResult(AgentAccessKeys? Keys, Uri? Issuer, AgentAccessKeyState State);
 

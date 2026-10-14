@@ -35,6 +35,24 @@ public static class AgentAccessExtensions
         services.TryAddScoped<IAgentGrantEligibilityChecker, AgentGrantEligibilityChecker>();
         services.TryAddSingleton<IAgentGrantAdmin, AgentGrantAdmin>();
 
+        var metadataOptions = ClientMetadataOptions.Create(settings?.ClientMetadataHosts);
+        services.AddSingleton(metadataOptions);
+        services.AddMemoryCache();
+        services.AddScoped<IClientMetadataService, ClientMetadataService>();
+        services.AddHttpClient<IClientMetadataFetcher, ClientMetadataFetcher>()
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false,
+                UseProxy = false,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                ConnectCallback = SsrfSafeConnect.ConnectAsync
+            });
+        if (metadataOptions.Enabled)
+        {
+            Log.Information("Agent access accepts client ID metadata documents from {Hosts}", string.Join(", ", metadataOptions.AllowedHosts));
+        }
+
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));
         services.AddSingleton<IAgentAccessClientSeeder>(provider =>
@@ -116,6 +134,9 @@ public static class AgentAccessExtensions
                     .SetRefreshTokenLifetime(TimeSpan.FromDays(90))
                     .SetRefreshTokenReuseLeeway(TimeSpan.FromSeconds(30))
                     .UseReferenceRefreshTokens();
+
+                server.AddEventHandler(AgentAccessClientMetadataHandler.Descriptor);
+                server.AddEventHandler(AgentAccessClientMetadataDiscoveryHandler.Descriptor);
 
                 server.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()

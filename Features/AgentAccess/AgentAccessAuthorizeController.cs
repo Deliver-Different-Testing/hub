@@ -76,7 +76,8 @@ public class AgentAccessAuthorizeController(
         ApplyConsentHeaders();
         return View("~/Features/AgentAccess/Views/Consent.cshtml", new AgentAccessConsentViewModel(
             await applications.GetDisplayNameAsync(application) ?? request.ClientId!,
-            catalog.FindVendor(request.ClientId!),
+            catalog.FindVendor(request.ClientId!)
+            ?? (Uri.TryCreate(request.ClientId, UriKind.Absolute, out var clientUri) ? clientUri.Host : null),
             new Uri(resource.Value!).Host,
             request.GetScopes().ToList()));
     }

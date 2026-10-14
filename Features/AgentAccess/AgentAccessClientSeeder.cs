@@ -142,7 +142,7 @@ public sealed class AgentAccessClientSeeder(
         && current.Requirements.SetEquals(desired.Requirements);
 
     // A public client (no secret) using authorization code with PKCE, explicit consent, and refresh.
-    private static OpenIddictApplicationDescriptor ToDescriptor(AgentAccessClientOptions client)
+    internal static OpenIddictApplicationDescriptor ToDescriptor(AgentAccessClientOptions client)
     {
         var descriptor = new OpenIddictApplicationDescriptor
         {

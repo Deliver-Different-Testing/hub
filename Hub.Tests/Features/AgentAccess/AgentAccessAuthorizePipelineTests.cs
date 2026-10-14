@@ -335,11 +335,11 @@ public partial class AgentAccessAuthorizePipelineTests
             .Where(m => m.Groups[1].Value != "__RequestVerificationToken")
             .ToDictionary(m => WebUtility.HtmlDecode(m.Groups[1].Value), m => WebUtility.HtmlDecode(m.Groups[2].Value));
 
-    private static Task<HttpResponseMessage> Token(WebApplication app, string code, string verifier) =>
+    private static Task<HttpResponseMessage> Token(WebApplication app, string code, string verifier, string clientId = "dfrnt-claude") =>
         Client(app).PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
-            ["client_id"] = "dfrnt-claude",
+            ["client_id"] = clientId,
             ["code"] = code,
             ["redirect_uri"] = RedirectUri,
             ["code_verifier"] = verifier
@@ -366,7 +366,7 @@ public partial class AgentAccessAuthorizePipelineTests
         };
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen = true)
+    private static async Task<WebApplication> StartAsync(bool gateOpen = true, string[]? metadataHosts = null)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
@@ -395,7 +395,10 @@ public partial class AgentAccessAuthorizePipelineTests
         eligibility.CheckAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(AgentGrantEligibility.Eligible);
         builder.Services.AddSingleton(eligibility);
-        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients));
+        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"]));
+        var metadataFetcher = Substitute.For<IClientMetadataFetcher>();
+        builder.Services.RemoveAll(typeof(IClientMetadataFetcher));
+        builder.Services.AddSingleton(metadataFetcher);
 
         builder.Services.RemoveAll(typeof(IDbContextOptionsConfiguration<AgentAccessOpenIddictDbContext>));
         var databaseName = Guid.NewGuid().ToString("N");
