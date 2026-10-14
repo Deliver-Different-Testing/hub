@@ -46,8 +46,20 @@ builder.Services
 
 // Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix; both variables unset = ephemeral keys and a closed gate.
 var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
+// The OAuth store should use its own least-privilege SQL login (reaches only the McpOAuth tables).
+var agentAccessStore = AgentAccessOAuthStore.ResolveConnectionString(
+    connectionString, Environment.GetEnvironmentVariable("AgentAccessOAuthSQLConnection"));
+if (agentAccessStore.Dedicated)
+{
+    Log.Information("Agent access: {Description}", agentAccessStore.Description);
+}
+else
+{
+    Log.Warning("Agent access: {Description}", agentAccessStore.Description);
+}
+
 builder.Services.AddAgentAccessOAuth(
-    connectionString,
+    agentAccessStore.ConnectionString,
     new AgentAccessOAuthSettings(
         agentAccessSsmPrefix,
         Environment.GetEnvironmentVariable("AgentAccessIssuer"),
