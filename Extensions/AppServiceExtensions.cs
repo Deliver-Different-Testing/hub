@@ -19,8 +19,6 @@ public static class AppServiceExtensions
         services.AddScoped<IAgentAccessGate, AgentAccessGate>();
         services.AddScoped<IAgentAccessFeatureReader, AgentAccessFeatureReader>();
         services.AddScoped<ITenantAgentSettingSource, SqlTenantAgentSettingSource>();
-        services.AddScoped<IAgentAccessTenantState, AgentAccessTenantStateReader>();
-        services.AddScoped<ITenantLifecycleReader, TenantLifecycleReader>();
         services.AddScoped<ITileAccessResolver, TileAccessResolver>();
         services.AddSingleton<AuthDiagnostics>();
     }

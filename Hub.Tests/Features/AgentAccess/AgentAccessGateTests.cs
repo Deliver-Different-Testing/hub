@@ -126,7 +126,7 @@ public class AgentAccessGateTests
         features.GetReleaseStatusAsync(Arg.Any<CancellationToken>())
             .Returns<string?>(_ => throw new InvalidOperationException("db down"));
 
-        var decision = await new AgentAccessGate(features, OkState(), OkLifecycle(), OkKeys())
+        var decision = await new AgentAccessGate(features, OkSettings(), OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
@@ -134,13 +134,13 @@ public class AgentAccessGateTests
     }
 
     [Fact]
-    public async Task Tenant_state_failure_is_not_enabled()
+    public async Task Tenant_settings_failure_is_not_enabled()
     {
-        var state = Substitute.For<IAgentAccessTenantState>();
-        state.GetAsync(Arg.Any<CancellationToken>())
-            .Returns<AgentAccessTenantState>(_ => throw new InvalidOperationException("db down"));
+        var settings = Substitute.For<ITenantAgentSettingSource>();
+        settings.GetAsync(Arg.Any<CancellationToken>())
+            .Returns<TenantAgentSettingRow?>(_ => throw new InvalidOperationException("Invalid column name"));
 
-        var decision = await new AgentAccessGate(OkFeatures(), state, OkLifecycle(), OkKeys())
+        var decision = await new AgentAccessGate(OkFeatures(), settings, OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
@@ -148,17 +148,26 @@ public class AgentAccessGateTests
     }
 
     [Fact]
-    public async Task Lifecycle_reader_failure_is_not_enabled()
+    public async Task A_missing_settings_row_reads_as_an_unknown_lifecycle()
     {
-        var lifecycle = Substitute.For<ITenantLifecycleReader>();
-        lifecycle.GetAsync(Arg.Any<CancellationToken>())
-            .Returns<TenantLifecycleState>(_ => throw new InvalidOperationException("db down"));
+        var settings = Substitute.For<ITenantAgentSettingSource>();
+        settings.GetAsync(Arg.Any<CancellationToken>()).Returns((TenantAgentSettingRow?)null);
 
-        var decision = await new AgentAccessGate(OkFeatures(), OkState(), lifecycle, OkKeys())
+        var decision = await new AgentAccessGate(OkFeatures(), settings, OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
-        Assert.Equal(AgentAccessReason.Error, decision.Reason);
+        Assert.Equal(AgentAccessReason.LifecycleUnknown, decision.Reason);
+    }
+
+    [Fact]
+    public async Task Each_evaluation_reads_the_tenant_settings_once()
+    {
+        var settings = OkSettings();
+
+        await new AgentAccessGate(OkFeatures(), settings, OkKeys()).EvaluateAsync(TestContext.Current.CancellationToken);
+
+        await settings.Received(1).GetAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -170,25 +179,23 @@ public class AgentAccessGateTests
         features.GetReleaseStatusAsync(Arg.Any<CancellationToken>())
             .Returns<string?>(_ => throw new OperationCanceledException(cts.Token));
 
-        var gate = new AgentAccessGate(features, OkState(), OkLifecycle(), OkKeys());
+        var gate = new AgentAccessGate(features, OkSettings(), OkKeys());
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => gate.EvaluateAsync(cts.Token));
     }
 
     [Fact]
-    public async Task Forced_off_short_circuits_without_reading_the_other_inputs()
+    public async Task Forced_off_short_circuits_without_reading_the_feature_row()
     {
         var features = Substitute.For<IAgentAccessFeatureReader>();
-        var lifecycle = Substitute.For<ITenantLifecycleReader>();
-        var state = Substitute.For<IAgentAccessTenantState>();
-        state.GetAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenantState(SwitchOn: true, ForcedOff: true));
+        var settings = Substitute.For<ITenantAgentSettingSource>();
+        settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow("Live", SwitchOn: true, ForcedOff: true));
 
-        var decision = await new AgentAccessGate(features, state, lifecycle, OkKeys())
+        var decision = await new AgentAccessGate(features, settings, OkKeys())
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(AgentAccessReason.ForcedOff, decision.Reason);
         await features.DidNotReceive().GetReleaseStatusAsync(Arg.Any<CancellationToken>());
-        await lifecycle.DidNotReceive().GetAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -206,7 +213,7 @@ public class AgentAccessGateTests
         var keys = Substitute.For<IAgentAccessKeyState>();
         keys.Persistent.Returns(_ => throw new InvalidOperationException("boom"));
 
-        var decision = await new AgentAccessGate(OkFeatures(), OkState(), OkLifecycle(), keys)
+        var decision = await new AgentAccessGate(OkFeatures(), OkSettings(), keys)
             .EvaluateAsync(TestContext.Current.CancellationToken);
 
         Assert.False(decision.Enabled);
@@ -266,13 +273,10 @@ public class AgentAccessGateTests
         var features = Substitute.For<IAgentAccessFeatureReader>();
         features.GetReleaseStatusAsync(Arg.Any<CancellationToken>()).Returns(release);
 
-        var state = Substitute.For<IAgentAccessTenantState>();
-        state.GetAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenantState(switchOn, forcedOff));
+        var settings = Substitute.For<ITenantAgentSettingSource>();
+        settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow(lifecycle.ToString(), switchOn, forcedOff));
 
-        var lifecycleReader = Substitute.For<ITenantLifecycleReader>();
-        lifecycleReader.GetAsync(Arg.Any<CancellationToken>()).Returns(lifecycle);
-
-        return new AgentAccessGate(features, state, lifecycleReader, Keys(keysPersistent));
+        return new AgentAccessGate(features, settings, Keys(keysPersistent));
     }
 
     private static IAgentAccessKeyState Keys(bool persistent) =>
@@ -287,18 +291,11 @@ public class AgentAccessGateTests
         return features;
     }
 
-    private static IAgentAccessTenantState OkState()
+    private static ITenantAgentSettingSource OkSettings()
     {
-        var state = Substitute.For<IAgentAccessTenantState>();
-        state.GetAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenantState(SwitchOn: true, ForcedOff: false));
-        return state;
-    }
-
-    private static ITenantLifecycleReader OkLifecycle()
-    {
-        var lifecycle = Substitute.For<ITenantLifecycleReader>();
-        lifecycle.GetAsync(Arg.Any<CancellationToken>()).Returns(TenantLifecycleState.Live);
-        return lifecycle;
+        var settings = Substitute.For<ITenantAgentSettingSource>();
+        settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow("Live", SwitchOn: true, ForcedOff: false));
+        return settings;
     }
 
     private static void AddFeature(DynamicDespatchDbContext ctx, string key, string status, bool clientVisible = true)

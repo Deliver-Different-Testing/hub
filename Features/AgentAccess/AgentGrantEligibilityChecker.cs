@@ -21,7 +21,6 @@ public sealed class AgentGrantEligibilityChecker(
     IAgentGrantStore grants) : IAgentGrantEligibilityChecker
 {
     private static readonly HashSet<int> AllowedClientTypes = [4, 5];
-    private static readonly HashSet<string> LiveStates = new(StringComparer.OrdinalIgnoreCase) { "Live", "Demo" };
 
     public async Task<AgentGrantEligibility> CheckAsync(
         int tenantId, string userId, int contactId, CancellationToken cancellationToken = default)
@@ -50,7 +49,7 @@ public sealed class AgentGrantEligibilityChecker(
             // off, the Redis flag the apps check is raised (or renewed), so a missed update heals on the next refresh. Only ever
             // raised here: clearing is left to expiry so a racing refresh can never undo a switch-off.
             var row = await settings.GetAsync(cancellationToken);
-            var tenantOn = row is { SwitchOn: true, ForcedOff: false } && row.LifecycleState is { } state && LiveStates.Contains(state.Trim());
+            var tenantOn = row is { SwitchOn: true, ForcedOff: false } && TenantLifecycle.AllowsAgentAccess(row.LifecycleState);
             if (!tenantOn)
             {
                 await grants.SetTenantOffAsync(tenantId, cancellationToken);

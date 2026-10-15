@@ -7,8 +7,7 @@ namespace Hub.Features.AgentAccess;
 /// <inheritdoc cref="IAgentAccessGate"/>
 public sealed class AgentAccessGate(
     IAgentAccessFeatureReader features,
-    IAgentAccessTenantState tenantState,
-    ITenantLifecycleReader lifecycle,
+    ITenantAgentSettingSource settings,
     IAgentAccessKeyState keys) : IAgentAccessGate
 {
     public const string FeatureKey = "agent-access";
@@ -17,9 +16,10 @@ public sealed class AgentAccessGate(
     {
         try
         {
-            // Cheapest and most definitive first; a forced-off tenant reads nothing else.
-            var state = await tenantState.GetAsync(cancellationToken);
-            if (state.ForcedOff)
+            // One read of the tenant's settings row gives the force-off, the lifecycle and the switch. Cheapest and
+            // most definitive first; a forced-off tenant reads nothing else.
+            var row = await settings.GetAsync(cancellationToken);
+            if (row?.ForcedOff == true)
             {
                 return Deny(AgentAccessReason.ForcedOff);
             }
@@ -36,7 +36,7 @@ public sealed class AgentAccessGate(
                 return Deny(AgentAccessReason.FeatureNotReleased);
             }
 
-            var lifecycleState = await lifecycle.GetAsync(cancellationToken);
+            var lifecycleState = TenantLifecycle.Parse(row?.LifecycleState);
             if (lifecycleState == TenantLifecycleState.Unknown)
             {
                 return Deny(AgentAccessReason.LifecycleUnknown);
@@ -47,7 +47,7 @@ public sealed class AgentAccessGate(
                 return Deny(AgentAccessReason.LifecycleNotAllowed);
             }
 
-            return state.SwitchOn
+            return row?.SwitchOn == true
                 ? new AgentAccessDecision(true, AgentAccessReason.Enabled)
                 : Deny(AgentAccessReason.TenantSwitchOff);
         }
