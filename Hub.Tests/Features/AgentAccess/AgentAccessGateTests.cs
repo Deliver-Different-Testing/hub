@@ -213,36 +213,6 @@ public class AgentAccessGateTests
         Assert.Equal(AgentAccessReason.Error, decision.Reason);
     }
 
-    // ---- defaults until the real stores land -------------------------------
-
-    [Fact]
-    public async Task Default_tenant_state_is_switch_off_and_not_forced()
-    {
-        var state = await new AgentAccessTenantStateNotConfigured().GetAsync(TestContext.Current.CancellationToken);
-
-        Assert.False(state.SwitchOn);
-        Assert.False(state.ForcedOff);
-    }
-
-    [Fact]
-    public async Task Default_lifecycle_reader_is_unknown()
-    {
-        var state = await new TenantLifecycleNotConfigured().GetAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(TenantLifecycleState.Unknown, state);
-    }
-
-    [Fact]
-    public async Task Gate_with_the_default_ports_is_never_enabled_even_when_the_feature_is_live()
-    {
-        var gate = new AgentAccessGate(
-            OkFeatures(), new AgentAccessTenantStateNotConfigured(), new TenantLifecycleNotConfigured(), OkKeys());
-
-        var decision = await gate.EvaluateAsync(TestContext.Current.CancellationToken);
-
-        Assert.False(decision.Enabled);
-    }
-
     // ---- the real feature reader --------------------------------------------
 
     [Fact]
