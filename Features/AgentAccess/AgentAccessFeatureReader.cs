@@ -14,3 +14,9 @@ public sealed class AgentAccessFeatureReader(DynamicDespatchDbContext context) :
             .Select(f => f.ReleaseStatus)
             .FirstOrDefaultAsync(cancellationToken);
 }
+
+public interface IAgentAccessFeatureReader
+{
+    /// <summary>ReleaseStatus of the agent-access Feature row, or null when the row does not exist.</summary>
+    Task<string?> GetReleaseStatusAsync(CancellationToken cancellationToken = default);
+}

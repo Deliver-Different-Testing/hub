@@ -17,6 +17,9 @@ public interface IAgentSubjectTokenValidator
     Task<AgentSubjectTokenResult> ValidateAsync(string token);
 }
 
+// OpenIddict validates the subject token too, but on its own it accepts an app pass or a token from another tenant's
+// Hub (the signing key is shared), so these checks are required. A refactor that tried dropping this class failed the
+// wrong-audience and other-issuer exchange tests.
 // Validates the agent pass the MCP server presents for exchange (phase 1.9): our signature, this Hub as the issuer,
 // this tenant's MCP server as the audience, still within its lifetime. Nothing here trusts the token's own claims
 // until the signature has been checked against the keys this Hub signs with.

@@ -244,3 +244,22 @@ public sealed class AgentAccessClientSeeder(
         return null;
     }
 }
+
+// Creates or updates the pre-registered OAuth clients from configuration (phase 1.4). Called by the
+// endpoint gate only after the agent access gate has opened for a tenant, so Hub never writes to the
+// OAuth store while agent access is dark. Never throws (except for cancellation): a problem is logged
+// and retried later, and the OAuth endpoints simply reject unknown clients until it succeeds.
+public interface IAgentAccessClientSeeder
+{
+    Task EnsureAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Display details for the configured AI apps (AgentAccess:Clients) that are not stored in the OAuth tables.</summary>
+public sealed class AgentAccessClientCatalog(IReadOnlyList<AgentAccessClientOptions> clients)
+{
+    public string? FindVendor(string clientId)
+    {
+        var vendor = clients.FirstOrDefault(c => string.Equals(c.ClientId, clientId, StringComparison.Ordinal))?.Vendor;
+        return string.IsNullOrWhiteSpace(vendor) ? null : vendor;
+    }
+}

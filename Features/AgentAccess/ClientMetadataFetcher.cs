@@ -139,3 +139,43 @@ public static class SsrfSafeConnect
         }
     }
 }
+
+// Server-side request forgery guard (phase 1.8): the metadata URL is chosen by whoever sends the authorization
+// request, so Hub must only ever connect to public internet addresses.
+public static class SsrfGuard
+{
+    public static bool IsPublic(IPAddress address)
+    {
+        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+
+        if (IPAddress.IsLoopback(address)) return false;
+
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var b = address.GetAddressBytes();
+            return !(b[0] == 0
+                     || b[0] == 10
+                     || (b[0] == 100 && b[1] is >= 64 and <= 127)
+                     || (b[0] == 169 && b[1] == 254)
+                     || (b[0] == 172 && b[1] is >= 16 and <= 31)
+                     || (b[0] == 192 && b[1] == 0 && b[2] is 0 or 2)
+                     || (b[0] == 192 && b[1] == 168)
+                     || (b[0] == 198 && b[1] is 18 or 19)
+                     || (b[0] == 198 && b[1] == 51 && b[2] == 100)
+                     || (b[0] == 203 && b[1] == 0 && b[2] == 113)
+                     || b[0] >= 224);
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            var b = address.GetAddressBytes();
+            return !(address.Equals(IPAddress.IPv6Any)
+                     || address.IsIPv6LinkLocal
+                     || address.IsIPv6SiteLocal
+                     || address.IsIPv6Multicast
+                     || (b[0] & 0xFE) == 0xFC);
+        }
+
+        return false;
+    }
+}

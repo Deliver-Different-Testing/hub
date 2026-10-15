@@ -203,3 +203,9 @@ public class AgentAccessAuthorizeController(
         Response.Headers.CacheControl = "no-store";
     }
 }
+
+public sealed record AgentAccessConsentViewModel(
+    string ClientName,
+    string? Vendor,
+    string ResourceHost,
+    IReadOnlyList<string> Scopes);
