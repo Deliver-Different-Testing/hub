@@ -1,14 +1,12 @@
-using Hub.Services;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.4: pre-registered OAuth clients come from configuration and are created or updated in the
 // McpOAuthApplication table, only once the agent access gate has opened for some tenant. The seeder

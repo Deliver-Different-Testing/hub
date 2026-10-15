@@ -1,14 +1,13 @@
-using Hub.Extensions;
+using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
-using Hub.Tests.Extensions;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.2: OpenIddict is wired into Hub with its store on the Master database. These
 // tests pin the shape of that wiring; the endpoints themselves stay behind the agent

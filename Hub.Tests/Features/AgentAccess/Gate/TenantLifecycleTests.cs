@@ -1,6 +1,6 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Gate;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Gate;
 
 public class TenantLifecycleTests
 {

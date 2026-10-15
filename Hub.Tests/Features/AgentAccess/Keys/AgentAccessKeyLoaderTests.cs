@@ -1,9 +1,7 @@
 using System.Security.Cryptography;
-using Hub.Services;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Keys;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Keys;
 
 // Phase 1.3: the OAuth signing and encryption keys come from SSM as PEM text. The loader
 // turns the parameters into keys, and must never put key material into a failure message.

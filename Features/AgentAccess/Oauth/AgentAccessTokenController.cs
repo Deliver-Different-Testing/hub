@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Hub.Features.AgentAccess.Grants;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ using OpenIddict.Server.AspNetCore;
 using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 // Phases 1.5, 1.6 and 1.9: the OAuth token endpoint. It answers the authorization-code exchange, the refresh grant, and
 // the token exchange the MCP server uses to turn an agent pass into a short-lived app pass. A refresh or an exchange is
@@ -25,8 +26,8 @@ public class AgentAccessTokenController(
     IAgentSubjectTokenValidator subjectTokens,
     TimeProvider time) : Controller
 {
-    public const string AppPassAudience = "dfrnt-apps";
-    public const string AccessTokenType = "urn:ietf:params:oauth:token-type:access_token";
+    private const string AppPassAudience = "dfrnt-apps";
+    private const string AccessTokenType = "urn:ietf:params:oauth:token-type:access_token";
     private static readonly TimeSpan AppPassLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan LastUsedThrottle = TimeSpan.FromMinutes(5);
 

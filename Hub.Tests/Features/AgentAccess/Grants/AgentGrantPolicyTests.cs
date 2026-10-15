@@ -1,7 +1,7 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Grants;
 
 // Phase 1.6: the rules a refresh has to pass, with no HTTP, Redis or database involved.
 public class AgentGrantPolicyTests

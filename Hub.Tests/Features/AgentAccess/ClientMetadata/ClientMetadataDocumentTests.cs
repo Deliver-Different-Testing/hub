@@ -1,7 +1,7 @@
 using System.Net;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.ClientMetadata;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.ClientMetadata;
 
 // Phase 1.8: a client ID metadata document is untrusted input from the internet. Only a small, strict subset is accepted.
 public class ClientMetadataDocumentTests

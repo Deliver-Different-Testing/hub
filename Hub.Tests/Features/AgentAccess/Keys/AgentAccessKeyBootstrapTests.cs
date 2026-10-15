@@ -1,10 +1,7 @@
-using Hub.Interfaces;
-using Hub.Services;
+using Hub.Features.AgentAccess.Keys;
 using NSubstitute;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Keys;
 
 // Phase 1.3: decides, once at startup, whether OAuth runs on persistent keys from SSM and a
 // configured issuer. Anything short of that is "not persistent": Hub still starts (on

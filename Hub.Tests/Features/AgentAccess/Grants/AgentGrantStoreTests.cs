@@ -1,10 +1,10 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Grants;
 
 // Phase 1.6: the Redis liveness key apps check. Redis is only a cache of OpenIddict state, never the source of truth.
 public class AgentGrantStoreTests

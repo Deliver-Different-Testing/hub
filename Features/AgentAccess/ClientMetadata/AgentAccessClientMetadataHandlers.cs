@@ -1,8 +1,7 @@
-using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.ClientMetadata;
 
 // Phase 1.8: when an authorization request names an https URL as client_id, make sure the application row exists
 // (fetching the client ID metadata document) before OpenIddict looks the client up. Authorization requests only:

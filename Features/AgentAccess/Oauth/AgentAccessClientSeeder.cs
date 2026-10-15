@@ -1,11 +1,8 @@
-using Hub.Interfaces;
-using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 /// <summary>One pre-registered public OAuth client, from configuration (AgentAccess:Clients).</summary>
 public sealed record AgentAccessClientOptions

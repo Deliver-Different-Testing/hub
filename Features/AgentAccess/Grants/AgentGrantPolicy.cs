@@ -1,6 +1,6 @@
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 public enum AgentGrantEligibility
 {
@@ -37,7 +37,7 @@ public sealed record AgentGrantDecision(AgentGrantVerdict Verdict, bool RevokeGr
 // not been switched off, and the person behind it can still connect AI apps. Pure: no HTTP, Redis or database.
 public static class AgentGrantPolicy
 {
-    public static readonly TimeSpan MaxGrantAge = TimeSpan.FromDays(365);
+    private static readonly TimeSpan MaxGrantAge = TimeSpan.FromDays(365);
 
     public static AgentGrantDecision Decide(AgentGrantState state, DateTimeOffset now)
     {

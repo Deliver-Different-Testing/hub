@@ -1,4 +1,5 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Gate;
+using Hub.Features.AgentAccess.Grants;
 using Hub.Interfaces;
 using Hub.Models;
 using Hub.Models.Master;
@@ -7,7 +8,7 @@ using Hub.Tests.Helpers;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Grants;
 
 // Phase 1.6 and 1.9: with no cookie in play, who is this person right now and may they still have a pass? Every refresh
 // and every exchange asks this once. Anything that stops the check is Unknown, never Eligible.

@@ -3,7 +3,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Server;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 public sealed record AgentSubjectToken(string AuthorizationId, string Subject, int TenantId);
 

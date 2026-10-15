@@ -1,7 +1,6 @@
 using static OpenIddict.Abstractions.OpenIddictConstants;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 /// <summary>The signed-in user, read from the Hub cookie. A null ClientTypeId or TenantId means the claim was absent.</summary>
 public sealed record AgentAccessUser(string UserId, int? StaffId, int? ContactId, int? ClientTypeId, int? TenantId);

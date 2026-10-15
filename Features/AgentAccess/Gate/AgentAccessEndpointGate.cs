@@ -1,9 +1,7 @@
-using Hub.Interfaces;
-using Microsoft.AspNetCore.Http;
+using Hub.Features.AgentAccess.Oauth;
 using Serilog;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Gate;
 
 // Keeps the OAuth endpoints dark. Runs before authentication, so OpenIddict never sees a
 // /connect/* or discovery request for a tenant whose agent access gate is closed: the

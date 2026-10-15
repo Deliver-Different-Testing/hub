@@ -1,7 +1,6 @@
-using Hub.Interfaces;
-using Hub.Services;
+using Hub.Features.AgentAccess.Oauth;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Keys;
 
 /// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = ephemeral keys.</param>
 /// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer.</param>

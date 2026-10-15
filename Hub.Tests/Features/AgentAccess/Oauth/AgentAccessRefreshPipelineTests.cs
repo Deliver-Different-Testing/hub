@@ -1,7 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Text.Json;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -9,9 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
-using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.6 end to end: the Redis liveness key, the refresh grant, rotation and reuse, the twelve month cap, a
 // deactivated user, and the tenant-off flag, all through the real token endpoint.

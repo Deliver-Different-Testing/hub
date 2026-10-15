@@ -1,13 +1,11 @@
-using Hub.Services;
-
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 /// <summary>The single resource URL this tenant Hub accepts on /connect/authorize; null when none can be determined.</summary>
 public sealed record AgentAccessMcpResource(string? Value);
 
 public static class AgentAccessResource
 {
-    public const string McpPath = "/mcp";
+    private const string McpPath = "/mcp";
 
     public static string? Resolve(string? issuer, string? explicitResource)
     {

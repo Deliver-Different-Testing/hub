@@ -6,14 +6,14 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Hub.Controllers;
-using Hub.Extensions;
-using Hub.Interfaces;
-using Hub.Services;
+using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.ClientMetadata;
+using Hub.Features.AgentAccess.Gate;
+using Hub.Features.AgentAccess.Grants;
+using Hub.Features.AgentAccess.Keys;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -22,12 +22,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
-using Hub.Tests.Extensions;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.5 end to end on a real ASP.NET Core pipeline: OpenIddict registered exactly as Hub registers it,
 // the open gate, a stand-in for the Hub cookie, the real controllers and the consent view.

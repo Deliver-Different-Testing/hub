@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Caching.Distributed;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 // The Redis keys apps check before honouring an agent request (phase 1.6). Redis is a cache of OpenIddict state,
 // never the source of truth: a flushed Redis only costs the next refresh a re-set.
@@ -8,8 +8,6 @@ public interface IAgentGrantStore
 {
     /// <summary>Sets or extends agent-grant:{authorizationId}. Called on consent, every refresh and every exchange.</summary>
     Task MarkLiveAsync(string authorizationId, CancellationToken cancellationToken = default);
-
-    Task<bool> IsLiveAsync(string authorizationId, CancellationToken cancellationToken = default);
 
     Task RevokeAsync(string authorizationId, CancellationToken cancellationToken = default);
 
@@ -26,8 +24,8 @@ public interface IAgentGrantStore
 public sealed class AgentGrantStore(IDistributedCache cache) : IAgentGrantStore
 {
     // Longer than the 20 minute access token, so a key set at the last refresh outlives the token it came with.
-    public static readonly TimeSpan KeyLifetime = TimeSpan.FromMinutes(30);
-    public static readonly TimeSpan TenantOffLifetime = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan KeyLifetime = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan TenantOffLifetime = TimeSpan.FromMinutes(30);
 
     public Task MarkLiveAsync(string authorizationId, CancellationToken cancellationToken = default) =>
         cache.SetAsync(

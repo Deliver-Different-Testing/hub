@@ -2,6 +2,8 @@
 using Hub.Features.AgentAccess;
 using System.Threading.RateLimiting;
 using Hub.Extensions;
+using Hub.Features.AgentAccess.Keys;
+using Hub.Features.AgentAccess.Oauth;
 using Hub.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;

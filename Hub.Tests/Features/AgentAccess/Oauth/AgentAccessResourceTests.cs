@@ -1,8 +1,6 @@
-using Hub.Services;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Oauth;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.5: the one resource value this Hub's tenant accepts on /connect/authorize.
 public class AgentAccessResourceTests

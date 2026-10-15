@@ -1,11 +1,9 @@
-using Hub.Interfaces;
-using Hub.Services;
+using Hub.Features.AgentAccess.Gate;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Gate;
 
 // Phase 1.2: the OAuth endpoints exist in the pipeline but answer 404 unless the agent
 // access gate is open for the tenant. Requests that are not OAuth paths must pass through

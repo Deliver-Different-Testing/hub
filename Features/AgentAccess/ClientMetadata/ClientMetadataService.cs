@@ -1,9 +1,10 @@
 using System.Text.Json;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.Extensions.Caching.Memory;
 using OpenIddict.Abstractions;
 using Serilog;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.ClientMetadata;
 
 public sealed record ClientMetadataOutcome(bool Ready, string? Reason = null)
 {

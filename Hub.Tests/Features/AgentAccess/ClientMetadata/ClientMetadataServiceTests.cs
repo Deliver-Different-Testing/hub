@@ -1,4 +1,5 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.ClientMetadata;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -6,7 +7,7 @@ using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.ClientMetadata;
 
 // Phase 1.8: a client ID metadata document URL becomes a cached application row, safely.
 public class ClientMetadataServiceTests

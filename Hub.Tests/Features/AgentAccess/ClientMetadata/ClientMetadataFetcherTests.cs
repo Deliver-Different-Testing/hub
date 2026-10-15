@@ -1,8 +1,9 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.ClientMetadata;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.ClientMetadata;
 
 public class ClientMetadataFetcherTests
 {
@@ -90,7 +91,7 @@ public class ClientMetadataFetcherTests
 
         var (streamed, _) = Build((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(big))) { Headers = { ContentType = new("application/json") } }
+            Content = new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(big))) { Headers = { ContentType = new MediaTypeHeaderValue("application/json") } }
         }), options);
         Assert.NotNull((await streamed.FetchAsync(Url, Ct)).Error);
     }

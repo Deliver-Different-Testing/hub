@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.EntityFrameworkCore.Models;
-using Hub;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 // Store for the OpenIddict OAuth server (applications, authorizations, tokens, scopes).
 // Tables follow the Master DB convention (singular PascalCase, module prefix) as McpOAuth*;

@@ -1,8 +1,6 @@
-using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.ClientMetadata;
 
 public sealed record ClientMetadata(string ClientId, string ClientName, IReadOnlyList<string> RedirectUris);
 
@@ -15,7 +13,7 @@ public sealed record ClientMetadataParseResult(ClientMetadata? Document, string?
 // accepted: a public client using the authorization code flow, identified by the exact URL it was fetched from.
 public static class ClientMetadataDocument
 {
-    public const int MaxClientIdLength = 100; // McpOAuthApplication.ClientId is nvarchar(100)
+    private const int MaxClientIdLength = 100; // McpOAuthApplication.ClientId is nvarchar(100)
     private const int MaxRedirectUris = 10;
     private const int MaxRedirectUriLength = 300;
     private const int MaxNameLength = 100;

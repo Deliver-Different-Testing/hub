@@ -1,10 +1,12 @@
-using Hub.Interfaces;
-using Hub.Services;
+using Hub.Features.AgentAccess.ClientMetadata;
+using Hub.Features.AgentAccess.Gate;
+using Hub.Features.AgentAccess.Grants;
+using Hub.Features.AgentAccess.Keys;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenIddict.Abstractions;
 using Serilog;
-using Hub.Extensions;
 
 namespace Hub.Features.AgentAccess;
 
@@ -150,8 +152,10 @@ public static class AgentAccessExtensions
     }
 
     /// <summary>Answers 404 for the OAuth endpoints unless the agent access gate is open. Place before UseAuthentication.</summary>
-    public static IApplicationBuilder UseAgentAccessEndpointGate(this IApplicationBuilder app) =>
+    public static void UseAgentAccessEndpointGate(this IApplicationBuilder app)
+    {
         app.UseMiddleware<AgentAccessEndpointGate>();
+    }
 }
 
 /// <param name="ConnectionString">The connection string the OAuth store will use.</param>

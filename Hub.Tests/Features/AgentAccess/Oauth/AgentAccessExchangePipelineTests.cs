@@ -2,7 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,7 @@ using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
 using OpenIddict.Server;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.9 end to end: the MCP server trades an agent pass for a 15 minute app pass, and every way of getting that
 // wrong is refused.

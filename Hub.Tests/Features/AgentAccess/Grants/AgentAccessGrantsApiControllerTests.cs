@@ -1,10 +1,10 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
 using Hub.Interfaces;
 using Hub.Models.Master;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Grants;
 
 [Collection("PartnerDirectoryApiKey")]
 public class AgentAccessGrantsApiControllerTests : IDisposable

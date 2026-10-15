@@ -1,4 +1,5 @@
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
@@ -8,7 +9,7 @@ using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Grants;
 
 // Phase 1.7: what Integration Manager shows on its Connected AI apps card and does when someone presses Revoke.
 public class AgentGrantAdminTests

@@ -1,12 +1,10 @@
-using Hub.Interfaces;
+using Hub.Features.AgentAccess.Gate;
+using Hub.Features.AgentAccess.Keys;
 using Hub.Models;
-using Hub.Services;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Gate;
 
 // Agent access gate (Agent Access spec v4, phase 1.1 / D19). Enabled only when the
 // agent-access Feature row is Ready or Live, the tenant switch is on, the tenant

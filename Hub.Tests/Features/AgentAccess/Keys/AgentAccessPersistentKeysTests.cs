@@ -1,15 +1,11 @@
-using Hub.Extensions;
-using Hub.Interfaces;
-using Hub.Services;
-using Hub.Tests.Services;
+using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Keys;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using OpenIddict.Server;
-using Hub.Tests.Extensions;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Keys;
 
 // Phase 1.3: OpenIddict runs on the persistent keys and issuer from settings, with the token
 // options from the spec (v4 Group 1). Without settings it keeps ephemeral keys and the

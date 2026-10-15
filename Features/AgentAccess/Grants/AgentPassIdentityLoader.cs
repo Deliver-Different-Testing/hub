@@ -1,7 +1,8 @@
+using Hub.Features.AgentAccess.Gate;
 using Hub.Interfaces;
 using Serilog;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 public sealed record AgentPassLoad(AgentGrantEligibility Eligibility, AgentPassIdentity? Identity);
 

@@ -1,7 +1,7 @@
 using System.Security.Claims;
-using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Grants;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Grants;
 
 // Phase 1.9: the app pass carries exactly the cookie's claim types, so apps that read User.FindFirst("StaffID")
 // keep working, and never the secrets a cookie holds.

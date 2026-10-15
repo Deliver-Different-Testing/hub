@@ -1,11 +1,11 @@
 using System.Text.Json;
+using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 public sealed record AgentGrantSummary(string Id, string UserId, string ClientName, DateTimeOffset? CreatedUtc, DateTimeOffset? LastUsedUtc = null);
 

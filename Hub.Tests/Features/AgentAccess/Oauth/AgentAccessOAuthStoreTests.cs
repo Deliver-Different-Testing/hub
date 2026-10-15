@@ -1,8 +1,6 @@
-using Hub.Services;
-using Hub.Tests.Services;
 using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // The OAuth store should use its own least-privilege SQL login (McpOAuthStore, which can only reach
 // the three McpOAuth tables) through the env var AgentAccessOAuthSQLConnection. Until that variable is

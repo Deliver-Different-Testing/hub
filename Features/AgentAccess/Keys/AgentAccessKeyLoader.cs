@@ -1,9 +1,7 @@
 using System.Security.Cryptography;
-using Hub.Interfaces;
 using Microsoft.IdentityModel.Tokens;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Keys;
 
 public sealed record AgentAccessKeyState(bool Persistent, string Reason, string? SigningKeyId) : IAgentAccessKeyState;
 
@@ -32,9 +30,7 @@ public static class AgentAccessKeyLoader
         if (encryptionFailure is not null) return new AgentAccessKeyLoadResult(null, encryptionFailure);
 
         var (previous, previousFailure) = Parse(parameters, PreviousSigningKeyName, required: false);
-        if (previousFailure is not null) return new AgentAccessKeyLoadResult(null, previousFailure);
-
-        return new AgentAccessKeyLoadResult(new AgentAccessKeys(signing!, encryption!, previous), null);
+        return previousFailure is not null ? new AgentAccessKeyLoadResult(null, previousFailure) : new AgentAccessKeyLoadResult(new AgentAccessKeys(signing!, encryption!, previous), null);
     }
 
     private static (RsaSecurityKey? Key, string? Failure) Parse(

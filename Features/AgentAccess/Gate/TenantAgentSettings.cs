@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Gate;
 
 /// <summary>The agent access columns of the tenant's single tblSetting row.</summary>
 public sealed record TenantAgentSettingRow(string? LifecycleState, bool SwitchOn, bool ForcedOff);

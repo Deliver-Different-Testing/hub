@@ -1,8 +1,7 @@
 using System.Collections.Immutable;
 using System.Security.Claims;
 using System.Text.Json;
-using Hub.Services;
-using Hub.ViewModels;
+using Hub.Features.AgentAccess.Grants;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -12,9 +11,8 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
-using Hub.Controllers;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Oauth;
 
 // Phase 1.5: the OAuth authorization endpoint. OpenIddict has already validated the client, redirect URI and
 // PKCE by the time a request gets here; this decides who may connect an AI app and records their consent.

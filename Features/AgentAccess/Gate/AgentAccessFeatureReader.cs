@@ -1,8 +1,6 @@
-using Hub.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Gate;
 
 /// <inheritdoc cref="IAgentAccessFeatureReader"/>
 public sealed class AgentAccessFeatureReader(DynamicDespatchDbContext context) : IAgentAccessFeatureReader

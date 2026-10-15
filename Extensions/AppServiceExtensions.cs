@@ -1,4 +1,5 @@
 using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Gate;
 using Hub.Interfaces;
 using Hub.Repositories;
 using Hub.Services;

@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.ClientMetadata;
 
 public sealed record ClientMetadataOptions(
     IReadOnlyList<string> AllowedHosts,

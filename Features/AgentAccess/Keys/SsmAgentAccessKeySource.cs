@@ -1,9 +1,7 @@
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
-using Hub.Interfaces;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Keys;
 
 /// <summary>
 /// Reads the OAuth key parameters from SSM. The pod IAM policy allows ssm:GetParametersByPath

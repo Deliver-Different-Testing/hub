@@ -1,9 +1,7 @@
-using Hub.Services;
+using Hub.Features.AgentAccess.Oauth;
 using static OpenIddict.Abstractions.OpenIddictConstants;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.5: the rules behind /connect/authorize, with no HTTP or database involved.
 public class AgentAccessAuthorizeDeciderTests

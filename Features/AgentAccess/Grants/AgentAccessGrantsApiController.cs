@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 public sealed record AgentGrantRevokeRequest(int TenantId, string? UserId, bool AllUsers);
 

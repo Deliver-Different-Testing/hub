@@ -1,8 +1,7 @@
-using Hub.Interfaces;
+using Hub.Features.AgentAccess.Keys;
 using Serilog;
-using Hub.Services;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Gate;
 
 /// <inheritdoc cref="IAgentAccessGate"/>
 public sealed class AgentAccessGate(

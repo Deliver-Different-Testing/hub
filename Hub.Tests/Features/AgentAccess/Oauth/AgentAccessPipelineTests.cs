@@ -1,18 +1,15 @@
 using System.Net;
 using System.Text.Json;
-using Hub.Extensions;
-using Hub.Interfaces;
-using Hub.Services;
-using Hub.Tests.Services;
+using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Gate;
+using Hub.Features.AgentAccess.Keys;
+using Hub.Tests.Features.AgentAccess.Keys;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
-using Hub.Tests.Extensions;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.2 end to end, on a real ASP.NET Core pipeline: OpenIddict registered exactly as
 // Hub registers it, the gate placed before authentication. Closed gate = the OAuth server

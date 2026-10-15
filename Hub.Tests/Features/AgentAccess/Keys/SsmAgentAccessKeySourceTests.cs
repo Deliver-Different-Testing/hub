@@ -1,11 +1,9 @@
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
-using Hub.Services;
+using Hub.Features.AgentAccess.Keys;
 using NSubstitute;
-using Hub.Tests.Services;
-using Hub.Features.AgentAccess;
 
-namespace Hub.Tests.Features.AgentAccess;
+namespace Hub.Tests.Features.AgentAccess.Keys;
 
 // Phase 1.3: the pod IAM policy allows ssm:GetParametersByPath (and PutParameter) only, so
 // the keys are read with GetParametersByPath, decrypted, paginated.

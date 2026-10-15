@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 /// <summary>Everything the app pass says about the person, read fresh from the tenant when the pass is issued.</summary>
 public sealed record AgentPassIdentity(

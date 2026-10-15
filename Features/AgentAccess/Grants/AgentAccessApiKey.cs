@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Serilog;
 
-namespace Hub.Features.AgentAccess;
+namespace Hub.Features.AgentAccess.Grants;
 
 // The server-to-server key Integration Manager sends (X-Api-Key). It is the partner-directory key IM already holds,
 // so there is no new secret to hand out. Compared in constant time.
