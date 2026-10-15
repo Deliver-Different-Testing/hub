@@ -90,31 +90,36 @@ public class AgentGrantStoreTests
     }
 
     [Fact]
-    public async Task Switching_a_tenant_off_sets_the_flag_with_no_expiry_and_on_clears_it()
+    public async Task Switching_a_tenant_off_raises_the_flag_for_that_tenant_only()
     {
         var (store, cache) = Build();
 
-        await store.SetTenantOffAsync(12, true, Ct);
+        await store.SetTenantOffAsync(12, Ct);
+
         Assert.True(await store.IsTenantOffAsync(12, Ct));
         Assert.NotNull(await cache.GetAsync("agent-access:tenant:12:off", Ct));
-
-        await store.SetTenantOffAsync(12, false, Ct);
-        Assert.False(await store.IsTenantOffAsync(12, Ct));
         Assert.False(await store.IsTenantOffAsync(13, Ct));
     }
 
     [Fact]
-    public async Task The_tenant_off_flag_never_expires_by_itself()
+    public async Task The_flag_lives_thirty_minutes_unless_renewed_which_outlasts_a_fifteen_minute_app_pass()
     {
         var cache = Substitute.For<IDistributedCache>();
 
-        await new AgentGrantStore(cache).SetTenantOffAsync(12, true, Ct);
+        await new AgentGrantStore(cache).SetTenantOffAsync(12, Ct);
 
         await cache.Received(1).SetAsync(
             "agent-access:tenant:12:off",
             Arg.Any<byte[]>(),
-            Arg.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == null && o.AbsoluteExpiration == null && o.SlidingExpiration == null),
+            Arg.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == TimeSpan.FromMinutes(30)),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void The_store_has_no_way_to_clear_the_flag()
+    {
+        Assert.DoesNotContain(typeof(IAgentGrantStore).GetMethods(), m => m.Name.Contains("Clear") || m.Name.Contains("TenantOn"));
+        Assert.Single(typeof(IAgentGrantStore).GetMethods(), m => m.Name == "SetTenantOffAsync");
     }
 
     [Fact]

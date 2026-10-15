@@ -80,7 +80,14 @@ public class AgentGrantEligibilityTests : IDisposable
         var result = await f.Checker.CheckAsync(12, "55", 9, Ct);
 
         Assert.Equal(allowed ? AgentGrantEligibility.Eligible : AgentGrantEligibility.TenantOff, result);
-        await f.Store.Received(1).SetTenantOffAsync(12, !allowed, Arg.Any<CancellationToken>());
+        if (allowed)
+        {
+            await f.Store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default);
+        }
+        else
+        {
+            await f.Store.Received(1).SetTenantOffAsync(12, Arg.Any<CancellationToken>());
+        }
     }
 
     [Fact]

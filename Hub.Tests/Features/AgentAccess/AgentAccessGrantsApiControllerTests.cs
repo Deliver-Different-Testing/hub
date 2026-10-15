@@ -80,15 +80,13 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
         Assert.IsType<NotFoundResult>(await _sut.Revoke("bad", new AgentGrantRevokeRequest(12, "55", false), Key, Ct));
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Setting_a_tenant_off_or_on_writes_the_flag(bool off)
+    [Fact]
+    public async Task Switching_a_tenant_off_raises_the_flag()
     {
-        var result = await _sut.SetTenantOff(12, new AgentAccessTenantOffRequest(off), Key, Ct);
+        var result = await _sut.SetTenantOff(12, Key, Ct);
 
         Assert.IsType<NoContentResult>(result);
-        await _store.Received(1).SetTenantOffAsync(12, off, Arg.Any<CancellationToken>());
+        await _store.Received(1).SetTenantOffAsync(12, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -96,9 +94,17 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
     [InlineData("wrong")]
     public async Task The_tenant_flag_needs_the_key_and_a_real_tenant(string? key)
     {
-        Assert.IsType<UnauthorizedResult>(await _sut.SetTenantOff(12, new AgentAccessTenantOffRequest(true), key, Ct));
-        Assert.IsType<BadRequestResult>(await _sut.SetTenantOff(0, new AgentAccessTenantOffRequest(true), Key, Ct));
-        await _store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default, default);
+        Assert.IsType<UnauthorizedResult>(await _sut.SetTenantOff(12, key, Ct));
+        Assert.IsType<BadRequestResult>(await _sut.SetTenantOff(0, Key, Ct));
+        await _store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default);
+    }
+
+    [Fact]
+    public void The_api_offers_no_way_to_clear_the_flag()
+    {
+        var methods = typeof(AgentAccessGrantsApiController).GetMethods().Select(m => m.Name);
+
+        Assert.DoesNotContain(methods, n => n.Contains("Clear") || n.Contains("On") && n.Contains("Tenant"));
     }
 
     [Fact]

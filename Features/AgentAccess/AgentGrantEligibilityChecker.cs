@@ -46,12 +46,16 @@ public sealed class AgentGrantEligibilityChecker(
 
             connectionStringManager.SetConnectionString(connection + credentials);
 
-            // The tenant database is the source of truth for the switch, the DF Admin force-off and the lifecycle. The Redis
-            // flag apps check is brought into line with it every time, so a missed update heals on the next refresh.
+            // The tenant database is the source of truth for the switch, the DF Admin force-off and the lifecycle. When it says
+            // off, the Redis flag the apps check is raised (or renewed), so a missed update heals on the next refresh. Only ever
+            // raised here: clearing is left to expiry so a racing refresh can never undo a switch-off.
             var row = await settings.GetAsync(cancellationToken);
             var tenantOn = row is { SwitchOn: true, ForcedOff: false } && row.LifecycleState is { } state && LiveStates.Contains(state.Trim());
-            await grants.SetTenantOffAsync(tenantId, !tenantOn, cancellationToken);
-            if (!tenantOn) return AgentGrantEligibility.TenantOff;
+            if (!tenantOn)
+            {
+                await grants.SetTenantOffAsync(tenantId, cancellationToken);
+                return AgentGrantEligibility.TenantOff;
+            }
 
             var contact = await tenant.FetchContactStatusAsync(contactId);
 
