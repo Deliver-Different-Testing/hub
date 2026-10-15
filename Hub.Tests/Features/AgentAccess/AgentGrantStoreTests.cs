@@ -90,6 +90,34 @@ public class AgentGrantStoreTests
     }
 
     [Fact]
+    public async Task Switching_a_tenant_off_sets_the_flag_with_no_expiry_and_on_clears_it()
+    {
+        var (store, cache) = Build();
+
+        await store.SetTenantOffAsync(12, true, Ct);
+        Assert.True(await store.IsTenantOffAsync(12, Ct));
+        Assert.NotNull(await cache.GetAsync("agent-access:tenant:12:off", Ct));
+
+        await store.SetTenantOffAsync(12, false, Ct);
+        Assert.False(await store.IsTenantOffAsync(12, Ct));
+        Assert.False(await store.IsTenantOffAsync(13, Ct));
+    }
+
+    [Fact]
+    public async Task The_tenant_off_flag_never_expires_by_itself()
+    {
+        var cache = Substitute.For<IDistributedCache>();
+
+        await new AgentGrantStore(cache).SetTenantOffAsync(12, true, Ct);
+
+        await cache.Received(1).SetAsync(
+            "agent-access:tenant:12:off",
+            Arg.Any<byte[]>(),
+            Arg.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == null && o.AbsoluteExpiration == null && o.SlidingExpiration == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task The_tenant_off_flag_reads_the_tenant_key_and_is_off_by_default()
     {
         var (store, cache) = Build();

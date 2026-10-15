@@ -84,6 +84,16 @@ public class AgentGrantPolicyTests
     }
 
     [Fact]
+    public void A_tenant_that_is_switched_off_in_its_own_database_refuses_but_keeps_the_grant()
+    {
+        var decision = AgentGrantPolicy.Decide(State(eligibility: AgentGrantEligibility.TenantOff), Now);
+
+        Assert.Equal(AgentGrantVerdict.Refuse, decision.Verdict);
+        Assert.False(decision.RevokeGrant);
+        Assert.Equal(Errors.InvalidGrant, decision.Error);
+    }
+
+    [Fact]
     public void The_tenant_off_flag_refuses_but_keeps_the_grant_so_it_resumes_when_switched_back_on()
     {
         var decision = AgentGrantPolicy.Decide(State(tenantOff: true), Now);

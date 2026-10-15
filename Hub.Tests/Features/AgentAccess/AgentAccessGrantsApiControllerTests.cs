@@ -10,12 +10,13 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
     private const string Key = "shared-key";
     private readonly string? _original = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey");
     private readonly IAgentGrantAdmin _admin = Substitute.For<IAgentGrantAdmin>();
+    private readonly IAgentGrantStore _store = Substitute.For<IAgentGrantStore>();
     private readonly AgentAccessGrantsApiController _sut;
 
     public AgentAccessGrantsApiControllerTests()
     {
         Environment.SetEnvironmentVariable("PartnerDirectoryApiKey", Key);
-        _sut = new AgentAccessGrantsApiController(_admin);
+        _sut = new AgentAccessGrantsApiController(_admin, _store);
     }
 
     public void Dispose()
@@ -77,6 +78,27 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
 
         Assert.IsType<NoContentResult>(await _sut.Revoke("good", new AgentGrantRevokeRequest(12, "55", false), Key, Ct));
         Assert.IsType<NotFoundResult>(await _sut.Revoke("bad", new AgentGrantRevokeRequest(12, "55", false), Key, Ct));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Setting_a_tenant_off_or_on_writes_the_flag(bool off)
+    {
+        var result = await _sut.SetTenantOff(12, new AgentAccessTenantOffRequest(off), Key, Ct);
+
+        Assert.IsType<NoContentResult>(result);
+        await _store.Received(1).SetTenantOffAsync(12, off, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("wrong")]
+    public async Task The_tenant_flag_needs_the_key_and_a_real_tenant(string? key)
+    {
+        Assert.IsType<UnauthorizedResult>(await _sut.SetTenantOff(12, new AgentAccessTenantOffRequest(true), key, Ct));
+        Assert.IsType<BadRequestResult>(await _sut.SetTenantOff(0, new AgentAccessTenantOffRequest(true), Key, Ct));
+        await _store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default, default);
     }
 
     [Fact]

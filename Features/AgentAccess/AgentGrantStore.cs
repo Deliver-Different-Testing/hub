@@ -15,6 +15,9 @@ public interface IAgentGrantStore
 
     /// <summary>True while agent-access:tenant:{tenantId}:off exists.</summary>
     Task<bool> IsTenantOffAsync(int tenantId, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets or clears agent-access:tenant:{tenantId}:off, the flag every app checks on every agent request.</summary>
+    Task SetTenantOffAsync(int tenantId, bool off, CancellationToken cancellationToken = default);
 }
 
 public sealed class AgentGrantStore(IDistributedCache cache) : IAgentGrantStore
@@ -37,6 +40,13 @@ public sealed class AgentGrantStore(IDistributedCache cache) : IAgentGrantStore
 
     public async Task<bool> IsTenantOffAsync(int tenantId, CancellationToken cancellationToken = default) =>
         await cache.GetAsync($"agent-access:tenant:{tenantId}:off", cancellationToken) is not null;
+
+    // No expiry: the flag must still be there when an admin looks tomorrow. A flushed Redis loses it, but it also
+    // loses every grant key, so apps refuse everything until the next refresh re-sets the keys and re-checks the tenant.
+    public Task SetTenantOffAsync(int tenantId, bool off, CancellationToken cancellationToken = default) =>
+        off
+            ? cache.SetAsync($"agent-access:tenant:{tenantId}:off", [1], new DistributedCacheEntryOptions(), cancellationToken)
+            : cache.RemoveAsync($"agent-access:tenant:{tenantId}:off", cancellationToken);
 
     private static string GrantKey(string authorizationId)
     {

@@ -29,7 +29,9 @@ public class AgentGrantEligibilityTests : IDisposable
         AgentGrantEligibilityChecker Checker,
         IAuthenticationRepository Master,
         IDespatchRepository Tenant,
-        IConnectionStringManager Connection);
+        IConnectionStringManager Connection,
+        ITenantAgentSettingSource Settings,
+        IAgentGrantStore Store);
 
     private static Fixture Build(
         User? masterUser = null,
@@ -45,7 +47,10 @@ public class AgentGrantEligibilityTests : IDisposable
         var tenant = Substitute.For<IDespatchRepository>();
         tenant.FetchContactStatusAsync(9).Returns(contact ?? new AgentContactStatus(Active: true, ClientTypeId: 4));
         var conn = Substitute.For<IConnectionStringManager>();
-        return new Fixture(new AgentGrantEligibilityChecker(master, tenant, conn), master, tenant, conn);
+        var settings = Substitute.For<ITenantAgentSettingSource>();
+        settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow("Live", SwitchOn: true, ForcedOff: false));
+        var store = Substitute.For<IAgentGrantStore>();
+        return new Fixture(new AgentGrantEligibilityChecker(master, tenant, conn, settings, store), master, tenant, conn, settings, store);
     }
 
     [Theory]
@@ -57,6 +62,48 @@ public class AgentGrantEligibilityTests : IDisposable
 
         Assert.Equal(AgentGrantEligibility.Eligible, await f.Checker.CheckAsync(12, "55", 9, Ct));
         f.Connection.Received(1).SetConnectionString("Server=tenant;Database=d;;User Id=test;Password=test;");
+    }
+
+    [Theory]
+    [InlineData("Live", true, false, true)]
+    [InlineData("Demo", true, false, true)]
+    [InlineData("Live", false, false, false)]
+    [InlineData("Live", true, true, false)]
+    [InlineData("Suspended", true, false, false)]
+    [InlineData("Configuring", true, false, false)]
+    [InlineData(null, true, false, false)]
+    public async Task The_tenant_must_have_agent_access_on_and_be_live_or_demo(string? lifecycle, bool switchOn, bool forcedOff, bool allowed)
+    {
+        var f = Build();
+        f.Settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow(lifecycle, switchOn, forcedOff));
+
+        var result = await f.Checker.CheckAsync(12, "55", 9, Ct);
+
+        Assert.Equal(allowed ? AgentGrantEligibility.Eligible : AgentGrantEligibility.TenantOff, result);
+        await f.Store.Received(1).SetTenantOffAsync(12, !allowed, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_tenant_that_is_off_is_reported_before_anyone_is_looked_up_in_it()
+    {
+        var f = Build();
+        f.Settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow("Live", false, false));
+
+        await f.Checker.CheckAsync(12, "55", 9, Ct);
+
+        await f.Tenant.DidNotReceiveWithAnyArgs().FetchContactStatusAsync(default);
+    }
+
+    [Fact]
+    public async Task A_missing_settings_row_or_unreadable_settings_is_never_eligible()
+    {
+        var none = Build();
+        none.Settings.GetAsync(Arg.Any<CancellationToken>()).Returns((TenantAgentSettingRow?)null);
+        Assert.Equal(AgentGrantEligibility.TenantOff, await none.Checker.CheckAsync(12, "55", 9, Ct));
+
+        var broken = Build();
+        broken.Settings.GetAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("Invalid column name"));
+        Assert.Equal(AgentGrantEligibility.Unknown, await broken.Checker.CheckAsync(12, "55", 9, Ct));
     }
 
     [Fact]

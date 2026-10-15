@@ -6,7 +6,10 @@ public enum AgentGrantEligibility
 {
     Eligible,
     NoLongerEligible,
-    Unknown
+    Unknown,
+
+    /// <summary>Agent access is switched off, forced off or the tenant is not live in its own database. The grant survives.</summary>
+    TenantOff
 }
 
 /// <param name="CreatedUtc">When the user first approved this app; null when OpenIddict has no date, which is never trusted.</param>
@@ -62,6 +65,7 @@ public static class AgentGrantPolicy
         {
             AgentGrantEligibility.Eligible => AgentGrantDecision.Allowed,
             AgentGrantEligibility.NoLongerEligible => AgentGrantDecision.Refused("The user can no longer connect AI apps.", revoke: true),
+            AgentGrantEligibility.TenantOff => AgentGrantDecision.Refused("AI app access is switched off for this tenant."),
             _ => AgentGrantDecision.Refused("The user could not be checked right now; try again shortly.")
         };
     }

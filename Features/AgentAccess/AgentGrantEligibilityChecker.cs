@@ -16,9 +16,12 @@ public interface IAgentGrantEligibilityChecker
 public sealed class AgentGrantEligibilityChecker(
     IAuthenticationRepository master,
     IDespatchRepository tenant,
-    IConnectionStringManager connectionStringManager) : IAgentGrantEligibilityChecker
+    IConnectionStringManager connectionStringManager,
+    ITenantAgentSettingSource settings,
+    IAgentGrantStore grants) : IAgentGrantEligibilityChecker
 {
     private static readonly HashSet<int> AllowedClientTypes = [4, 5];
+    private static readonly HashSet<string> LiveStates = new(StringComparer.OrdinalIgnoreCase) { "Live", "Demo" };
 
     public async Task<AgentGrantEligibility> CheckAsync(
         int tenantId, string userId, int contactId, CancellationToken cancellationToken = default)
@@ -42,6 +45,14 @@ public sealed class AgentGrantEligibilityChecker(
             }
 
             connectionStringManager.SetConnectionString(connection + credentials);
+
+            // The tenant database is the source of truth for the switch, the DF Admin force-off and the lifecycle. The Redis
+            // flag apps check is brought into line with it every time, so a missed update heals on the next refresh.
+            var row = await settings.GetAsync(cancellationToken);
+            var tenantOn = row is { SwitchOn: true, ForcedOff: false } && row.LifecycleState is { } state && LiveStates.Contains(state.Trim());
+            await grants.SetTenantOffAsync(tenantId, !tenantOn, cancellationToken);
+            if (!tenantOn) return AgentGrantEligibility.TenantOff;
+
             var contact = await tenant.FetchContactStatusAsync(contactId);
 
             return contact is { Active: true, ClientTypeId: { } clientType } && AllowedClientTypes.Contains(clientType)
