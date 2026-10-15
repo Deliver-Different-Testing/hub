@@ -1,3 +1,4 @@
+using Hub.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -6,13 +7,18 @@ namespace Hub.Features.AgentAccess;
 
 public sealed record AgentGrantRevokeRequest(int TenantId, string? UserId, bool AllUsers);
 
+public sealed record AgentConnectionNotice(string Id, string UserId, string? Email, string ClientName, DateTimeOffset? CreatedUtc);
+
+public sealed record AgentConnectionNotifiedRequest(int TenantId, bool Sent);
+
 
 // Phase 1.7: the Connected AI apps list and Revoke that Integration Manager shows. Server to server only; Integration
 // Manager decides who is allowed to see everyone's grants and says so with allUsers. Hub owns the OAuth store.
 [Route("api/agent-access/grants")]
 [AllowAnonymous]
 [EnableRateLimiting("api")]
-public class AgentAccessGrantsApiController(IAgentGrantAdmin admin, IAgentGrantStore grants) : Controller
+public class AgentAccessGrantsApiController(
+    IAgentGrantAdmin admin, IAgentGrantStore grants, IAuthenticationRepository master) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> List(
@@ -42,6 +48,39 @@ public class AgentAccessGrantsApiController(IAgentGrantAdmin admin, IAgentGrantS
 
         await grants.SetTenantOffAsync(tenantId, cancellationToken);
         return NoContent();
+    }
+
+    // The new-agent email (D20) is sent by Integration Manager, which asks Hub what is new because Hub owns the Master
+    // data: who approved which app, and their address. IM marks each one once it has sent (or deliberately held) the
+    // email, so nobody is told twice.
+    [HttpGet("~/api/agent-access/connections/unnotified")]
+    public async Task<IActionResult> Unnotified(
+        [FromQuery] int tenantId, [FromHeader(Name = "X-Api-Key")] string? apiKey, CancellationToken cancellationToken)
+    {
+        if (!AgentAccessApiKey.IsValid(apiKey)) return Unauthorized();
+        if (tenantId <= 0) return BadRequest();
+
+        var notices = new List<AgentConnectionNotice>();
+        foreach (var connection in await admin.ListUnnotifiedAsync(tenantId, cancellationToken))
+        {
+            var email = int.TryParse(connection.UserId, out var userId) ? (await master.GetUserByIdAsync(userId))?.Email : null;
+            notices.Add(new AgentConnectionNotice(connection.Id, connection.UserId, email, connection.ClientName, connection.CreatedUtc));
+        }
+
+        return Ok(notices);
+    }
+
+    [HttpPost("~/api/agent-access/connections/{id}/notified")]
+    public async Task<IActionResult> Notified(
+        string id,
+        [FromBody] AgentConnectionNotifiedRequest body,
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        CancellationToken cancellationToken)
+    {
+        if (!AgentAccessApiKey.IsValid(apiKey)) return Unauthorized();
+        if (body.TenantId <= 0) return BadRequest();
+
+        return await admin.MarkNotifiedAsync(id, body.TenantId, body.Sent, cancellationToken) ? NoContent() : NotFound();
     }
 
     [HttpPost("{id}/revoke")]

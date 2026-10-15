@@ -1,4 +1,6 @@
 using Hub.Features.AgentAccess;
+using Hub.Interfaces;
+using Hub.Models.Master;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -11,12 +13,13 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
     private readonly string? _original = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey");
     private readonly IAgentGrantAdmin _admin = Substitute.For<IAgentGrantAdmin>();
     private readonly IAgentGrantStore _store = Substitute.For<IAgentGrantStore>();
+    private readonly IAuthenticationRepository _master = Substitute.For<IAuthenticationRepository>();
     private readonly AgentAccessGrantsApiController _sut;
 
     public AgentAccessGrantsApiControllerTests()
     {
         Environment.SetEnvironmentVariable("PartnerDirectoryApiKey", Key);
-        _sut = new AgentAccessGrantsApiController(_admin, _store);
+        _sut = new AgentAccessGrantsApiController(_admin, _store, _master);
     }
 
     public void Dispose()
@@ -105,6 +108,48 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
         var methods = typeof(AgentAccessGrantsApiController).GetMethods().Select(m => m.Name);
 
         Assert.DoesNotContain(methods, n => n.Contains("Clear") || n.Contains("On") && n.Contains("Tenant"));
+    }
+
+    [Fact]
+    public async Task New_connections_come_with_the_address_to_tell()
+    {
+        _admin.ListUnnotifiedAsync(12, Arg.Any<CancellationToken>()).Returns(
+        [
+            new AgentConnection("g1", "55", "Claude", DateTimeOffset.UnixEpoch),
+            new AgentConnection("g2", "999", "Claude", null),
+            new AgentConnection("g3", "not-a-number", "ChatGPT", null)
+        ]);
+        _master.GetUserByIdAsync(55).Returns(new User { UserId = 55, Email = "staff@urgent.test" });
+        _master.GetUserByIdAsync(999).Returns((User?)null);
+
+        var result = Assert.IsType<OkObjectResult>(await _sut.Unnotified(12, Key, Ct));
+
+        var notices = Assert.IsAssignableFrom<List<AgentConnectionNotice>>(result.Value);
+        Assert.Equal(["staff@urgent.test", null, null], notices.Select(n => n.Email).ToArray());
+        Assert.Equal(["g1", "g2", "g3"], notices.Select(n => n.Id).ToArray());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("wrong")]
+    public async Task The_notification_endpoints_need_the_key_and_a_real_tenant(string? key)
+    {
+        Assert.IsType<UnauthorizedResult>(await _sut.Unnotified(12, key, Ct));
+        Assert.IsType<UnauthorizedResult>(await _sut.Notified("g1", new AgentConnectionNotifiedRequest(12, true), key, Ct));
+        Assert.IsType<BadRequestResult>(await _sut.Unnotified(0, Key, Ct));
+        Assert.IsType<BadRequestResult>(await _sut.Notified("g1", new AgentConnectionNotifiedRequest(0, true), Key, Ct));
+        await _admin.DidNotReceiveWithAnyArgs().ListUnnotifiedAsync(default, default);
+        await _admin.DidNotReceiveWithAnyArgs().MarkNotifiedAsync(default!, default, default, default);
+    }
+
+    [Fact]
+    public async Task Marking_a_connection_notified_is_no_content_or_not_found()
+    {
+        _admin.MarkNotifiedAsync("good", 12, true, Arg.Any<CancellationToken>()).Returns(true);
+        _admin.MarkNotifiedAsync("bad", 12, true, Arg.Any<CancellationToken>()).Returns(false);
+
+        Assert.IsType<NoContentResult>(await _sut.Notified("good", new AgentConnectionNotifiedRequest(12, true), Key, Ct));
+        Assert.IsType<NotFoundResult>(await _sut.Notified("bad", new AgentConnectionNotifiedRequest(12, true), Key, Ct));
     }
 
     [Fact]
