@@ -28,6 +28,12 @@ public sealed class Repository(
         }
     }
 
+    public async Task<TucClientContact?> FetchAgentContactAsync(int contactId) =>
+        await context.TucClientContacts
+            .AsNoTracking()
+            .Include(c => c.UcctClient)
+            .FirstOrDefaultAsync(c => c.UcctId == contactId);
+
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
         var subAccounts = await context.TucClients

@@ -125,6 +125,9 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             .Distinct()
             .ToListAsync();
 
+    public async Task<Tenant?> GetTenantByIdAsync(int tenantId) =>
+        await context.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.TenantId == tenantId);
+
     public async Task<string?> GetTenantTimeZoneAsync(int tenantId) =>
         await context.Tenants
             .AsNoTracking()

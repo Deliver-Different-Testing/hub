@@ -1,10 +1,10 @@
+using Hub.Features.AgentAccess;
 using System.Diagnostics.CodeAnalysis;
 using Amazon;
 using Amazon.Runtime.CredentialManagement;
 using Amazon.S3;
 using Amazon.SimpleSystemsManagement;
-using Hub.Interfaces;
-using Hub.Services;
+using Hub.Features.AgentAccess.Keys;
 using Serilog;
 
 namespace Hub.Extensions;

@@ -1,6 +1,9 @@
 ﻿using System.Security.AccessControl;
+using Hub.Features.AgentAccess;
 using System.Threading.RateLimiting;
 using Hub.Extensions;
+using Hub.Features.AgentAccess.Keys;
+using Hub.Features.AgentAccess.Oauth;
 using Hub.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -66,7 +69,10 @@ builder.Services.AddAgentAccessOAuth(
         string.IsNullOrWhiteSpace(agentAccessSsmPrefix)
             ? null
             : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration),
-        Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? []));
+        Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? [],
+        McpResource: Environment.GetEnvironmentVariable("AgentAccessMcpResource"),
+        ClientMetadataHosts: builder.Configuration.GetSection("AgentAccess:ClientMetadata:AllowedHosts").Get<string[]>(),
+        McpClientSecret: Environment.GetEnvironmentVariable("AgentAccessMcpClientSecret")));
 
 if (builder.Environment.IsDevelopment())
 {
