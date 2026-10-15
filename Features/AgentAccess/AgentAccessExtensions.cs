@@ -32,7 +32,6 @@ public static class AgentAccessExtensions
         services.AddOptions<OpenIddict.Server.OpenIddictServerOptions>()
             .Configure<TimeProvider>((options, time) => options.TimeProvider = time);
         services.TryAddSingleton<IAgentGrantStore, AgentGrantStore>();
-        services.TryAddScoped<IAgentGrantEligibilityChecker, AgentGrantEligibilityChecker>();
         services.TryAddSingleton<IAgentGrantAdmin, AgentGrantAdmin>();
         services.TryAddScoped<IAgentPassIdentityLoader, AgentPassIdentityLoader>();
         services.TryAddSingleton<IAgentSubjectTokenValidator, AgentSubjectTokenValidator>();

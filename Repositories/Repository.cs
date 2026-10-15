@@ -1,5 +1,4 @@
-﻿using Hub.Features.AgentAccess;
-using Hub.Interfaces;
+﻿using Hub.Interfaces;
 using Hub.Models;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -28,13 +27,6 @@ public sealed class Repository(
             throw;
         }
     }
-
-    public async Task<AgentContactStatus?> FetchContactStatusAsync(int contactId) =>
-        await context.TucClientContacts
-            .AsNoTracking()
-            .Where(c => c.UcctId == contactId)
-            .Select(c => new AgentContactStatus(c.Active, c.UcctClient == null ? null : c.UcctClient.ClientTypeId))
-            .FirstOrDefaultAsync();
 
     public async Task<TucClientContact?> FetchAgentContactAsync(int contactId) =>
         await context.TucClientContacts

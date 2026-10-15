@@ -391,10 +391,6 @@ public partial class AgentAccessAuthorizePipelineTests
         var time = new AdjustableTimeProvider(DateTimeOffset.UtcNow);
         builder.Services.AddSingleton<TimeProvider>(time);
         builder.Services.AddSingleton(time);
-        var eligibility = Substitute.For<IAgentGrantEligibilityChecker>();
-        eligibility.CheckAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(AgentGrantEligibility.Eligible);
-        builder.Services.AddSingleton(eligibility);
         var identities = Substitute.For<IAgentPassIdentityLoader>();
         identities.LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new AgentPassLoad(AgentGrantEligibility.Eligible, new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "New Zealand Standard Time", "urgent", true, false, 2, 4, null, "Sam", "Staff", 1)));

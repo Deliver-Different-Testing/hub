@@ -83,9 +83,12 @@ public partial class AgentAccessAuthorizePipelineTests
     private static AdjustableTimeProvider Time(WebApplication app) => app.Services.GetRequiredService<AdjustableTimeProvider>();
 
     private static void SetEligibility(WebApplication app, AgentGrantEligibility value) =>
-        app.Services.GetRequiredService<IAgentGrantEligibilityChecker>()
-            .CheckAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(value);
+        app.Services.GetRequiredService<IAgentPassIdentityLoader>()
+            .LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new AgentPassLoad(value, value == AgentGrantEligibility.Eligible ? DefaultIdentity : null));
+
+    private static readonly AgentPassIdentity DefaultIdentity =
+        new("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "New Zealand Standard Time", "urgent", true, false, 2, 4, null, "Sam", "Staff", 1);
 
     [Fact]
     public async Task Consent_and_the_code_exchange_set_the_grant_key()

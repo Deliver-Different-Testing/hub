@@ -21,7 +21,6 @@ public class AgentAccessTokenController(
     IOpenIddictApplicationManager applications,
     IOpenIddictAuthorizationManager authorizations,
     IAgentGrantStore grants,
-    IAgentGrantEligibilityChecker eligibility,
     IAgentPassIdentityLoader identities,
     IAgentSubjectTokenValidator subjectTokens,
     TimeProvider time) : Controller
@@ -75,7 +74,7 @@ public class AgentAccessTokenController(
             return Refuse(Errors.InvalidGrant, "The authorization cannot be found.");
         }
 
-        var evaluation = await EvaluateAsync(authorization, authorizationId!, loadIdentity: false, cancellationToken);
+        var evaluation = await EvaluateAsync(authorization, authorizationId!, cancellationToken);
         if (evaluation.Decision.Verdict == AgentGrantVerdict.Refuse) return Refuse(evaluation.Decision.Error!, evaluation.Decision.Description);
 
         await grants.MarkLiveAsync(authorizationId!, cancellationToken);
@@ -128,7 +127,7 @@ public class AgentAccessTokenController(
             return Refuse(Errors.InvalidGrant, "The subject token does not match its authorization.");
         }
 
-        var evaluation = await EvaluateAsync(authorization, subject.AuthorizationId, loadIdentity: true, cancellationToken);
+        var evaluation = await EvaluateAsync(authorization, subject.AuthorizationId, cancellationToken);
         if (evaluation.Decision.Verdict == AgentGrantVerdict.Refuse) return Refuse(evaluation.Decision.Error!, evaluation.Decision.Description);
 
         await grants.MarkLiveAsync(subject.AuthorizationId, cancellationToken);
@@ -154,7 +153,7 @@ public class AgentAccessTokenController(
     // The checks every refresh and every exchange pass: valid, under twelve months, tenant on, person still eligible.
     // A grant that fails for good is revoked here, together with its Redis key.
     private async Task<GrantEvaluation> EvaluateAsync(
-        object authorization, string authorizationId, bool loadIdentity, CancellationToken cancellationToken)
+        object authorization, string authorizationId, CancellationToken cancellationToken)
     {
         var status = await authorizations.GetStatusAsync(authorization, cancellationToken);
         var properties = await authorizations.GetPropertiesAsync(authorization, cancellationToken);
@@ -165,26 +164,15 @@ public class AgentAccessTokenController(
         }
 
         var valid = string.Equals(status, Statuses.Valid, StringComparison.Ordinal);
-        var eligible = AgentGrantEligibility.Eligible;
-        AgentPassIdentity? identity = null;
-        if (valid)
-        {
-            if (loadIdentity)
-            {
-                var load = await identities.LoadAsync(tenantId, userId, contactId, cancellationToken);
-                (eligible, identity) = (load.Eligibility, load.Identity);
-            }
-            else
-            {
-                eligible = await eligibility.CheckAsync(tenantId, userId, contactId, cancellationToken);
-            }
-        }
+        var load = valid
+            ? await identities.LoadAsync(tenantId, userId, contactId, cancellationToken)
+            : new AgentPassLoad(AgentGrantEligibility.Eligible, null);
 
         var state = new AgentGrantState(
             status,
             await authorizations.GetCreationDateAsync(authorization, cancellationToken),
             valid && await grants.IsTenantOffAsync(tenantId, cancellationToken),
-            eligible);
+            load.Eligibility);
 
         var decision = AgentGrantPolicy.Decide(state, time.GetUtcNow());
         if (decision.Verdict == AgentGrantVerdict.Refuse)
@@ -196,7 +184,7 @@ public class AgentAccessTokenController(
                 authorizationId, tenantId, decision.Description);
         }
 
-        return new GrantEvaluation(decision, identity);
+        return new GrantEvaluation(decision, load.Identity);
     }
 
     private async Task TouchLastUsedAsync(
