@@ -10,6 +10,7 @@ using Hub.Tests.Helpers;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.Primitives;
 using NSubstitute;
 
@@ -170,6 +171,54 @@ public class AccountControllerTests : IDisposable
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("Home", redirect.ControllerName);
+    }
+
+    private static void UseRealUrlHelper(AccountController controller) =>
+        controller.Url = new UrlHelper(new ActionContext(
+            controller.HttpContext, new Microsoft.AspNetCore.Routing.RouteData(), new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor()));
+
+    [Fact]
+    public async Task Login_Post_ValidStaffLogin_WithLocalReturnUrl_ReturnsThere()
+    {
+        var (controller, _, _) = CreateController();
+        UseRealUrlHelper(controller);
+        var model = new LoginViewModel { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, "/connect/authorize?client_id=dfrnt-claude&state=abc");
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/connect/authorize?client_id=dfrnt-claude&state=abc", redirect.Url);
+    }
+
+    [Theory]
+    [InlineData("https://evil.example.test/")]
+    [InlineData("//evil.example.test/path")]
+    [InlineData("/\evil.example.test")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("")]
+    public async Task Login_Post_ValidStaffLogin_IgnoresReturnUrlsThatLeaveHub(string returnUrl)
+    {
+        var (controller, _, _) = CreateController();
+        UseRealUrlHelper(controller);
+        var model = new LoginViewModel { Email = "staff@test.com", Password = "TestPassword1!", IsCourierLogin = false };
+
+        var result = await controller.Login(model, returnUrl);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("Home", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task Login_Post_ValidCourierLogin_IgnoresReturnUrl()
+    {
+        var (controller, _, _) = CreateController();
+        UseRealUrlHelper(controller);
+        var model = new LoginViewModel { Email = "courier@test.com", Password = "CourierPass1!", IsCourierLogin = true };
+
+        var result = await controller.Login(model, "/connect/authorize?client_id=x");
+
+        Assert.IsType<RedirectToActionResult>(result);
     }
 
     [Fact]
