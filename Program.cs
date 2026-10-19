@@ -1,6 +1,9 @@
 ﻿using System.Security.AccessControl;
+using Hub.Features.AgentAccess;
 using System.Threading.RateLimiting;
 using Hub.Extensions;
+using Hub.Features.AgentAccess.Keys;
+using Hub.Features.AgentAccess.Oauth;
 using Hub.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -43,6 +46,33 @@ builder.Services
     .AddAwsServices(builder.Configuration)
     .AddRedisServices(redisConfig)
     .AddAppServices();
+
+// Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix; both variables unset = ephemeral keys and a closed gate.
+var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
+// The OAuth store should use its own least-privilege SQL login (reaches only the McpOAuth tables).
+var agentAccessStore = AgentAccessOAuthStore.ResolveConnectionString(
+    connectionString, Environment.GetEnvironmentVariable("AgentAccessOAuthSQLConnection"));
+if (agentAccessStore.Dedicated)
+{
+    Log.Information("Agent access: {Description}", agentAccessStore.Description);
+}
+else
+{
+    Log.Warning("Agent access: {Description}", agentAccessStore.Description);
+}
+
+builder.Services.AddAgentAccessOAuth(
+    agentAccessStore.ConnectionString,
+    new AgentAccessOAuthSettings(
+        agentAccessSsmPrefix,
+        Environment.GetEnvironmentVariable("AgentAccessIssuer"),
+        string.IsNullOrWhiteSpace(agentAccessSsmPrefix)
+            ? null
+            : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration),
+        Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? [],
+        McpResource: Environment.GetEnvironmentVariable("AgentAccessMcpResource"),
+        ClientMetadataHosts: builder.Configuration.GetSection("AgentAccess:ClientMetadata:AllowedHosts").Get<string[]>(),
+        McpClientSecret: Environment.GetEnvironmentVariable("AgentAccessMcpClientSecret")));
 
 if (builder.Environment.IsDevelopment())
 {
@@ -97,7 +127,7 @@ builder.Services.AddAuthentication("Identity.Application")
     .AddCookie("Identity.Application", options =>
     {
         options.Cookie.Name = ".AspNet.SharedCookie";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
         options.SlidingExpiration = true;
         options.AccessDeniedPath = "/Forbidden/";
         options.LoginPath = "/Account/Login";
@@ -178,6 +208,7 @@ app.UseSession();
 app.UseCookiePolicy();
 app.UseRouting();
 app.UseRateLimiter();
+app.UseAgentAccessEndpointGate();
 app.UseAuthentication();
 app.UseAuthorization();
 

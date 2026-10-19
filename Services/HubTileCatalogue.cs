@@ -178,6 +178,13 @@ public static class HubTileCatalogue
             // and Steve confirmed on 2026-09-01 that the label is not the point.
             new("hub-tile-configurator", "Settings", "workflow.png",
                 ctx => ctx.AppUrl("dfrntdriveconfig"),
+                _ => true),
+
+            // DFRNT onboarding wizard (Steve 2026-10-15). Seeded DF Admin only;
+            // Setup Dashboard enforces the same key server side, so switching
+            // the tile off blocks the app rather than just hiding it.
+            new("hub-tile-setup-dashboard", "Setup Dashboard", "setup-dashboard.svg",
+                ctx => ctx.AppUrl("setupdashboard") + "/setup-dashboard/",
                 _ => true)
         ];
 }

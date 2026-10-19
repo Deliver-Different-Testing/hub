@@ -1,3 +1,5 @@
+using Hub.Features.AgentAccess;
+using Hub.Features.AgentAccess.Gate;
 using Hub.Interfaces;
 using Hub.Repositories;
 using Hub.Services;
@@ -15,6 +17,9 @@ public static class AppServiceExtensions
         services.AddScoped<IPartnerDirectoryService, PartnerDirectoryService>();
         services.AddScoped<IFuelSurchargeRepository, FuelSurchargeRepository>();
         services.AddScoped<IFeatureResolver, FeatureResolver>();
+        services.AddScoped<IAgentAccessGate, AgentAccessGate>();
+        services.AddScoped<IAgentAccessFeatureReader, AgentAccessFeatureReader>();
+        services.AddScoped<ITenantAgentSettingSource, SqlTenantAgentSettingSource>();
         services.AddScoped<ITileAccessResolver, TileAccessResolver>();
         services.AddSingleton<AuthDiagnostics>();
     }
