@@ -80,6 +80,42 @@ public class TenantsController(IAuthenticationRepository authenticationRepositor
         }
     }
 
+    /// <summary>
+    /// The tenant's two-letter country code. Integration Manager scopes address search to it, and
+    /// reads it here for the same reason it reads the timezone: it has no master-controller
+    /// connection of its own.
+    /// </summary>
+    [HttpGet("country")]
+    public async Task<IActionResult> GetCountry(
+        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        int tenantId)
+    {
+        if (!IsApiKeyValid(apiKey))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var countryCode = await authenticationRepository.GetTenantCountryCodeAsync(tenantId);
+            if (string.IsNullOrEmpty(countryCode))
+            {
+                return NotFound();
+            }
+
+            return Ok(new TenantCountryResponse
+            {
+                TenantId = tenantId,
+                CountryCode = countryCode
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to get country for tenant {TenantId}", tenantId);
+            return StatusCode(500);
+        }
+    }
+
     // Gone with the front door's move to reading master directly: GET by-shopify-shop, and PUT and
     // DELETE {tenantId:int}/shopify-shop. Hub answered "which tenant owns this shop" and recorded
     // the pairing while Integration Manager was one shared deployment with no master connection of

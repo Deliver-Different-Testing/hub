@@ -20,6 +20,7 @@ public interface IAuthenticationRepository
     Task<bool> UpdateCurrentTenantIdAsync(int userId, int tenantId);
     Task<bool> IsUserAssociatedWithTenantAsync(int userId, int tenantId);
     Task<string?> GetTenantTimeZoneAsync(int tenantId);
+    Task<string?> GetTenantCountryCodeAsync(int tenantId);
     Task<Tenant?> GetTenantByIdAsync(int tenantId);
     Task<string?> GetTenantConnectionStringAsync(int tenantId);
 
