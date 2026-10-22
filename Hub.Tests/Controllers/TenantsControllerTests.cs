@@ -165,4 +165,66 @@ public class TenantsControllerTests : IDisposable
         var statusResult = Assert.IsType<StatusCodeResult>(result);
         Assert.Equal(500, statusResult.StatusCode);
     }
+
+    [Fact]
+    public async Task GetCountry_ValidApiKey_Returns200WithCountryCode()
+    {
+        _mockRepository.GetTenantCountryCodeAsync(42).Returns("NZ");
+
+        var result = await _controller.GetCountry(ValidApiKey, 42);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<TenantCountryResponse>(okResult.Value);
+        Assert.Equal(42, response.TenantId);
+        Assert.Equal("NZ", response.CountryCode);
+    }
+
+    [Fact]
+    public async Task GetCountry_MissingApiKey_Returns401()
+    {
+        var result = await _controller.GetCountry(null, 42);
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _mockRepository.DidNotReceive().GetTenantCountryCodeAsync(Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task GetCountry_WrongApiKey_Returns401()
+    {
+        var result = await _controller.GetCountry("wrong-key", 42);
+
+        Assert.IsType<UnauthorizedResult>(result);
+        await _mockRepository.DidNotReceive().GetTenantCountryCodeAsync(Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task GetCountry_TenantNotFound_Returns404()
+    {
+        _mockRepository.GetTenantCountryCodeAsync(999).Returns((string?)null);
+
+        var result = await _controller.GetCountry(ValidApiKey, 999);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetCountry_TenantWithNoCountryRecorded_Returns404()
+    {
+        _mockRepository.GetTenantCountryCodeAsync(7).Returns(string.Empty);
+
+        var result = await _controller.GetCountry(ValidApiKey, 7);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetCountry_RepositoryThrows_Returns500()
+    {
+        _mockRepository.GetTenantCountryCodeAsync(1).ThrowsAsync(new Exception("db blew up"));
+
+        var result = await _controller.GetCountry(ValidApiKey, 1);
+
+        var statusResult = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(500, statusResult.StatusCode);
+    }
 }
