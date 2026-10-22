@@ -135,6 +135,13 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
             .Select(t => t.TimeZone)
             .FirstOrDefaultAsync();
 
+    public async Task<string?> GetTenantCountryCodeAsync(int tenantId) =>
+        await context.Tenants
+            .AsNoTracking()
+            .Where(t => t.TenantId == tenantId)
+            .Select(t => t.CountryCode)
+            .FirstOrDefaultAsync();
+
     public async Task<string?> GetTenantConnectionStringAsync(int tenantId) =>
         await context.Tenants
             .AsNoTracking()
