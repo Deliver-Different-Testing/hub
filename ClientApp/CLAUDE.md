@@ -2,6 +2,11 @@
 
 React 19 + Vite 8 + TypeScript (strict) + Mantine 9 SPA/PWA for the Hub. Built into `../wwwroot` (ASP.NET serves it; unknown non-file paths fall back to `index.html`). Replaces the old Razor/Bootstrap pages.
 
+## Project and local run
+
+- `Hub.ClientApp.esproj` (NoTargets SDK, same shape as dfrntcrm's AdminPortal) puts the SPA in `Hub.slnx`. Building the solution runs `npm ci` (when the lockfile changes) and `npm run build` (when sources change). `-p:SkipSpaBuild=true` skips both; Docker and CI do, because they build the SPA in their own node stage.
+- Running Hub with the `Hub` launch profile starts Vite with it (SpaProxy: `SpaRoot`/`SpaProxyServerUrl` in `Hub.csproj`) and opens `http://hub.local.deliverdifferent.com:5173`; stopping Hub stops Vite. `launchSettings.json` is gitignored, so the profile needs `"launchUrl": "http://hub.local.deliverdifferent.com:5173"` and `ASPNETCORE_HOSTINGSTARTUPASSEMBLIES=Microsoft.AspNetCore.SpaProxy` in its environment.
+
 ## Commands (run from `ClientApp/`)
 
 - `npm run dev` - Vite on :5173 (use `http://hub.local.deliverdifferent.com:5173` so the shared `.local.deliverdifferent.com` cookie works). Proxies `/api`, `/connect`, `/Account/AcceptTenantSwitchToken`, `/Account/CreditCard`, `/images`, `/health` to Kestrel (`HUB_BACKEND`, default `http://localhost:5000`).

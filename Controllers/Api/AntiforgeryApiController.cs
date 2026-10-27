@@ -6,7 +6,7 @@ namespace Hub.Controllers.Api;
 
 [Route("api/antiforgery")]
 [AllowAnonymous]
-public class AntiforgeryApiController(IAntiforgery antiforgery) : SpaApiControllerBase
+public class AntiforgeryApiController(IAntiforgery antiforgery, IWebHostEnvironment env) : SpaApiControllerBase
 {
     public const string CookieName = "XSRF-TOKEN";
 
@@ -20,7 +20,9 @@ public class AntiforgeryApiController(IAntiforgery antiforgery) : SpaApiControll
         {
             HttpOnly = false,
             SameSite = SameSiteMode.Strict,
-            Secure = true,
+            // Local dev is served over http by Vite, where a Secure cookie is dropped. Deployed hosts
+            // sit behind TLS at the load balancer, so Kestrel sees http there too and the scheme can't decide.
+            Secure = !env.IsDevelopment(),
             Path = "/"
         });
         return NoContent();

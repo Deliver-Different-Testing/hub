@@ -38,20 +38,4 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />
   </ItemGroup>
-  <!--
-    The SPA in ClientApp builds into wwwroot. Docker and CI build it in their own node stage and pass
-    -p:SkipSpaBuild=true; a local build does it here, and only when ClientApp sources changed.
-  -->
-  <ItemGroup>
-    <SpaSource Include="$(SpaRoot)src\**;$(SpaRoot)public\**;$(SpaRoot)index.html;$(SpaRoot)vite.config.ts;$(SpaRoot)package-lock.json" />
-  </ItemGroup>
-  <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="'$(SkipSpaBuild)' != 'true'"
-          Inputs="$(SpaRoot)package-lock.json" Outputs="$(SpaRoot)node_modules\.install-stamp">
-    <Exec Command="npm ci" WorkingDirectory="$(SpaRoot)" />
-    <Touch Files="$(SpaRoot)node_modules\.install-stamp" AlwaysCreate="true" />
-  </Target>
-  <Target Name="NpmBuild" BeforeTargets="BeforeBuild" Condition="'$(SkipSpaBuild)' != 'true'"
-          Inputs="@(SpaSource)" Outputs="wwwroot\index.html">
-    <Exec Command="npm run build" WorkingDirectory="$(SpaRoot)" />
-  </Target>
 </Project>

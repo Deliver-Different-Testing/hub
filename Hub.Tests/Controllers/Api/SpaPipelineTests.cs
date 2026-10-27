@@ -145,7 +145,7 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
     // ---- antiforgery ----
 
     [Fact]
-    public async Task Antiforgery_endpoint_sets_a_script_readable_strict_secure_cookie()
+    public async Task Antiforgery_endpoint_sets_a_script_readable_strict_cookie()
     {
         var client = _factory.CreateSpaClient();
 
@@ -155,8 +155,8 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
         var cookie = Assert.Single(
             response.Headers.GetValues("Set-Cookie"), c => c.StartsWith("XSRF-TOKEN=", StringComparison.Ordinal));
         Assert.Contains("samesite=strict", cookie, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("secure", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("httponly", cookie, StringComparison.OrdinalIgnoreCase);
+        // Secure is environment-dependent (this factory runs as Development); see AntiforgeryApiControllerTests.
     }
 
     [Fact]
