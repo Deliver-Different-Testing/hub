@@ -145,7 +145,7 @@ builder.Services.AddAuthentication("Identity.Application")
             if (context.Request.Path.StartsWithSegments("/api"))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return Task.CompletedTask;
+                return context.Response.WriteAsJsonAsync(new { error = "Not signed in." });
             }
 
             context.Response.Redirect(context.RedirectUri);
@@ -156,7 +156,7 @@ builder.Services.AddAuthentication("Identity.Application")
             if (context.Request.Path.StartsWithSegments("/api"))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return Task.CompletedTask;
+                return context.Response.WriteAsJsonAsync(new { error = "You don't have access to this." });
             }
 
             context.Response.Redirect(context.RedirectUri);

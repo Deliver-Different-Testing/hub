@@ -131,6 +131,19 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
     }
 
     [Fact]
+    public async Task Unauthenticated_api_401_carries_the_contract_error_json()
+    {
+        // An empty body with no content type is what Firefox reports as "XML Parsing Error: no root element found".
+        var client = _factory.CreateSpaClient();
+
+        var response = await client.GetAsync("/api/me", Ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("""{"error":"Not signed in."}""", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact]
     public async Task Unauthenticated_api_mutation_with_antiforgery_is_401_not_a_login_redirect()
     {
         var client = _factory.CreateSpaClient();
