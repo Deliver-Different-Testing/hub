@@ -82,6 +82,24 @@ describe('routing', () => {
     expect(screen.getByRole('contentinfo')).toHaveTextContent(`© ${new Date().getFullYear()} Deliver DFRNT`);
   });
 
+  // site.less .footer / .footer-row on the Razor layout.
+  it('gives the footer the old Hub look: a full-width surface bar with centred, small secondary text', async () => {
+    serveAuthed();
+    renderApp('/');
+    const footer = await screen.findByRole('contentinfo');
+    expect(footer.className).toMatch(/footer/);
+    expect(within(footer).getByText(/Deliver DFRNT/).className).toMatch(/row/);
+
+    const css = readFileSync(join(__dirname, 'components/footer.module.css'), 'utf8');
+    expect(css).toMatch(/\.footer\s*\{[^}]*background:\s*var\(--dd-surface-container\)/);
+    expect(css).toMatch(/\.footer\s*\{[^}]*box-shadow:\s*0 -1px 3px/);
+    expect(css).toMatch(/\.footer\s*\{[^}]*padding:\s*0\.75rem 0/);
+    expect(css).toMatch(/\.row\s*\{[^}]*justify-content:\s*center/);
+    expect(css).toMatch(/\.row\s*\{[^}]*font-size:\s*0\.8125rem/);
+    expect(css).toMatch(/\.row\s*\{[^}]*font-weight:\s*500/);
+    expect(css).toMatch(/\.row\s*\{[^}]*color:\s*var\(--dd-on-surface-secondary\)/);
+  });
+
   it.each([
     ['/Account/Login', 'Welcome back'],
     ['/account/forgotpassword', 'Forgot Password'],
