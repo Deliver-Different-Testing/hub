@@ -15,7 +15,7 @@ const API_KEY_ERROR = 'Failed to generate API key';
 const API_KEY_SETTING = 'APIKey';
 
 export default function SettingsPage() {
-  usePageTitle('User Settings');
+  usePageTitle('Settings');
   const queryClient = useQueryClient();
   const { data, isPending, isError } = useQuery({ queryKey: ['settings'], queryFn: getSettings, retry: false });
   const [confirming, setConfirming] = useState(false);

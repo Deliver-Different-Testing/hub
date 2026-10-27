@@ -20,6 +20,7 @@ describe('SettingsPage', () => {
     serve();
     renderWithProviders(<SettingsPage />);
     expect(await screen.findByRole('heading', { name: 'User Settings' })).toBeInTheDocument();
+    expect(document.title).toBe('Settings - Deliver DFRNT');
     expect(screen.getByRole('heading', { name: 'API Key' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Other Settings' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Setting' })).toBeInTheDocument();
