@@ -67,12 +67,12 @@
   white-space: nowrap;
 }
 
-/* Profile trigger: name + caret on a pill that washes on hover; the caret flips while the menu is open. */
+/* Profile trigger: avatar + name + caret on a pill that washes on hover; the caret flips while the menu is open. */
 .profile {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.375rem 0.875rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
   border-radius: var(--mantine-radius-xl);
   color: var(--app-bar-on);
   font-size: 0.875rem;
@@ -83,6 +83,17 @@
 .profile:hover,
 .profile:focus-visible {
   background-color: var(--app-bar-wash);
+}
+
+/* Initials on the translucent chip tone, so the avatar reads on either brand's bar. */
+.profile .avatar {
+  background: var(--app-bar-chip);
+  color: var(--app-bar-on);
+  transition: background-color 150ms ease;
+}
+
+.profile:hover .avatar {
+  background: var(--app-bar-chip-hover);
 }
 
 .caret {
@@ -114,6 +125,7 @@
   .brand,
   .tenantChip,
   .profile,
+  .avatar,
   .caret {
     transition: none;
   }

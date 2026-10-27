@@ -258,7 +258,7 @@ describe('AppShell app bar', () => {
     const bar = await screen.findByRole('banner');
     await within(bar).findByRole('button', { name: 'Urgent' });
     const names = within(bar).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Urgent', 'Account menu', 'Theme']);
+    expect(names).toEqual(['Urgent', 'Jane Doe, account menu', 'Theme']);
   });
 
   it('styles the switcher as the old translucent pill and the theme toggle as a bare round button', async () => {
@@ -266,7 +266,7 @@ describe('AppShell app bar', () => {
     renderApp('/');
     expect((await screen.findByRole('button', { name: 'Urgent' })).className).toMatch(/tenantChip/);
     expect(screen.getByText('Organizations:').className).toMatch(/tenantLabel/);
-    expect(screen.getByRole('button', { name: 'Account menu' }).className).toMatch(/profile/);
+    expect(screen.getByRole('button', { name: 'Jane Doe, account menu' }).className).toMatch(/profile/);
     expect(screen.getByRole('button', { name: 'Theme' }).className).toMatch(/iconButton/);
   });
 
@@ -287,22 +287,43 @@ describe('AppShell app bar', () => {
 });
 
 describe('AppShell profile menu', () => {
-  it('shows the display name, the email, User Settings and Logout', async () => {
+  it('shows the display name, the email, User Settings and Log out', async () => {
     serveAuthed();
     const user = userEvent.setup();
     renderApp('/');
-    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
+    await user.click(await screen.findByRole('button', { name: 'Jane Doe, account menu' }));
 
-    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Jane Doe');
+    expect(screen.getByRole('button', { name: 'Jane Doe, account menu' })).toHaveTextContent('Jane Doe');
     expect(await screen.findByText('jane.doe@example.com')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'User Settings' })).toHaveAttribute('href', '/Account/Settings');
-    expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument();
+  });
+
+  it('shows an initials avatar on the trigger so phones still see who is signed in', async () => {
+    serveAuthed();
+    renderApp('/');
+    const trigger = await screen.findByRole('button', { name: 'Jane Doe, account menu' });
+    expect(trigger.querySelector('.mantine-Avatar-root')).toHaveTextContent('JD');
+  });
+
+  it('heads the dropdown with name and email, and sets Log out apart at the end', async () => {
+    serveAuthed();
+    const user = userEvent.setup();
+    renderApp('/');
+    await user.click(await screen.findByRole('button', { name: 'Jane Doe, account menu' }));
+    const menu = await screen.findByRole('menu');
+
+    expect(within(menu).getByText('Jane Doe')).toBeInTheDocument();
+    expect(within(menu).getByText('jane.doe@example.com')).toHaveAttribute('title', 'jane.doe@example.com');
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['User Settings', 'Log out']);
+    expect(menu.querySelectorAll('.mantine-Menu-divider')).toHaveLength(2);
+    expect(menu.querySelector('.mantine-Menu-divider:last-of-type + button')).toHaveTextContent('Log out');
   });
 
   it('derives a name from the email when the account has no display name', async () => {
     serveAuthed({ ...ME_NZ, displayName: null });
     renderApp('/');
-    expect(await screen.findByRole('button', { name: 'Account menu' })).toHaveTextContent('Jane Doe');
+    expect(await screen.findByRole('button', { name: 'Jane Doe, account menu' })).toHaveTextContent('Jane Doe');
   });
 
   it('logs out through the API and follows the returned redirect', async () => {
@@ -310,8 +331,8 @@ describe('AppShell profile menu', () => {
     server.use(antiforgeryHandler(), http.post('/api/auth/logout', () => HttpResponse.json({ redirectUrl: '/Account/Login' })));
     const user = userEvent.setup();
     renderApp('/');
-    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Logout' }));
+    await user.click(await screen.findByRole('button', { name: 'Jane Doe, account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Log out' }));
     await waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/Account/Login'));
   });
 
@@ -320,15 +341,15 @@ describe('AppShell profile menu', () => {
     server.use(antiforgeryHandler(), http.post('/api/auth/logout', () => HttpResponse.json({ redirectUrl: null })));
     const user = userEvent.setup();
     const first = renderApp('/');
-    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Logout' }));
+    await user.click(await screen.findByRole('button', { name: 'Jane Doe, account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Log out' }));
     await waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/Account/Login'));
     first.unmount();
 
     server.use(http.post('/api/auth/logout', () => new HttpResponse(null, { status: 500 })));
     renderApp('/');
-    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Logout' }));
+    await user.click(await screen.findByRole('button', { name: 'Jane Doe, account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Log out' }));
     expect(await screen.findByText(/Couldn't reach the server/)).toBeInTheDocument();
   });
 });

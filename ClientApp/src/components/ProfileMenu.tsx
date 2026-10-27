@@ -1,7 +1,7 @@
-import { Group, Menu, Text, UnstyledButton } from '@mantine/core';
+import { Avatar, Group, Menu, Stack, Text, UnstyledButton } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useMutation } from '@tanstack/react-query';
-import { ChevronDown, CircleUserRound, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, LogOut, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getApiErrorMessage } from '../api/client';
 import { logout } from '../api/hub';
@@ -24,22 +24,29 @@ export default function ProfileMenu({ me }: { me: Me }) {
   return (
     <Menu position="bottom-end" width={260}>
       <Menu.Target>
-        <UnstyledButton aria-label="Account menu" className={`${classes.profile} ${classes.focusRing}`}>
-          <Text span visibleFrom="xs" inherit>
+        {/* The visible name leads the accessible name so voice control can target it (WCAG 2.5.3). */}
+        <UnstyledButton aria-label={`${label}, account menu`} className={`${classes.profile} ${classes.focusRing}`}>
+          <Avatar name={label} size={30} classNames={{ placeholder: classes.avatar }} />
+          <Text span visibleFrom="sm" inherit>
             {label}
           </Text>
-          <span className={classes.caret}>
+          <span className={classes.caret} aria-hidden>
             <Icon icon={ChevronDown} size={16} />
           </span>
         </UnstyledButton>
       </Menu.Target>
       <Menu.Dropdown>
-        <Menu.Label title={me.email}>
-          <Group gap="xs" wrap="nowrap">
-            <Icon icon={CircleUserRound} size={18} />
-            <Text size="sm" truncate inherit>
-              {me.email}
-            </Text>
+        <Menu.Label>
+          <Group gap="sm" wrap="nowrap">
+            <Avatar name={label} size={36} color="initials" />
+            <Stack gap={0} miw={0}>
+              <Text size="sm" fw={600} c="var(--mantine-color-text)" truncate>
+                {label}
+              </Text>
+              <Text size="xs" truncate title={me.email}>
+                {me.email}
+              </Text>
+            </Stack>
           </Group>
         </Menu.Label>
         <Menu.Divider />
@@ -47,12 +54,13 @@ export default function ProfileMenu({ me }: { me: Me }) {
         <Menu.Item component={Link} to="/Account/Settings" leftSection={<Icon icon={Settings} size={16} />}>
           User Settings
         </Menu.Item>
+        <Menu.Divider />
         <Menu.Item
           leftSection={<Icon icon={LogOut} size={16} />}
           disabled={signOut.isPending}
           onClick={() => signOut.mutate()}
         >
-          Logout
+          Log out
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>
