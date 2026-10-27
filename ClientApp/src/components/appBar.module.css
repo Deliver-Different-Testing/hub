@@ -1,0 +1,120 @@
+/*
+ * The old Hub navbar's chrome (site.less .navbar / .tenant-selector / .profile-icon-username / .icon-btn) on
+ * IntegrationManager's 56px full-bleed bar. Colours come in per brand from AppShell as --app-bar-* variables
+ * (theme.other.scrim): on-ink text, a translucent chip, and a softer hover wash.
+ */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: opacity 150ms ease;
+}
+
+.brand:hover {
+  opacity: 0.85;
+}
+
+/* "ORGANIZATIONS:" beside the switcher, as on the Razor layout. */
+.tenantLabel {
+  color: var(--app-bar-on);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Tenant switcher: a lighter translucent pill on the bar. */
+.tenantChip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.375rem 0.875rem;
+  background-color: var(--app-bar-chip);
+  border: none;
+  border-radius: var(--mantine-radius-xl);
+  color: var(--app-bar-on);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: background-color 150ms ease;
+}
+
+.tenantChip:disabled {
+  cursor: progress;
+}
+
+.tenantChip:hover:not(:disabled),
+.tenantChip:focus-visible {
+  background-color: var(--app-bar-chip-hover);
+  color: var(--app-bar-on);
+}
+
+/* The tenant name gives way first when the bar runs out of room, so the other actions stay on screen. */
+.tenantChipLabel {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Profile trigger: name + caret on a pill that washes on hover; the caret flips while the menu is open. */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: var(--mantine-radius-xl);
+  color: var(--app-bar-on);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 150ms ease;
+}
+
+.profile:hover,
+.profile:focus-visible {
+  background-color: var(--app-bar-wash);
+}
+
+.caret {
+  display: flex;
+  transition: transform 250ms ease;
+}
+
+.profile[data-expanded] .caret {
+  transform: rotate(180deg);
+}
+
+/* Bare round icon button (theme toggle): transparent, wash on hover. */
+.iconButton {
+  color: var(--app-bar-on);
+}
+
+.iconButton:hover,
+.iconButton:focus-visible {
+  background-color: var(--app-bar-wash);
+  color: var(--app-bar-on);
+}
+
+.focusRing:focus-visible {
+  outline: 2px solid var(--app-bar-on);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand,
+  .tenantChip,
+  .profile,
+  .caret {
+    transition: none;
+  }
+}
