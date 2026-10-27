@@ -1,0 +1,28 @@
+/*
+ * Close-button hover for every dialog header: grow instead of painting a background
+ * wash, matching the app-bar icon buttons. Unlayered, so it outranks Mantine's own
+ * `@layer mantine` hover background regardless of selector specificity.
+ */
+.closeButton {
+  transition: transform 120ms ease;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  background-color: transparent;
+  transform: scale(1.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closeButton {
+    transition: none;
+  }
+}
+
+/* Footer actions stack full-width, primary on top, on narrow screens. */
+@media (max-width: 36em) {
+  .footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}

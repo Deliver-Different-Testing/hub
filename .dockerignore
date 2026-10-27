@@ -3,3 +3,4 @@ Hub.slnx
 **/.git
 **/bin
 **/obj
+**/node_modules

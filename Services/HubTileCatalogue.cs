@@ -97,9 +97,9 @@ public static class HubTileCatalogue
     /// is not worth it. Alphabetical by title, matching what internal staff have
     /// been looking at for months.
     ///
-    /// The count matters beyond aesthetics — site.less staggers the entry
-    /// animation per :nth-child, so a tile added here without extending that
-    /// rule pops in with the first card instead of trailing. There is a test.
+    /// The count matters beyond aesthetics — the SPA home grid staggers the entry
+    /// animation by tile index and caps the delay at 30 tiles (ClientApp HomePage), so
+    /// tiles past the cap all arrive together. There is a test.
     /// </remarks>
     private static readonly Definition[] Definitions =
         [

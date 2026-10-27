@@ -1,10 +1,12 @@
 ﻿using System.Security.AccessControl;
 using Hub.Features.AgentAccess;
 using System.Threading.RateLimiting;
+using Hub.Controllers.Api;
 using Hub.Extensions;
 using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
 using Hub.Services;
+using Hub.ViewModels;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.StaticFiles;
@@ -17,7 +19,9 @@ builder.Services.AddHealthChecks();
 builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 Log.Logger = new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).WriteTo.Console().CreateLogger();
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .ConfigureApiBehaviorOptions(SpaApiControllerBase.ConfigureInvalidModelState);
+builder.Services.AddAntiforgery(o => { o.HeaderName = "X-XSRF-TOKEN"; });
 builder.Services.AddHttpClient();
 
 var connectionString = Environment.GetEnvironmentVariable("MasterSQLConnection") ?? string.Empty;
@@ -133,6 +137,31 @@ builder.Services.AddAuthentication("Identity.Application")
         options.LoginPath = "/Account/Login";
         options.Cookie.HttpOnly = true;
         options.Cookie.Domain = domain;
+
+        // The SPA calls /api/* with fetch, which cannot follow a login redirect: answer 401/403 there
+        // and keep the redirect for everything else (the /connect/authorize flow still relies on it).
+        options.Events.OnRedirectToLogin = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return context.Response.WriteAsJsonAsync(new { error = "Not signed in." });
+            }
+
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return context.Response.WriteAsJsonAsync(new { error = "You don't have access to this." });
+            }
+
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddSession(options =>
@@ -185,13 +214,25 @@ app.MapGet("/diagnostics", async (AuthDiagnostics diagnostics) =>
 // Configure the HTTP request pipeline.
 var provider = new FileExtensionContentTypeProvider { Mappings = { [".tpl"] = "text/plain" } };
 
-app.UseStaticFiles(new StaticFileOptions
+var noCacheFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "index.html", "sw.js", "manifest.webmanifest", "registerSW.js"
+};
+var staticFileOptions = new StaticFileOptions
 {
     ContentTypeProvider = provider,
     OnPrepareResponse = x =>
     {
         var path = x.Context.Request.Path.Value ?? string.Empty;
-        if (path.StartsWith("/dist/") || path.StartsWith("/images/"))
+        if (noCacheFiles.Contains(x.File.Name))
+        {
+            x.Context.Response.Headers.Append("Cache-Control", "no-cache");
+        }
+        else if (path.StartsWith("/static/"))
+        {
+            x.Context.Response.Headers.Append("Cache-Control", "public, max-age=31536000, immutable");
+        }
+        else if (path.StartsWith("/images/"))
         {
             x.Context.Response.Headers.Append("Cache-Control", "public, max-age=86400");
         }
@@ -202,7 +243,9 @@ app.UseStaticFiles(new StaticFileOptions
             x.Context.Response.Headers.Append("Expires", "0");
         }
     }
-});
+};
+
+app.UseStaticFiles(staticFileOptions);
 
 app.UseSession();
 app.UseCookiePolicy();
@@ -216,6 +259,14 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
+// An unknown API path is a 404, never the SPA shell. The literal prefix outranks the catch-all below.
+app.MapFallback("/api/{**path}", () => Results.NotFound(new ApiError("Not found.")));
+
+// Every other path that is not a file belongs to the React router. MVC routes (Account/CreditCard,
+// Account/AcceptTenantSwitchToken, the OAuth consent page) and the middleware endpoints match first.
+app.MapFallbackToFile("{*path:nonfile}", "index.html", staticFileOptions);
 
 app.Run();
 return;
+
+public partial class Program;

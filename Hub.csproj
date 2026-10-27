@@ -2,12 +2,19 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>14</LangVersion>
+    <SpaRoot>ClientApp\</SpaRoot>
+    <SpaProxyServerUrl>http://hub.local.deliverdifferent.com:5173/</SpaProxyServerUrl>
+    <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Hub.Tests\**" />
     <Content Remove="Hub.Tests\**" />
     <EmbeddedResource Remove="Hub.Tests\**" />
     <None Remove="Hub.Tests\**" />
+    <Compile Remove="ClientApp\**" />
+    <Content Remove="ClientApp\**" />
+    <EmbeddedResource Remove="ClientApp\**" />
+    <None Remove="ClientApp\**" />
   </ItemGroup>
   <ItemGroup>
     <None Include="efpt.Despatch.config.json.user" />
@@ -26,24 +33,9 @@
     <PackageReference Include="OpenIddict.AspNetCore" />
     <PackageReference Include="OpenIddict.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />
   </ItemGroup>
-  <ItemGroup>
-    <_ContentIncludedByDefault Remove="ClientApp\obj\ClientApp.esproj.nuget.dgspec.json" />
-    <_ContentIncludedByDefault Remove="ClientApp\obj\project.assets.json" />
-    <_ContentIncludedByDefault Remove="ClientApp\obj\project.packagespec.json" />
-    <_ContentIncludedByDefault Remove="ClientApp\package-lock.json" />
-    <_ContentIncludedByDefault Remove="ClientApp\package.json" />
-    <_ContentIncludedByDefault Remove="ClientApp\tsconfig.json" />
-  </ItemGroup>
-  <Target Name="NpmInstall" BeforeTargets="NpmBuild"
-          Inputs="package-lock.json" Outputs="node_modules\.install-stamp">
-    <Exec Command="npm install" />
-    <Touch Files="node_modules\.install-stamp" AlwaysCreate="true" />
-  </Target>
-  <Target Name="NpmBuild" BeforeTargets="BeforeBuild">
-    <Exec Command="npm run build" />
-  </Target>
 </Project>

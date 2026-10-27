@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
 namespace Hub.ViewModels;
@@ -25,11 +25,6 @@ public partial class StrongPasswordAttribute : ValidationAttribute
 public sealed class ResetPasswordViewModel
 {
     [Required]
-    [EmailAddress]
-    [Display(Name = "Email")]
-    public required string Email { get; init; }
-
-    [Required]
     [StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 8)]
     [DataType(DataType.Password)]
     [Display(Name = "Password")]
@@ -41,5 +36,6 @@ public sealed class ResetPasswordViewModel
     [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
     public string ConfirmPassword { get; init; } = string.Empty;
 
+    [Required]
     public required string Code { get; init; }
 }
