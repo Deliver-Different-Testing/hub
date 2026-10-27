@@ -1,0 +1,12 @@
+# otgcargo staging: only what differs from ../auto-deploy-values.yaml.
+# Placement (tenant label, node affinity, toleration) is generated at deploy time.
+hpa:
+  targetCPUUtilizationPercentage: 85
+ingress:
+  spec:
+    ingressClassName: nginx
+livenessProbe:
+  initialDelaySeconds: 30
+readinessProbe:
+  initialDelaySeconds: 30
+  timeoutSeconds: 5
