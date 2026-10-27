@@ -148,7 +148,7 @@ describe('routing', () => {
     serveAuthed();
     server.use(http.get('/api/me/settings', () => HttpResponse.json([])));
     renderApp('/FuelSurcharge');
-    expect(await screen.findByText('Recent records')).toBeInTheDocument();
+    expect(await screen.findByText('Rate history')).toBeInTheDocument();
   });
 });
 
