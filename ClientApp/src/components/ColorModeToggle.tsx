@@ -3,7 +3,7 @@ import { ActionIcon, Menu, Tooltip, useMantineTheme } from '@mantine/core';
 import { Check, Moon, Sun, SunMoon } from 'lucide-react';
 import { useColorMode, type ColorModePreference } from '../hooks/useColorMode';
 import Icon from './Icon';
-import classes from './growOnHover.module.css';
+import { appBarIconProps } from './appBarChrome';
 
 const OPTIONS: { value: ColorModePreference; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -13,7 +13,7 @@ const OPTIONS: { value: ColorModePreference; label: string; icon: typeof Sun }[]
 
 export default function ColorModeToggle() {
   const { preference, setPreference } = useColorMode();
-  const { shell } = useMantineTheme().other;
+  const { scrim } = useMantineTheme().other;
   const [opened, setOpened] = useState(false);
   const current = OPTIONS.find((o) => o.value === preference) ?? OPTIONS[2];
 
@@ -22,11 +22,9 @@ export default function ColorModeToggle() {
       <Tooltip label="Change theme" position="bottom" withArrow openDelay={200} disabled={opened}>
         <Menu.Target>
           <ActionIcon
-            variant="subtle"
-            size="lg"
-            className={classes.growOnHover}
+            {...appBarIconProps}
             aria-label="Change theme"
-            style={{ color: shell.textPrimary }}
+            style={{ color: scrim.text }}
           >
             <Icon icon={current.icon} size={18} />
           </ActionIcon>

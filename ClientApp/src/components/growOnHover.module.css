@@ -18,3 +18,27 @@
     transition: none;
   }
 }
+
+/* Text buttons on the shell bar (org switcher): a faint on-scrim wash, set per brand through --app-bar-hover. */
+.shellButton:hover:not(:disabled),
+.shellButton:focus-visible {
+  background-color: var(--app-bar-hover);
+}
+
+.shellButton {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The tenant name gives way first when the bar runs out of room, so the avatar never leaves the screen. */
+.shellButtonInner {
+  min-width: 0;
+}
+
+.shellButtonLabel {
+  min-width: 0;
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

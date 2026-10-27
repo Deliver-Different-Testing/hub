@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from './App';
+import { APP_BAR_HEIGHT_PX, crumbsFor } from './components/appBarChrome';
 import { navigateTo, reloadPage } from './lib/navigate';
 import {
   ME_NZ,
@@ -144,7 +145,6 @@ describe('AppShell org switcher', () => {
     serveAuthed();
     const user = userEvent.setup();
     renderApp('/');
-    expect(await screen.findByText('Organizations:')).toBeInTheDocument();
     const menu = await openSwitcher(user);
     const items = within(menu).getAllByRole('menuitem');
     expect(items.map((i) => i.textContent)).toEqual(['Urgent', 'Acme Delivery']);
@@ -217,7 +217,52 @@ describe('AppShell org switcher', () => {
     serveAuthed({ ...ME_US, tenants: [] });
     renderApp('/');
     await screen.findByRole('link', { name: 'Tile 1' });
-    expect(screen.queryByText('Organizations:')).not.toBeInTheDocument();
+    expect(document.getElementById('tenantDropdown')).toBeNull();
+  });
+});
+
+// Same bar as IntegrationManager and dfrntcrm: full-bleed 56px, logo, keyline, breadcrumb, round icon actions.
+describe('AppShell app bar', () => {
+  it('is a full-width 56px shell bar with the logo linking home', async () => {
+    serveAuthed();
+    renderApp('/');
+    const bar = await screen.findByRole('banner');
+    expect(bar).toHaveStyle({ height: `${APP_BAR_HEIGHT_PX}px` });
+    expect(bar.closest('.mantine-Container-root')).toBeNull();
+    expect(within(bar).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(within(bar).getByTestId('app-bar-keyline')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['/', ['App Hub']],
+    ['/FuelSurcharge', ['App Hub', 'Fuel surcharge']],
+    ['/account/settings/', ['App Hub', 'User Settings']],
+  ])('shows where you are on %s', async (route, crumbs) => {
+    serveAuthed();
+    server.use(http.get('/api/me/settings', () => HttpResponse.json([])));
+    renderApp(route);
+    const bar = await screen.findByRole('banner');
+    const trail = bar.querySelectorAll('.mantine-Breadcrumbs-root > span');
+    expect([...trail].map((c) => c.textContent)).toEqual(crumbs);
+    expect(trail[trail.length - 1]).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('renders the theme and account actions as round grow-on-hover icon buttons', async () => {
+    serveAuthed();
+    renderApp('/');
+    for (const name of ['Change theme', 'Account menu']) {
+      const button = await screen.findByRole('button', { name });
+      expect(button.className).toMatch(/growOnHover/);
+      expect(button).toHaveAttribute('data-variant', 'subtle');
+    }
+  });
+
+  it('shows the current organization as a subtle shell button', async () => {
+    serveAuthed();
+    renderApp('/');
+    const button = await screen.findByRole('button', { name: 'Urgent' });
+    expect(button).toHaveAttribute('data-variant', 'subtle');
+    expect(button.className).toMatch(/shellButton/);
   });
 });
 
@@ -228,16 +273,18 @@ describe('AppShell profile menu', () => {
     renderApp('/');
     await user.click(await screen.findByRole('button', { name: 'Account menu' }));
 
-    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Jane Doe');
-    expect(await screen.findByText('jane.doe@example.com')).toBeInTheDocument();
+    expect(await screen.findByTestId('account-name')).toHaveTextContent('Jane Doe');
+    expect(screen.getByText('jane.doe@example.com')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'User Settings' })).toHaveAttribute('href', '/Account/Settings');
     expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeInTheDocument();
   });
 
   it('derives a name from the email when the account has no display name', async () => {
     serveAuthed({ ...ME_NZ, displayName: null });
+    const user = userEvent.setup();
     renderApp('/');
-    expect(await screen.findByRole('button', { name: 'Account menu' })).toHaveTextContent('Jane Doe');
+    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
+    expect(await screen.findByTestId('account-name')).toHaveTextContent('Jane Doe');
   });
 
   it('logs out through the API and follows the returned redirect', async () => {
@@ -281,5 +328,11 @@ describe('AppShell colour mode', () => {
     renderApp('/');
     await user.click(await screen.findByRole('button', { name: 'Change theme' }));
     expect(await screen.findByRole('menuitem', { name: 'Dark' })).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+describe('crumbsFor', () => {
+  it('falls back to App Hub for a path with no entry', () => {
+    expect(crumbsFor('/somewhere')).toEqual(['App Hub']);
   });
 });
