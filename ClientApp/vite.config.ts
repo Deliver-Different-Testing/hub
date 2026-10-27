@@ -47,7 +47,7 @@ export default defineConfig({
             /^\/Account\/CreditCard/,
             /^\/images/,
           ],
-          globIgnores: ['static/zxcvbn*.js'], // lazy password-strength dictionary: not worth precaching
+          globIgnores: ['static/zxcvbn*.js', 'static/lottie*.js'], // lazy, single-page chunks (reset-password dictionary, login animation): not worth precaching
           cleanupOutdatedCaches: true,
           runtimeCaching: [{ urlPattern: /^\/api(\/|$)/, handler: 'NetworkOnly' }],
         },

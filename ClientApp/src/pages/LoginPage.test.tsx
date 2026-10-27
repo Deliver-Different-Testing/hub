@@ -9,6 +9,7 @@ import { renderWithProviders } from '../test/utils';
 import LoginPage from './LoginPage';
 
 vi.mock('../lib/navigate', () => ({ navigateTo: vi.fn(), reloadPage: vi.fn() }));
+vi.mock('lottie-web/build/player/lottie_light', () => ({ default: { loadAnimation: () => ({ destroy: () => {} }) } }));
 
 async function fill(user: ReturnType<typeof userEvent.setup>, email = 'jane@example.com', password = 'secret') {
   if (email) await user.type(screen.getByLabelText(/^Email/), email);
@@ -149,9 +150,22 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid login attempt.');
   });
 
-  it('shows the ?error= banner', () => {
-    renderWithProviders(<LoginPage />, { route: '/Account/Login?error=Your%20session%20expired' });
-    expect(screen.getByRole('alert')).toHaveTextContent('Your session expired');
+  it('shows the fixed message for a known ?error= code', () => {
+    renderWithProviders(<LoginPage />, { route: '/Account/Login?error=autologin-failed' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Auto-login failed. Please login manually.');
+  });
+
+  it('never shows free text from ?error=, so a crafted link cannot put words on the login page', () => {
+    renderWithProviders(<LoginPage />, { route: '/Account/Login?error=Call%20support%20on%200800%20SCAM' });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/SCAM/)).not.toBeInTheDocument();
+  });
+
+  it('plays the animated DFRNT mark, light or dark to match the colour mode', async () => {
+    server.use(http.get('/images/:file', () => HttpResponse.json({ v: '5.7.4', layers: [] })));
+    renderWithProviders(<LoginPage />);
+    const logo = await screen.findByTestId('login-lottie');
+    expect(logo).toHaveAttribute('data-src', '/images/Auto-mate-Ready%20state%20(2).json');
   });
 
   it('validates the email after typing and does not post an invalid one', async () => {

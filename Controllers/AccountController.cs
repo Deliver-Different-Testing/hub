@@ -17,8 +17,11 @@ public class AccountController(IAccountService accountService) : Controller
         var result = await accountService.CreditCardLoginAsync(HttpContext);
         return result.Succeeded
             ? Redirect(result.RedirectUrl!)
-            : Redirect(LoginUrl(result.Error));
+            : Redirect(LoginUrl(AutoLoginFailedCode));
     }
+
+    // The login page maps known codes to its own copy; the detailed reason is already logged by the service.
+    private const string AutoLoginFailedCode = "autologin-failed";
 
     [HttpGet("Account/AcceptTenantSwitchToken")]
     [AllowAnonymous]

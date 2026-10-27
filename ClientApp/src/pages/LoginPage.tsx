@@ -6,10 +6,17 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getApiErrorMessage } from '../api/client';
 import { login } from '../api/hub';
 import AuthCard from '../components/AuthCard';
+import LoginLottie from '../components/LoginLottie';
 import SubmitButton from '../components/SubmitButton';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { navigateTo } from '../lib/navigate';
 import { EMAIL_ERROR, isValidEmail } from '../lib/email';
+
+// `?error=` carries a code from a server redirect (Account/CreditCard). Only these messages are
+// ever shown; any other value is ignored so a crafted link can't put its own text on this page.
+const LOGIN_ERRORS: Record<string, string> = {
+  'autologin-failed': 'Auto-login failed. Please login manually.',
+};
 
 export default function LoginPage() {
   usePageTitle('Log in');
@@ -22,7 +29,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [formError, setFormError] = useState(params.get('error') ?? '');
+  const [formError, setFormError] = useState(LOGIN_ERRORS[params.get('error') ?? ''] ?? '');
 
   const mutation = useMutation({
     mutationFn: login,
@@ -53,9 +60,7 @@ export default function LoginPage() {
     <AuthCard busy={busy}>
       <form onSubmit={onSubmit} noValidate id="loginForm">
         <Stack gap="md">
-          <Center>
-            <img src="/images/DFRNT_Mark.png" alt="" height={64} style={{ height: 64, width: 'auto' }} />
-          </Center>
+          <LoginLottie />
           <div>
             <Title order={2} ta="center">
               Welcome back

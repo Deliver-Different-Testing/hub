@@ -27,16 +27,18 @@ public class AccountControllerTests
         Assert.Equal("https://booking.example.com", redirect.Url);
     }
 
-    [Fact]
-    public async Task CreditCard_Failure_RedirectsToTheSpaLoginWithTheError()
+    [Theory]
+    [InlineData("Auto-login failed. Please login manually.")]
+    [InlineData("Auto-login not configured.")]
+    public async Task CreditCard_Failure_RedirectsToTheSpaLoginWithAFixedErrorCode(string error)
     {
         var (controller, service) = Create();
-        service.CreditCardLoginAsync(controller.HttpContext)
-            .Returns(AuthResult.Failure("Auto-login failed. Please login manually."));
+        service.CreditCardLoginAsync(controller.HttpContext).Returns(AuthResult.Failure(error));
 
         var redirect = Assert.IsType<RedirectResult>(await controller.CreditCard());
 
-        Assert.Equal("/Account/Login?error=Auto-login%20failed.%20Please%20login%20manually.", redirect.Url);
+        // A code, never message text: the login page only shows messages it owns.
+        Assert.Equal("/Account/Login?error=autologin-failed", redirect.Url);
     }
 
     [Fact]
