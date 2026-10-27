@@ -15,6 +15,13 @@ const settings = (apiKey: string | null = null) => [
 const serve = (apiKey: string | null = null) =>
   server.use(http.get('/api/me/settings', () => HttpResponse.json(settings(apiKey))));
 
+async function generateKeyViaDialog() {
+  const user = userEvent.setup();
+  renderWithProviders(<SettingsPage />);
+  await user.click(await screen.findByRole('button', { name: 'Generate Key' }));
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Generate Key' }));
+}
+
 describe('SettingsPage', () => {
   it('lists the other settings, excluding the API key row', async () => {
     serve();
@@ -65,11 +72,7 @@ describe('SettingsPage', () => {
   it('generates a key after confirming, shows it, and swaps to the Copy button', async () => {
     serve();
     server.use(antiforgeryHandler(), http.post('/api/me/api-key', () => HttpResponse.json({ apiKey: 'new-key-123' })));
-    const user = userEvent.setup();
-    renderWithProviders(<SettingsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Generate Key' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Generate Key' }));
+    await generateKeyViaDialog();
 
     expect(await screen.findByDisplayValue('new-key-123')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
@@ -79,10 +82,7 @@ describe('SettingsPage', () => {
   it('shows an inline error when generation fails', async () => {
     serve();
     server.use(antiforgeryHandler(), http.post('/api/me/api-key', () => HttpResponse.json({ error: 'Failed to generate API key' }, { status: 400 })));
-    const user = userEvent.setup();
-    renderWithProviders(<SettingsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Generate Key' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Generate Key' }));
+    await generateKeyViaDialog();
 
     expect(await screen.findByText('Failed to generate API key')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate Key' })).toBeInTheDocument();
@@ -91,10 +91,7 @@ describe('SettingsPage', () => {
   it('uses the generic message when the server gives none', async () => {
     serve();
     server.use(antiforgeryHandler(), http.post('/api/me/api-key', () => new HttpResponse(null, { status: 500 })));
-    const user = userEvent.setup();
-    renderWithProviders(<SettingsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Generate Key' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Generate Key' }));
+    await generateKeyViaDialog();
     expect(await screen.findByText('Failed to generate API key')).toBeInTheDocument();
   });
 

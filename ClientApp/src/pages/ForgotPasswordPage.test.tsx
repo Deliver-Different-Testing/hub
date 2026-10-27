@@ -25,6 +25,14 @@ function captureForgot(response: () => Response = () => HttpResponse.json({})) {
   return bodies;
 }
 
+async function submitEmailOnceCaptchaLoads() {
+  const user = userEvent.setup();
+  renderWithProviders(<ForgotPasswordPage />);
+  await waitFor(() => expect(loadRecaptcha).toHaveBeenCalled());
+  await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
+  await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+}
+
 beforeEach(() => {
   vi.mocked(loadRecaptcha).mockResolvedValue({} as never);
   vi.mocked(getRecaptchaToken).mockResolvedValue('captcha-token');
@@ -51,11 +59,7 @@ describe('ForgotPasswordPage', () => {
   it('sends the email with the captcha token, then shows the success message and clears the field', async () => {
     server.use(configHandler());
     const bodies = captureForgot();
-    const user = userEvent.setup();
-    renderWithProviders(<ForgotPasswordPage />);
-    await waitFor(() => expect(loadRecaptcha).toHaveBeenCalled());
-    await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
-    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    await submitEmailOnceCaptchaLoads();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Password reset instructions have been sent to your email.');
     expect(getRecaptchaToken).toHaveBeenCalledWith('site-key', 'forgot_password');
@@ -74,11 +78,7 @@ describe('ForgotPasswordPage', () => {
         return HttpResponse.json({});
       }),
     );
-    const user = userEvent.setup();
-    renderWithProviders(<ForgotPasswordPage />);
-    await waitFor(() => expect(loadRecaptcha).toHaveBeenCalled());
-    await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
-    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    await submitEmailOnceCaptchaLoads();
 
     const busy = await screen.findByRole('button', { name: 'Processing...' });
     expect(busy).toBeDisabled();
@@ -91,11 +91,7 @@ describe('ForgotPasswordPage', () => {
     server.use(configHandler());
     vi.mocked(getRecaptchaToken).mockRejectedValue(new Error('blocked'));
     const bodies = captureForgot();
-    const user = userEvent.setup();
-    renderWithProviders(<ForgotPasswordPage />);
-    await waitFor(() => expect(loadRecaptcha).toHaveBeenCalled());
-    await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
-    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    await submitEmailOnceCaptchaLoads();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('An error occurred. Please try again later.');
     expect(bodies).toHaveLength(0);
@@ -117,11 +113,7 @@ describe('ForgotPasswordPage', () => {
   it('shows the server error for a rejected captcha', async () => {
     server.use(configHandler());
     captureForgot(() => HttpResponse.json({ error: 'reCAPTCHA validation failed. Please try again.' }, { status: 400 }));
-    const user = userEvent.setup();
-    renderWithProviders(<ForgotPasswordPage />);
-    await waitFor(() => expect(loadRecaptcha).toHaveBeenCalled());
-    await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
-    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    await submitEmailOnceCaptchaLoads();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('reCAPTCHA validation failed. Please try again.');
     expect(screen.getByRole('button', { name: 'Reset Password' })).toBeEnabled();
