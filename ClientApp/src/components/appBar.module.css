@@ -20,24 +20,17 @@
   opacity: 0.85;
 }
 
-/* "ORGANIZATIONS:" beside the switcher, as on the Razor layout. */
-.tenantLabel {
-  color: var(--app-bar-on);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* Tenant switcher: a lighter translucent pill on the bar. */
+/*
+ * Organization switcher: a translucent pill led by the org's rounded-square avatar (the user's avatar is round),
+ * so the current organization is always on screen and recognisable at a glance.
+ */
 .tenantChip {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
   max-width: 100%;
-  padding: 0.375rem 0.875rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
   background-color: var(--app-bar-chip);
   border: none;
   border-radius: var(--mantine-radius-xl);
@@ -56,6 +49,23 @@
 .tenantChip:focus-visible {
   background-color: var(--app-bar-chip-hover);
   color: var(--app-bar-on);
+}
+
+.tenantChip[aria-expanded='true'] .caret {
+  transform: rotate(180deg);
+}
+
+.tenantChip .avatar,
+.tenantStatic .avatar {
+  background: var(--app-bar-chip-hover);
+  color: var(--app-bar-on);
+}
+
+/* A single organization: the same name and avatar, but plain text with nothing to open. */
+.tenantStatic {
+  color: var(--app-bar-on);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 /* The tenant name gives way first when the bar runs out of room, so the other actions stay on screen. */
