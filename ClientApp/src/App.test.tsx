@@ -258,7 +258,7 @@ describe('AppShell app bar', () => {
     const bar = await screen.findByRole('banner');
     await within(bar).findByRole('button', { name: 'Urgent' });
     const names = within(bar).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Urgent', 'Account menu', 'Change theme']);
+    expect(names).toEqual(['Urgent', 'Account menu', 'Theme']);
   });
 
   it('styles the switcher as the old translucent pill and the theme toggle as a bare round button', async () => {
@@ -267,7 +267,7 @@ describe('AppShell app bar', () => {
     expect((await screen.findByRole('button', { name: 'Urgent' })).className).toMatch(/tenantChip/);
     expect(screen.getByText('Organizations:').className).toMatch(/tenantLabel/);
     expect(screen.getByRole('button', { name: 'Account menu' }).className).toMatch(/profile/);
-    expect(screen.getByRole('button', { name: 'Change theme' }).className).toMatch(/iconButton/);
+    expect(screen.getByRole('button', { name: 'Theme' }).className).toMatch(/iconButton/);
   });
 
   it('paints the bar chrome from the brand scrim tokens', async () => {
@@ -338,13 +338,13 @@ describe('AppShell colour mode', () => {
     serveAuthed();
     const user = userEvent.setup();
     const first = renderApp('/');
-    await user.click(await screen.findByRole('button', { name: 'Change theme' }));
+    await user.click(await screen.findByRole('button', { name: 'Theme' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Dark' }));
     expect(window.localStorage.getItem('hub-color-mode')).toBe('dark');
     first.unmount();
 
     renderApp('/');
-    await user.click(await screen.findByRole('button', { name: 'Change theme' }));
+    await user.click(await screen.findByRole('button', { name: 'Theme' }));
     expect(await screen.findByRole('menuitem', { name: 'Dark' })).toHaveAttribute('aria-current', 'true');
   });
 });
