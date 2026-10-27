@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -38,7 +39,6 @@ public sealed class HubFactory : WebApplicationFactory<Program>
 
         SetEnv("MasterSQLConnection", "Server=localhost;Database=Master;User Id=x;Password=x;TrustServerCertificate=True");
         SetEnv("RedisConfig", "localhost:6379,abortConnect=false");
-        SetEnv("ASPNETCORE_ENVIRONMENT", "Development");
     }
 
     private void SetEnv(string name, string value)
@@ -49,6 +49,10 @@ public sealed class HubFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // On the host, not ASPNETCORE_ENVIRONMENT: a process-wide Development leaks into every other
+        // test host built in parallel and turns on their DI validation.
+        builder.UseEnvironment(Environments.Development);
+
         // UseWebRoot is ignored by the minimal-hosting builder once Program has created it, so the
         // placeholder shell is installed on the environment itself.
         builder.ConfigureServices((context, _) =>
@@ -104,7 +108,12 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
 {
     private readonly HubFactory _factory;
 
-    public SpaPipelineTests(HubFactory factory) => _factory = factory;
+    // The factory (and its Accounts substitute) is shared by the class, so start each test with no recorded calls.
+    public SpaPipelineTests(HubFactory factory)
+    {
+        _factory = factory;
+        _factory.Accounts.ClearReceivedCalls();
+    }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

@@ -193,6 +193,8 @@ publish/
 # in these scripts will be unencrypted
 PublishScripts/
 scripts/
+# ...but the SPA's build scripts are source (prebuild runs clean-output.mjs).
+!ClientApp/scripts/
 
 # NuGet Packages
 *.nupkg
