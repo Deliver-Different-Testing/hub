@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -41,6 +43,34 @@ const serveAuthed = (me = ME_NZ) =>
     http.get('/api/home', () => HttpResponse.json(homeData())),
     http.get('/api/fuel-surcharge', () => HttpResponse.json(fuelData())),
   );
+
+describe('home page backdrop', () => {
+  // The old App Hub page painted a tiled pattern with soft glows behind everything (site.less body#home).
+  it('puts the App Hub backdrop behind the shell on the home page only', async () => {
+    serveAuthed();
+    renderApp('/');
+    await screen.findByRole('link', { name: 'Tile 1' });
+    const shell = screen.getByTestId('app-shell');
+    expect(shell.className).toMatch(/homeField/);
+    // An inline background shorthand (Mantine's bg prop) would wipe the class's background-image.
+    expect(shell.style.background).toBe('');
+    await waitFor(() => expect(shell).toHaveAttribute('data-brand', 'urgent'));
+  });
+
+  it('leaves other pages on the plain page surface', async () => {
+    serveAuthed();
+    renderApp('/FuelSurcharge');
+    await screen.findByRole('banner');
+    expect(screen.getByTestId('app-shell').className).not.toMatch(/homeField/);
+  });
+
+  it('keeps the old pattern and glows, flipping the strokes to white in dark mode', () => {
+    const css = readFileSync(join(__dirname, 'styles/homeBackground.module.css'), 'utf8');
+    expect(css).toMatch(/url\("data:image\/svg\+xml[^"]*stroke='%231e293b'/);
+    expect(css).toMatch(/\[data-mantine-color-scheme='dark'\][\s\S]*stroke='%23ffffff'/);
+    expect(css).toMatch(/background-attachment:\s*fixed, fixed, fixed, fixed/);
+  });
+});
 
 describe('routing', () => {
   it('renders the shell and the home tiles for an authenticated user', async () => {
