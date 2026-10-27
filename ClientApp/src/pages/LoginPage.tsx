@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Alert, Anchor, Center, Checkbox, NativeSelect, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Anchor, Checkbox, Group, PasswordInput, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { LogIn } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isCourier, setIsCourier] = useState('false');
   const [rememberMe, setRememberMe] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [formError, setFormError] = useState(LOGIN_ERRORS[params.get('error') ?? ''] ?? '');
@@ -66,7 +67,7 @@ export default function LoginPage() {
               Welcome back
             </Title>
             <Text c="dimmed" ta="center">
-              Sign in to your account
+              Log in to your account
             </Text>
           </div>
           {formError && (
@@ -74,17 +75,32 @@ export default function LoginPage() {
               {formError}
             </Alert>
           )}
+          <SegmentedControl
+            aria-label="Login type"
+            fullWidth
+            value={isCourier}
+            onChange={setIsCourier}
+            data={[
+              { value: 'false', label: 'Customer' },
+              { value: 'true', label: 'Courier' },
+            ]}
+          />
           <TextInput
             label="Email"
             type="email"
             placeholder="you@company.com"
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoFocus
             required
             value={email}
             error={emailError || undefined}
             onChange={(e) => {
               setEmail(e.currentTarget.value);
-              if (emailError || e.currentTarget.value) validateEmail(e.currentTarget.value);
+              // Re-check live only once an error is showing, so it clears as soon as the address is fixed.
+              if (emailError) validateEmail(e.currentTarget.value);
             }}
             onBlur={() => validateEmail(email)}
           />
@@ -96,27 +112,17 @@ export default function LoginPage() {
             value={password}
             error={passwordError || undefined}
             onChange={(e) => setPassword(e.currentTarget.value)}
+            visible={passwordVisible}
+            onVisibilityChange={setPasswordVisible}
+            visibilityToggleButtonProps={{ 'aria-label': passwordVisible ? 'Hide password' : 'Show password', tabIndex: 0 }}
           />
-          <NativeSelect
-            label="Login Type"
-            value={isCourier}
-            onChange={(e) => setIsCourier(e.currentTarget.value)}
-            data={[
-              { value: 'false', label: 'Customer Login' },
-              { value: 'true', label: 'Courier Login' },
-            ]}
-          />
-          <Center>
+          <Group justify="space-between">
             <Checkbox label="Remember me" checked={rememberMe} onChange={(e) => setRememberMe(e.currentTarget.checked)} />
-          </Center>
-          <Center>
-            <SubmitButton id="loginButton" icon={LogIn} label="Log in" busyLabel="Logging in..." busy={busy} />
-          </Center>
-          <Center>
-            <Anchor component={Link} to="/Account/ForgotPassword">
-              Forgot your password?
+            <Anchor component={Link} to="/Account/ForgotPassword" size="sm">
+              Forgot password?
             </Anchor>
-          </Center>
+          </Group>
+          <SubmitButton id="loginButton" icon={LogIn} label="Log in" busyLabel="Logging in..." busy={busy} fullWidth />
         </Stack>
       </form>
     </AuthCard>

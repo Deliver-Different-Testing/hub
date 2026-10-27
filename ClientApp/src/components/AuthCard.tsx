@@ -6,7 +6,7 @@ import classes from './auth.module.css';
 /** Centred card on the Ink Blue login field, used by the anonymous pages (login, forgot and reset password). */
 export default function AuthCard({ children, busy }: { children: ReactNode; busy?: boolean }) {
   return (
-    <Center mih="100vh" p="md" className={field.field} data-testid="auth-field">
+    <Center component="main" mih="100vh" p="md" className={field.field} data-testid="auth-field">
       <Paper w="100%" maw={440} p="xl" pos="relative" style={{ overflow: 'hidden' }}>
         {busy !== undefined && (
           <div

@@ -15,6 +15,11 @@ describe('AuthCard', () => {
     expect(field).toContainElement(screen.getByText('card body'));
   });
 
+  it('is the page main landmark', () => {
+    renderWithProviders(<AuthCard>card body</AuthCard>);
+    expect(screen.getByRole('main')).toBe(screen.getByTestId('auth-field'));
+  });
+
   it('keeps the old login field: Ink Blue ground, tiled chevron pattern and three glows', () => {
     expect(css).toMatch(/background-color:\s*var\(--mantine-color-ink-9\)/);
     expect(css).toMatch(/url\("data:image\/svg\+xml/);

@@ -32,13 +32,46 @@ describe('LoginPage', () => {
   it('renders the welcome copy, fields and links', () => {
     renderWithProviders(<LoginPage />);
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
-    expect(screen.getByText('Sign in to your account')).toBeInTheDocument();
-    expect(screen.getByLabelText('Login Type')).toHaveValue('false');
-    expect(screen.getByRole('option', { name: 'Customer Login' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Courier Login' })).toBeInTheDocument();
+    expect(screen.getByText('Log in to your account')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Customer' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Courier' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Remember me' })).not.toBeChecked();
-    expect(screen.getByRole('link', { name: 'Forgot your password?' })).toHaveAttribute('href', '/Account/ForgotPassword');
+    expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute('href', '/Account/ForgotPassword');
     expect(document.title).toBe('Log in - Deliver DFRNT');
+  });
+
+  it('asks for the login type before the credentials', () => {
+    renderWithProviders(<LoginPage />);
+    const courier = screen.getByRole('radio', { name: 'Courier' });
+    const email = screen.getByLabelText(/^Email/);
+    expect(courier.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('focuses the email field on load and sets mobile-friendly input hints', async () => {
+    renderWithProviders(<LoginPage />);
+    const email = screen.getByLabelText(/^Email/);
+    await waitFor(() => expect(email).toHaveFocus());
+    expect(email).toHaveAttribute('autocapitalize', 'none');
+    expect(email).toHaveAttribute('autocorrect', 'off');
+    expect(email).toHaveAttribute('spellcheck', 'false');
+  });
+
+  it('gives the password reveal toggle a keyboard-reachable, state-aware name', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<LoginPage />);
+    const toggle = screen.getByRole('button', { name: 'Show password' });
+    expect(toggle).not.toHaveAttribute('tabindex', '-1');
+    await user.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/)).toHaveAttribute('type', 'text');
+  });
+
+  it('places Forgot password before the Log in button', () => {
+    renderWithProviders(<LoginPage />);
+    const forgot = screen.getByRole('link', { name: 'Forgot password?' });
+    const button = screen.getByRole('button', { name: 'Log in' });
+    expect(forgot.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(button).toHaveAttribute('data-block');
   });
 
   // AuthButtonProgressTests: indeterminate progress bar + leading icon with a separate label span.
@@ -77,7 +110,7 @@ describe('LoginPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);
     await fill(user);
-    await user.selectOptions(screen.getByLabelText('Login Type'), 'true');
+    await user.click(screen.getByRole('radio', { name: 'Courier' }));
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));
@@ -168,7 +201,18 @@ describe('LoginPage', () => {
     expect(logo).toHaveAttribute('data-src', '/images/Auto-mate-Ready%20state%20(2).json');
   });
 
-  it('validates the email after typing and does not post an invalid one', async () => {
+  it('does not flag the email while it is still being typed, only once the field is left', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<LoginPage />);
+    await user.type(screen.getByLabelText(/^Email/), 'jane@');
+    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+    await user.tab();
+    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/^Email/), 'example.com');
+    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+  });
+
+  it('validates the email after leaving the field and does not post an invalid one', async () => {
     const bodies = captureLogin();
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);
