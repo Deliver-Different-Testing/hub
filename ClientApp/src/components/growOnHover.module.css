@@ -1,0 +1,20 @@
+/*
+ * Icon-only header buttons grow on hover/focus instead of painting a background
+ * wash (same treatment as despatchweb). Unlayered, so it outranks Mantine's own
+ * `@layer mantine` hover background.
+ */
+.growOnHover:hover,
+.growOnHover:focus-visible {
+  background-color: transparent;
+  transform: scale(1.18);
+}
+
+.growOnHover {
+  transition: transform 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .growOnHover {
+    transition: none;
+  }
+}

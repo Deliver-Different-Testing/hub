@@ -21,6 +21,10 @@ public static class AppServiceExtensions
         services.AddScoped<IAgentAccessFeatureReader, AgentAccessFeatureReader>();
         services.AddScoped<ITenantAgentSettingSource, SqlTenantAgentSettingSource>();
         services.AddScoped<ITileAccessResolver, TileAccessResolver>();
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IHomeService, HomeService>();
+        services.AddScoped<IFuelSurchargeService, FuelSurchargeService>();
         services.AddSingleton<AuthDiagnostics>();
     }
 }

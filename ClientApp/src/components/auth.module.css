@@ -1,0 +1,36 @@
+.progress {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.progress.active {
+  opacity: 1;
+}
+
+.bar {
+  height: 100%;
+  width: 40%;
+  background-color: var(--mantine-color-brand-filled);
+  animation: authProgressIndeterminate 1.1s ease-in-out infinite;
+}
+
+@keyframes authProgressIndeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation-duration: 0.001ms;
+    animation-iteration-count: 1;
+  }
+}

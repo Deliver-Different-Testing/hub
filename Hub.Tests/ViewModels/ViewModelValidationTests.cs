@@ -52,7 +52,6 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "Pa$$w0rd!",
             ConfirmPassword = "Pa$$w0rd!",
             Code = "abc"
@@ -66,7 +65,6 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "Pa$1",
             ConfirmPassword = "Pa$1",
             Code = "abc"
@@ -80,7 +78,6 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "Pa$$w0rd!",
             ConfirmPassword = "DifferentPa$$w0rd!",
             Code = "abc"
@@ -90,17 +87,16 @@ public class ViewModelValidationTests
     }
 
     [Fact]
-    public void ResetPasswordViewModel_MissingEmail_HasError()
+    public void ResetPasswordViewModel_MissingCode_HasError()
     {
         var model = new ResetPasswordViewModel
         {
-            Email = null!,
             Password = "Pa$$w0rd!",
             ConfirmPassword = "Pa$$w0rd!",
-            Code = "test-code"
+            Code = null!
         };
 
-        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Email"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Code"));
     }
 
     // ForgotPasswordViewModel tests
@@ -125,7 +121,6 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "weakpassword",
             ConfirmPassword = "weakpassword",
             Code = "abc"

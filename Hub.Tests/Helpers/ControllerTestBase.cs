@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +11,21 @@ namespace Hub.Tests.Helpers;
 public static class ControllerTestBase
 {
     public static void SetupHttpContext(Controller controller, ClaimsPrincipal? user = null)
+    {
+        var httpContext = CreateHttpContext(user);
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = httpContext
+        };
+
+        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
+    }
+
+    public static void SetupHttpContext(ControllerBase controller, ClaimsPrincipal? user = null) =>
+        controller.ControllerContext = new ControllerContext { HttpContext = CreateHttpContext(user) };
+
+    public static DefaultHttpContext CreateHttpContext(ClaimsPrincipal? user = null)
     {
         user ??= ClaimsPrincipalFactory.Create();
 
@@ -50,12 +65,7 @@ public static class ControllerTestBase
         };
         httpContext.Features.Set<ISessionFeature>(new SessionFeature { Session = mockSession });
 
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = httpContext
-        };
-
-        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
+        return httpContext;
     }
 
     private class SessionFeature : ISessionFeature
