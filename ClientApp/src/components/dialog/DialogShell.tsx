@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ElementType, type FormEvent, type ReactNode } from 'react';
+import { Children, isValidElement, type ElementType, type SubmitEvent, type ReactNode } from 'react';
 import { Modal, type ModalRootProps } from '@mantine/core';
 import { DialogHeader } from './DialogHeader';
 import { DialogFooter } from './DialogFooter';
@@ -21,7 +21,7 @@ export interface DialogShellProps extends Omit<ModalRootProps, 'children' | 'siz
   /** Accessible name when the header has no `<Modal.Title>`. */
   label?: string;
   /** Renders header/body/footer inside one <form> (Enter submits) when given. */
-  onSubmit?: (e: FormEvent<HTMLFormElement>) => void;
+  onSubmit?: (e: SubmitEvent<HTMLFormElement>) => void;
   children: ReactNode;
 }
 

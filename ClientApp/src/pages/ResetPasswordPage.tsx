@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type SubmitEvent } from 'react';
 import { Alert, Anchor, Center, Loader, PasswordInput, Progress, Stack, Text, Title } from '@mantine/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyRound } from 'lucide-react';
@@ -100,7 +100,7 @@ function ResetForm({ code, email }: { code: string; email: string }) {
   if (confirm && confirm !== password) confirmError = CONFIRM_MISMATCH_MESSAGE;
   else if (!confirm && submitted) confirmError = 'Please confirm your password.';
 
-  const onSubmit = async (e: FormEvent) => {
+  const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitted(true);
     if (!password || !confirm || !isStrongPassword(password) || password !== confirm) return;

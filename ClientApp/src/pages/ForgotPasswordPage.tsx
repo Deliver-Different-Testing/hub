@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { Alert, Anchor, Center, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyRound } from 'lucide-react';
@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
     onError: (error) => setMessage({ text: getApiErrorMessage(error, FAILURE_MESSAGE), isError: true }),
   });
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isValidEmail(email)) {
       setEmailError(EMAIL_ERROR);

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Alert, Anchor, Checkbox, Group, PasswordInput, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { LogIn } from 'lucide-react';
@@ -47,7 +47,7 @@ export default function LoginPage() {
     return valid;
   };
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const emailOk = validateEmail(email);
     if (!email) setEmailError(EMAIL_ERROR);
