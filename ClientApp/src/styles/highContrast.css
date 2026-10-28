@@ -1,0 +1,34 @@
+/*
+ * Rules CSS variables can't carry. Colours live in dfrntCssVariablesResolver; this file only
+ * adds weight, focus and boundaries. `data-dd-contrast` is set on <html> by DfrntMantineProvider.
+ */
+
+/* Focus ring in the body-text colour: the brand fill (pale gold, or a user's primary) can sit
+   below the 3:1 a focus indicator needs against the page. */
+:root[data-dd-contrast='high'] :focus-visible {
+  outline: 3px solid var(--mantine-color-text);
+  outline-offset: 2px;
+}
+
+:root[data-dd-contrast='high'] body {
+  font-weight: 500;
+}
+
+/* Cards and popovers rely on a tonal step plus a soft shadow; give them a real edge. Outline,
+   not border, so nothing reflows. */
+:root[data-dd-contrast='high'] :is(.mantine-Card-root, .mantine-Paper-root, .mantine-Modal-content, .mantine-Popover-dropdown, .mantine-Menu-dropdown) {
+  outline: 1px solid var(--mantine-color-default-border);
+  outline-offset: -1px;
+}
+
+/*
+ * Windows contrast themes (forced colours): the OS picks every colour, so we only restore the
+ * boundaries it strips — box-shadow and background fills are dropped, outlines survive — using
+ * system colour keywords. Never forced-color-adjust: none.
+ */
+@media (forced-colors: active) {
+  :is(.mantine-Card-root, .mantine-Paper-root, .mantine-Modal-content, .mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Badge-root) {
+      outline: 1px solid CanvasText;
+      outline-offset: -1px;
+  }
+}

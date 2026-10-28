@@ -55,7 +55,7 @@ describe('home page backdrop', () => {
     expect(shell.className).toMatch(/homeField/);
     // An inline background shorthand (Mantine's bg prop) would wipe the class's background-image.
     expect(shell.style.background).toBe('');
-    await waitFor(() => expect(shell).toHaveAttribute('data-brand', 'urgent'));
+    expect(shell).not.toHaveAttribute('data-brand');
   });
 
   it('leaves other pages on the plain page surface', async () => {

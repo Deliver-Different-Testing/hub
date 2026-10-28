@@ -25,13 +25,6 @@
   animation: fadeInUp 0.55s var(--hub-ease-decelerate) both;
 }
 
-.surface[data-brand='urgent'] {
-  --hub-primary: var(--mantine-color-brand-5);
-  --hub-primary-active: var(--mantine-color-brand-7);
-  --hub-primary-container: var(--mantine-color-brand-0);
-  --hub-state: var(--mantine-color-ink-9);
-}
-
 /* Signature keyline: a slim cyan to primary rule across the top of the surface. */
 .surface::before {
   content: '';

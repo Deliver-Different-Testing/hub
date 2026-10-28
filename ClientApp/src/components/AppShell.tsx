@@ -7,7 +7,7 @@ import ColorModeToggle from './ColorModeToggle';
 import OrgSwitcher from './OrgSwitcher';
 import ProfileMenu from './ProfileMenu';
 import TenantLogo from './TenantLogo';
-import { brandForCountry, SEEDS } from '../styles/md3';
+import { SEEDS } from '../styles/md3';
 import bar from './appBar.module.css';
 import footerClasses from './footer.module.css';
 import home from '../styles/homeBackground.module.css';
@@ -38,7 +38,6 @@ export default function AppShell({ me }: { me: Me }) {
       mih="100vh"
       bg={isHome ? undefined : 'var(--dd-surface)'}
       className={isHome ? home.homeField : undefined}
-      data-brand={brandForCountry(me.currentTenant?.countryCode)}
       data-testid="app-shell"
       style={{ display: 'flex', flexDirection: 'column', ...(isHome ? homeAccent : {}) }}
     >

@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { getMd3Scheme } from './src/styles/md3.ts';
 
 // Manifest colours come from md3.ts: Ink Blue is the shell/theme colour, the light page surface is the background.
-const light = getMd3Scheme('dfrnt', 'light');
+const light = getMd3Scheme('light');
 const THEME_COLOR = light.onPrimary; // Ink Blue
 const BACKGROUND_COLOR = light.surface;
 

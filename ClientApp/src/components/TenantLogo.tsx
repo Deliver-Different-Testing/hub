@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { getLogo } from '../api/hub';
 import { useColorMode } from '../hooks/useColorMode';
 import { useMe } from '../hooks/useMe';
-import { brandForCountry } from '../styles/md3';
 
 const DFRNT_LOGO = '/images/DFRNT_HorizLogo_RGB.png';
 const URGENT_LOGO = '/images/urgentCouriersNewLogo.png';
@@ -16,7 +15,7 @@ const darkVariant = (url: string) => {
 };
 
 export interface TenantLogoProps {
-  /** On the Ink/amber header bar: dark-surface artwork follows the brand, not the colour mode. */
+  /** On the Ink header bar: dark-surface artwork is used whatever the colour mode. */
   onShell?: boolean;
   height?: number;
   alt?: string;
@@ -27,7 +26,6 @@ export default function TenantLogo({ onShell = false, height = 40, alt = 'Delive
   const { data: me } = useMe();
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const tenant = me?.currentTenant;
-  const brand = brandForCountry(tenant?.countryCode);
 
   const { data, isPending } = useQuery({
     queryKey: ['logo', tenant?.id ?? null],
@@ -41,7 +39,7 @@ export default function TenantLogo({ onShell = false, height = 40, alt = 'Delive
 
   const logoUrl = data?.success && data.logoUrl ? data.logoUrl : DFRNT_LOGO;
   const isLocal = logoUrl.startsWith('/');
-  const wantsDark = onShell ? brand === 'dfrnt' : mode === 'dark';
+  const wantsDark = onShell || mode === 'dark';
   const preferred = isLocal && wantsDark ? darkVariant(logoUrl) : logoUrl;
 
   const isUrgent = tenant?.code.toLowerCase() === 'urgent';

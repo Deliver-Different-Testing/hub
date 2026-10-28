@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ME_US, homeData, logoHandler, meHandler, tile } from '../test/handlers';
+import { homeData, logoHandler, meHandler, tile } from '../test/handlers';
 import { server } from '../test/server';
 import { renderWithProviders } from '../test/utils';
 import HomePage, { TILE_STAGGER_MAX_INDEX, TILE_STAGGER_MS } from './HomePage';
@@ -111,24 +111,18 @@ describe('HomePage', () => {
     expect(chip).toHaveAttribute('data-part', 'chip');
   });
 
-  it('accents the cards in Reflex Blue for DFRNT tenants and amber for Urgent, like the old page', async () => {
-    // NZ first: the brand only flips once api/me has answered, so this can't pass before it loads.
+  it('accents the cards the same way for every tenant, with no per-country brand', async () => {
     serve(homeData(), meHandler());
-    const { unmount } = renderWithProviders(<HomePage />);
-    await waitFor(() => expect(screen.getByTestId('hub-surface')).toHaveAttribute('data-brand', 'urgent'));
-    unmount();
-
-    serve(homeData(), meHandler(ME_US));
     renderWithProviders(<HomePage />);
     await screen.findByRole('link', { name: 'Tile 1' });
-    await waitFor(() => expect(screen.getByTestId('hub-surface')).toHaveAttribute('data-brand', 'dfrnt'));
+    expect(screen.getByTestId('hub-surface')).not.toHaveAttribute('data-brand');
   });
 
   it('keeps the old card styling: keyline, icon well, hover lift and focus ring', () => {
     expect(css).toMatch(/max-width:\s*960px/);
     expect(css).toMatch(/linear-gradient\(90deg,\s*transparent 0%,\s*var\(--hub-accent\) 30%,\s*var\(--hub-primary\) 70%,\s*transparent 100%\)/);
     expect(css).toMatch(/--hub-primary:\s*var\(--mantine-color-reflex-5\)/);
-    expect(css).toMatch(/\[data-brand='urgent'\][\s\S]*--hub-primary:\s*var\(--mantine-color-brand-5\)/);
+    expect(css).not.toMatch(/data-brand/);
     expect(css).toMatch(/\.iconWell\s*\{[\s\S]*width:\s*64px/);
     expect(css).toMatch(/translateY\(-2px\)/);
     expect(css).toMatch(/:focus-visible[\s\S]*outline:\s*2px solid var\(--hub-primary\)/);
