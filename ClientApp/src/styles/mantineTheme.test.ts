@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createDfrntCssVariablesResolver, createDfrntTheme, dfrntTheme } from './mantineTheme';
-import { brandForCountry, contrastRatio, getMd3Scheme, md3Schemes } from './md3';
+import { createDfrntTheme, dfrntCssVariablesResolver, dfrntTheme, sidebarColors } from './mantineTheme';
+import { contrastRatio, getMd3Scheme } from './md3';
 
-// Mirrors IntegrationManager's mantineTheme.test.ts and replaces the C# UrgentTenantThemeTests /
-// TenantButtonTextColorTests: per-tenant brand, readable text on the brand fill, soft radii, static font.
+// Mirrors IntegrationManager's mantineTheme.test.ts and despatchweb's appearance specs: one built-in brand,
+// readable text on the brand fill, soft radii, static font, and the tenant appearance layered on top.
 describe('dfrnt Mantine theme', () => {
   it('uses the brand ramp as the primary colour in both modes', () => {
     expect(dfrntTheme.primaryColor).toBe('brand');
@@ -27,33 +27,89 @@ describe('dfrnt Mantine theme', () => {
     expect(dropdown.dropdown.border).toContain('--dd-outline-variant');
   });
 
-  it('shells in Ink Blue for DFRNT and amber for Urgent', () => {
-    const dfrnt = createDfrntTheme('dfrnt').other?.shell?.appBar ?? '';
-    const urgent = createDfrntTheme('urgent').other?.shell?.appBar ?? '';
-    expect(dfrnt).not.toBe(urgent);
-    expect(urgent.toLowerCase()).toBe(md3Schemes.urgent.light.primary.toLowerCase());
-  });
-
-  it('maps non-US countries to Urgent amber and US or unknown to DFRNT cyan', () => {
-    expect(brandForCountry('NZ')).toBe('urgent');
-    expect(brandForCountry('au')).toBe('urgent');
-    expect(brandForCountry('US')).toBe('dfrnt');
-    expect(brandForCountry('us')).toBe('dfrnt');
-    expect(brandForCountry(null)).toBe('dfrnt');
-    expect(brandForCountry(undefined)).toBe('dfrnt');
-  });
-
-  it.each(['dfrnt', 'urgent'] as const)('keeps Ink text readable (WCAG AA) on the %s brand fill', (brand) => {
-    const s = getMd3Scheme(brand, 'light');
+  it('shells in Ink Blue and keeps Ink readable (WCAG AA) on the cyan brand fill', () => {
+    expect(sidebarColors.appBar.toLowerCase()).toBe('#0d0c2c');
+    expect(dfrntTheme.other?.shell?.appBar).toBe(sidebarColors.appBar);
+    const s = getMd3Scheme('light');
     expect(contrastRatio(s.onPrimary, s.primary)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('resolves different surface variables per colour scheme and brand', () => {
-    const urgent = createDfrntCssVariablesResolver('urgent')(createDfrntTheme('urgent') as never);
-    const dfrnt = createDfrntCssVariablesResolver('dfrnt')(createDfrntTheme('dfrnt') as never);
-    expect(urgent.light['--dd-surface']).toBeDefined();
-    expect(urgent.light['--dd-surface']).not.toBe(urgent.dark['--dd-surface']);
-    expect(urgent.dark['--dd-outline-variant']).toBeDefined();
-    expect(dfrnt.dark['--dd-dialog-bar']).toBeDefined();
+  it('resolves different surface variables per colour scheme', () => {
+    const vars = dfrntCssVariablesResolver(dfrntTheme as never);
+    expect(vars.light['--dd-surface']).toBeDefined();
+    expect(vars.light['--dd-surface']).not.toBe(vars.dark['--dd-surface']);
+    expect(vars.dark['--dd-outline-variant']).toBeDefined();
+    expect(vars.dark['--dd-dialog-bar']).toBeDefined();
+  });
+});
+
+describe('createDfrntTheme tenant appearance', () => {
+  const light = getMd3Scheme('light');
+  const dk = getMd3Scheme('dark');
+
+  it('generates the brand and secondary ramps from the chosen colours, keeping the status ramps fixed', () => {
+    const theme = createDfrntTheme({ highContrast: false, primary: '#13b964', secondary: '#dc3246' });
+    expect(theme.colors?.brand?.[5]).toBe('#13b964');
+    expect(theme.colors?.reflex?.[5]).toBe('#dc3246');
+    expect(theme.colors?.red).toEqual(dfrntTheme.colors?.red);
+    expect(theme.colors?.green).toEqual(dfrntTheme.colors?.green);
+    expect(theme.colors?.orange).toEqual(dfrntTheme.colors?.orange);
+  });
+
+  it('fills the shell with a light primary and puts Ink content on it, with the stronger alphas', () => {
+    const theme = createDfrntTheme({ highContrast: false, primary: '#f4c430' });
+    expect(theme.other?.shell).toMatchObject({
+      appBar: '#f4c430',
+      inkContent: true,
+      textPrimary: 'rgba(13, 12, 44, 0.95)',
+      textSecondary: 'rgba(13, 12, 44, 0.65)',
+      textMuted: 'rgba(13, 12, 44, 0.45)',
+      border: 'rgba(13, 12, 44, 0.14)',
+      hoverBg: 'rgba(13, 12, 44, 0.08)',
+    });
+    expect(theme.other?.scrim?.text).toBe('#0d0c2c');
+  });
+
+  it('fills the shell with a dark primary and puts white content on it', () => {
+    const theme = createDfrntTheme({ highContrast: false, primary: '#132279' });
+    expect(theme.other?.shell).toMatchObject({ appBar: '#132279', inkContent: false, textPrimary: 'rgba(255, 255, 255, 0.95)' });
+    expect(theme.other?.scrim?.text).toBe('#fff');
+  });
+
+  it('keeps the Ink shell with white content when no primary is set', () => {
+    expect(dfrntTheme.other?.shell).toMatchObject({ appBar: '#0d0c2c', inkContent: false });
+    expect(dfrntTheme.other?.scrim?.text).toBe('#fff');
+  });
+
+  it('sets the body text colour per scheme only when one is chosen', () => {
+    const standard = dfrntCssVariablesResolver(dfrntTheme as never);
+    expect(standard.light['--mantine-color-text']).toBeUndefined();
+    const custom = dfrntCssVariablesResolver(createDfrntTheme({ highContrast: false, textLight: '#222222', textDark: '#eeeeee' }) as never);
+    expect(custom.light['--mantine-color-text']).toBe('#222222');
+    expect(custom.dark['--mantine-color-text']).toBe('#eeeeee');
+  });
+
+  it('in high contrast, lifts dimmed text, borders and every coloured text role to 7:1 in both schemes', () => {
+    for (const primary of [undefined, '#f4c430']) {
+      const vars = dfrntCssVariablesResolver(createDfrntTheme({ highContrast: true, primary }) as never);
+      for (const [mode, surfaces] of [
+        ['light', [light.surface, light.surfaceContainerLowest]],
+        ['dark', [dk.surface, dk.surfaceContainer, dk.surfaceContainerHigh]],
+      ] as const) {
+        const scheme = vars[mode];
+        for (const role of ['dimmed', 'brand-light-color', 'brand-text', 'red-light-color', 'reflex-text', 'gray-light-color']) {
+          for (const bg of surfaces) {
+            expect(contrastRatio(scheme[`--mantine-color-${role}`], bg)).toBeGreaterThanOrEqual(7);
+          }
+        }
+        expect(scheme['--dd-outline-variant']).toBe(scheme['--mantine-color-default-border']);
+      }
+    }
+  });
+
+  it('leaves the contrast variables alone in standard contrast', () => {
+    const vars = dfrntCssVariablesResolver(createDfrntTheme({ highContrast: false }) as never);
+    expect(vars.light['--mantine-color-dimmed']).toBeUndefined();
+    expect(vars.dark['--mantine-color-brand-text']).toBeUndefined();
   });
 });

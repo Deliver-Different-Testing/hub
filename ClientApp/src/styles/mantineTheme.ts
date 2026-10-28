@@ -27,7 +27,9 @@ import {
   type CSSVariablesResolver,
   type MantineColorsTuple,
 } from '@mantine/core';
-import { getMd3Scheme, type Brand } from './md3';
+import { generateRamp } from './colorMath';
+import { inkReadsOnFill, TEXT_MIN_CONTRAST_HIGH, type ThemeAppearance } from './appearance';
+import { contrastRatio, getMd3Scheme, type Md3Mode } from './md3';
 
 // ---------------------------------------------------------------------------
 // Brand ramps (0 lightest → 9 darkest). Light ends use the guideline tints
@@ -37,15 +39,7 @@ import { getMd3Scheme, type Brand } from './md3';
 const brand: MantineColorsTuple = [
   '#e7f8fe', '#d8f4fd', '#b1e9fb', '#82dcf8', '#5bd1f5',
   '#3bc7f4', '#1eb2e6', '#1590c0', '#0f6f96', '#0a4d69',
-]; // Cyan — primary (DFRNT default)
-
-const amber: MantineColorsTuple = [
-  '#fef9e7', '#fcefc4', '#fae49d', '#f8d976', '#f6d058',
-  '#f4c430', '#e5b52a', '#d4a324', '#c3911e', '#a87614',
-]; // Amber — Urgent Couriers primary (mirrors md3.ts urgentPrimaryPalette)
-
-/** Primary ramp per brand — selected by `createDfrntTheme(brand)`. */
-const BRAND_TUPLES: Record<Brand, MantineColorsTuple> = { dfrnt: brand, urgent: amber };
+]; // Cyan — the built-in DFRNT primary
 
 const ink: MantineColorsTuple = [
   '#ecebf1', '#cfced5', '#a8a7b6', '#83829a', '#6e6d80',
@@ -87,7 +81,7 @@ const gray: MantineColorsTuple = [
 // (`--mantine-color-body` = dark[7], default component bg = dark[6], border = dark[4],
 // text = dark[0], dimmed = dark[2]). We map it 1:1 onto the DFRNT charcoal ladder in
 // md3.ts so raw Mantine roles resolve to our tones instead of Mantine's generic charcoal.
-const D = getMd3Scheme('dfrnt', 'dark');
+const D = getMd3Scheme('dark');
 const dark: MantineColorsTuple = [
   D.onSurface,                // 0 text          #E6E1E9
   D.onSurfaceVariant,         // 1               #CAC4D0
@@ -106,23 +100,28 @@ const dark: MantineColorsTuple = [
 // ---------------------------------------------------------------------------
 
 /**
- * Shell (AppBar + sidebar) colours per brand. DFRNT is the fixed Ink-Blue navy in
- * both colour modes; Urgent Couriers is the full amber shell with dark-ink chrome.
+ * Shell (AppBar + sidebar): the tenant's primary when set, else Ink Blue. Content on it is Ink when the fill
+ * is light (the luminance threshold the colour validation and autoContrast use) and white when it is dark;
+ * `inkContent` also tells the logo which artwork to use.
  */
-export function createShellColors(brand: Brand = 'dfrnt') {
-  return brand === 'urgent'
+export function getSidebarColors(primary?: string) {
+  const appBar = primary ?? ink[9];
+  return inkReadsOnFill(appBar)
     ? {
-        appBar: amber[5],       // #f4c430 — amber bar
-        bg: amber[6],           // #e5b52a — drawer panel, one tier down
-        border: 'rgba(13, 12, 44, 0.12)',
-        textPrimary: 'rgba(13, 12, 44, 0.95)', // dark ink on amber
-        textSecondary: 'rgba(13, 12, 44, 0.60)',
-        textMuted: 'rgba(13, 12, 44, 0.40)',
-        hoverBg: 'rgba(13, 12, 44, 0.06)',
+        appBar,
+        bg: ink[8],
+        inkContent: true,
+        // Ink at the white set's alphas would fade out on a bright fill, so the steps sit a little stronger.
+        border: 'rgba(13, 12, 44, 0.14)',
+        textPrimary: 'rgba(13, 12, 44, 0.95)',
+        textSecondary: 'rgba(13, 12, 44, 0.65)',
+        textMuted: 'rgba(13, 12, 44, 0.45)',
+        hoverBg: 'rgba(13, 12, 44, 0.08)',
       }
     : {
-        appBar: ink[9],           // #0d0c2c
-        bg: ink[8],               // #141233 — drawer panel, one tier lighter than the bar
+        appBar,
+        bg: ink[8], // drawer panel, one tier lighter than the Ink bar
+        inkContent: false,
         border: 'rgba(255, 255, 255, 0.10)',
         textPrimary: 'rgba(255, 255, 255, 0.95)',
         textSecondary: 'rgba(255, 255, 255, 0.60)',
@@ -131,43 +130,29 @@ export function createShellColors(brand: Brand = 'dfrnt') {
       };
 }
 
-/** Fixed Ink-Blue shell — the DFRNT default (`createShellColors('dfrnt')`). */
-export const sidebarColors = createShellColors('dfrnt');
-
-/**
- * Overlays for content sitting on the shell/hero scrim, per brand. DFRNT uses white
- * overlays (on the Ink scrim); Urgent Couriers uses dark-ink overlays (on the amber scrim).
- */
-export function createOnBrandScrim(brand: Brand = 'dfrnt') {
-  return brand === 'urgent'
-    ? {
-        text: '#0d0c2c',
-        bodyText: 'rgba(13,12,44,0.85)',
-        subtleText: 'rgba(13,12,44,0.8)',
-        mutedText: 'rgba(13,12,44,0.7)',
-        fill: 'rgba(13,12,44,0.12)',
-        fillStrong: 'rgba(13,12,44,0.18)',
-        hoverFill: 'rgba(13,12,44,0.08)',
-        faintHoverFill: 'rgba(13,12,44,0.06)',
-        solidHoverFill: 'rgba(13,12,44,0.9)',
-        border: 'rgba(13,12,44,0.35)',
-      }
-    : {
-        text: '#fff',
-        bodyText: 'rgba(255,255,255,0.85)',
-        subtleText: 'rgba(255,255,255,0.8)',
-        mutedText: 'rgba(255,255,255,0.7)',
-        fill: 'rgba(255,255,255,0.15)',
-        fillStrong: 'rgba(255,255,255,0.2)',
-        hoverFill: 'rgba(255,255,255,0.1)',
-        faintHoverFill: 'rgba(255,255,255,0.08)',
-        solidHoverFill: 'rgba(255,255,255,0.9)',
-        border: 'rgba(255,255,255,0.4)',
-      };
+/** Overlays for content sitting on the shell/hero scrim, Ink or white to match the shell fill. */
+export function getOnBrandScrim(primary?: string) {
+  const onInk = inkReadsOnFill(primary ?? ink[9]);
+  const on = onInk ? '13,12,44' : '255,255,255';
+  return {
+    text: onInk ? '#0d0c2c' : '#fff',
+    bodyText: `rgba(${on},0.85)`,
+    subtleText: `rgba(${on},0.8)`,
+    mutedText: `rgba(${on},0.7)`,
+    fill: `rgba(${on},0.15)`,
+    fillStrong: `rgba(${on},0.2)`,
+    hoverFill: `rgba(${on},0.1)`,
+    faintHoverFill: `rgba(${on},0.08)`,
+    solidHoverFill: `rgba(${on},0.9)`,
+    border: `rgba(${on},0.4)`,
+  };
 }
 
-/** White-based overlays on the Ink scrim — the DFRNT default (`createOnBrandScrim('dfrnt')`). */
-export const onBrandScrim = createOnBrandScrim('dfrnt');
+/** The default (Ink) shell tokens. */
+export const sidebarColors = getSidebarColors();
+/** The default (Ink) scrim overlays. */
+export const onBrandScrim = getOnBrandScrim();
+
 /** Theme-aware palette for code / terminal blocks (on Ink Blue). */
 export const codeBlockPalette = {
   background: '#141233',
@@ -223,20 +208,24 @@ declare module '@mantine/core' {
     scrim: typeof onBrandScrim;
     code: typeof codeBlockPalette;
     tokens: typeof tokens;
+    appearance: ThemeAppearance;
   }
 }
 
 // ---------------------------------------------------------------------------
 // The theme
 // ---------------------------------------------------------------------------
+const STANDARD_APPEARANCE: ThemeAppearance = { highContrast: false };
+
 /**
- * Build the DFRNT Mantine theme for a brand. `'dfrnt'` (default) is Cyan on the
- * Ink-Blue shell; `'urgent'` swaps the primary ramp + shell/scrim to the Urgent
- * Couriers amber. `autoContrast` flips button/nav text to Ink on the light amber
- * fills automatically, so no per-brand text overrides are needed. Pair with the
- * matching `createDfrntCssVariablesResolver(brand)`.
+ * Builds the theme for a tenant's resolved appearance. `brand` is DFRNT cyan unless the tenant sets a
+ * primary, so every `color="brand"` / `--mantine-color-brand-*` consumer follows without edits; a custom
+ * secondary replaces the `reflex` (links / info) ramp. The shell follows the primary (Ink when unset); the semantic status ramps (red,
+ * green, orange) are never customised. Pair with `dfrntCssVariablesResolver`.
  */
-export function createDfrntTheme(brand: Brand = 'dfrnt') {
+export function createDfrntTheme(appearance: ThemeAppearance = STANDARD_APPEARANCE) {
+  const brandRamp = appearance.primary ? generateRamp(appearance.primary) : brand;
+  const secondaryRamp = appearance.secondary ? generateRamp(appearance.secondary) : reflex;
   return createTheme({
   primaryColor: 'brand',
   primaryShade: { light: 5, dark: 4 },
@@ -245,7 +234,7 @@ export function createDfrntTheme(brand: Brand = 'dfrnt') {
   // FloatingIndicator and the control transitions read this; without it
   // Mantine animates regardless of the OS preference.
   respectReducedMotion: true,
-  colors: { brand: BRAND_TUPLES[brand], ink, reflex, grape, green, orange, red, gray, dark },
+  colors: { brand: brandRamp, ink, reflex: secondaryRamp, grape, green, orange, red, gray, dark },
   white: '#ffffff',
   black: ink[9],
   fontFamily: '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -315,29 +304,81 @@ export function createDfrntTheme(brand: Brand = 'dfrnt') {
     Tabs: { styles: { tab: { paddingBlock: 14, fontWeight: 500 } } },
   },
   other: {
-    shell: createShellColors(brand),
-    scrim: createOnBrandScrim(brand),
+    shell: getSidebarColors(appearance.primary),
+    scrim: getOnBrandScrim(appearance.primary),
     code: codeBlockPalette,
     tokens,
+    appearance,
   },
   });
 }
 
-/** The DFRNT-brand theme (Cyan / Ink-Blue) — the default for every tenant. */
-export const dfrntTheme = createDfrntTheme('dfrnt');
+/** The built-in DFRNT theme (Cyan / Ink-Blue) — what anonymous routes and tenants without branding get. */
+export const dfrntTheme = createDfrntTheme();
+
+/** Ramps whose `light`/`text`/`outline` roles carry meaning on the page (badges, links, alerts). */
+const ROLE_RAMPS = ['brand', 'reflex', 'red', 'green', 'orange', 'grape', 'ink'] as const;
+
+type ResolverTheme = Parameters<CSSVariablesResolver>[0];
+
+function surfacesFor(mode: Md3Mode): string[] {
+  const scheme = getMd3Scheme(mode);
+  return mode === 'light'
+    ? [scheme.surface, scheme.surfaceContainerLowest]
+    : [scheme.surface, scheme.surfaceContainer, scheme.surfaceContainerHigh];
+}
 
 /**
- * Bridges the DFRNT surface ladder (md3.ts, the single source of truth) into Mantine's
- * CSS variables per colour-scheme. Passed to `<MantineProvider cssVariablesResolver>`.
- *
- * `--mantine-color-body` sets the page/`AppShell.Main` background; the `--dd-surface-*`
- * custom vars back the Card/Paper/Menu/Modal surface defaults declared above, so a single
- * scheme flip repaints page → cards → menus with the intended tones.
+ * The mildest shade of a ramp that reaches `min` against every page/card surface of the scheme (darker in
+ * light mode, lighter in dark) so the hue survives where it can; the scheme's text colour when none does.
  */
-export function createDfrntCssVariablesResolver(brand: Brand = 'dfrnt'): CSSVariablesResolver {
-  return () => {
-  const light = getMd3Scheme(brand, 'light');
-  const dk = getMd3Scheme(brand, 'dark');
+function strongShade(ramp: readonly string[], mode: Md3Mode, min: number, fallback: string): string {
+  const order = mode === 'light' ? [6, 7, 8, 9] : [3, 2, 1, 0];
+  const surfaces = surfacesFor(mode);
+  return order.map((i) => ramp[i]).find((hex) => surfaces.every((bg) => contrastRatio(hex, bg) >= min)) ?? fallback;
+}
+
+/**
+ * High contrast strengthens what is already there rather than swapping palettes: dimmed text and
+ * placeholders go full-strength, hairlines become stronger, and every coloured text role (light badges,
+ * links, alerts) moves to a shade reaching 7:1.
+ */
+function highContrastVariables(theme: ResolverTheme, mode: Md3Mode): Record<string, string> {
+  const scheme = getMd3Scheme(mode);
+  // Secondary text shares the full-strength colour: the dark scheme's onSurfaceVariant stops short of 7:1.
+  const text = mode === 'light' ? theme.colors.gray[8] : scheme.onSurface;
+  const border = mode === 'light' ? theme.colors.gray[6] : scheme.outline;
+  const vars: Record<string, string> = {
+    '--mantine-color-dimmed': text,
+    '--mantine-color-placeholder': text,
+    '--mantine-color-default-border': border,
+    '--dd-outline-variant': border,
+    '--mantine-color-gray-light-color': text,
+    '--mantine-color-gray-text': text,
+    '--mantine-color-gray-outline': text,
+  };
+  for (const name of ROLE_RAMPS) {
+    const strong = strongShade(theme.colors[name], mode, TEXT_MIN_CONTRAST_HIGH, text);
+    vars[`--mantine-color-${name}-light-color`] = strong;
+    vars[`--mantine-color-${name}-text`] = strong;
+    vars[`--mantine-color-${name}-outline`] = strong;
+  }
+  vars['--mantine-color-anchor'] = vars['--mantine-color-brand-text'];
+  return vars;
+}
+
+/**
+ * Bridges the DFRNT surface ladder (md3.ts, the single source of truth) into Mantine's CSS variables
+ * per colour-scheme. Passed to `<MantineProvider cssVariablesResolver>`.
+ *
+ * `--mantine-color-body` sets the page background; the `--dd-surface-*` custom vars back the
+ * Card/Paper/Menu/Modal defaults above. A tenant's body-text colours and the high-contrast block read
+ * the appearance carried on `theme.other`.
+ */
+export const dfrntCssVariablesResolver: CSSVariablesResolver = (theme) => {
+  const light = getMd3Scheme('light');
+  const dk = getMd3Scheme('dark');
+  const { highContrast, textLight, textDark } = theme.other.appearance ?? STANDARD_APPEARANCE;
   return {
     variables: {},
     light: {
@@ -350,6 +391,8 @@ export function createDfrntCssVariablesResolver(brand: Brand = 'dfrnt'): CSSVari
       '--dd-dialog-section': 'var(--mantine-color-white)',
       '--dd-dialog-bar': 'var(--mantine-color-gray-1)',
       '--dd-dialog-body': 'var(--mantine-color-gray-2)',
+      ...(highContrast ? highContrastVariables(theme, 'light') : {}),
+      ...(textLight ? { '--mantine-color-text': textLight } : {}),
     },
     dark: {
       '--mantine-color-body': dk.surface, // #2c2a30 page
@@ -360,10 +403,8 @@ export function createDfrntCssVariablesResolver(brand: Brand = 'dfrnt'): CSSVari
       '--dd-dialog-section': dk.surfaceContainerHigh,
       '--dd-dialog-bar': dk.surfaceContainer,
       '--dd-dialog-body': dk.surfaceContainerLow,
+      ...(highContrast ? highContrastVariables(theme, 'dark') : {}),
+      ...(textDark ? { '--mantine-color-text': textDark } : {}),
     },
   };
-  };
-}
-
-/** Surface-var resolver for the DFRNT default brand (`createDfrntCssVariablesResolver('dfrnt')`). */
-export const dfrntCssVariablesResolver = createDfrntCssVariablesResolver('dfrnt');
+};

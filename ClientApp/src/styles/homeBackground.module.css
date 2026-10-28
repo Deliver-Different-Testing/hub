@@ -3,7 +3,7 @@
  * faint chevrons and dots with three soft glows, fixed behind the page. Strokes are Slate in light
  * mode and white in dark, with the centre sheen dropping to a faint glint so it doesn't glare.
  * It is brand art for the home page only, so the literal colours live here with the other art.
- * The glows follow the old page's primary: Reflex Blue for DFRNT tenants, amber for Urgent.
+ * The glows use Reflex Blue, the old page's primary.
  */
 .homeField {
   --home-primary: var(--mantine-color-reflex-5);
@@ -16,10 +16,6 @@
     radial-gradient(ellipse at 50% 50%, rgb(255 255 255 / 35%) 0%, transparent 65%);
   background-repeat: repeat, no-repeat, no-repeat, no-repeat;
   background-attachment: fixed, fixed, fixed, fixed;
-}
-
-.homeField[data-brand='urgent'] {
-  --home-primary: var(--mantine-color-brand-5);
 }
 
 :global([data-mantine-color-scheme='dark']) .homeField {

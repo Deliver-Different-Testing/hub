@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Box } from '@mantine/core';
+import { Box, useMantineTheme } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { getLogo } from '../api/hub';
 import { useColorMode } from '../hooks/useColorMode';
 import { useMe } from '../hooks/useMe';
-import { brandForCountry } from '../styles/md3';
 
 const DFRNT_LOGO = '/images/DFRNT_HorizLogo_RGB.png';
 const URGENT_LOGO = '/images/urgentCouriersNewLogo.png';
@@ -16,7 +15,7 @@ const darkVariant = (url: string) => {
 };
 
 export interface TenantLogoProps {
-  /** On the Ink/amber header bar: dark-surface artwork follows the brand, not the colour mode. */
+  /** On the header bar: the reversed artwork on a dark fill, the standard artwork on a light one, whatever the colour mode. */
   onShell?: boolean;
   height?: number;
   alt?: string;
@@ -24,10 +23,10 @@ export interface TenantLogoProps {
 
 export default function TenantLogo({ onShell = false, height = 40, alt = 'Deliver DFRNT' }: TenantLogoProps) {
   const { mode } = useColorMode();
+  const { shell } = useMantineTheme().other;
   const { data: me } = useMe();
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const tenant = me?.currentTenant;
-  const brand = brandForCountry(tenant?.countryCode);
 
   const { data, isPending } = useQuery({
     queryKey: ['logo', tenant?.id ?? null],
@@ -41,7 +40,7 @@ export default function TenantLogo({ onShell = false, height = 40, alt = 'Delive
 
   const logoUrl = data?.success && data.logoUrl ? data.logoUrl : DFRNT_LOGO;
   const isLocal = logoUrl.startsWith('/');
-  const wantsDark = onShell ? brand === 'dfrnt' : mode === 'dark';
+  const wantsDark = onShell ? !shell.inkContent : mode === 'dark';
   const preferred = isLocal && wantsDark ? darkVariant(logoUrl) : logoUrl;
 
   const isUrgent = tenant?.code.toLowerCase() === 'urgent';

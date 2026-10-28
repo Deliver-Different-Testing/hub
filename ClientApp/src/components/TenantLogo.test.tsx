@@ -28,10 +28,14 @@ describe('TenantLogo', () => {
     expect(await logo()).toHaveAttribute('src', '/images/DFRNT_HorizLogo_RGB_dark.png');
   });
 
-  it('on the amber shell an Urgent-brand tenant keeps the standard artwork', async () => {
-    server.use(meHandler(ME_NZ), logoHandler('/images/urgentCouriersNewLogo.png'));
-    renderWithProviders(<TenantLogo onShell />, { brand: 'urgent' });
-    expect(await logo()).toHaveAttribute('src', '/images/urgentCouriersNewLogo.png');
+  it('on a light-primary bar uses the standard artwork, on a dark-primary bar the reversed one', async () => {
+    server.use(meHandler(ME_US), logoHandler('/images/DFRNT_HorizLogo_RGB.png'));
+    const light = renderWithProviders(<TenantLogo onShell />, { appearance: { highContrast: false, primary: '#f4c430' } });
+    expect(await logo()).toHaveAttribute('src', '/images/DFRNT_HorizLogo_RGB.png');
+    light.unmount();
+
+    renderWithProviders(<TenantLogo onShell />, { appearance: { highContrast: false, primary: '#132279' } });
+    expect(await logo()).toHaveAttribute('src', '/images/DFRNT_HorizLogo_RGB_dark.png');
   });
 
   it('never derives a dark variant for tenant-uploaded (remote) logos and plates them on a light chip', async () => {
@@ -58,7 +62,7 @@ describe('TenantLogo', () => {
     dark.unmount();
 
     server.use(meHandler(ME_NZ), logoHandler('https://bucket.example/expired.png'));
-    renderWithProviders(<TenantLogo />, { brand: 'urgent' });
+    renderWithProviders(<TenantLogo />);
     fireEvent.error(await logo());
     await waitFor(() => expect(screen.getByRole('img')).toHaveAttribute('src', '/images/urgentCouriersNewLogo.png'));
   });

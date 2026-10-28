@@ -5,12 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ColorModeProvider } from '../hooks/useColorMode';
-import { createDfrntCssVariablesResolver, createDfrntTheme } from '../styles/mantineTheme';
-import type { Brand } from '../styles/md3';
+import { createDfrntTheme, dfrntCssVariablesResolver } from '../styles/mantineTheme';
+import type { ThemeAppearance } from '../styles/appearance';
 
 export function renderWithProviders(
   ui: ReactElement,
-  { route = '/', brand = 'dfrnt' }: { route?: string; brand?: Brand } = {},
+  { route = '/', appearance }: { route?: string; appearance?: ThemeAppearance } = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -18,8 +18,8 @@ export function renderWithProviders(
       <ColorModeProvider>
         <MantineProvider
           env="test"
-          theme={createDfrntTheme(brand)}
-          cssVariablesResolver={createDfrntCssVariablesResolver(brand)}
+          theme={createDfrntTheme(appearance)}
+          cssVariablesResolver={dfrntCssVariablesResolver}
         >
           <Notifications />
           <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>

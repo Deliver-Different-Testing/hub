@@ -9,6 +9,10 @@ import type {
   TenantSetting,
 } from './types';
 
+/** 200 with the tenant's validated appearance, or 204 (empty body) when none is set. */
+export const getTenantAppearance = (tenantId: number) =>
+  http.get<unknown>(`tenant/${tenantId}/appearance`).then((r) => r.data);
+
 export const getMe = () => http.get<Me>('me').then((r) => r.data);
 export const getConfig = () => http.get<{ recaptchaSiteKey: string | null }>('config').then((r) => r.data);
 export const getLogo = () => http.get<LogoResponse>('Logo').then((r) => r.data);

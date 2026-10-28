@@ -6,7 +6,7 @@
  * The header/footer bars are one calm neutral surface with a keyline — colour is
  * NOT used to separate them. Meaning lives in the icon chip's accent alone, and
  * the `primary` accent follows the theme's primary colour, so a tenant brand
- * (cyan by default, amber for `createDfrntTheme('urgent')`) flows through with no
+ * (cyan by default, the tenant's primary when set) flows through with no
  * tenant check here. Everything is a CSS variable, so light/dark just works.
  *
  * Requires the `--dd-dialog-*` vars from `createDfrntCssVariablesResolver`.
@@ -22,7 +22,7 @@ export type DialogVariant = 'primary' | 'secondary' | 'info' | 'success' | 'warn
 
 /** The semantic hue behind each variant's icon chip — the only coloured part of a dialog header. */
 export const dialogAccents: Record<DialogVariant, string> = {
-  primary: 'var(--mantine-primary-color-filled)', // tenant brand: cyan, or amber for 'urgent'
+  primary: 'var(--mantine-primary-color-filled)', // tenant brand: cyan, or the tenant's primary
   secondary: 'var(--mantine-color-grape-filled)',
   info: 'var(--mantine-color-cyan-filled)',
   success: 'var(--mantine-color-green-filled)',

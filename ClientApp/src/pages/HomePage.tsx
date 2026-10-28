@@ -4,10 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { getHome } from '../api/hub';
 import type { HubTile } from '../api/types';
 import TenantLogo from '../components/TenantLogo';
-import { useMe } from '../hooks/useMe';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { formatHeaderDate } from '../lib/format';
-import { brandForCountry, SEEDS } from '../styles/md3';
+import { SEEDS } from '../styles/md3';
 import classes from './home.module.css';
 
 /** Entry stagger per tile; capped so a long catalogue never makes the last tile wait seconds. */
@@ -49,12 +48,10 @@ function Tile({ tile, index }: { tile: HubTile; index: number }) {
 
 export default function HomePage() {
   usePageTitle('App Hub');
-  const { data: me } = useMe();
   const { data, isPending, isError } = useQuery({ queryKey: ['home'], queryFn: getHome, retry: false });
-  const brand = brandForCountry(me?.currentTenant?.countryCode);
 
   return (
-    <div id="urgent-hub" className={classes.surface} data-brand={brand} data-testid="hub-surface" style={surfaceStyle}>
+    <div id="urgent-hub" className={classes.surface} data-testid="hub-surface" style={surfaceStyle}>
       <div className={classes.header} data-testid="hub-header">
         <div className={classes.brand}>
           <span className={classes.logo}>

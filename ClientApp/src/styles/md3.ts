@@ -6,19 +6,14 @@
  * `.dd-dark-scheme()` ramp — keep the two in sync). Copied from the
  * IntegrationManager AdminPortal (src/styles/md3.ts). No dependencies.
  *
- * `getMd3Scheme(brand, mode)` returns the scheme for the given brand: `'dfrnt'`
- * (Cyan — the default for every tenant) or `'urgent'` (the Urgent Couriers amber).
- * Map a tenant to its brand with `brandForTenant()`.
+ * `getMd3Scheme(mode)` returns the built-in DFRNT scheme (Cyan on Ink). Tenant colours are layered
+ * on top in mantineTheme.ts; there is no per-country brand.
  */
 
 export type Md3Mode = 'light' | 'dark';
-export type Brand = 'dfrnt' | 'urgent';
 
-/** Brand seeds — DFRNT Cyan is the default; Urgent Couriers renders in amber. */
-export const SEEDS: Record<Brand, string> = {
-  dfrnt: '#3bc7f4', // DFRNT brand cyan
-  urgent: '#f4c430', // Urgent Couriers amber (pre-DFRNT NZ brand)
-};
+/** The DFRNT brand cyan, for the few literal consumers outside the theme. */
+export const SEEDS = { dfrnt: '#3bc7f4' } as const;
 
 // Primary palette — DFRNT brand cyan (#3bc7f4).
 export const dfrntPrimaryPalette = {
@@ -38,26 +33,6 @@ export const dfrntPrimaryPalette = {
   A700: '#1590c0',
 };
 
-// Urgent Couriers primary — warm amber gold. Mirrors despatchweb's pre-DFRNT NZ
-// brand palette (wwwroot/app/react/theme/palettes.ts `urgentPrimaryPalette`,
-// @nz-primary #f4c430 / @nz-primary-dark #d4a324). Dark ink text on every shade.
-export const urgentPrimaryPalette = {
-  50: '#fef9e7',
-  100: '#fcefc4',
-  200: '#fae49d',
-  300: '#f8d976',
-  400: '#f6d058',
-  500: '#f4c430',
-  600: '#e5b52a',
-  700: '#d4a324',
-  800: '#c3911e',
-  900: '#a87614',
-  A100: '#fff8e1',
-  A200: '#ffecb3',
-  A400: '#ffd54f',
-  A700: '#ffc107',
-};
-
 // Accent palette — warm grays (neutral / secondary / surfaces).
 export const accentPalette = {
   50: '#fafaf9', // Warm white
@@ -70,11 +45,6 @@ export const accentPalette = {
   700: '#44403c', // Darker warm gray
   800: '#292524', // Very dark warm gray
   900: '#1c1917', // Deepest warm gray
-};
-
-const RAMPS: Record<Brand, typeof dfrntPrimaryPalette> = {
-  dfrnt: dfrntPrimaryPalette,
-  urgent: urgentPrimaryPalette,
 };
 
 export interface Md3Scheme {
@@ -122,8 +92,8 @@ const darkSurface = {
   bright: '#56535c', // Hub --dd-surface-variant (lightest neutral fill)
 };
 
-function buildScheme(brand: Brand, dark: boolean): Md3Scheme {
-  const P = RAMPS[brand];
+function buildScheme(dark: boolean): Md3Scheme {
+  const P = dfrntPrimaryPalette;
   return dark
     ? {
         primary: P[300],
@@ -180,30 +150,10 @@ function buildScheme(brand: Brand, dark: boolean): Md3Scheme {
       };
 }
 
-export const md3Schemes: Record<Brand, Record<Md3Mode, Md3Scheme>> = {
-  dfrnt: { light: buildScheme('dfrnt', false), dark: buildScheme('dfrnt', true) },
-  urgent: { light: buildScheme('urgent', false), dark: buildScheme('urgent', true) },
-};
+export const md3Schemes: Record<Md3Mode, Md3Scheme> = { light: buildScheme(false), dark: buildScheme(true) };
 
-export function getMd3Scheme(brand: Brand = 'dfrnt', mode: Md3Mode): Md3Scheme {
-  return md3Schemes[brand][mode];
-}
-
-/**
- * Map a tenant identity to its brand. `'urgent'` renders the Urgent Couriers amber;
- * every other tenant gets the default DFRNT cyan. Integrators adapt the predicate to
- * their own tenant source (id / code / name) — this default matches on the name.
- */
-export function brandForTenant(tenant?: string | null): Brand {
-  return /urgent/i.test(tenant ?? '') ? 'urgent' : 'dfrnt';
-}
-
-/**
- * despatchweb's rule: any tenant whose country is known and isn't the US is amber.
- * `undefined`/`null` (context not loaded yet) stays DFRNT cyan so first paint doesn't flash.
- */
-export function brandForCountry(countryCode?: string | null): Brand {
-  return countryCode && countryCode.toUpperCase() !== 'US' ? 'urgent' : 'dfrnt';
+export function getMd3Scheme(mode: Md3Mode): Md3Scheme {
+  return md3Schemes[mode];
 }
 
 /** Relative-luminance WCAG contrast ratio between two hex colors. */
