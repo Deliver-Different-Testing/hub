@@ -28,6 +28,16 @@ describe('TenantLogo', () => {
     expect(await logo()).toHaveAttribute('src', '/images/DFRNT_HorizLogo_RGB_dark.png');
   });
 
+  it('on a light-primary bar uses the standard artwork, on a dark-primary bar the reversed one', async () => {
+    server.use(meHandler(ME_US), logoHandler('/images/DFRNT_HorizLogo_RGB.png'));
+    const light = renderWithProviders(<TenantLogo onShell />, { appearance: { highContrast: false, primary: '#f4c430' } });
+    expect(await logo()).toHaveAttribute('src', '/images/DFRNT_HorizLogo_RGB.png');
+    light.unmount();
+
+    renderWithProviders(<TenantLogo onShell />, { appearance: { highContrast: false, primary: '#132279' } });
+    expect(await logo()).toHaveAttribute('src', '/images/DFRNT_HorizLogo_RGB_dark.png');
+  });
+
   it('never derives a dark variant for tenant-uploaded (remote) logos and plates them on a light chip', async () => {
     window.localStorage.setItem('hub-color-mode', 'dark');
     server.use(meHandler(ME_US), logoHandler('https://bucket.example/logo.png?sig=ab'));

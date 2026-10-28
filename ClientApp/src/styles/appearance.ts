@@ -27,6 +27,16 @@ export interface ThemeAppearance {
   textDark?: string;
 }
 
+import { luminance } from './colorMath';
+
+/** Mantine's autoContrast threshold: above it Ink, not white, is the text colour on a fill. */
+const LUMINANCE_THRESHOLD = 0.4;
+
+/** Whether Ink (rather than white) reads on `fill`, as Mantine's autoContrast and the colour validation decide. */
+export function inkReadsOnFill(fill: string): boolean {
+  return luminance(fill) > LUMINANCE_THRESHOLD;
+}
+
 /** AAA bar for text in high contrast. */
 export const TEXT_MIN_CONTRAST_HIGH = 7;
 

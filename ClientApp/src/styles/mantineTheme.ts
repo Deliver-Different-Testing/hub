@@ -28,7 +28,7 @@ import {
   type MantineColorsTuple,
 } from '@mantine/core';
 import { generateRamp } from './colorMath';
-import { TEXT_MIN_CONTRAST_HIGH, type ThemeAppearance } from './appearance';
+import { inkReadsOnFill, TEXT_MIN_CONTRAST_HIGH, type ThemeAppearance } from './appearance';
 import { contrastRatio, getMd3Scheme, type Md3Mode } from './md3';
 
 // ---------------------------------------------------------------------------
@@ -99,30 +99,60 @@ const dark: MantineColorsTuple = [
 // DFRNT design tokens — framework-free constants consumed across the app.
 // ---------------------------------------------------------------------------
 
-/** Shell (AppBar + sidebar): the fixed Ink-Blue navy in both colour modes, whatever primary a tenant sets. */
-export const sidebarColors = {
-  appBar: ink[9], // #0d0c2c
-  bg: ink[8], // #141233 — drawer panel, one tier lighter than the bar
-  border: 'rgba(255, 255, 255, 0.10)',
-  textPrimary: 'rgba(255, 255, 255, 0.95)',
-  textSecondary: 'rgba(255, 255, 255, 0.60)',
-  textMuted: 'rgba(255, 255, 255, 0.38)',
-  hoverBg: 'rgba(255, 255, 255, 0.08)',
-};
+/**
+ * Shell (AppBar + sidebar): the tenant's primary when set, else Ink Blue. Content on it is Ink when the fill
+ * is light (the luminance threshold the colour validation and autoContrast use) and white when it is dark;
+ * `inkContent` also tells the logo which artwork to use.
+ */
+export function getSidebarColors(primary?: string) {
+  const appBar = primary ?? ink[9];
+  return inkReadsOnFill(appBar)
+    ? {
+        appBar,
+        bg: ink[8],
+        inkContent: true,
+        // Ink at the white set's alphas would fade out on a bright fill, so the steps sit a little stronger.
+        border: 'rgba(13, 12, 44, 0.14)',
+        textPrimary: 'rgba(13, 12, 44, 0.95)',
+        textSecondary: 'rgba(13, 12, 44, 0.65)',
+        textMuted: 'rgba(13, 12, 44, 0.45)',
+        hoverBg: 'rgba(13, 12, 44, 0.08)',
+      }
+    : {
+        appBar,
+        bg: ink[8], // drawer panel, one tier lighter than the Ink bar
+        inkContent: false,
+        border: 'rgba(255, 255, 255, 0.10)',
+        textPrimary: 'rgba(255, 255, 255, 0.95)',
+        textSecondary: 'rgba(255, 255, 255, 0.60)',
+        textMuted: 'rgba(255, 255, 255, 0.38)',
+        hoverBg: 'rgba(255, 255, 255, 0.08)',
+      };
+}
 
-/** White-based overlays for content sitting on the Ink shell/hero scrim. */
-export const onBrandScrim = {
-  text: '#fff',
-  bodyText: 'rgba(255,255,255,0.85)',
-  subtleText: 'rgba(255,255,255,0.8)',
-  mutedText: 'rgba(255,255,255,0.7)',
-  fill: 'rgba(255,255,255,0.15)',
-  fillStrong: 'rgba(255,255,255,0.2)',
-  hoverFill: 'rgba(255,255,255,0.1)',
-  faintHoverFill: 'rgba(255,255,255,0.08)',
-  solidHoverFill: 'rgba(255,255,255,0.9)',
-  border: 'rgba(255,255,255,0.4)',
-};
+/** Overlays for content sitting on the shell/hero scrim, Ink or white to match the shell fill. */
+export function getOnBrandScrim(primary?: string) {
+  const onInk = inkReadsOnFill(primary ?? ink[9]);
+  const on = onInk ? '13,12,44' : '255,255,255';
+  return {
+    text: onInk ? '#0d0c2c' : '#fff',
+    bodyText: `rgba(${on},0.85)`,
+    subtleText: `rgba(${on},0.8)`,
+    mutedText: `rgba(${on},0.7)`,
+    fill: `rgba(${on},0.15)`,
+    fillStrong: `rgba(${on},0.2)`,
+    hoverFill: `rgba(${on},0.1)`,
+    faintHoverFill: `rgba(${on},0.08)`,
+    solidHoverFill: `rgba(${on},0.9)`,
+    border: `rgba(${on},0.4)`,
+  };
+}
+
+/** The default (Ink) shell tokens. */
+export const sidebarColors = getSidebarColors();
+/** The default (Ink) scrim overlays. */
+export const onBrandScrim = getOnBrandScrim();
+
 /** Theme-aware palette for code / terminal blocks (on Ink Blue). */
 export const codeBlockPalette = {
   background: '#141233',
@@ -190,7 +220,7 @@ const STANDARD_APPEARANCE: ThemeAppearance = { highContrast: false };
 /**
  * Builds the theme for a tenant's resolved appearance. `brand` is DFRNT cyan unless the tenant sets a
  * primary, so every `color="brand"` / `--mantine-color-brand-*` consumer follows without edits; a custom
- * secondary replaces the `reflex` (links / info) ramp. The Ink shell and the semantic status ramps (red,
+ * secondary replaces the `reflex` (links / info) ramp. The shell follows the primary (Ink when unset); the semantic status ramps (red,
  * green, orange) are never customised. Pair with `dfrntCssVariablesResolver`.
  */
 export function createDfrntTheme(appearance: ThemeAppearance = STANDARD_APPEARANCE) {
@@ -274,8 +304,8 @@ export function createDfrntTheme(appearance: ThemeAppearance = STANDARD_APPEARAN
     Tabs: { styles: { tab: { paddingBlock: 14, fontWeight: 500 } } },
   },
   other: {
-    shell: sidebarColors,
-    scrim: onBrandScrim,
+    shell: getSidebarColors(appearance.primary),
+    scrim: getOnBrandScrim(appearance.primary),
     code: codeBlockPalette,
     tokens,
     appearance,

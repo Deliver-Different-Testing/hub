@@ -56,10 +56,29 @@ describe('createDfrntTheme tenant appearance', () => {
     expect(theme.colors?.orange).toEqual(dfrntTheme.colors?.orange);
   });
 
-  it('leaves the Ink shell alone when a custom primary is chosen', () => {
+  it('fills the shell with a light primary and puts Ink content on it, with the stronger alphas', () => {
     const theme = createDfrntTheme({ highContrast: false, primary: '#f4c430' });
-    expect(theme.other?.shell?.appBar).toBe(sidebarColors.appBar);
+    expect(theme.other?.shell).toMatchObject({
+      appBar: '#f4c430',
+      inkContent: true,
+      textPrimary: 'rgba(13, 12, 44, 0.95)',
+      textSecondary: 'rgba(13, 12, 44, 0.65)',
+      textMuted: 'rgba(13, 12, 44, 0.45)',
+      border: 'rgba(13, 12, 44, 0.14)',
+      hoverBg: 'rgba(13, 12, 44, 0.08)',
+    });
+    expect(theme.other?.scrim?.text).toBe('#0d0c2c');
+  });
+
+  it('fills the shell with a dark primary and puts white content on it', () => {
+    const theme = createDfrntTheme({ highContrast: false, primary: '#132279' });
+    expect(theme.other?.shell).toMatchObject({ appBar: '#132279', inkContent: false, textPrimary: 'rgba(255, 255, 255, 0.95)' });
     expect(theme.other?.scrim?.text).toBe('#fff');
+  });
+
+  it('keeps the Ink shell with white content when no primary is set', () => {
+    expect(dfrntTheme.other?.shell).toMatchObject({ appBar: '#0d0c2c', inkContent: false });
+    expect(dfrntTheme.other?.scrim?.text).toBe('#fff');
   });
 
   it('sets the body text colour per scheme only when one is chosen', () => {

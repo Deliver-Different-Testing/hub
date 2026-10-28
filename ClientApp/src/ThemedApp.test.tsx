@@ -56,10 +56,10 @@ describe('ThemedApp', () => {
     expect(await screen.findByTestId('probe')).toHaveTextContent(`${INK_SHELL} ${CYAN} standard`);
   });
 
-  it("applies the tenant's primary while the shell stays Ink", async () => {
+  it("applies the tenant's primary to the brand ramp and the shell", async () => {
     server.use(meHandler(ME_NZ), appearanceHandler(1, { primary: '#13b964' }));
     renderThemed();
-    expect(await screen.findByTestId('probe')).toHaveTextContent(`${INK_SHELL} #13b964 standard`);
+    expect(await screen.findByTestId('probe')).toHaveTextContent('#13b964 #13b964 standard');
   });
 
   it('ignores an unusable appearance payload', async () => {
