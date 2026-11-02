@@ -27,20 +27,20 @@ import Icon from './Icon';
 import classes from './appBar.module.css';
 import menu from './orgSwitcher.module.css';
 
-const SWITCH_ERROR = 'Could not switch organization. Please try again.';
+const SWITCH_ERROR = "Couldn't switch organisation. Try again.";
 const ERROR_DISMISS_MS = 8000;
-// Past this many organizations a filter box earns its place; below it, it is just one more thing to read.
+// Past this many organisations a filter box earns its place; below it, it is just one more thing to read.
 const SEARCH_THRESHOLD = 7;
 
 const byName = (a: Tenant, b: Tenant) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 
 type Glyph = ComponentProps<typeof Icon>['icon'];
 
-// Each organization in the list gets its own company glyph, handed out in list order so no two share one
+// Each organisation in the list gets its own company glyph, handed out in list order so no two share one
 // until the set runs out (then it repeats).
 const ORG_ICONS: Glyph[] = [Building2, Warehouse, Factory, Store, Landmark, Building, Hotel, Truck, Container, Package, Briefcase, Globe];
 
-// A rounded-square tile, so an organization never reads as the round user avatar beside it.
+// A rounded-square tile, so an organisation never reads as the round user avatar beside it.
 function OrgAvatar({ icon, size, onShell }: { icon: Glyph; size: number; onShell?: boolean }) {
   const primary = useMantineTheme().primaryColor;
   return (
@@ -68,7 +68,7 @@ export default function OrgSwitcher({ me }: { me: Me }) {
   const combobox = useCombobox({
     onDropdownOpen: () => {
       if (withSearch) combobox.focusSearchInput();
-      // Open on the current organization, so Enter without moving is a no-op rather than a switch.
+      // Open on the current organisation, so Enter without moving is a no-op rather than a switch.
       else combobox.selectActiveOption();
     },
     onDropdownClose: () => {
@@ -93,9 +93,9 @@ export default function OrgSwitcher({ me }: { me: Me }) {
 
   if (tenants.length === 0) return null;
   const current = tenants.find((t) => t.id === me.currentTenant?.id);
-  const currentName = current?.name ?? 'Select organization';
+  const currentName = current?.name ?? 'Choose organisation';
 
-  // One organization is nothing to switch between: show where the user is, without a one-item dropdown.
+  // One organisation is nothing to switch between: show where the user is, without a one-item dropdown.
   if (tenants.length === 1 && current) {
     return (
       <Group gap="xs" wrap="nowrap" miw={0} className={classes.tenantStatic}>
@@ -133,7 +133,7 @@ export default function OrgSwitcher({ me }: { me: Me }) {
         {/* The visible name leads the accessible name so voice control can target it (WCAG 2.5.3). */}
         <UnstyledButton
           id="tenantDropdown"
-          aria-label={switching ? `Switching to ${pendingName}` : `${currentName}, switch organization`}
+          aria-label={switching ? `Switching to ${pendingName}` : `${currentName}, switch organisation`}
           aria-busy={switching}
           disabled={switching}
           className={`${classes.tenantChip} ${classes.focusRing}`}
@@ -161,7 +161,7 @@ export default function OrgSwitcher({ me }: { me: Me }) {
                   {current.name}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  Current organization
+                  Current organisation
                 </Text>
               </Stack>
             </Group>
@@ -175,14 +175,14 @@ export default function OrgSwitcher({ me }: { me: Me }) {
               setSearch(e.currentTarget.value);
               combobox.updateSelectedOptionIndex();
             }}
-            placeholder="Search organizations"
-            aria-label="Search organizations"
+            placeholder="Search organisations"
+            aria-label="Search organisations"
           />
         )}
-        <Combobox.Options aria-label="Organizations">
+        <Combobox.Options aria-label="Organisations">
           <ScrollArea.Autosize mah={320} type="scroll">
             {visible.length === 0 ? (
-              <Combobox.Empty>No organizations found</Combobox.Empty>
+              <Combobox.Empty>No organisations found</Combobox.Empty>
             ) : (
               visible.map((tenant) => {
                 const active = tenant.id === current?.id;

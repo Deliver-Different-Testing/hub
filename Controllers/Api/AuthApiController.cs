@@ -44,7 +44,7 @@ public class AuthApiController(IAccountService accountService) : SpaApiControlle
         // Every outcome but a failed captcha answers alike, so the endpoint cannot be used to
         // discover which addresses have accounts.
         return outcome == ForgotPasswordOutcome.CaptchaFailed
-            ? BadRequest(new ApiError("reCAPTCHA validation failed. Please try again."))
+            ? BadRequest(new ApiError("Couldn't confirm you're not a robot. Try again."))
             : Ok(new { });
     }
 
@@ -54,7 +54,7 @@ public class AuthApiController(IAccountService accountService) : SpaApiControlle
     {
         var email = await accountService.GetResetEmailAsync(code);
         return email is null
-            ? NotFound(new ApiError("This reset link is invalid or has expired."))
+            ? NotFound(new ApiError("This reset link has expired or already been used. Request a new one."))
             : Ok(new ResetCodeResponse(email));
     }
 

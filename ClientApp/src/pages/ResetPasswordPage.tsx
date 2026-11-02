@@ -21,7 +21,7 @@ import {
 } from '../lib/passwordStrength';
 
 const METER_COLORS = ['red', 'orange', 'yellow', 'green', 'green'] as const;
-const INVALID_LINK = 'This password reset link is invalid or has expired.';
+const INVALID_LINK = 'This reset link has expired or already been used. Request a new one.';
 
 interface Scored {
   value: string;
@@ -30,7 +30,7 @@ interface Scored {
 }
 
 export default function ResetPasswordPage() {
-  usePageTitle('Reset Password');
+  usePageTitle('Reset password');
   const code = useSearchParams()[0].get('code') ?? '';
   const { data, isPending, isError } = useQuery({
     queryKey: ['reset-code', code],
@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
     <AuthCard>
       {!code || isError ? (
         <Stack gap="md">
-          <Title order={2}>Reset Password</Title>
+          <Title order={2}>Reset password</Title>
           <Alert color="red" role="alert">
             {INVALID_LINK}
           </Alert>
@@ -74,7 +74,7 @@ function ResetForm({ code, email }: { code: string; email: string }) {
   const mutation = useMutation({
     mutationFn: resetPassword,
     onSuccess: (r) => navigateTo(r.redirectUrl || '/'),
-    onError: (error) => setFormError(getApiErrorMessage(error, 'Could not reset your password. Please try again.')),
+    onError: (error) => setFormError(getApiErrorMessage(error, "Couldn't reset your password. Try again.")),
   });
   const busy = mutation.isPending || mutation.isSuccess;
 
@@ -94,11 +94,11 @@ function ResetForm({ code, email }: { code: string; email: string }) {
     if (!isStrongPassword(password)) passwordError = PASSWORD_INVALID_MESSAGE;
     else if (scored?.value === password && scored.score < MIN_STRENGTH_SCORE) passwordError = WEAK_PASSWORD_MESSAGE;
   } else if (submitted) {
-    passwordError = 'Please enter a new password.';
+    passwordError = 'Enter a new password.';
   }
   let confirmError = '';
   if (confirm && confirm !== password) confirmError = CONFIRM_MISMATCH_MESSAGE;
-  else if (!confirm && submitted) confirmError = 'Please confirm your password.';
+  else if (!confirm && submitted) confirmError = 'Confirm your new password.';
 
   const onSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -116,9 +116,9 @@ function ResetForm({ code, email }: { code: string; email: string }) {
     <form onSubmit={(e) => void onSubmit(e)} noValidate id="resetPasswordForm">
       <Stack gap="md">
         <div>
-          <Title order={2}>Reset Password</Title>
+          <Title order={2}>Reset password</Title>
           <Text c="dimmed">
-            Reset your password for <strong>{email}</strong>
+            Choose a new password for <strong>{email}</strong>
           </Text>
         </div>
         {formError && (
@@ -128,8 +128,7 @@ function ResetForm({ code, email }: { code: string; email: string }) {
         )}
         <div>
           <PasswordInput
-            label="New Password"
-            placeholder="Enter new password"
+            label="New password"
             autoComplete="new-password"
             required
             minLength={8}
@@ -157,8 +156,7 @@ function ResetForm({ code, email }: { code: string; email: string }) {
           )}
         </div>
         <PasswordInput
-          label="Confirm Password"
-          placeholder="Re-enter your password"
+          label="Confirm password"
           autoComplete="new-password"
           required
           value={confirm}
@@ -166,7 +164,7 @@ function ResetForm({ code, email }: { code: string; email: string }) {
           onChange={(e) => setConfirm(e.currentTarget.value)}
         />
         <Center>
-          <SubmitButton id="resetButton" icon={KeyRound} label="Reset Password" busyLabel="Processing..." busy={busy} />
+          <SubmitButton id="resetButton" icon={KeyRound} label="Reset password" busyLabel="Resetting password…" busy={busy} />
         </Center>
       </Stack>
     </form>

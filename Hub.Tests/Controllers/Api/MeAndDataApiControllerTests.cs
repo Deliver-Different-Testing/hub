@@ -67,11 +67,11 @@ public class MeAndDataApiControllerTests
     {
         var (controller, _, accounts) = CreateMe();
         accounts.UpdateCurrentTenantAsync(controller.HttpContext, 2)
-            .Returns(UpdateTenantResult.Fail("You don't have access to that tenant."));
+            .Returns(UpdateTenantResult.Fail("You don't have access to that organisation."));
 
         var body = Body<ApiError>(await controller.UpdateCurrentTenant(new TenantUpdateModel { TenantId = 2 }), 400);
 
-        Assert.Equal("You don't have access to that tenant.", body.Error);
+        Assert.Equal("You don't have access to that organisation.", body.Error);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class MeAndDataApiControllerTests
         var (controller, _, accounts) = CreateMe();
         accounts.GenerateApiKeyAsync(controller.User).Returns(new GenerateApiKeyResult(null));
 
-        Assert.Equal("Failed to generate API key", Body<ApiError>(await controller.GenerateApiKey(), 400).Error);
+        Assert.Equal("Couldn't generate an API key. Try again.", Body<ApiError>(await controller.GenerateApiKey(), 400).Error);
     }
 
     // ---- home ----

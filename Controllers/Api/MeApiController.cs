@@ -19,7 +19,7 @@ public class MeApiController(ICurrentUserService currentUserService, IAccountSer
         var result = await accountService.UpdateCurrentTenantAsync(HttpContext, model.TenantId);
         return result.Success
             ? Ok(new RedirectResponse(result.RedirectUrl))
-            : BadRequest(new ApiError(result.Message ?? "Failed to switch tenant"));
+            : BadRequest(new ApiError(result.Message ?? "Couldn't switch organisation. Try again."));
     }
 
     [HttpGet("settings")]
@@ -31,6 +31,6 @@ public class MeApiController(ICurrentUserService currentUserService, IAccountSer
         var result = await accountService.GenerateApiKeyAsync(User);
         return result.Success
             ? Ok(new ApiKeyResponse(result.ApiKey!))
-            : BadRequest(new ApiError("Failed to generate API key"));
+            : BadRequest(new ApiError("Couldn't generate an API key. Try again."));
     }
 }

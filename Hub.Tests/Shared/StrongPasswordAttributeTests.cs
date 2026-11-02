@@ -35,6 +35,12 @@ public class StrongPasswordAttributeTests
     public void MissingSpecialChar_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("Password1"));
 
     [Fact]
+    public void WeakPassword_ExplainsTheRulesAsOneInstruction() =>
+        Assert.Equal(
+            "Use at least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.",
+            Validate("password")!.ErrorMessage);
+
+    [Fact]
     public void TooShort_ReturnsError() => Assert.NotEqual(ValidationResult.Success, Validate("Pa1!"));
 
     [Fact]

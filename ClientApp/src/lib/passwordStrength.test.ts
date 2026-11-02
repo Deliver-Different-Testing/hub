@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   MIN_STRENGTH_SCORE,
+  PASSWORD_INVALID_MESSAGE,
   STRENGTH_LABELS,
   isStrongPassword,
   loadZxcvbn,
@@ -49,5 +50,11 @@ describe('passwordStrength', () => {
     const strong = await scorePassword('t7#Qm!vZp9$Lw2xR');
     expect(strong.score).toBeGreaterThanOrEqual(MIN_STRENGTH_SCORE);
     expect(typeof strong.feedback).toBe('string');
+  });
+});
+
+describe('PASSWORD_INVALID_MESSAGE', () => {
+  it('states the rules as one instruction', () => {
+    expect(PASSWORD_INVALID_MESSAGE).toBe('Use at least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.');
   });
 });

@@ -30,7 +30,7 @@ async function submitEmailOnceCaptchaLoads() {
   renderWithProviders(<ForgotPasswordPage />);
   await waitFor(() => expect(loadRecaptcha).toHaveBeenCalled());
   await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
-  await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+  await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 }
 
 beforeEach(() => {
@@ -42,10 +42,10 @@ describe('ForgotPasswordPage', () => {
   it('renders the existing copy and a back link', () => {
     server.use(configHandler());
     renderWithProviders(<ForgotPasswordPage />);
-    expect(screen.getByRole('heading', { name: 'Forgot Password' })).toBeInTheDocument();
-    expect(screen.getByText('Enter your email to reset your password.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Login' })).toHaveAttribute('href', '/Account/Login');
-    const button = screen.getByRole('button', { name: 'Reset Password' });
+    expect(screen.getByRole('heading', { name: 'Forgot password' })).toBeInTheDocument();
+    expect(screen.getByText("Enter your email and we'll send you a link to reset your password.")).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to log in' })).toHaveAttribute('href', '/Account/Login');
+    const button = screen.getByRole('button', { name: 'Send reset link' });
     expect(button.querySelector('svg')).not.toBeNull();
     expect(button.querySelector('span.button-label')).toBeInTheDocument();
   });
@@ -61,13 +61,13 @@ describe('ForgotPasswordPage', () => {
     const bodies = captureForgot();
     await submitEmailOnceCaptchaLoads();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Password reset instructions have been sent to your email.');
+    expect(await screen.findByRole('alert')).toHaveTextContent("If an account uses that email, we've sent it a reset link.");
     expect(getRecaptchaToken).toHaveBeenCalledWith('site-key', 'forgot_password');
     expect(bodies).toEqual([{ email: 'jane@example.com', recaptchaToken: 'captcha-token' }]);
     expect(screen.getByLabelText(/^Email/)).toHaveValue('');
   });
 
-  it('shows Processing... while the request is in flight', async () => {
+  it('shows Sending link… while the request is in flight', async () => {
     server.use(configHandler());
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -80,7 +80,7 @@ describe('ForgotPasswordPage', () => {
     );
     await submitEmailOnceCaptchaLoads();
 
-    const busy = await screen.findByRole('button', { name: 'Processing...' });
+    const busy = await screen.findByRole('button', { name: 'Sending link…' });
     expect(busy).toBeDisabled();
     expect(busy.querySelector('svg')).not.toBeNull();
     release();
@@ -93,7 +93,7 @@ describe('ForgotPasswordPage', () => {
     const bodies = captureForgot();
     await submitEmailOnceCaptchaLoads();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('An error occurred. Please try again later.');
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't send the reset link. Try again in a few minutes.");
     expect(bodies).toHaveLength(0);
   });
 
@@ -103,20 +103,20 @@ describe('ForgotPasswordPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<ForgotPasswordPage />);
     await user.type(screen.getByLabelText(/^Email/), 'jane@example.com');
-    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('An error occurred. Please try again later.');
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't send the reset link. Try again in a few minutes.");
     expect(loadRecaptcha).not.toHaveBeenCalled();
     expect(bodies).toHaveLength(0);
   });
 
   it('shows the server error for a rejected captcha', async () => {
     server.use(configHandler());
-    captureForgot(() => HttpResponse.json({ error: 'reCAPTCHA validation failed. Please try again.' }, { status: 400 }));
+    captureForgot(() => HttpResponse.json({ error: "Couldn't confirm you're not a robot. Try again." }, { status: 400 }));
     await submitEmailOnceCaptchaLoads();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('reCAPTCHA validation failed. Please try again.');
-    expect(screen.getByRole('button', { name: 'Reset Password' })).toBeEnabled();
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't confirm you're not a robot. Try again.");
+    expect(screen.getByRole('button', { name: 'Send reset link' })).toBeEnabled();
   });
 
   it('validates the email format and clears the error once valid', async () => {
@@ -125,11 +125,11 @@ describe('ForgotPasswordPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<ForgotPasswordPage />);
     await user.type(screen.getByLabelText(/^Email/), 'nope');
-    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Reset Password' }));
+    expect(screen.getByText('Enter a valid email address, like name@company.com.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
     expect(bodies).toHaveLength(0);
 
     await user.type(screen.getByLabelText(/^Email/), '@example.com');
-    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid email address, like name@company.com.')).not.toBeInTheDocument();
   });
 });

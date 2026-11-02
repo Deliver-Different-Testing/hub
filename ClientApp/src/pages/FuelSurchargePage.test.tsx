@@ -31,7 +31,7 @@ describe('FuelSurchargePage', () => {
     serve(fuelData({ hasData: false, currentStandard: null, history: [] }));
     renderWithProviders(<FuelSurchargePage />);
     expect(await screen.findByText('No fuel surcharge records are available for your account.')).toBeInTheDocument();
-    expect(screen.getByText('Rates will show here once Urgent sets a fuel surcharge for your account.')).toBeInTheDocument();
+    expect(screen.getByText('Rates will show here once your courier sets a fuel surcharge for your account.')).toBeInTheDocument();
     expect(screen.queryByText('Current standard rate')).not.toBeInTheDocument();
   });
 
@@ -151,7 +151,7 @@ describe('FuelSurchargePage', () => {
     const [current, scheduled, past, withdrawn] = bodyRows();
     expect(cell(current, 0)).toHaveTextContent('Current');
     expect(current).toHaveAttribute('data-current', 'true');
-    expect(cell(current, 4)).toHaveTextContent('5 Jan 2026 – open');
+    expect(cell(current, 4)).toHaveTextContent('5 Jan 2026 – ongoing');
     expect(cell(scheduled, 0)).toHaveTextContent('Scheduled');
     expect(scheduled).not.toHaveAttribute('data-current');
     expect(cell(past, 0)).toHaveTextContent('Past');

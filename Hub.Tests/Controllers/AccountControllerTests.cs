@@ -28,7 +28,7 @@ public class AccountControllerTests
     }
 
     [Theory]
-    [InlineData("Auto-login failed. Please login manually.")]
+    [InlineData("Couldn't log you in automatically. Log in below.")]
     [InlineData("Auto-login not configured.")]
     public async Task CreditCard_Failure_RedirectsToTheSpaLoginWithAFixedErrorCode(string error)
     {

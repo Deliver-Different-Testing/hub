@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Hub.Features.AgentAccess.Gate;
@@ -190,14 +189,14 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
             "/api/auth/login", new { email = "staff@test.com", password = "x" }, Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        await _factory.Accounts.DidNotReceiveWithAnyArgs().LoginAsync(default!, default!, default);
+        await _factory.Accounts.DidNotReceiveWithAnyArgs().LoginAsync(null!, null!, null);
     }
 
     [Fact]
     public async Task Login_post_with_the_antiforgery_pair_reaches_the_service_and_answers_camelCase_json()
     {
         var client = _factory.CreateSpaClient();
-        _factory.Accounts.LoginAsync(default!, default!, default)
+        _factory.Accounts.LoginAsync(null!, null!, null)
             .ReturnsForAnyArgs(Hub.Interfaces.AuthResult.Redirect("/connect/authorize?x=1"));
         await AttachAntiforgeryAsync(client);
 
@@ -218,8 +217,8 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
     public async Task Login_post_failure_answers_400_with_an_error_body()
     {
         var client = _factory.CreateSpaClient();
-        _factory.Accounts.LoginAsync(default!, default!, default)
-            .ReturnsForAnyArgs(Hub.Interfaces.AuthResult.Failure("Invalid login attempt."));
+        _factory.Accounts.LoginAsync(null!, null!, null)
+            .ReturnsForAnyArgs(Hub.Interfaces.AuthResult.Failure("The email or password is incorrect. Check them and try again."));
         await AttachAntiforgeryAsync(client);
 
         var response = await client.PostAsJsonAsync(
@@ -227,7 +226,7 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var doc = JsonDocument.Parse(await BodyAsync(response));
-        Assert.Equal("Invalid login attempt.", doc.RootElement.GetProperty("error").GetString());
+        Assert.Equal("The email or password is incorrect. Check them and try again.", doc.RootElement.GetProperty("error").GetString());
     }
 
     [Fact]

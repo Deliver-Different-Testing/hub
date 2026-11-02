@@ -24,7 +24,7 @@ public abstract class SpaApiControllerBase : ControllerBase
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage)
                     .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
-                return new BadRequestObjectResult(new ApiError(message ?? "Please check your input and try again."));
+                return new BadRequestObjectResult(new ApiError(message ?? "Some details are missing or incorrect. Check them and try again."));
             }
 
             var problem = context.HttpContext.RequestServices

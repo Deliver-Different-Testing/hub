@@ -18,7 +18,7 @@ const homeAccent = { '--home-accent': SEEDS.dfrnt } as CSSProperties;
 
 /**
  * Authenticated frame. The app bar is IntegrationManager's size (full-bleed, 56px) with the old Hub navbar's
- * look: tenant logo, then the organization switcher, the profile menu and the theme toggle on the right.
+ * look: tenant logo, then the organisation switcher, the profile menu and the theme toggle on the right.
  */
 export default function AppShell({ me }: { me: Me }) {
   const { shell, scrim } = useMantineTheme().other;

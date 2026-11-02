@@ -36,3 +36,12 @@ All server calls go through `src/api/hub.ts` against `docs/spa-api-contract.md` 
 - Pages in `src/pages`, tests colocated `*.test.tsx`; shared MSW fixtures in `src/test/handlers.ts`, render helper `src/test/utils.tsx`.
 - Full-page navigations go through `src/lib/navigate.ts` so tests can mock them (jsdom cannot navigate).
 - Write the failing test first; keep coverage above the thresholds.
+
+## Copy
+
+- Sentence case for titles, buttons, labels and menu items.
+- NZ spelling: "organisation". Users never see "tenant" or "database".
+- Errors read "Couldn't <action>. <cause if known>. <next step>." Never "Please", "Invalid", "An error occurred" or "Something went wrong".
+- "Log in" is the verb, "login" the noun. Busy labels use a real ellipsis "…" and name the action ("Sending link…").
+- The chatbot is always "Auto-mate".
+- Never put a tenant name in shared copy.

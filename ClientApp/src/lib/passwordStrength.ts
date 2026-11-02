@@ -6,7 +6,7 @@ type Zxcvbn = InstanceType<typeof ZxcvbnFactory>;
 // that fails it, so the client MUST keep enforcing it too.
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$/;
 export const PASSWORD_INVALID_MESSAGE =
-  'Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character.';
+  'Use at least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.';
 export const CONFIRM_MISMATCH_MESSAGE = "Passwords don't match";
 
 // zxcvbn gate layered on top of the composition rule: a rule-compliant password such as

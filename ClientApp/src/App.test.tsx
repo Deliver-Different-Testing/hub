@@ -102,7 +102,7 @@ describe('routing', () => {
 
   it.each([
     ['/Account/Login', 'Welcome back'],
-    ['/account/forgotpassword', 'Forgot Password'],
+    ['/account/forgotpassword', 'Forgot password'],
   ])('renders the anonymous page %s without the shell or api/me', async (route, heading) => {
     renderApp(route);
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
@@ -155,15 +155,15 @@ describe('routing', () => {
 // LayoutTenantSwitchingTests: org switcher behaviour.
 describe('AppShell org switcher', () => {
   const openSwitcher = async (user: ReturnType<typeof userEvent.setup>, current = 'Urgent') => {
-    await user.click(await screen.findByRole('button', { name: `${current}, switch organization` }));
-    return screen.findByRole('listbox', { name: 'Organizations' });
+    await user.click(await screen.findByRole('button', { name: `${current}, switch organisation` }));
+    return screen.findByRole('listbox', { name: 'Organisations' });
   };
 
-  it('shows the current organization on the trigger and lists every tenant alphabetically, current one selected', async () => {
+  it('shows the current organisation on the trigger and lists every tenant alphabetically, current one selected', async () => {
     serveAuthed();
     const user = userEvent.setup();
     renderApp('/');
-    const trigger = await screen.findByRole('button', { name: 'Urgent, switch organization' });
+    const trigger = await screen.findByRole('button', { name: 'Urgent, switch organisation' });
     expect(trigger).toHaveTextContent('Urgent');
     expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
     const list = await openSwitcher(user);
@@ -175,12 +175,12 @@ describe('AppShell org switcher', () => {
     expect(options[0]).toHaveAttribute('data-tenant-code', 'acme');
   });
 
-  it('gives each organization its own company icon, the same one on the trigger as in the list', async () => {
+  it('gives each organisation its own company icon, the same one on the trigger as in the list', async () => {
     const tenants = Array.from({ length: 5 }, (_, i) => ({ id: i + 1, name: `Tenant ${i + 1}`, code: `t${i + 1}`, countryCode: 'NZ' }));
     serveAuthed({ ...ME_NZ, currentTenant: tenants[2], tenants });
     const user = userEvent.setup();
     renderApp('/');
-    const trigger = await screen.findByRole('button', { name: 'Tenant 3, switch organization' });
+    const trigger = await screen.findByRole('button', { name: 'Tenant 3, switch organisation' });
     const list = await openSwitcher(user, 'Tenant 3');
     const glyph = (el: Element) => el.querySelector('svg')?.getAttribute('class') ?? '';
     const icons = within(list).getAllByRole('option').map(glyph);
@@ -201,14 +201,14 @@ describe('AppShell org switcher', () => {
     expect(dropdown.style.width).toContain('16.25rem');
     const header = within(dropdown).getByTestId('org-switcher-header');
     expect(header).toHaveTextContent('Urgent');
-    expect(header).toHaveTextContent('Current organization');
+    expect(header).toHaveTextContent('Current organisation');
 
     const css = readFileSync(join(__dirname, 'components/orgSwitcher.module.css'), 'utf8');
     expect(css).toMatch(/\.orgDropdown\s*\{[^}]*background-color:\s*var\(--dd-surface-container-high\)/);
     expect(css).toMatch(/\.orgDropdown\s*\{[^}]*border:\s*1px solid var\(--dd-outline-variant\)/);
   });
 
-  it('closes without switching when the current organization is picked', async () => {
+  it('closes without switching when the current organisation is picked', async () => {
     serveAuthed();
     const put = vi.fn();
     server.use(
@@ -256,15 +256,15 @@ describe('AppShell org switcher', () => {
     expect(navigateTo).not.toHaveBeenCalled();
   });
 
-  it('opens on the current organization from the keyboard and switches with the arrows and Enter', async () => {
+  it('opens on the current organisation from the keyboard and switches with the arrows and Enter', async () => {
     serveAuthed();
     server.use(antiforgeryHandler(), http.put('/api/me/current-tenant', () => HttpResponse.json({ redirectUrl: null })));
     const user = userEvent.setup();
     renderApp('/');
-    const trigger = await screen.findByRole('button', { name: 'Urgent, switch organization' });
+    const trigger = await screen.findByRole('button', { name: 'Urgent, switch organisation' });
     trigger.focus();
     await user.keyboard('{ArrowDown}');
-    const list = await screen.findByRole('listbox', { name: 'Organizations' });
+    const list = await screen.findByRole('listbox', { name: 'Organisations' });
     const highlighted = () => document.getElementById(trigger.getAttribute('aria-activedescendant') ?? '');
     await waitFor(() => expect(highlighted()).toBe(within(list).getByRole('option', { name: /Urgent/ })));
     await user.keyboard('{ArrowUp}');
@@ -278,14 +278,14 @@ describe('AppShell org switcher', () => {
     server.use(
       antiforgeryHandler(),
       http.put('/api/me/current-tenant', () =>
-        HttpResponse.json({ error: "Your account isn't set up in that tenant yet." }, { status: 400 })),
+        HttpResponse.json({ error: "Your account isn't set up in that organisation yet." }, { status: 400 })),
     );
     const user = userEvent.setup();
     renderApp('/');
     await user.click(within(await openSwitcher(user)).getByRole('option', { name: /Acme Delivery/ }));
 
-    expect(await screen.findByText("Your account isn't set up in that tenant yet.")).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Urgent, switch organization' })).toBeEnabled();
+    expect(await screen.findByText("Your account isn't set up in that organisation yet.")).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Urgent, switch organisation' })).toBeEnabled();
     expect(reloadPage).not.toHaveBeenCalled();
   });
 
@@ -295,7 +295,7 @@ describe('AppShell org switcher', () => {
     const user = userEvent.setup();
     renderApp('/');
     await user.click(within(await openSwitcher(user)).getByRole('option', { name: /Acme Delivery/ }));
-    expect(await screen.findByText('Could not switch organization. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't switch organisation. Try again.")).toBeInTheDocument();
   });
 
   it('only offers search once the list is long, and filters by name or code', async () => {
@@ -305,13 +305,13 @@ describe('AppShell org switcher', () => {
     const user = userEvent.setup();
     renderApp('/');
     const list = await openSwitcher(user, 'Tenant 1');
-    const search = await screen.findByRole('textbox', { name: 'Search organizations' });
+    const search = await screen.findByRole('textbox', { name: 'Search organisations' });
     await waitFor(() => expect(search).toHaveFocus());
     await user.type(search, 'ZF');
     expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['Zeta Freight']);
     await user.clear(search);
     await user.type(search, 'nope');
-    expect(screen.getByText('No organizations found')).toBeInTheDocument();
+    expect(screen.getByText('No organisations found')).toBeInTheDocument();
   });
 
   it('has no search box for a short list', async () => {
@@ -319,27 +319,27 @@ describe('AppShell org switcher', () => {
     const user = userEvent.setup();
     renderApp('/');
     await openSwitcher(user);
-    expect(screen.queryByRole('textbox', { name: 'Search organizations' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Search organisations' })).not.toBeInTheDocument();
   });
 
-  it('shows a single organization as plain text rather than a one-item dropdown', async () => {
+  it('shows a single organisation as plain text rather than a one-item dropdown', async () => {
     serveAuthed({ ...ME_NZ, tenants: [ME_NZ.tenants[0]] });
     renderApp('/');
     const bar = await screen.findByRole('banner');
     expect(await within(bar).findByText('Urgent')).toBeInTheDocument();
-    expect(within(bar).queryByRole('button', { name: /switch organization/ })).not.toBeInTheDocument();
+    expect(within(bar).queryByRole('button', { name: /switch organisation/ })).not.toBeInTheDocument();
   });
 
-  it('shows "Select organization" when the current tenant is not in the list, and hides the switcher with no tenants', async () => {
+  it('shows "Select organisation" when the current tenant is not in the list, and hides the switcher with no tenants', async () => {
     serveAuthed({ ...ME_US, currentTenant: { id: 99, name: 'Gone', code: 'gone', countryCode: 'US' } });
     const first = renderApp('/');
-    expect(await screen.findByRole('button', { name: 'Select organization, switch organization' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Choose organisation, switch organisation' })).toBeInTheDocument();
     first.unmount();
 
     serveAuthed({ ...ME_US, tenants: [] });
     renderApp('/');
     await screen.findByRole('link', { name: 'Tile 1' });
-    expect(screen.queryByRole('button', { name: /switch organization/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /switch organisation/ })).not.toBeInTheDocument();
   });
 });
 
@@ -355,19 +355,19 @@ describe('AppShell app bar', () => {
     expect(bar.querySelector('.mantine-Breadcrumbs-root')).toBeNull();
   });
 
-  it('keeps the old order: organization switcher, profile, then theme', async () => {
+  it('keeps the old order: organisation switcher, profile, then theme', async () => {
     serveAuthed();
     renderApp('/');
     const bar = await screen.findByRole('banner');
-    await within(bar).findByRole('button', { name: 'Urgent, switch organization' });
+    await within(bar).findByRole('button', { name: 'Urgent, switch organisation' });
     const names = within(bar).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(names).toEqual(['Urgent, switch organization', 'Jane Doe, account menu', 'Theme']);
+    expect(names).toEqual(['Urgent, switch organisation', 'Jane Doe, account menu', 'Theme']);
   });
 
   it('styles the switcher as a translucent pill and the theme toggle as a bare round button', async () => {
     serveAuthed();
     renderApp('/');
-    expect((await screen.findByRole('button', { name: 'Urgent, switch organization' })).className).toMatch(/tenantChip/);
+    expect((await screen.findByRole('button', { name: 'Urgent, switch organisation' })).className).toMatch(/tenantChip/);
     expect(screen.getByRole('button', { name: 'Jane Doe, account menu' }).className).toMatch(/profile/);
     expect(screen.getByRole('button', { name: 'Theme' }).className).toMatch(/iconButton/);
   });
@@ -389,7 +389,7 @@ describe('AppShell app bar', () => {
 });
 
 describe('AppShell profile menu', () => {
-  it('shows the display name, the email, User Settings and Log out', async () => {
+  it('shows the display name, the email, Settings and Log out', async () => {
     serveAuthed();
     const user = userEvent.setup();
     renderApp('/');
@@ -397,7 +397,7 @@ describe('AppShell profile menu', () => {
 
     expect(screen.getByRole('button', { name: 'Jane Doe, account menu' })).toHaveTextContent('Jane Doe');
     expect(await screen.findByText('jane.doe@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'User Settings' })).toHaveAttribute('href', '/Account/Settings');
+    expect(screen.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute('href', '/Account/Settings');
     expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument();
   });
 
@@ -417,7 +417,7 @@ describe('AppShell profile menu', () => {
 
     expect(within(menu).getByText('Jane Doe')).toBeInTheDocument();
     expect(within(menu).getByText('jane.doe@example.com')).toHaveAttribute('title', 'jane.doe@example.com');
-    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['User Settings', 'Log out']);
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Settings', 'Log out']);
     expect(menu.querySelectorAll('.mantine-Menu-divider')).toHaveLength(2);
     expect(menu.querySelector('.mantine-Menu-divider:last-of-type + button')).toHaveTextContent('Log out');
   });

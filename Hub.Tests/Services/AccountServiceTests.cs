@@ -154,7 +154,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.LoginAsync(h.Http, Login("notenant@test.com", "pass"), null);
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Invalid login attempt.", result.Error);
+        Assert.Equal("The email or password is incorrect. Check them and try again.", result.Error);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "WrongPassword!"), null);
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Invalid login attempt.", result.Error);
+        Assert.Equal("The email or password is incorrect. Check them and try again.", result.Error);
     }
 
     [Fact]
@@ -341,7 +341,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.LoginAsync(h.Http, Login("ghost-courier@test.com", "Pass1!", courier: true), null);
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Invalid login attempt. Courier account not properly configured.", result.Error);
+        Assert.Equal("Your courier account isn't set up yet. Contact your administrator.", result.Error);
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.LoginAsync(h.Http, Login("ghost-staff@test.com", "Pass1!"), null);
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Invalid login attempt.", result.Error);
+        Assert.Equal("The email or password is incorrect. Check them and try again.", result.Error);
     }
 
     [Fact]
@@ -372,8 +372,8 @@ public class AccountServiceTests : IDisposable
 
         Assert.False(result.Succeeded);
         Assert.Contains("other@test.com", result.Error);
-        Assert.Contains("logout first", result.Error);
-        await AuthService(h.Http).DidNotReceiveWithAnyArgs().SignInAsync(default!, default, default!, default);
+        Assert.Equal("You're already logged in as other@test.com. Log out first to use a different account.", result.Error);
+        await AuthService(h.Http).DidNotReceiveWithAnyArgs().SignInAsync(null!, null, null!, null);
     }
 
     [Fact]
@@ -498,7 +498,7 @@ public class AccountServiceTests : IDisposable
         var result = await CreditCardAsync(Create(), "nobody@test.com", "pass");
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Auto-login failed. Please login manually.", result.Error);
+        Assert.Equal("Couldn't log you in automatically. Log in below.", result.Error);
     }
 
     [Fact]
@@ -516,7 +516,7 @@ public class AccountServiceTests : IDisposable
         var result = await CreditCardAsync(h, "notenant@test.com", "Pass1!");
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Auto-login failed. Please login manually.", result.Error);
+        Assert.Equal("Couldn't log you in automatically. Log in below.", result.Error);
     }
 
     [Fact]
@@ -525,7 +525,7 @@ public class AccountServiceTests : IDisposable
         var result = await CreditCardAsync(Create(), "staff@test.com", "WrongPassword!");
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Auto-login failed. Please login manually.", result.Error);
+        Assert.Equal("Couldn't log you in automatically. Log in below.", result.Error);
     }
 
     [Fact]
@@ -544,7 +544,7 @@ public class AccountServiceTests : IDisposable
         var result = await CreditCardAsync(h, "nodespatch@test.com", "Pass1!");
 
         Assert.False(result.Succeeded);
-        Assert.Equal("Auto-login failed. Please login manually.", result.Error);
+        Assert.Equal("Couldn't log you in automatically. Log in below.", result.Error);
     }
 
     [Fact]
@@ -617,7 +617,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.ResetPasswordAsync(h.Http, Reset("bad-code"));
 
         Assert.False(result.Succeeded);
-        Assert.Equal("This reset link is invalid or has expired.", result.Error);
+        Assert.Equal("This reset link has expired or already been used. Request a new one.", result.Error);
     }
 
     [Fact]
@@ -665,10 +665,10 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.ResetPasswordAsync(h.Http, Reset("valid-reset-key"));
 
         Assert.False(result.Succeeded);
-        Assert.Contains("password was reset", result.Error);
+        Assert.Equal("Your password is reset. Log in with your new password.", result.Error);
         var user = (await h.MasterCtx.Users.FindAsync([4], TestContext.Current.CancellationToken))!;
         Assert.Null(user.ResetKey);
-        await AuthService(h.Http).DidNotReceiveWithAnyArgs().SignInAsync(default!, default, default!, default);
+        await AuthService(h.Http).DidNotReceiveWithAnyArgs().SignInAsync(null!, null, null!, null);
     }
 
     [Fact]
@@ -814,7 +814,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.UpdateCurrentTenantAsync(h.Http, 1);
 
         Assert.False(result.Success);
-        Assert.Equal("User not found", result.Message);
+        Assert.Equal("Couldn't switch organisation. Try again.", result.Message);
     }
 
     [Fact]
@@ -825,7 +825,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.UpdateCurrentTenantAsync(h.Http, 0);
 
         Assert.False(result.Success);
-        Assert.Equal("Invalid tenant ID", result.Message);
+        Assert.Equal("Couldn't switch organisation. Try again.", result.Message);
     }
 
     [Fact]
@@ -838,7 +838,7 @@ public class AccountServiceTests : IDisposable
         var result = await h.Service.UpdateCurrentTenantAsync(h.Http, 2);
 
         Assert.False(result.Success);
-        Assert.Equal("You don't have access to that tenant.", result.Message);
+        Assert.Equal("You don't have access to that organisation.", result.Message);
     }
 
     [Fact]
@@ -887,7 +887,7 @@ public class AccountServiceTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal(
-            "That tenant isn't fully configured (no database connection). Contact an administrator.",
+            "That organisation isn't ready yet. Ask your administrator to finish setting it up.",
             result.Message);
         // Validate-before-write: the bad switch must not have been persisted.
         Assert.Equal(1, h.MasterCtx.Users.Find(1)!.CurrentTenantId);
@@ -904,8 +904,7 @@ public class AccountServiceTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal(
-            "Your account isn't set up in that tenant yet — there's no operator record for "
-            + "nodespatch@test.com there. Ask an administrator to add you to that tenant before switching.",
+            "Your account isn't set up in that organisation yet. Ask your administrator to add you.",
             result.Message);
         // The corrupting write that caused the original incident must not happen.
         Assert.Equal(1, h.MasterCtx.Users.Find(1)!.CurrentTenantId);
