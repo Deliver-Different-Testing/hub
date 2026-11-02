@@ -32,15 +32,24 @@ export function resetAntiforgery(): void {
   antiforgery = null;
 }
 
+/** Resolves once the antiforgery cookie has been issued (requested at most once until reset). */
+export async function ensureAntiforgery(): Promise<void> {
+  antiforgery ??= http.get('antiforgery').catch((e: unknown) => {
+    antiforgery = null;
+    throw e;
+  });
+  await antiforgery;
+}
+
+/** The antiforgery token for requests that bypass axios (fetch streaming), read from the XSRF-TOKEN cookie. */
+export function readXsrfToken(): string | undefined {
+  const match = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='));
+  return match ? decodeURIComponent(match.slice('XSRF-TOKEN='.length)) : undefined;
+}
+
 http.interceptors.request.use(async (config) => {
   const method = (config.method ?? 'get').toLowerCase();
-  if (method !== 'get' && method !== 'head' && method !== 'options') {
-    antiforgery ??= http.get('antiforgery').catch((e: unknown) => {
-      antiforgery = null;
-      throw e;
-    });
-    await antiforgery;
-  }
+  if (method !== 'get' && method !== 'head' && method !== 'options') await ensureAntiforgery();
   return config;
 });
 
@@ -48,6 +57,11 @@ let onUnauthorized: (() => void) | null = null;
 /** Registered inside the router so an expired session on an authed route navigates to the login page. */
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;
+}
+
+/** Same 401 handling as the axios client, for calls made with fetch. */
+export function notifyUnauthorized(): void {
+  onUnauthorized?.();
 }
 
 http.interceptors.response.use(undefined, (error: unknown) => {

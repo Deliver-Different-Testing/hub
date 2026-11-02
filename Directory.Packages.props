@@ -9,6 +9,7 @@
   <!-- Application Dependencies -->
   <ItemGroup Label="App">
     <PackageVersion Include="Amazon.AspNetCore.DataProtection.SSM" Version="4.0.3" />
+    <PackageVersion Include="Anthropic" Version="12.58.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
     <PackageVersion Include="AWSSDK.Core" Version="4.0.102.10" />
     <PackageVersion Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.102.3" />

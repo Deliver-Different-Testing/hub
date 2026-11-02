@@ -74,3 +74,22 @@ export interface LogoResponse {
   logoUrl: string | null;
   isLocal?: boolean;
 }
+
+export interface KbSource {
+  articleId: string;
+  title: string;
+  isFaq: boolean;
+}
+
+export interface AiChatRequest {
+  messages: { role: string; content: string }[];
+  pageContext?: string | null;
+}
+
+export interface StreamEvent {
+  type: 'text_delta' | 'tool_use' | 'done' | 'error';
+  text?: string | null;
+  toolName?: string | null;
+  error?: string | null;
+  sources?: KbSource[] | null;
+}

@@ -1,0 +1,31 @@
+{
+  "profiles": {
+    "Hub": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "http://hub.local.deliverdifferent.com:5173",
+      "applicationUrl": "https://localhost:5001;http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "TenantURL": "<TenantURL>",
+        "SQLCredentials": "<SQLCredentials>",
+        "MasterSQLConnection": "<MasterSQLConnection>",
+        "RedisConfig": "<RedisConfig>",
+        "Domain": "<Domain>",
+        "JWTSecretKey": "<JWTSecretKey>",
+        "Issuer": "<Issuer>",
+        "Audience": "<Audience>",
+        "ClaimsKey": "<ClaimsKey>",
+        "GoogleRecaptchaSiteKey": "<GoogleRecaptchaSiteKey>",
+        "GoogleRecaptchaSecretKey": "<GoogleRecaptchaSecretKey>",
+        "ReplyEmail": "<ReplyEmail>",
+        "ResetBaseLink": "<ResetBaseLink>",
+        "PartnerDirectoryApiKey": "<PartnerDirectoryApiKey>",
+        "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy",
+        "CspKnowledge__BaseUrl": "http://localhost:5310",
+        "ServiceAuth__ClientSecret": "<same value as dfrntcrm KnowledgeApi__DevBootstrapSecret>",
+        "AiAssistant__ApiKey": "<Anthropic API key>"
+      }
+    }
+  }
+}

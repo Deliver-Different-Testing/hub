@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Amazon.AspNetCore.DataProtection.SSM" />
+    <PackageReference Include="Anthropic" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" />
     <PackageReference Include="AWSSDK.Core" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" />
