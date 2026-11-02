@@ -1,0 +1,21 @@
+/*
+ * The login field carried over from the Razor login page (site.less body#login): Ink Blue ground,
+ * a tiled pattern of faint white chevrons and dots, and three soft glows. It is brand art for the
+ * anonymous pages only, like heroBackground, so it lives here with the other literal colours.
+ * Same in light and dark mode: a light card always rests on the dark field.
+ *
+ *   glow 1, bottom-left  Reflex Blue 20%  (was --dd-primary)
+ *   glow 2, top-right    DFRNT Cyan 12%   (was @login_glow_sky)
+ *   glow 3, centre       Ink Blue 85%     (was @background_color_12)
+ */
+.field {
+  min-height: 100vh;
+  background-color: var(--mantine-color-ink-9);
+  background-image:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 46 L40 58 L28 70' opacity='0.16'/%3E%3Cpath d='M42 46 L54 58 L42 70' opacity='0.16'/%3E%3Cpath d='M92 110 L108 110 M114 110 L130 110' opacity='0.12'/%3E%3Ccircle cx='118' cy='32' r='3' fill='%23ffffff' stroke='none' opacity='0.18'/%3E%3Cpath d='M118 35 L118 44' opacity='0.18'/%3E%3Cpath d='M22 122 L32 132 L22 142' opacity='0.10'/%3E%3Cpath d='M70 26 L82 26' opacity='0.12'/%3E%3Ccircle cx='140' cy='80' r='1.8' fill='%23ffffff' stroke='none' opacity='0.18'/%3E%3Ccircle cx='12' cy='80' r='1.2' fill='%23ffffff' stroke='none' opacity='0.14'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 15% 80%, color-mix(in srgb, var(--mantine-color-reflex-5) 20%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 15%, color-mix(in srgb, var(--mantine-color-brand-5) 12%, transparent) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--mantine-color-ink-9) 85%, transparent) 0%, transparent 80%);
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+  background-attachment: fixed, fixed, fixed, fixed;
+}

@@ -336,4 +336,6 @@ public partial class TblSetting
     public int? OpenforceDeductionTypeId { get; set; }
 
     public bool OpenforceIsUat { get; set; }
+
+    public string AppearanceDefaultsJson { get; set; }
 }

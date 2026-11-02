@@ -193,6 +193,8 @@ publish/
 # in these scripts will be unencrypted
 PublishScripts/
 scripts/
+# ...but the SPA's build scripts are source (prebuild runs clean-output.mjs).
+!ClientApp/scripts/
 
 # NuGet Packages
 *.nupkg
@@ -386,3 +388,14 @@ redis-tools/
 
 # Design docs / brand assets (PDFs etc.) — kept local, not committed
 docs/
+
+# Vite/PWA build output (ClientApp -> wwwroot)
+wwwroot/index.html
+wwwroot/manifest.webmanifest
+wwwroot/sw.js
+wwwroot/workbox-*.js
+wwwroot/registerSW.js
+wwwroot/consent.css
+wwwroot/favicon.svg
+wwwroot/icons/
+wwwroot/static/

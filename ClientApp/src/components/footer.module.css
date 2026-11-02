@@ -1,0 +1,20 @@
+/* The old Hub footer (site.less .footer / .footer-row): a full-width surface bar lifted by a faint top shadow. */
+.footer {
+  width: 100%;
+  background: var(--dd-surface-container);
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
+  padding: 0.75rem 0;
+  margin-top: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--dd-on-surface-secondary);
+  white-space: nowrap;
+}

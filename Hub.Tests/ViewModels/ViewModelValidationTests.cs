@@ -52,7 +52,6 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "Pa$$w0rd!",
             ConfirmPassword = "Pa$$w0rd!",
             Code = "abc"
@@ -66,13 +65,26 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "Pa$1",
             ConfirmPassword = "Pa$1",
             Code = "abc"
         };
 
-        Assert.NotEmpty(ValidateModel(model));
+        Assert.Contains(ValidateModel(model), r => r.ErrorMessage == "Password must be 8 to 100 characters.");
+    }
+
+    [Fact]
+    public void ResetPasswordViewModel_PasswordTooLong_SaysSo()
+    {
+        var password = "Pa$1" + new string('x', 97);
+        var model = new ResetPasswordViewModel
+        {
+            Password = password,
+            ConfirmPassword = password,
+            Code = "abc"
+        };
+
+        Assert.Contains(ValidateModel(model), r => r.ErrorMessage == "Password must be 8 to 100 characters.");
     }
 
     [Fact]
@@ -80,27 +92,26 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "Pa$$w0rd!",
             ConfirmPassword = "DifferentPa$$w0rd!",
             Code = "abc"
         };
 
-        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("ConfirmPassword"));
+        Assert.Contains(ValidateModel(model),
+            r => r.MemberNames.Contains("ConfirmPassword") && r.ErrorMessage == "Passwords don't match.");
     }
 
     [Fact]
-    public void ResetPasswordViewModel_MissingEmail_HasError()
+    public void ResetPasswordViewModel_MissingCode_HasError()
     {
         var model = new ResetPasswordViewModel
         {
-            Email = null!,
             Password = "Pa$$w0rd!",
             ConfirmPassword = "Pa$$w0rd!",
-            Code = "test-code"
+            Code = null!
         };
 
-        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Email"));
+        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("Code"));
     }
 
     // ForgotPasswordViewModel tests
@@ -125,7 +136,6 @@ public class ViewModelValidationTests
     {
         var model = new ResetPasswordViewModel
         {
-            Email = "user@test.com",
             Password = "weakpassword",
             ConfirmPassword = "weakpassword",
             Code = "abc"

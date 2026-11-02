@@ -76,7 +76,7 @@ public class AgentPassIdentityLoaderTests : IDisposable
             new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "NZST", "urgent", true, true, 2, 4, 777, "Sam", "Staff", 2),
             result.Identity);
         rig.Connection.Received(1).SetConnectionString("Server=tenant;Database=d;;User Id=test;Password=test;");
-        await rig.Store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default);
+        await rig.Store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(0, TestContext.Current.CancellationToken);
     }
 
     [Theory]
@@ -161,12 +161,12 @@ public class AgentPassIdentityLoaderTests : IDisposable
         Assert.Equal(allowed ? AgentGrantEligibility.Eligible : AgentGrantEligibility.TenantOff, result.Eligibility);
         if (allowed)
         {
-            await rig.Store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default);
+            await rig.Store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(0, TestContext.Current.CancellationToken);
         }
         else
         {
             await rig.Store.Received(1).SetTenantOffAsync(12, Arg.Any<CancellationToken>());
-            await rig.Tenant.DidNotReceiveWithAnyArgs().FetchAgentContactAsync(default);
+            await rig.Tenant.DidNotReceiveWithAnyArgs().FetchAgentContactAsync(0);
         }
     }
 

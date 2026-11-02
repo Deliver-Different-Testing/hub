@@ -4,6 +4,7 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="ClientApp/Hub.ClientApp.esproj" Type="C#" />
   <Project Path="Hub.csproj" />
   <Project Path="Hub.Tests/Hub.Tests.csproj" />
 </Solution>

@@ -20,6 +20,10 @@ public class AppServiceExtensionTests
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ITenantService));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ITenantBrandingConfigService));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(AuthDiagnostics));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(IAccountService) && d.ImplementationType == typeof(AccountService));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(ICurrentUserService) && d.ImplementationType == typeof(CurrentUserService));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(IHomeService) && d.ImplementationType == typeof(HomeService));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(IFuelSurchargeService) && d.ImplementationType == typeof(FuelSurchargeService));
     }
 }
 

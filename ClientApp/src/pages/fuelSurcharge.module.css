@@ -1,0 +1,63 @@
+/* The rate readout is the one loud thing on the page; the table under it stays plain. */
+.readout {
+  padding: 1.5rem 1.5rem 1.25rem;
+  background: var(--dd-surface-container);
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: 16px;
+}
+
+.rate {
+  font-size: clamp(2.75rem, 8vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72px;
+  margin-top: 1rem;
+  overflow: visible;
+}
+
+.chartBaseline {
+  stroke: var(--dd-outline-variant);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartLine {
+  fill: none;
+  stroke: var(--mantine-color-brand-filled);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartHit {
+  fill: transparent;
+}
+
+.chartDot {
+  fill: var(--mantine-color-brand-filled);
+  stroke: var(--dd-surface-container);
+  stroke-width: 2;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.table tr[data-current='true'] {
+  background: var(--mantine-primary-color-light);
+}

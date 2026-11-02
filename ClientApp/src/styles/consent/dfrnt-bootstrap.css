@@ -1,0 +1,499 @@
+/* ============================================================================
+ * DFRNT brand theme for Bootstrap 5.3  (Feb 2026 guidelines)
+ * ----------------------------------------------------------------------------
+ * Drop-in override layer for a prebuilt Bootstrap 5.3 stylesheet. Load AFTER
+ * `bootstrap.min.css` so these win. No Sass/LESS build required — the whole
+ * theme is CSS custom properties plus a thin `--bs-*` bridge.
+ *
+ * Distilled 1:1 from the DFRNT Hub reference app
+ * (hub/wwwroot/css/site.less). The `--dd-*` token values and the dark charcoal
+ * ladder are shared verbatim with Hub and with IntegrationManager's md3.ts
+ * `darkSurface` ramp — if you change a value here, mirror it there and rebuild.
+ *
+ * Palette split (IMPORTANT — differs from the Mantine path):
+ *   --dd-primary  = Reflex Blue #2a4eff  → links, focus, .btn-primary.
+ *                   (Cyan fails as a foreground on white ~1.6:1, so it is NOT
+ *                    the primary here — Bootstrap has no auto-contrast.)
+ *   --dd-accent   = Cyan #3bc7f4         → fill-only spotlight CTA (.btn-cta),
+ *                   dark Ink text on it. Never behind text.
+ *   --dd-ink      = Ink Blue #0d0c2c     → navbar/shell ground + primary text.
+ *
+ * Light/dark switch: a `data-theme` attribute on <html> (NOT data-bs-theme,
+ * NOT a body class):
+ *   unset / "system" → follow the OS (prefers-color-scheme)
+ *   "dark"           → forced dark
+ *   "light"          → forced light (wins over a dark OS)
+ * See references/bootstrap-setup.md for the no-flash script + toggle.
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- Design tokens (light) ------------------------------------------------- */
+:root {
+  /* Interactive/foreground colour (Reflex Blue) — reads on white AND carries
+     white text. Drives links/focus/standard buttons. */
+  --dd-primary: #2a4eff;
+  --dd-primary-rgb: 42, 78, 255;
+  --dd-primary-hover: #1f3fe0;
+  --dd-primary-active: #1834c4;
+  --dd-primary-container: #d4dcff;      /* Reflex Blue 20% */
+  --dd-on-primary: #ffffff;
+  --dd-on-primary-rgb: 255, 255, 255;
+  --dd-on-primary-container: #1834c4;
+  --dd-secondary: #6e6d80;              /* Ink Blue 60% */
+  --dd-secondary-rgb: 110, 109, 128;
+  --dd-on-secondary: #ffffff;
+
+  /* Cyan — fill-only accent (dark Ink text on it) + the CTA/highlight colour. */
+  --dd-accent: #3bc7f4;
+  --dd-accent-rgb: 59, 199, 244;
+  --dd-on-accent: #0d0c2c;              /* Ink Blue text on cyan ≈ 11:1 */
+  --dd-accent-container: #d8f4fd;       /* Cyan 20% */
+
+  /* Ink Blue — the brand's dark ground: navbar chrome + primary text. */
+  --dd-ink: #0d0c2c;
+  --dd-ink-rgb: 13, 12, 44;
+  --dd-on-ink: #f4f2f1;                 /* Light Grey — chrome on the ink bar */
+
+  /* Surface / elevation ladder (light — warm greys, white cards). */
+  --dd-surface: #ffffff;
+  --dd-surface-dim: #ecebe9;            /* warm, a touch darker — app background */
+  --dd-surface-variant: #f4f2f1;        /* brand Light Grey */
+  --dd-surface-container-lowest: #ffffff;
+  --dd-surface-container-low: #faf9f8;
+  --dd-surface-container: #f4f2f1;
+  --dd-surface-container-high: #ecebe9;
+  --dd-surface-container-highest: #e4e2df;
+  --dd-on-surface: #0d0c2c;             /* Ink Blue text (~15:1 on white) */
+  --dd-on-surface-rgb: 13, 12, 44;      /* for rgba() consumers, e.g. Bootstrap */
+  --dd-on-surface-secondary: #6e6d80;   /* Ink 60% — prefer lighter WEIGHT */
+
+  /* MD3 inverse roles — a dark chip on the light theme; flips in dark. */
+  --dd-inverse-surface: #0d0c2c;
+  --dd-inverse-on-surface: #f4f2f1;
+
+  --dd-outline: #cfced5;                /* Ink 20% — keyline dividers/borders */
+  --dd-outline-variant: #e6e4e9;        /* lighter keyline */
+
+  --dd-error: #dc3246;
+  --dd-on-error: #ffffff;
+  --dd-success: #13b964;
+  --dd-success-rgb: 19, 185, 100;
+  --dd-success-text: #0e8f4d;
+  --dd-warning: #fe811a;
+  --dd-warning-strong: #e6740f;
+  --dd-info: #2a4eff;
+
+  /* Flattened elevation — near-flat surfaces; a real shadow only on overlays
+     (menus/dropdowns) so cards read as keyline-bounded, not boxed & shadowed. */
+  --elevation-1: none;
+  --elevation-2: 0 1px 2px rgba(13, 12, 44, .05);
+  --elevation-3: 0 6px 20px rgba(13, 12, 44, .10);
+  --elevation-4: 0 10px 28px rgba(13, 12, 44, .12);
+  --elevation-5: 0 16px 40px rgba(13, 12, 44, .16);
+
+  /* Plus Jakarta Sans — the brand UI typeface. */
+  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-body);
+
+  --ease-standard: cubic-bezier(.4, 0, .2, 1);
+  --ease-emphasized-decelerate: cubic-bezier(.05, .7, .1, 1);
+  /* Apple-style "spring" easing — restrained hover/press motion (.card-interactive below). */
+  --ease-spring: cubic-bezier(.32, .72, 0, 1);
+  --duration-short: 150ms;
+  --duration-medium: 250ms;
+  --duration-long: 350ms;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;                 /* pill / lozenge — the brand button shape */
+  --radius-circle: 50%;
+
+  /* --- Bootstrap bridge --------------------------------------------------- */
+  /* Point Bootstrap's runtime CSS vars at the --dd-* tokens so every Bootstrap
+     component inherits brand colour AND dark mode for free: the --dd-* values
+     flip in dark, and these var() references resolve at use-time. */
+  --bs-body-bg: var(--dd-surface);
+  --bs-body-color: var(--dd-on-surface);
+  /* Bootstrap builds muted text + the .form-floating label from the *-rgb
+     triple; without this it stays near-black and renders dark-on-dark in dark. */
+  --bs-body-color-rgb: var(--dd-on-surface-rgb);
+  --bs-secondary-color: var(--dd-on-surface-secondary);
+  --bs-border-color: var(--dd-outline);
+  --bs-primary: var(--dd-primary);
+  --bs-primary-rgb: var(--dd-primary-rgb);
+  --bs-emphasis-color: var(--dd-on-surface);
+  --bs-tertiary-bg: var(--dd-surface-container);
+  --bs-link-color: var(--dd-primary);
+  --bs-link-color-rgb: var(--dd-primary-rgb);
+  --bs-link-hover-color: var(--dd-primary-hover);
+}
+
+/* --- Tenant override: Urgent Couriers (amber) -----------------------------
+ * Set `data-tenant="urgent"` on <html> to render the Urgent Couriers brand — the
+ * pre-DFRNT NZ amber (#f4c430). Composes with `data-theme`: this block only
+ * overrides the BRAND tokens (shell + primary/accent), so the neutral surface
+ * ladder still flips light/dark via the blocks below, and the amber shell + CTA
+ * persist in both modes. Absent attribute = standard DFRNT cyan/reflex.
+ *
+ * Bootstrap has no auto-contrast, so — like the base split — amber is used only
+ * where a fill carries dark ink (shell + CTA); text-bearing roles (links,
+ * .btn-primary, focus) use a deep readable gold that carries white text AND reads
+ * on white (both ≈ 5:1, WCAG AA). Dark ink on #f4c430 ≈ 11.6:1.
+ * -------------------------------------------------------------------------- */
+:root[data-tenant="urgent"] {
+  /* Shell ground → amber, dark ink chrome (the .navbar rule reads --dd-ink/--dd-on-ink). */
+  --dd-ink: #f4c430;
+  --dd-on-ink: #0d0c2c;
+
+  /* Spotlight CTA (.btn-cta) → amber fill, dark ink text (~11.6:1). */
+  --dd-accent: #f4c430;
+  --dd-accent-rgb: 244, 196, 48;
+  --dd-on-accent: #0d0c2c;
+  --dd-accent-container: #fcefc4;      /* amber 100 */
+
+  /* Text-bearing primary (links / .btn-primary / focus) → deep gold ≈ 5:1 both ways. */
+  --dd-primary: #8a6a12;
+  --dd-primary-rgb: 138, 106, 18;
+  --dd-primary-hover: #75590f;
+  --dd-primary-active: #5f480c;
+  --dd-primary-container: #fae49d;     /* amber 200 */
+  --dd-on-primary: #ffffff;
+  --dd-on-primary-container: #5f480c;
+
+  /* Keep a functional info blue (as despatchweb's NZ theme did). */
+  --dd-info: #2a4eff;
+}
+
+/* --- Dark scheme ----------------------------------------------------------
+ * Neutrals-only: only the NEUTRAL roles (surface / on-surface / outline) flip
+ * to the Ink-tinted charcoal ramp — the brand/primary/accent block stays at its
+ * light values, and the navbar is a constant Ink Blue bar in both themes. The
+ * `--bs-*` bridge above re-reads these tokens, so Bootstrap components track
+ * dark mode with no per-component rules.
+ *
+ * Charcoal ladder ported 1:1 from IntegrationManager's md3.ts `darkSurface`
+ * (and shared verbatim with hub/wwwroot/css/site.less `.dd-dark-scheme()`).
+ * App-specific dark rescues (tenant logos, mascots, status-chip contrast) are
+ * NOT included here — add them per-app, as Hub does in its `.dd-dark-scheme()`.
+ * -------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  --dd-surface: #2c2a30;
+  --dd-surface-dim: #28262c;
+  --dd-surface-variant: #56535c;
+  --dd-surface-container-lowest: #252429;
+  --dd-surface-container-low: #312f36;
+  --dd-surface-container: #37353c;
+  --dd-surface-container-high: #413f47;
+  --dd-surface-container-highest: #4c4952;
+  --dd-on-surface: rgba(230, 225, 233, .92);
+  --dd-on-surface-rgb: 230, 225, 233;
+  --dd-on-surface-secondary: rgba(230, 225, 233, .60);
+  --dd-inverse-surface: #f4f2f1;
+  --dd-inverse-on-surface: #0d0c2c;
+  --dd-outline: #56535c;
+  --dd-outline-variant: #413f47;
+  --dd-success-text: #6ee7a8;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* System default: apply dark unless the user has explicitly forced light. */
+  :root:not([data-theme="light"]) {
+    --dd-surface: #2c2a30;
+    --dd-surface-dim: #28262c;
+    --dd-surface-variant: #56535c;
+    --dd-surface-container-lowest: #252429;
+    --dd-surface-container-low: #312f36;
+    --dd-surface-container: #37353c;
+    --dd-surface-container-high: #413f47;
+    --dd-surface-container-highest: #4c4952;
+    --dd-on-surface: rgba(230, 225, 233, .92);
+    --dd-on-surface-rgb: 230, 225, 233;
+    --dd-on-surface-secondary: rgba(230, 225, 233, .60);
+    --dd-inverse-surface: #f4f2f1;
+    --dd-inverse-on-surface: #0d0c2c;
+    --dd-outline: #56535c;
+    --dd-outline-variant: #413f47;
+    --dd-success-text: #6ee7a8;
+  }
+}
+
+/* --- Base ------------------------------------------------------------------ */
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); font-weight: 700; }
+
+:focus-visible {
+  outline: 2px solid var(--dd-primary);
+  outline-offset: 2px;
+}
+
+/* --- Navbar: constant Ink Blue bar, light chrome, flat (both themes) ------- */
+.navbar {
+  background: var(--dd-ink) !important;
+  color: var(--dd-on-ink);
+  box-shadow: none;
+  border: none !important;
+  min-height: 56px;
+}
+.navbar .navbar-brand,
+.navbar .nav-link { color: var(--dd-on-ink); }
+
+/* --- Buttons: pill / lozenge shape ----------------------------------------- */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: .02em;
+  border-radius: var(--radius-full);       /* lozenge / pill — brand shape */
+  transition: all var(--duration-short) var(--ease-standard);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+
+/* Bare circular icon button (e.g. navbar theme toggle). */
+.icon-btn {
+  padding: .375rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: inherit;
+}
+.icon-btn:hover,
+.icon-btn:focus { background: rgba(var(--dd-on-primary-rgb), .12); }
+
+/* Standard primary — Reflex Blue, flat (darken on hover, no lift). */
+.btn-primary {
+  background-color: var(--dd-primary);
+  border: none;
+  color: var(--dd-on-primary);
+  padding: .625rem 1.5rem;
+  border-radius: var(--radius-full);
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--dd-primary-hover);
+  border-color: var(--dd-primary-hover);
+  color: var(--dd-on-primary);
+}
+.btn-primary:active {
+  background-color: var(--dd-primary-active) !important;
+  border-color: var(--dd-primary-active) !important;
+}
+.btn-primary:focus-visible {
+  outline: 3px solid rgba(var(--dd-primary-rgb), .4);
+  outline-offset: 2px;
+}
+
+/* Signature CTA — the single spotlight action: solid Cyan, dark Ink text (~11:1).
+   Use sparingly (one per view). Never place text over the cyan→reflex gradient. */
+.btn-cta {
+  background-color: var(--dd-accent);
+  border: none;
+  color: var(--dd-on-accent);
+  font-weight: 700;
+  padding: .625rem 1.5rem;
+  border-radius: var(--radius-full);
+}
+.btn-cta:hover,
+.btn-cta:focus { color: var(--dd-on-accent); filter: brightness(.96); }
+.btn-cta:active { filter: brightness(.92); }
+.btn-cta:focus-visible {
+  outline: 3px solid rgba(var(--dd-accent-rgb), .5);
+  outline-offset: 2px;
+}
+
+/* Secondary shapes — NOT pills (reserve the pill for primary actions/chips). */
+.btn-outline-secondary {
+  border-color: var(--dd-outline);
+  color: var(--dd-on-surface);
+  border-radius: var(--radius-sm);
+}
+.btn-outline-secondary:hover {
+  background-color: var(--dd-surface-variant);
+  border-color: var(--dd-outline);
+  color: var(--dd-on-surface);
+}
+.btn-tonal {
+  background-color: var(--dd-primary-container);
+  color: var(--dd-on-primary-container);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.btn-tonal:hover {
+  background-color: rgba(var(--dd-primary-rgb), .18);
+  color: var(--dd-on-primary-container);
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: var(--dd-primary);
+  border-color: var(--dd-primary);
+  color: var(--dd-on-primary);
+}
+
+/* --- Cards: flat, keyline-bounded (no shadowed boxes) ---------------------- */
+.card {
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  background: var(--dd-surface);
+  overflow: hidden;
+}
+.card-header {
+  background: transparent;                 /* keyline divider, not a filled band */
+  border-bottom: 1px solid var(--dd-outline-variant);
+  padding: 1rem 1.25rem;
+}
+.card-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--dd-on-surface);
+  font-family: var(--font-heading);
+}
+.card-body { padding: 1.25rem; }
+
+/* Opt-in: add to a clickable card (e.g. a deal/kanban card) for restrained
+   press/hover feedback — scale, not shadow, matches the card's flat elevation. */
+.card-interactive {
+  transition: transform var(--duration-short) var(--ease-spring);
+}
+.card-interactive:hover { transform: scale(.99); }
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive { transition: none; }
+  .card-interactive:hover { transform: none; }
+}
+
+/* --- Modals: match the card's radius + a native-feeling glass scrim -------- */
+.modal-content {
+  border: 1px solid var(--dd-outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-4);
+  background: var(--dd-surface);
+}
+.modal-header,
+.modal-footer { border-color: var(--dd-outline-variant); }
+.modal-backdrop {
+  background-color: var(--dd-ink);
+  opacity: .35 !important;         /* Bootstrap sets !important on its own opacity rule */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .modal-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; opacity: .6 !important; }
+}
+
+/* --- Forms ----------------------------------------------------------------- */
+.form-control,
+.form-select {
+  font-family: var(--font-body);
+  border: 1px solid var(--dd-outline);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-short) var(--ease-standard),
+              box-shadow var(--duration-short) var(--ease-standard);
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--dd-primary);
+  box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12);
+}
+.form-label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: .875rem;
+  color: var(--dd-on-surface);
+  margin-bottom: .375rem;
+}
+.form-check-input:checked {
+  background-color: var(--dd-primary);
+  border-color: var(--dd-primary);
+}
+.form-check-input:focus {
+  box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .15);
+  border-color: var(--dd-primary);
+}
+
+/* Browser autofill paints a pale-blue fill + near-black text through a layer
+   that ignores the theme (dark-on-dark in dark mode). Mask it with an inset
+   shadow tracking the field surface (flips with the theme) and force themed
+   text/caret. Applies in both themes — autofill glares in light mode too. */
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--dd-on-surface);
+  caret-color: var(--dd-on-surface);
+  -webkit-box-shadow: 0 0 0 1000px var(--dd-surface) inset;
+  box-shadow: 0 0 0 1000px var(--dd-surface) inset;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+.form-control:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12), 0 0 0 1000px var(--dd-surface) inset;
+  box-shadow: 0 0 0 3px rgba(var(--dd-primary-rgb), .12), 0 0 0 1000px var(--dd-surface) inset;
+}
+
+/* --- Tables ---------------------------------------------------------------- */
+.table {
+  border-color: var(--dd-outline-variant);
+  --bs-table-bg: transparent;
+  /* Route Bootstrap's fixed near-black cell colour through the theme token so
+     tbody data cells stay readable in dark mode (else dark-on-dark). */
+  --bs-table-color: var(--dd-on-surface);
+}
+.table > thead > tr > th {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: .8125rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--dd-on-surface-secondary);
+  border-bottom-width: 2px;
+  padding: .875rem .75rem;
+}
+.table > tbody > tr > td { padding: .75rem; vertical-align: middle; }
+
+/* --- Dropdowns / overlays: the one place a real shadow is allowed ----------- */
+.dropdown-menu {
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-3);
+  border: 1px solid rgba(var(--dd-primary-rgb), .06);
+  padding: .375rem;
+}
+.dropdown-item {
+  border-radius: var(--radius-xs);
+  padding: .5rem .875rem;
+  font-size: .875rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+}
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: rgba(var(--dd-primary-rgb), .06);
+  color: var(--dd-on-surface);
+}
+
+/* --- The one sanctioned gradient: a text-free accent keyline ---------------
+ * The cyan→reflex "atom" gradient, for thin accent rules only (top border of a
+ * hero surface / feature card). NEVER behind text. Add to a 2–3px element. */
+.dd-keyline-gradient {
+  background: linear-gradient(90deg,
+    transparent 0%, var(--dd-accent) 30%, var(--dd-primary) 70%, transparent 100%);
+}
