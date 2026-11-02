@@ -85,7 +85,7 @@ public class FuelSurchargeServiceTests : IDisposable
         var result = await service.GetCardAsync(ClaimsPrincipalFactory.Create(tenantCode: "other"), CancellationToken.None);
 
         Assert.Equal(FuelSurchargeStatus.NotAvailable, result.Status);
-        await repo.DidNotReceiveWithAnyArgs().GetHistoryAsync(default, default, TestContext.Current.CancellationToken);
+        await repo.DidNotReceiveWithAnyArgs().GetHistoryAsync(null, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

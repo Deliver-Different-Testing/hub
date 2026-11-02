@@ -18,10 +18,10 @@ public class TenantAppearanceServiceTests
     {
         _master.GetTenantConnectionStringAsync(9).Returns((string?)null);
 
-        var result = await CreateService().GetAsync(9);
+        var result = await CreateService().GetAsync(9, TestContext.Current.CancellationToken);
 
         Assert.Equal(TenantAppearanceStatus.TenantNotFound, result.Status);
-        await _source.DidNotReceiveWithAnyArgs().ReadJsonAsync(default!, default);
+        await _source.DidNotReceiveWithAnyArgs().ReadJsonAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class TenantAppearanceServiceTests
         _master.GetTenantConnectionStringAsync(1).Returns("Server=x;");
         _source.ReadJsonAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("""{"primary":"#13B964"}""");
 
-        var result = await CreateService().GetAsync(1);
+        var result = await CreateService().GetAsync(1, TestContext.Current.CancellationToken);
 
         Assert.Equal(TenantAppearanceStatus.Found, result.Status);
         Assert.Equal("#13b964", result.Appearance!.Primary);
@@ -43,9 +43,9 @@ public class TenantAppearanceServiceTests
     public async Task NullOrUnusableJson_ReportsNone(string? json)
     {
         _master.GetTenantConnectionStringAsync(1).Returns("Server=x;");
-        _source.ReadJsonAsync(default!, default).ReturnsForAnyArgs(json);
+        _source.ReadJsonAsync(null!, TestContext.Current.CancellationToken).ReturnsForAnyArgs(json);
 
-        var result = await CreateService().GetAsync(1);
+        var result = await CreateService().GetAsync(1, TestContext.Current.CancellationToken);
 
         Assert.Equal(TenantAppearanceStatus.None, result.Status);
         Assert.Null(result.Appearance);
@@ -55,13 +55,13 @@ public class TenantAppearanceServiceTests
     public async Task Result_IsCachedPerTenant()
     {
         _master.GetTenantConnectionStringAsync(1).Returns("Server=x;");
-        _source.ReadJsonAsync(default!, default).ReturnsForAnyArgs("""{"contrast":"high"}""");
+        _source.ReadJsonAsync(null!, TestContext.Current.CancellationToken).ReturnsForAnyArgs("""{"contrast":"high"}""");
         var service = CreateService();
 
-        await service.GetAsync(1);
-        await service.GetAsync(1);
+        await service.GetAsync(1, TestContext.Current.CancellationToken);
+        await service.GetAsync(1, TestContext.Current.CancellationToken);
 
-        await _source.ReceivedWithAnyArgs(1).ReadJsonAsync(default!, default);
+        await _source.ReceivedWithAnyArgs(1).ReadJsonAsync(null!, TestContext.Current.CancellationToken);
         await _master.Received(1).GetTenantConnectionStringAsync(1);
     }
 }

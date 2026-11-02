@@ -4,7 +4,6 @@ using Hub.Models;
 using Hub.Repositories;
 using Hub.Services;
 using Hub.Tests.Helpers;
-using Hub.ViewModels;
 using NSubstitute;
 
 namespace Hub.Tests.Services;
