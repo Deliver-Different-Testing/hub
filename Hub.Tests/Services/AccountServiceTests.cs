@@ -1134,4 +1134,93 @@ public class AccountServiceTests : IDisposable
             Arg.Is<ClaimsPrincipal>(p => p.HasClaim("CurrentTenantID", "1") && p.HasClaim("IsNetworkPartner", "False")),
             Arg.Any<AuthenticationProperties>());
     }
+
+    // ---- AcceptCourierAppToken (UC #866) ----
+
+    private const string TestCourierAppKey = "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA="; // 32-byte base64
+
+    private static string CourierAppToken(int userId = 2, int tenantId = 1, int courierId = 1, long? expiresAt = null,
+        string key = TestCourierAppKey) =>
+        Hub.Services.CourierAppToken.Create(
+            new Hub.Services.CourierAppToken.Payload(userId, tenantId, courierId,
+                expiresAt ?? DateTimeOffset.UtcNow.AddSeconds(60).ToUnixTimeSeconds()),
+            key);
+
+    private static async Task<bool> AcceptCourierAsync(Harness h, string? token)
+    {
+        Environment.SetEnvironmentVariable("CourierAppSsoKey", TestCourierAppKey);
+        try
+        {
+            return await h.Service.AcceptCourierAppTokenAsync(h.Http, token);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CourierAppSsoKey", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptCourierAppToken_ValidToken_SignsInTheCourier()
+    {
+        var h = CreateForAccept();
+
+        Assert.True(await AcceptCourierAsync(h, CourierAppToken()));
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(), "Identity.Application",
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("IsCourier", "True") && p.HasClaim("CourierID", "1")
+                                         && p.HasClaim("CurrentTenantID", "1") && p.HasClaim("ContactID", "0")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not-a-token")]
+    [InlineData("a.b.c")]
+    public async Task AcceptCourierAppToken_Malformed_IsRejected(string? token) =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(), token));
+
+    [Fact]
+    public async Task AcceptCourierAppToken_SignedWithAnotherKey_IsRejected() =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(),
+            CourierAppToken(key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")));
+
+    [Fact]
+    public async Task AcceptCourierAppToken_PayloadChanged_IsRejected()
+    {
+        // Swap in another courier's payload but keep the original signature.
+        var original = CourierAppToken(courierId: 1).Split('.');
+        var forged = CourierAppToken(courierId: 2).Split('.');
+
+        Assert.False(await AcceptCourierAsync(CreateForAccept(), forged[0] + "." + original[1]));
+    }
+
+    [Fact]
+    public async Task AcceptCourierAppToken_NoKeyConfigured_IsRejected()
+    {
+        var h = CreateForAccept();
+
+        Assert.False(await h.Service.AcceptCourierAppTokenAsync(h.Http, CourierAppToken()));
+    }
+
+    [Fact]
+    public async Task AcceptCourierAppToken_Expired_IsRejected() =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(),
+            CourierAppToken(expiresAt: DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds())));
+
+    [Fact]
+    public async Task AcceptCourierAppToken_StaffUser_IsRejected() =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(), CourierAppToken(userId: 1)));
+
+    [Fact]
+    public async Task AcceptCourierAppToken_OtherTenantsHub_IsRejected() =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(host: "hub.second.deliverdifferent.com"), CourierAppToken()));
+
+    [Fact]
+    public async Task AcceptCourierAppToken_TokenTenantMismatch_IsRejected() =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(), CourierAppToken(tenantId: 2)));
+
+    [Fact]
+    public async Task AcceptCourierAppToken_CourierIdIsNotThisUsersCourier_IsRejected() =>
+        Assert.False(await AcceptCourierAsync(CreateForAccept(), CourierAppToken(courierId: 99)));
 }

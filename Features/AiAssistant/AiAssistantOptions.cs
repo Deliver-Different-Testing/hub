@@ -4,6 +4,9 @@ public sealed class AiAssistantOptions
 {
     public const string SectionName = "AiAssistant";
 
+    /// <summary>The Anthropic key is shared config, not part of the AiAssistant section.</summary>
+    public const string ApiKeyPath = "AutoMate:Anthropic:ApiKey";
+
     public string? ApiKey { get; set; }
     public string Model { get; set; } = "claude-haiku-5-5";
     public string? Effort { get; set; }
