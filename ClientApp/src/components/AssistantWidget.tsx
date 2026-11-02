@@ -11,6 +11,16 @@ import classes from './AssistantWidget.module.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown')) as FC<ReactMarkdownOptions>;
 const REMARK_PLUGINS = [remarkGfm];
+// Answers can echo help-article text, so never auto-load images (a URL could carry the chat away) and open links in a
+// new tab with no opener or referrer.
+const DISALLOWED_ELEMENTS = ['img'];
+const MARKDOWN_COMPONENTS: ReactMarkdownOptions['components'] = {
+  a: ({ href, title, children }) => (
+    <a href={href} title={title} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
+};
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -157,7 +167,9 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
                     <div key={index} className={`${classes.msg} ${classes.assistant}`}>
                       <div className={classes.markdown}>
                         <Suspense fallback={<span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>}>
-                          <ReactMarkdown remarkPlugins={REMARK_PLUGINS}>{message.content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} disallowedElements={DISALLOWED_ELEMENTS} components={MARKDOWN_COMPONENTS}>
+                            {message.content}
+                          </ReactMarkdown>
                         </Suspense>
                       </div>
                       <SourceBadges sources={message.sources} />
