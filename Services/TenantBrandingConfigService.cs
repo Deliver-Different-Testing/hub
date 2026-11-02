@@ -37,7 +37,8 @@ public sealed class TenantBrandingConfigService(
         return new TenantBrandingResponse
         {
             TenantId = branding.TenantId,
-            CompanyName = branding.CompanyName,
+            // Consumers (Accounts invoices, reminders, reports) show this name to customers, so never hand back a blank one.
+            CompanyName = string.IsNullOrWhiteSpace(branding.CompanyName) ? tenant.Name : branding.CompanyName,
             AddressLines = addressLines,
             Country = branding.Country,
             Phone = branding.Phone,

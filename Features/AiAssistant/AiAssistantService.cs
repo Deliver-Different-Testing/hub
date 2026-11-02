@@ -112,9 +112,13 @@ public sealed class AiAssistantService(
             .ToList();
 
         var pageContext = SanitizePageContext(request.PageContext, options.MaxPageContextChars);
-        IReadOnlyList<CspKbHit> hits = knowledge.IsConfigured
-            ? await GroundAsync(cappedMessages[^1].Content, ct)
-            : [];
+        IReadOnlyList<CspKbHit> hits = [];
+        if (knowledge.IsConfigured)
+        {
+            // Sent before grounding so the UI has something to show during the search.
+            yield return Status("searching_kb");
+            hits = await GroundAsync(cappedMessages[^1].Content, ct);
+        }
 
         var preamble = new StringBuilder();
         if (pageContext.Length > 0)
@@ -260,6 +264,8 @@ public sealed class AiAssistantService(
     private static AiAssistantStreamEvent Failure(string message, int status) =>
         new() { Type = "error", Error = message, HttpStatus = status };
 
+    private static AiAssistantStreamEvent Status(string phase) => new() { Type = "status", Text = phase };
+
     private string? Validate(AiChatRequest request)
     {
         if (request.Messages.Count == 0)
@@ -350,9 +356,12 @@ public sealed class AiAssistantService(
         if (rawEvent.TryPickContentBlockStart(out var blockStart))
         {
             state.Current = StartBlock(blockStart.ContentBlock);
-            return state.Current is ToolUseAccumulator toolUse
-                ? new AiAssistantStreamEvent { Type = "tool_use", ToolName = toolUse.Name }
-                : null;
+            return state.Current switch
+            {
+                ToolUseAccumulator toolUse => new AiAssistantStreamEvent { Type = "tool_use", ToolName = toolUse.Name },
+                ThinkingAccumulator or RedactedThinkingAccumulator => Status("thinking"),
+                _ => null
+            };
         }
 
         if (rawEvent.TryPickContentBlockDelta(out var delta))

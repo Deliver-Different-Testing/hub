@@ -30,6 +30,16 @@ interface ChatMessage {
 
 const MAX_CHARS = 2000;
 
+// What the status line says while the server works. Add a label for each of this app's tools.
+const STATUS_LABELS: Record<string, string> = {
+  searching_kb: 'Searching help articles…',
+  thinking: 'Thinking…',
+  search_knowledge_base: 'Reading help articles…',
+  get_article: 'Reading help articles…',
+};
+
+const statusLabel = (key?: string | null) => (key && STATUS_LABELS[key]) || 'Working…';
+
 const SUGGESTIONS = [
   'What can I open from the App Hub?',
   'How do I switch to another organisation?',
@@ -44,6 +54,7 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -84,13 +95,18 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
         { messages: history.map(({ role, content }) => ({ role, content })), pageContext },
         controller.signal,
       )) {
-        if (evt.type === 'text_delta' && evt.text) update((last) => ({ ...last, content: last.content + evt.text }));
+        if (evt.type === 'text_delta' && evt.text) {
+          setStatus(null);
+          update((last) => ({ ...last, content: last.content + evt.text }));
+        } else if (evt.type === 'status') setStatus(statusLabel(evt.text));
+        else if (evt.type === 'tool_use') setStatus(statusLabel(evt.toolName));
         else if (evt.type === 'done' && evt.sources?.length) update((last) => ({ ...last, sources: evt.sources ?? undefined }));
         else if (evt.type === 'error') setError(evt.error ?? "Auto-mate couldn't answer. Try again.");
       }
     } finally {
       // Drop an empty assistant bubble left by an error, so the conversation sent next time stays valid.
       setMessages((current) => (current[current.length - 1]?.content ? current : current.slice(0, -1)));
+      setStatus(null);
       setBusy(false);
     }
   };
@@ -100,7 +116,8 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
     void send(draft);
   };
 
-  const waiting = busy && messages[messages.length - 1]?.content === '';
+  // Shown from the moment a question is sent until text streams, and again while a later tool call runs.
+  const activity = busy ? (status ?? (messages[messages.length - 1]?.content ? null : 'Thinking…')) : null;
 
   return (
     <>
@@ -178,7 +195,14 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
                 ),
               )}
 
-              {waiting && <Loader size="sm" type="dots" aria-label="Thinking" />}
+              {activity && (
+                <Group gap={6} role="status">
+                  <Loader size="xs" type="dots" />
+                  <Text size="xs" c="dimmed">
+                    {activity}
+                  </Text>
+                </Group>
+              )}
               {error && (
                 <Alert color="red" role="alert" p="xs">
                   {error}
