@@ -300,6 +300,20 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
     }
 
     [Fact]
+    public async Task Fallback_does_not_swallow_the_courier_app_token_route()
+    {
+        var client = _factory.CreateSpaClient();
+
+        var response = await client.GetAsync("/Account/AcceptCourierAppToken", Ct);
+
+        // A missing token fails the sign-in, so the MVC action sends the driver to the SPA login.
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/Login?error=autologin-failed", response.Headers.Location?.OriginalString);
+        await _factory.Accounts.Received().AcceptCourierAppTokenAsync(
+            Arg.Any<Microsoft.AspNetCore.Http.HttpContext>(), null);
+    }
+
+    [Fact]
     public async Task Fallback_does_not_swallow_connect_authorize_while_the_gate_is_closed()
     {
         _factory.AgentGateOpen = false;

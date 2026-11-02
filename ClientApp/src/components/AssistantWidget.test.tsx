@@ -122,7 +122,8 @@ describe('AssistantWidget', () => {
 
     await ask('How do I switch to another organisation?');
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Searching help articles…');
+    // The status line shows "Thinking…" first; wait for the server's status frame to replace it.
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Searching help articles…'));
     release();
     expect(await screen.findByText('Use the organisation menu.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());

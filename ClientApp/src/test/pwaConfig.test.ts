@@ -33,7 +33,7 @@ describe('vite PWA / build configuration', () => {
 
   it('falls back to index.html for navigations but never for server-owned routes', () => {
     expect(config).toContain("navigateFallback: '/index.html'");
-    for (const route of ['api', 'connect', 'health', 'diagnostics', 'Account\\/AcceptTenantSwitchToken', 'Account\\/CreditCard', 'images']) {
+    for (const route of ['api', 'connect', 'health', 'diagnostics', 'Account\\/AcceptTenantSwitchToken', 'Account\\/AcceptCourierAppToken', 'Account\\/CreditCard', 'images']) {
       expect(config).toContain(`/^\\/${route}/`);
     }
   });
@@ -53,7 +53,7 @@ describe('vite PWA / build configuration', () => {
   });
 
   it('proxies the server-owned routes to Kestrel in dev', () => {
-    for (const route of ['/api', '/connect', '/Account/AcceptTenantSwitchToken', '/Account/CreditCard', '/images', '/health']) {
+    for (const route of ['/api', '/connect', '/Account/AcceptTenantSwitchToken', '/Account/AcceptCourierAppToken', '/Account/CreditCard', '/images', '/health']) {
       expect(config).toContain(`'${route}': backend`);
     }
     expect(config).toContain('hub.local.deliverdifferent.com');
