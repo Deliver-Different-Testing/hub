@@ -13,6 +13,7 @@ public static class AiAssistantServiceExtensions
         this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         var assistant = configuration.GetSection(AiAssistantOptions.SectionName).Get<AiAssistantOptions>() ?? new AiAssistantOptions();
+        assistant.ApiKey = configuration[AiAssistantOptions.ApiKeyPath];
         var serviceAuth = configuration.GetSection(ServiceAuthOptions.SectionName).Get<ServiceAuthOptions>() ?? new ServiceAuthOptions();
         var csp = new CspKnowledgeOptions
         {

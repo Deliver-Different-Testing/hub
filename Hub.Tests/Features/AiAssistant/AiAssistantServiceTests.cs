@@ -61,7 +61,7 @@ public class AiAssistantServiceTests
 
     private static string Sse(string type, object data) => $"event: {type}\ndata: {JsonSerializer.Serialize(data)}\n\n";
 
-    private static string TextTurn(string text, string stop = "end_turn") =>
+    private static string MessageStart() =>
         Sse("message_start", new
         {
             type = "message_start",
@@ -70,23 +70,32 @@ public class AiAssistantServiceTests
                 id = "msg", type = "message", role = "assistant", content = Array.Empty<object>(), model = "m",
                 stop_reason = (string?)null, stop_sequence = (string?)null, usage = new { input_tokens = 1, output_tokens = 1 }
             }
-        })
+        });
+
+    private static string TextTurn(string text, string stop = "end_turn") =>
+        MessageStart()
         + Sse("content_block_start", new { type = "content_block_start", index = 0, content_block = new { type = "text", text = "" } })
         + Sse("content_block_delta", new { type = "content_block_delta", index = 0, delta = new { type = "text_delta", text } })
         + Sse("content_block_stop", new { type = "content_block_stop", index = 0 })
         + Sse("message_delta", new { type = "message_delta", delta = new { stop_reason = stop, stop_sequence = (string?)null }, usage = new { output_tokens = 5 } })
         + Sse("message_stop", new { type = "message_stop" });
 
+    // Current models stream their thinking as empty text, then a signature.
+    private static string ThinkingThenTextTurn(string text) =>
+        MessageStart()
+        + Sse("content_block_start", new { type = "content_block_start", index = 0, content_block = new { type = "thinking", thinking = "", signature = "" } })
+        + Sse("content_block_delta", new { type = "content_block_delta", index = 0, delta = new { type = "thinking_delta", thinking = "" } })
+        + Sse("content_block_delta", new { type = "content_block_delta", index = 0, delta = new { type = "thinking_delta", thinking = "" } })
+        + Sse("content_block_delta", new { type = "content_block_delta", index = 0, delta = new { type = "signature_delta", signature = "sig" } })
+        + Sse("content_block_stop", new { type = "content_block_stop", index = 0 })
+        + Sse("content_block_start", new { type = "content_block_start", index = 1, content_block = new { type = "text", text = "" } })
+        + Sse("content_block_delta", new { type = "content_block_delta", index = 1, delta = new { type = "text_delta", text } })
+        + Sse("content_block_stop", new { type = "content_block_stop", index = 1 })
+        + Sse("message_delta", new { type = "message_delta", delta = new { stop_reason = "end_turn", stop_sequence = (string?)null }, usage = new { output_tokens = 5 } })
+        + Sse("message_stop", new { type = "message_stop" });
+
     private static string ToolTurn(string id, string name, string inputJson) =>
-        Sse("message_start", new
-        {
-            type = "message_start",
-            message = new
-            {
-                id = "msg", type = "message", role = "assistant", content = Array.Empty<object>(), model = "m",
-                stop_reason = (string?)null, stop_sequence = (string?)null, usage = new { input_tokens = 1, output_tokens = 1 }
-            }
-        })
+        MessageStart()
         + Sse("content_block_start", new
         {
             type = "content_block_start", index = 0,
@@ -131,6 +140,39 @@ public class AiAssistantServiceTests
         Assert.Equal(["text_delta", "done"], events.Select(e => e.Type).ToArray());
         Assert.Equal("Hello there", events[0].Text);
         Assert.Null(events[1].Sources);
+    }
+
+    [Fact]
+    public async Task KbConfigured_SendsSearchingStatus_BeforeAnythingElse()
+    {
+        KnowledgeOn();
+        Queue(TextTurn("Hello there"));
+
+        var events = await Collect(CreateSut().ChatStreamAsync(Request(), CancellationToken.None));
+
+        Assert.Equal(["status", "text_delta", "done"], events.Select(e => e.Type).ToArray());
+        Assert.Equal("searching_kb", events[0].Text);
+    }
+
+    [Fact]
+    public async Task KbUnconfigured_SendsNoStatus()
+    {
+        Queue(TextTurn("Hello there"));
+
+        var events = await Collect(CreateSut().ChatStreamAsync(Request(), CancellationToken.None));
+
+        Assert.DoesNotContain(events, e => e.Type == "status");
+    }
+
+    [Fact]
+    public async Task ThinkingBlock_SendsExactlyOneThinkingStatus()
+    {
+        Queue(ThinkingThenTextTurn("Hello there"));
+
+        var events = await Collect(CreateSut().ChatStreamAsync(Request(), CancellationToken.None));
+
+        Assert.Equal(["status", "text_delta", "done"], events.Select(e => e.Type).ToArray());
+        Assert.Equal("thinking", events[0].Text);
     }
 
     [Fact]
@@ -341,7 +383,7 @@ public class AiAssistantServiceTests
         var events = await Collect(CreateSut(client).ChatStreamAsync(Request(), CancellationToken.None));
 
         Assert.DoesNotContain(events, e => e.Type == "error");
-        Assert.Equal(["text_delta", "done"], events.Select(e => e.Type).ToArray());
+        Assert.Equal(["status", "text_delta", "done"], events.Select(e => e.Type).ToArray());
         Assert.DoesNotContain("<knowledge-base>", LastUserText(Body(Assert.Single(_anthropic.Bodies))));
     }
 
@@ -358,8 +400,8 @@ public class AiAssistantServiceTests
 
         var events = await Collect(CreateSut().ChatStreamAsync(Request(), CancellationToken.None));
 
-        Assert.Equal(["tool_use", "text_delta", "done"], events.Select(e => e.Type).ToArray());
-        Assert.Equal("search_knowledge_base", events[0].ToolName);
+        Assert.Equal(["status", "tool_use", "text_delta", "done"], events.Select(e => e.Type).ToArray());
+        Assert.Equal("search_knowledge_base", events[1].ToolName);
         Assert.DoesNotContain(events, e => e.Type == "error");
 
         Assert.Equal(2, _anthropic.Bodies.Count);

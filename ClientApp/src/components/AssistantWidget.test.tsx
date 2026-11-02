@@ -94,6 +94,40 @@ describe('AssistantWidget', () => {
     expect(document.querySelector('img[src*="evil.example"]')).toBeNull();
   });
 
+  it('says what Auto-mate is doing until the answer starts, then clears it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const frame = (e: object) => new TextEncoder().encode(`data: ${JSON.stringify(e)}\n\n`);
+    server.use(
+      enabled,
+      antiforgeryHandler(),
+      http.post(
+        '/api/assistant/messages',
+        () =>
+          new HttpResponse(
+            new ReadableStream({
+              async start(controller) {
+                controller.enqueue(frame({ type: 'status', text: 'searching_kb' }));
+                await gate;
+                controller.enqueue(frame({ type: 'text_delta', text: 'Use the organisation menu.' }));
+                controller.enqueue(frame({ type: 'done' }));
+                controller.close();
+              },
+            }),
+            { headers: { 'Content-Type': 'text/event-stream' } },
+          ),
+      ),
+    );
+    renderWithProviders(<AssistantWidget />);
+
+    await ask('How do I switch to another organisation?');
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Searching help articles…');
+    release();
+    expect(await screen.findByText('Use the organisation menu.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+  });
+
   it('shows the server reason when a turn is refused', async () => {
     server.use(
       enabled,
