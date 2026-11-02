@@ -49,5 +49,7 @@ public interface IAccountService
 
     Task<bool> AcceptTenantSwitchTokenAsync(HttpContext httpContext, string? token);
 
+    Task<bool> AcceptCourierAppTokenAsync(HttpContext httpContext, string? token);
+
     Task<GenerateApiKeyResult> GenerateApiKeyAsync(ClaimsPrincipal user);
 }
