@@ -106,11 +106,9 @@ public sealed class AiAssistantService(
         }
 
         var messages = cappedMessages
-            .Select(m => new BetaMessageParam
-            {
-                Role = m.Role == "assistant" ? Role.Assistant : Role.User,
-                Content = m.Content
-            })
+            .Select(m => m.Role == "assistant"
+                ? (BetaMessageParam)new BetaAssistantMessageParam { Content = m.Content }
+                : new BetaUserMessageParam { Content = m.Content })
             .ToList();
 
         var pageContext = SanitizePageContext(request.PageContext, options.MaxPageContextChars);
@@ -131,11 +129,7 @@ public sealed class AiAssistantService(
 
         if (preamble.Length > 0)
         {
-            messages[^1] = new BetaMessageParam
-            {
-                Role = Role.User,
-                Content = $"{preamble}{cappedMessages[^1].Content}"
-            };
+            messages[^1] = new BetaUserMessageParam { Content = $"{preamble}{cappedMessages[^1].Content}" };
         }
 
         var activeTools = tools.Where(t => knowledge.IsConfigured || t is not IKnowledgeBaseTool).ToList();
@@ -238,11 +232,7 @@ public sealed class AiAssistantService(
                 yield break;
             }
 
-            messages.Add(new BetaMessageParam
-            {
-                Role = Role.Assistant,
-                Content = new BetaMessageParamContent(state.AssistantContent)
-            });
+            messages.Add(new BetaAssistantMessageParam { Content = new BetaMessageContentParam(state.AssistantContent) });
 
             var toolResults = new List<BetaContentBlockParam>();
             foreach (var tool in state.ToolUseBlocks)
@@ -263,11 +253,7 @@ public sealed class AiAssistantService(
                 logger.LogWarning("AI assistant tool call limit reached ({Count} requested)", toolCalls);
             }
 
-            messages.Add(new BetaMessageParam
-            {
-                Role = Role.User,
-                Content = new BetaMessageParamContent(toolResults)
-            });
+            messages.Add(new BetaUserMessageParam { Content = toolResults });
         }
     }
 
