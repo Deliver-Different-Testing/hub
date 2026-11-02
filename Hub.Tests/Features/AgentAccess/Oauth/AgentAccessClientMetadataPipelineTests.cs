@@ -85,7 +85,7 @@ public partial class AgentAccessAuthorizePipelineTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Contains("invalid_client", await response.Content.ReadAsStringAsync(Oauth.AgentAccessAuthorizePipelineTests.Ct));
-        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public partial class AgentAccessAuthorizePipelineTests
         var response = await Oauth.AgentAccessAuthorizePipelineTests.Token(app, "anything", Oauth.AgentAccessAuthorizePipelineTests.Verifier, clientId: CimdUrl);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public partial class AgentAccessAuthorizePipelineTests
         var response = await Oauth.AgentAccessAuthorizePipelineTests.Get(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(clientId: CimdUrl), Oauth.AgentAccessAuthorizePipelineTests.Staff());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -140,6 +140,6 @@ public partial class AgentAccessAuthorizePipelineTests
         var response = await Oauth.AgentAccessAuthorizePipelineTests.Get(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(), Oauth.AgentAccessAuthorizePipelineTests.Staff());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 }

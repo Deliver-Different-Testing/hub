@@ -1,0 +1,3 @@
+/* Entry for the standalone OAuth consent stylesheet. Vite emits it as /consent.css (unhashed). */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import './dfrnt-bootstrap.css';

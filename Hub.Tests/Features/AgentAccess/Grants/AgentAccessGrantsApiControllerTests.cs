@@ -40,8 +40,8 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
     {
         Assert.IsType<UnauthorizedResult>(await _sut.List(12, "55", false, key, Ct));
         Assert.IsType<UnauthorizedResult>(await _sut.Revoke("x", new AgentGrantRevokeRequest(12, "55", false), key, Ct));
-        await _admin.DidNotReceiveWithAnyArgs().ListAsync(default, default!, default, default);
-        await _admin.DidNotReceiveWithAnyArgs().RevokeAsync(default!, default, default!, default, default);
+        await _admin.DidNotReceiveWithAnyArgs().ListAsync(0, null!, false, TestContext.Current.CancellationToken);
+        await _admin.DidNotReceiveWithAnyArgs().RevokeAsync(null!, 0, null!, false, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
     {
         Assert.IsType<UnauthorizedResult>(await _sut.SetTenantOff(12, key, Ct));
         Assert.IsType<BadRequestResult>(await _sut.SetTenantOff(0, Key, Ct));
-        await _store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(default, default);
+        await _store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(0, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -138,8 +138,8 @@ public class AgentAccessGrantsApiControllerTests : IDisposable
         Assert.IsType<UnauthorizedResult>(await _sut.Notified("g1", new AgentConnectionNotifiedRequest(12, true), key, Ct));
         Assert.IsType<BadRequestResult>(await _sut.Unnotified(0, Key, Ct));
         Assert.IsType<BadRequestResult>(await _sut.Notified("g1", new AgentConnectionNotifiedRequest(0, true), Key, Ct));
-        await _admin.DidNotReceiveWithAnyArgs().ListUnnotifiedAsync(default, default);
-        await _admin.DidNotReceiveWithAnyArgs().MarkNotifiedAsync(default!, default, default, default);
+        await _admin.DidNotReceiveWithAnyArgs().ListUnnotifiedAsync(0, TestContext.Current.CancellationToken);
+        await _admin.DidNotReceiveWithAnyArgs().MarkNotifiedAsync(null!, 0, false, TestContext.Current.CancellationToken);
     }
 
     [Fact]

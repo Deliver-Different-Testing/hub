@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Hub.ViewModels;
 
@@ -17,4 +17,6 @@ public sealed class LoginViewModel
     [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
 
     [Display(Name = "Login Type")] public bool IsCourierLogin { get; init; } // Default to Customer Login
+
+    public string? ReturnUrl { get; init; }
 }

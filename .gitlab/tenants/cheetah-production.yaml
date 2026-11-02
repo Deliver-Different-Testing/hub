@@ -1,0 +1,11 @@
+# cheetah production: only what differs from ../auto-deploy-values.yaml.
+# Placement (tenant label, node affinity, toleration) is generated at deploy time.
+replicaCount: 2
+hpa:
+  minReplicas: 2
+  maxReplicas: 3
+livenessProbe:
+  initialDelaySeconds: 25
+readinessProbe:
+  initialDelaySeconds: 30
+  timeoutSeconds: 3

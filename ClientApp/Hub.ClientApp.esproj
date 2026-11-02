@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.Build.NoTargets/3.7.0">
+  <!--
+    The React SPA as its own solution project (same shape as dfrntcrm's AdminPortal). It builds
+    into ../wwwroot, which Hub serves. Docker and CI build it in their own node stage and pass
+    -p:SkipSpaBuild=true; locally it rebuilds only when its sources change.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="**/*" Exclude="node_modules/**;bin/**;obj/**;coverage/**" />
+    <SpaSource Include="src/**;public/**;scripts/**;index.html;vite.config.ts;tsconfig.json;package-lock.json" />
+  </ItemGroup>
+
+  <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="'$(SkipSpaBuild)' != 'true'"
+          Inputs="package-lock.json" Outputs="node_modules/.install-stamp">
+    <Exec Command="npm ci" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Touch Files="node_modules/.install-stamp" AlwaysCreate="true" />
+  </Target>
+
+  <Target Name="NpmBuild" AfterTargets="Build" Condition="'$(SkipSpaBuild)' != 'true'"
+          Inputs="@(SpaSource)" Outputs="../wwwroot/index.html">
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+</Project>

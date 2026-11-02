@@ -157,7 +157,7 @@ public class HubTileCatalogueTests
     [Fact]
     public void Order_is_stable_between_calls()
     {
-        // The view renders in list order and site.less staggers on :nth-child,
+        // The SPA renders in list order and staggers each tile's entrance by index,
         // so an unstable order would reshuffle the grid between page loads.
         Assert.Equal(
             HubTileCatalogue.Resolve(Permissive(), AllKeys()).Select(t => t.Key),

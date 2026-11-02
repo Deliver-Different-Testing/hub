@@ -19,10 +19,9 @@ build:
   interruptible: true
   allow_failure: false
   script:
-    - curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-    - apt-get install -y nodejs
     - dotnet restore
-    - dotnet build --no-restore --configuration Release
+    # The SPA is built and tested by test:frontend; SkipSpaBuild keeps node out of this image.
+    - dotnet build --no-restore --configuration Release -p:SkipSpaBuild=true
   rules:
     # Target-branch agnostic. Routine MRs target develop since the 2026-09-18
     # branch inversion, and an MR pipeline already diffs source vs target, so
@@ -43,8 +42,6 @@ unit-tests:
   interruptible: true
   allow_failure: false
   script:
-    - curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-    - apt-get install -y nodejs
     - dotnet restore
     # Run the suite as its own executable rather than through `dotnet test`.
     #
@@ -52,7 +49,7 @@ unit-tests:
     # 6e593e0 pulled in - dropped the VSTest bridge that let `dotnet test` drive one on the .NET 10
     # SDK. The command now fails before running a single test, so this job was about to start
     # failing on a change that has nothing to do with the tests.
-    - dotnet build Hub.Tests/Hub.Tests.csproj --no-restore --configuration Debug
+    - dotnet build Hub.Tests/Hub.Tests.csproj --no-restore --configuration Debug -p:SkipSpaBuild=true
     - ./Hub.Tests/bin/Debug/net10.0/Hub.Tests -result-junit TestResults/junit.xml
   artifacts:
     when: always
@@ -64,5 +61,44 @@ unit-tests:
     # Target-branch agnostic. Routine MRs target develop since the 2026-09-18
     # branch inversion, and an MR pipeline already diffs source vs target, so
     # pinning the target branch here meant these jobs silently never ran.
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_BRANCH == "master"
+test:frontend:
+  stage: .pre
+  image: node:24-alpine
+  interruptible: true
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - api_failure
+      - scheduler_failure
+      - data_integrity_failure
+  allow_failure: false
+  variables:
+    npm_config_cache: $CI_PROJECT_DIR/.npm
+  cache:
+    key:
+      files:
+        - ClientApp/package-lock.json
+    paths:
+      - .npm/
+    policy: pull-push
+  before_script:
+    - cd ClientApp
+    - npm ci --prefer-offline --no-audit --no-fund
+  script:
+    - npm run lint
+    - npx vitest run --maxWorkers=2 --coverage --reporter=default --reporter=junit --outputFile.junit=$CI_PROJECT_DIR/TestResults/junit-frontend.xml
+    # tsc --noEmit + vite build, so a type error or broken PWA config fails the MR, not the deploy.
+    - npm run build
+  coverage: '/^All files\s*\|\s*([\d.]+)/'
+  artifacts:
+    when: always
+    reports:
+      junit: TestResults/junit-frontend.xml
+  rules:
     - if: $CI_MERGE_REQUEST_IID
     - if: $CI_COMMIT_BRANCH == "master"
