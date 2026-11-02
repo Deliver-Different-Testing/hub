@@ -87,7 +87,7 @@ export interface AiChatRequest {
 }
 
 export interface StreamEvent {
-  type: 'text_delta' | 'tool_use' | 'done' | 'error';
+  type: 'status' | 'text_delta' | 'tool_use' | 'done' | 'error';
   text?: string | null;
   toolName?: string | null;
   error?: string | null;
