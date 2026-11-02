@@ -38,6 +38,21 @@ public class TenantBrandingConfigServiceTests
     }
 
     [Fact]
+    public async Task GetReportConfigAsync_BlankCompanyName_FallsBackToTenantName()
+    {
+        var context = TestMasterContextFactory.CreateWithSeedData();
+        context.TenantBrandings.First(b => b.TenantId == 1).CompanyName = "  ";
+        await context.SaveChangesAsync();
+        var tenantName = context.Tenants.First(t => t.TenantId == 1).Name;
+        var service = new TenantBrandingConfigService(context, _mockLogoService);
+
+        var result = await service.GetReportConfigAsync(1);
+
+        Assert.False(string.IsNullOrWhiteSpace(tenantName));
+        Assert.Equal(tenantName, result!.CompanyName);
+    }
+
+    [Fact]
     public async Task GetReportConfigAsync_NotFound_ReturnsNull()
     {
         var service = CreateService();
