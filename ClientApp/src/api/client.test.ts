@@ -44,13 +44,13 @@ describe('api client', () => {
   it('maps an { error } body to an ApiError carrying the status', async () => {
     server.use(
       mswHttp.get('/api/antiforgery', () => new HttpResponse(null, { status: 204 })),
-      mswHttp.post('/api/bad', () => HttpResponse.json({ error: 'Invalid login attempt.' }, { status: 400 })),
+      mswHttp.post('/api/bad', () => HttpResponse.json({ error: 'The email or password is incorrect. Check them and try again.' }, { status: 400 })),
     );
 
     const error = await http.post('bad').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
-    expect(error).toMatchObject({ message: 'Invalid login attempt.', status: 400, fromServer: true });
-    expect(getApiErrorMessage(error, 'fallback')).toBe('Invalid login attempt.');
+    expect(error).toMatchObject({ message: 'The email or password is incorrect. Check them and try again.', status: 400, fromServer: true });
+    expect(getApiErrorMessage(error, 'fallback')).toBe('The email or password is incorrect. Check them and try again.');
   });
 
   it('falls back to the generic message when there is no server message', async () => {

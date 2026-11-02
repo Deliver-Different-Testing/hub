@@ -71,3 +71,17 @@ tolerations:
     operator: Equal
     value: staging
     effect: NoSchedule
+
+# Projected service-account token the app exchanges at CSP for Knowledge API access.
+extraVolumes:
+  - name: dfrnt-csp-token
+    projected:
+      sources:
+        - serviceAccountToken:
+            audience: csp
+            expirationSeconds: 600
+            path: csp-token
+extraVolumeMounts:
+  - name: dfrnt-csp-token
+    mountPath: /var/run/secrets/dfrnt
+    readOnly: true

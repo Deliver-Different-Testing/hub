@@ -5,6 +5,7 @@ using Hub.Controllers.Api;
 using Hub.Extensions;
 using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
+using Hub.Features.AiAssistant;
 using Hub.Services;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.DataProtection;
@@ -50,6 +51,8 @@ builder.Services
     .AddAwsServices(builder.Configuration)
     .AddRedisServices(redisConfig)
     .AddAppServices();
+
+builder.Services.AddAiAssistant(builder.Configuration, builder.Environment);
 
 // Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix; both variables unset = ephemeral keys and a closed gate.
 var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
@@ -188,6 +191,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("api", _ => RateLimitPartition.GetNoLimiter("all"));
     options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("all"));
+    AssistantRateLimiting.Add(options);
 
     // Merchant sign-in answers a guess at a password, which is a far softer target than an
     // eighty-bit pairing code. This limit is load-bearing rather than belt-and-braces.
@@ -250,9 +254,9 @@ app.UseStaticFiles(staticFileOptions);
 app.UseSession();
 app.UseCookiePolicy();
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAgentAccessEndpointGate();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllerRoute(

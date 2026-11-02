@@ -138,6 +138,12 @@ describe('LoginPage', () => {
     await waitFor(() => expect(navigateTo).toHaveBeenCalledWith('https://booking.example.com/home'));
   });
 
+  it('labels the account type and leaves the password field without a placeholder', () => {
+    renderWithProviders(<LoginPage />);
+    expect(screen.getByLabelText('Account type')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/)).not.toHaveAttribute('placeholder');
+  });
+
   it('keeps the button busy with the progress bar active while submitting', async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -153,7 +159,7 @@ describe('LoginPage', () => {
     await fill(user);
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    const button = await screen.findByRole('button', { name: 'Logging in...' });
+    const button = await screen.findByRole('button', { name: 'Logging in…' });
     expect(button).toBeDisabled();
     expect(button.querySelector('svg')).not.toBeNull();
     expect(container.querySelector('#loginProgress')).toHaveAttribute('aria-hidden', 'false');
@@ -162,13 +168,13 @@ describe('LoginPage', () => {
   });
 
   it('shows the server error and re-enables the form on a failed login', async () => {
-    captureLogin(() => HttpResponse.json({ error: 'Invalid login attempt.' }, { status: 400 }));
+    captureLogin(() => HttpResponse.json({ error: 'The email or password is incorrect. Check them and try again.' }, { status: 400 }));
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);
     await fill(user);
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid login attempt.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('The email or password is incorrect. Check them and try again.');
     expect(screen.getByRole('button', { name: 'Log in' })).toBeEnabled();
     expect(navigateTo).not.toHaveBeenCalled();
   });
@@ -180,12 +186,12 @@ describe('LoginPage', () => {
     await fill(user);
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid login attempt.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('The email or password is incorrect. Check them and try again.');
   });
 
   it('shows the fixed message for a known ?error= code', () => {
     renderWithProviders(<LoginPage />, { route: '/Account/Login?error=autologin-failed' });
-    expect(screen.getByRole('alert')).toHaveTextContent('Auto-login failed. Please login manually.');
+    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't log you in automatically. Log in below.");
   });
 
   it('never shows free text from ?error=, so a crafted link cannot put words on the login page', () => {
@@ -205,11 +211,11 @@ describe('LoginPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);
     await user.type(screen.getByLabelText(/^Email/), 'jane@');
-    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid email address, like name@company.com.')).not.toBeInTheDocument();
     await user.tab();
-    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid email address, like name@company.com.')).toBeInTheDocument();
     await user.type(screen.getByLabelText(/^Email/), 'example.com');
-    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid email address, like name@company.com.')).not.toBeInTheDocument();
   });
 
   it('validates the email after leaving the field and does not post an invalid one', async () => {
@@ -217,14 +223,14 @@ describe('LoginPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);
     await fill(user, 'not-an-email', 'secret');
-    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid email address, like name@company.com.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
     expect(bodies).toHaveLength(0);
     await user.clear(screen.getByLabelText(/^Email/));
-    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid email address, like name@company.com.')).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/^Email/), 'ok@example.com');
-    expect(screen.queryByText('Please enter a valid email address.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter a valid email address, like name@company.com.')).not.toBeInTheDocument();
   });
 
   it('requires an email and a password', async () => {
@@ -233,8 +239,8 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />);
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
-    expect(screen.getByText('Please enter your password.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid email address, like name@company.com.')).toBeInTheDocument();
+    expect(screen.getByText('Enter your password.')).toBeInTheDocument();
     expect(bodies).toHaveLength(0);
   });
 });

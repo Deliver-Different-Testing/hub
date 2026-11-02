@@ -1,0 +1,163 @@
+/* Auto-mate chat, matching IntegrationManager's panel; accents follow the tenant primary colour. */
+.launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 190;
+  box-shadow: var(--mantine-shadow-lg);
+}
+
+.panel {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 300;
+  width: min(calc(100% - 48px), 420px);
+  height: 520px;
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-primary-color-light);
+}
+
+.viewport {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion {
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 6px 12px;
+  border: 1px solid var(--mantine-primary-color-light-hover);
+  border-radius: var(--mantine-radius-xl);
+  background: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-light-color);
+  text-align: left;
+}
+
+.suggestion:hover {
+  background: var(--mantine-primary-color-light-hover);
+}
+
+.msg {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  padding: 8px 12px;
+  border-radius: var(--mantine-radius-md);
+  max-width: 85%;
+  overflow-wrap: anywhere;
+}
+
+.user {
+  align-self: flex-end;
+  white-space: pre-wrap;
+  background: var(--mantine-primary-color-filled);
+  color: var(--mantine-primary-color-contrast);
+}
+
+.assistant {
+  align-self: flex-start;
+  background: var(--dd-surface, var(--mantine-color-body));
+  border: 1px solid var(--dd-outline-variant, var(--mantine-color-default-border));
+  color: var(--mantine-color-text);
+}
+
+.markdown p {
+  margin: 0 0 4px;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown strong {
+  font-weight: 600;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0 0 4px;
+  padding-left: 20px;
+}
+
+.markdown li {
+  margin-bottom: 2px;
+}
+
+.markdown a {
+  color: var(--mantine-color-anchor);
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.input {
+  flex: 1;
+  resize: none;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-height: 120px;
+  padding: 8px 12px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-primary-color-filled);
+  color: var(--mantine-primary-color-contrast);
+}
+
+.send:hover {
+  background: var(--mantine-primary-color-filled-hover);
+}
+
+.send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.send:focus-visible,
+.suggestion:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}

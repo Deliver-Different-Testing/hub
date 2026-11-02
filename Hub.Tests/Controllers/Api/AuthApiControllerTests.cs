@@ -37,7 +37,7 @@ public class AuthApiControllerTests
     public async Task Login_Success_Returns200WithRedirectUrl()
     {
         var (controller, service) = Create();
-        service.LoginAsync(default!, default!, default).ReturnsForAnyArgs(AuthResult.Redirect("/"));
+        service.LoginAsync(null!, null!, null).ReturnsForAnyArgs(AuthResult.Redirect("/"));
 
         var body = Body<RedirectResponse>(await controller.Login(Model()), 200);
 
@@ -48,18 +48,18 @@ public class AuthApiControllerTests
     public async Task Login_Failure_Returns400WithError()
     {
         var (controller, service) = Create();
-        service.LoginAsync(default!, default!, default).ReturnsForAnyArgs(AuthResult.Failure("Invalid login attempt."));
+        service.LoginAsync(null!, null!, null).ReturnsForAnyArgs(AuthResult.Failure("The email or password is incorrect. Check them and try again."));
 
         var body = Body<ApiError>(await controller.Login(Model()), 400);
 
-        Assert.Equal("Invalid login attempt.", body.Error);
+        Assert.Equal("The email or password is incorrect. Check them and try again.", body.Error);
     }
 
     [Fact]
     public async Task Login_LocalReturnUrl_IsPassedToTheService()
     {
         var (controller, service) = Create();
-        service.LoginAsync(default!, default!, default).ReturnsForAnyArgs(AuthResult.Redirect("/x"));
+        service.LoginAsync(null!, null!, null).ReturnsForAnyArgs(AuthResult.Redirect("/x"));
         var model = Model("/connect/authorize?client_id=dfrnt-claude&state=abc");
 
         await controller.Login(model);
@@ -78,7 +78,7 @@ public class AuthApiControllerTests
     public async Task Login_ReturnUrlsThatLeaveHub_AreDroppedBeforeTheService(string? returnUrl)
     {
         var (controller, service) = Create();
-        service.LoginAsync(default!, default!, default).ReturnsForAnyArgs(AuthResult.Redirect("/"));
+        service.LoginAsync(null!, null!, null).ReturnsForAnyArgs(AuthResult.Redirect("/"));
         var model = Model(returnUrl);
 
         await controller.Login(model);
@@ -127,7 +127,7 @@ public class AuthApiControllerTests
             await controller.ForgotPassword(new ForgotPasswordViewModel { Email = "staff@test.com", RecaptchaToken = "tok" }),
             400);
 
-        Assert.Equal("reCAPTCHA validation failed. Please try again.", body.Error);
+        Assert.Equal("Couldn't confirm you're not a robot. Try again.", body.Error);
     }
 
     // ---- reset password ----
@@ -156,7 +156,7 @@ public class AuthApiControllerTests
     public async Task ResetPassword_Success_Returns200WithRedirectUrl()
     {
         var (controller, service) = Create();
-        service.ResetPasswordAsync(default!, default!).ReturnsForAnyArgs(AuthResult.Redirect("/"));
+        service.ResetPasswordAsync(null!, null!).ReturnsForAnyArgs(AuthResult.Redirect("/"));
 
         var body = Body<RedirectResponse>(
             await controller.ResetPassword(new ResetPasswordViewModel { Code = "c", Password = "NewStrong1!" }), 200);
@@ -168,12 +168,12 @@ public class AuthApiControllerTests
     public async Task ResetPassword_Failure_Returns400WithError()
     {
         var (controller, service) = Create();
-        service.ResetPasswordAsync(default!, default!)
-            .ReturnsForAnyArgs(AuthResult.Failure("This reset link is invalid or has expired."));
+        service.ResetPasswordAsync(null!, null!)
+            .ReturnsForAnyArgs(AuthResult.Failure("This reset link has expired or already been used. Request a new one."));
 
         var body = Body<ApiError>(
             await controller.ResetPassword(new ResetPasswordViewModel { Code = "c", Password = "NewStrong1!" }), 400);
 
-        Assert.Equal("This reset link is invalid or has expired.", body.Error);
+        Assert.Equal("This reset link has expired or already been used. Request a new one.", body.Error);
     }
 }

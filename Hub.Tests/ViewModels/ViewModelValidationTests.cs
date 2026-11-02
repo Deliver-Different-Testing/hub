@@ -70,7 +70,21 @@ public class ViewModelValidationTests
             Code = "abc"
         };
 
-        Assert.NotEmpty(ValidateModel(model));
+        Assert.Contains(ValidateModel(model), r => r.ErrorMessage == "Password must be 8 to 100 characters.");
+    }
+
+    [Fact]
+    public void ResetPasswordViewModel_PasswordTooLong_SaysSo()
+    {
+        var password = "Pa$1" + new string('x', 97);
+        var model = new ResetPasswordViewModel
+        {
+            Password = password,
+            ConfirmPassword = password,
+            Code = "abc"
+        };
+
+        Assert.Contains(ValidateModel(model), r => r.ErrorMessage == "Password must be 8 to 100 characters.");
     }
 
     [Fact]
@@ -83,7 +97,8 @@ public class ViewModelValidationTests
             Code = "abc"
         };
 
-        Assert.Contains(ValidateModel(model), r => r.MemberNames.Contains("ConfirmPassword"));
+        Assert.Contains(ValidateModel(model),
+            r => r.MemberNames.Contains("ConfirmPassword") && r.ErrorMessage == "Passwords don't match.");
     }
 
     [Fact]

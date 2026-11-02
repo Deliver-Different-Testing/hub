@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Amazon.AspNetCore.DataProtection.SSM" />
+    <PackageReference Include="Anthropic" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" />
     <PackageReference Include="AWSSDK.Core" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" />
@@ -37,5 +38,6 @@
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 </Project>

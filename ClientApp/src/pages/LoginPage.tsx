@@ -15,7 +15,7 @@ import { EMAIL_ERROR, isValidEmail } from '../lib/email';
 // `?error=` carries a code from a server redirect (Account/CreditCard). Only these messages are
 // ever shown; any other value is ignored so a crafted link can't put its own text on this page.
 const LOGIN_ERRORS: Record<string, string> = {
-  'autologin-failed': 'Auto-login failed. Please login manually.',
+  'autologin-failed': "Couldn't log you in automatically. Log in below.",
 };
 
 export default function LoginPage() {
@@ -36,7 +36,7 @@ export default function LoginPage() {
     mutationFn: login,
     // Full-page navigation: the destination may be the OAuth flow or another app entirely.
     onSuccess: (data) => navigateTo(data.redirectUrl || '/'),
-    onError: (error) => setFormError(getApiErrorMessage(error, 'Invalid login attempt.')),
+    onError: (error) => setFormError(getApiErrorMessage(error, 'The email or password is incorrect. Check them and try again.')),
   });
   const busy = mutation.isPending || mutation.isSuccess;
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
     e.preventDefault();
     const emailOk = validateEmail(email);
     if (!email) setEmailError(EMAIL_ERROR);
-    setPasswordError(password ? '' : 'Please enter your password.');
+    setPasswordError(password ? '' : 'Enter your password.');
     if (!emailOk || !password) return;
     setFormError('');
     mutation.mutate({ email, password, rememberMe, isCourierLogin: isCourier === 'true', returnUrl });
@@ -76,7 +76,7 @@ export default function LoginPage() {
             </Alert>
           )}
           <SegmentedControl
-            aria-label="Login type"
+            aria-label="Account type"
             fullWidth
             value={isCourier}
             onChange={setIsCourier}
@@ -106,7 +106,6 @@ export default function LoginPage() {
           />
           <PasswordInput
             label="Password"
-            placeholder="Enter your password"
             autoComplete="current-password"
             required
             value={password}
@@ -122,7 +121,7 @@ export default function LoginPage() {
               Forgot password?
             </Anchor>
           </Group>
-          <SubmitButton id="loginButton" icon={LogIn} label="Log in" busyLabel="Logging in..." busy={busy} fullWidth />
+          <SubmitButton id="loginButton" icon={LogIn} label="Log in" busyLabel="Logging in…" busy={busy} fullWidth />
         </Stack>
       </form>
     </AuthCard>

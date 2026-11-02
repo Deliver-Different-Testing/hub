@@ -50,9 +50,8 @@ export default function ProfileMenu({ me }: { me: Me }) {
           </Group>
         </Menu.Label>
         <Menu.Divider />
-        {/* "User Settings", not "Settings": the hub tile that opens the configurator is called Settings. */}
         <Menu.Item component={Link} to="/Account/Settings" leftSection={<Icon icon={Settings} size={16} />}>
-          User Settings
+          Settings
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isValidEmail } from './email';
+import { EMAIL_ERROR, isValidEmail } from './email';
 
 // Ports Hub.Tests/Views/EmailValidationRegexTests.cs (the regex is now shared by login and forgot-password).
 describe('isValidEmail', () => {
@@ -11,4 +11,10 @@ describe('isValidEmail', () => {
   it.each(['', 'not-an-email', '@missing-local.com', 'missing-domain@', 'a b@c.com'])('rejects %j', (email) =>
     expect(isValidEmail(email)).toBe(false),
   );
+});
+
+describe('EMAIL_ERROR', () => {
+  it('says what to enter, with an example', () => {
+    expect(EMAIL_ERROR).toBe('Enter a valid email address, like name@company.com.');
+  });
 });

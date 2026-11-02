@@ -11,11 +11,11 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { EMAIL_ERROR, isValidEmail } from '../lib/email';
 import { getRecaptchaToken, loadRecaptcha } from '../lib/recaptcha';
 
-const SUCCESS_MESSAGE = 'Password reset instructions have been sent to your email.';
-const FAILURE_MESSAGE = 'An error occurred. Please try again later.';
+const SUCCESS_MESSAGE = "If an account uses that email, we've sent it a reset link.";
+const FAILURE_MESSAGE = "Couldn't send the reset link. Try again in a few minutes.";
 
 export default function ForgotPasswordPage() {
-  usePageTitle('Forgot Password');
+  usePageTitle('Forgot password');
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
@@ -56,8 +56,8 @@ export default function ForgotPasswordPage() {
       <form onSubmit={onSubmit} noValidate id="forgot-password-form">
         <Stack gap="md">
           <div>
-            <Title order={2}>Forgot Password</Title>
-            <Text c="dimmed">Enter your email to reset your password.</Text>
+            <Title order={2}>Forgot password</Title>
+            <Text c="dimmed">Enter your email and we'll send you a link to reset your password.</Text>
           </div>
           {message && (
             <Alert id="messageArea" role="alert" color={message.isError ? 'red' : 'green'}>
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
           <TextInput
             label="Email"
             type="email"
-            placeholder="Enter your email"
+            placeholder="you@company.com"
             autoComplete="email"
             required
             value={email}
@@ -79,10 +79,10 @@ export default function ForgotPasswordPage() {
             }}
           />
           <Center>
-            <SubmitButton id="submitButton" icon={KeyRound} label="Reset Password" busyLabel="Processing..." busy={mutation.isPending} />
+            <SubmitButton id="submitButton" icon={KeyRound} label="Send reset link" busyLabel="Sending link…" busy={mutation.isPending} />
           </Center>
           <Anchor component={Link} to="/Account/Login">
-            Back to Login
+            Back to log in
           </Anchor>
         </Stack>
       </form>

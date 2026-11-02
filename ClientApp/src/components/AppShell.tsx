@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import type { Me } from '../api/types';
 import { APP_BAR_HEIGHT_PX } from './appBarChrome';
+import AssistantWidget from './AssistantWidget';
 import ColorModeToggle from './ColorModeToggle';
 import OrgSwitcher from './OrgSwitcher';
 import ProfileMenu from './ProfileMenu';
@@ -17,11 +18,13 @@ const homeAccent = { '--home-accent': SEEDS.dfrnt } as CSSProperties;
 
 /**
  * Authenticated frame. The app bar is IntegrationManager's size (full-bleed, 56px) with the old Hub navbar's
- * look: tenant logo, then the organization switcher, the profile menu and the theme toggle on the right.
+ * look: tenant logo, then the organisation switcher, the profile menu and the theme toggle on the right.
  */
 export default function AppShell({ me }: { me: Me }) {
   const { shell, scrim } = useMantineTheme().other;
-  const isHome = useLocation().pathname === '/';
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
+  const pageContext = `Page: ${pathname}${me.currentTenant ? `; Organisation: ${me.currentTenant.name}` : ''}`;
   const barStyle = {
     height: APP_BAR_HEIGHT_PX,
     flexShrink: 0,
@@ -59,6 +62,7 @@ export default function AppShell({ me }: { me: Me }) {
           <div className={footerClasses.row}>&copy; {new Date().getFullYear()} Deliver DFRNT</div>
         </Container>
       </footer>
+      <AssistantWidget pageContext={pageContext} />
     </Box>
   );
 }

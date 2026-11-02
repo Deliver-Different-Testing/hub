@@ -1,4 +1,3 @@
-using Hub.Features.AgentAccess;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.Branding;
 using Hub.Interfaces;

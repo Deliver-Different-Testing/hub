@@ -9,10 +9,10 @@ describe('format', () => {
     expect(formatHeaderDate('garbage')).toBe('');
   });
 
-  it('formats short dates and shows Open for none', () => {
+  it('formats short dates and shows ongoing for none', () => {
     expect(formatShortDate('2026-09-05T00:00:00')).toBe('5 Sep 2026');
-    expect(formatShortDate(null)).toBe('Open');
-    expect(formatShortDate('nope')).toBe('Open');
+    expect(formatShortDate(null)).toBe('ongoing');
+    expect(formatShortDate('nope')).toBe('ongoing');
   });
 
   it('scales a fraction to a percent with two decimals', () => {

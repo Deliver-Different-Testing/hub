@@ -42,7 +42,7 @@ describe('UpdatePrompt', () => {
     sw.needRefresh = true;
     renderWithProviders(<UpdatePrompt />);
     expect(await screen.findByText('Update available')).toBeInTheDocument();
-    expect(screen.getByText('A new version of Hub is ready.')).toBeInTheDocument();
+    expect(screen.getByText('A new version of the App Hub is ready. Reload to update.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
   });
 

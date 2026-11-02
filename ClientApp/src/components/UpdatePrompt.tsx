@@ -28,7 +28,7 @@ export default function UpdatePrompt() {
       onClose: () => setNeedRefresh(false),
       message: (
         <Group justify="space-between" wrap="nowrap" gap="sm">
-          <Text size="sm">A new version of Hub is ready.</Text>
+          <Text size="sm">A new version of the App Hub is ready. Reload to update.</Text>
           <Button size="xs" onClick={() => void updateServiceWorker(true)}>
             Reload
           </Button>

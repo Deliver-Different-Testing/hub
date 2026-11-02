@@ -163,7 +163,7 @@ public class ClientMetadataServiceTests
         var outcome = await rig.Ensure(clientId);
 
         Assert.False(outcome.Ready);
-        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
         Assert.Equal(0, rig.RowCount());
     }
 
@@ -177,7 +177,7 @@ public class ClientMetadataServiceTests
         await using var rig = new Rig("claude.ai", "127.0.0.1");
 
         Assert.False((await rig.Ensure(clientId)).Ready);
-        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public class ClientMetadataServiceTests
         var off = new ClientMetadataService(Substitute.For<IOpenIddictApplicationManager>(), rig.Fetcher, ClientMetadataOptions.Create([]), rig.Failures, rig.Time);
 
         Assert.False((await off.EnsureAsync(Url, Callback, Ct)).Ready);
-        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -240,7 +240,7 @@ public class ClientMetadataServiceTests
         Assert.True((await rig.Ensure()).Ready);
 
         Assert.Equal("Hand registered", (await rig.Row())!.DisplayName);
-        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 
     [Theory]
@@ -273,6 +273,6 @@ public class ClientMetadataServiceTests
         await using var rig = new Rig();
 
         Assert.False((await rig.Ensure(Url + "?x=1")).Ready);
-        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(default!, default);
+        await rig.Fetcher.DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 }

@@ -16,10 +16,10 @@ export function formatHeaderDate(iso: string): string {
   return `${WEEKDAYS[weekday]}, ${p.d} ${MONTHS[p.m]}`;
 }
 
-/** "27 Oct 2026", or "Open" when there is no date. */
+/** "27 Oct 2026", or "ongoing" when there is no date. */
 export function formatShortDate(iso: string | null | undefined): string {
   const p = iso ? parts(iso) : null;
-  return p ? `${p.d} ${SHORT_MONTHS[p.m]} ${p.y}` : 'Open';
+  return p ? `${p.d} ${SHORT_MONTHS[p.m]} ${p.y}` : 'ongoing';
 }
 
 export const formatPercent = (value: number | null | undefined) =>

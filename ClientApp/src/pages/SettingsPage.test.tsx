@@ -18,18 +18,18 @@ const serve = (apiKey: string | null = null) =>
 async function generateKeyViaDialog() {
   const user = userEvent.setup();
   renderWithProviders(<SettingsPage />);
-  await user.click(await screen.findByRole('button', { name: 'Generate Key' }));
-  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Generate Key' }));
+  await user.click(await screen.findByRole('button', { name: 'Generate API key' }));
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Generate API key' }));
 }
 
 describe('SettingsPage', () => {
   it('lists the other settings, excluding the API key row', async () => {
     serve();
     renderWithProviders(<SettingsPage />);
-    expect(await screen.findByRole('heading', { name: 'User Settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(document.title).toBe('Settings - Deliver DFRNT');
-    expect(screen.getByRole('heading', { name: 'API Key' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Other Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'API key' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Other settings' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Setting' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Value' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'DefaultPrinter' })).toBeInTheDocument();
@@ -37,10 +37,10 @@ describe('SettingsPage', () => {
     expect(screen.queryByRole('cell', { name: 'APIKey' })).not.toBeInTheDocument();
   });
 
-  it('offers Generate Key when there is no key, and Copy when there is one', async () => {
+  it('offers Generate API key when there is no key, and Copy when there is one', async () => {
     serve();
     const { unmount } = renderWithProviders(<SettingsPage />);
-    expect(await screen.findByRole('button', { name: 'Generate Key' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Generate API key' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
     unmount();
 
@@ -48,7 +48,7 @@ describe('SettingsPage', () => {
     renderWithProviders(<SettingsPage />);
     expect(await screen.findByDisplayValue('existing-key')).toHaveAttribute('readonly');
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Generate Key' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generate API key' })).not.toBeInTheDocument();
   });
 
   it('asks for confirmation in a dialog and does nothing when cancelled', async () => {
@@ -60,10 +60,10 @@ describe('SettingsPage', () => {
     }));
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Generate Key' }));
+    await user.click(await screen.findByRole('button', { name: 'Generate API key' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Generate API key' });
-    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Generate a new API key for your account? You can copy it once it's ready.")).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(posts).not.toHaveBeenCalled();
@@ -76,26 +76,26 @@ describe('SettingsPage', () => {
 
     expect(await screen.findByDisplayValue('new-key-123')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Generate Key' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generate API key' })).not.toBeInTheDocument();
   });
 
   it('shows an inline error when generation fails', async () => {
     serve();
-    server.use(antiforgeryHandler(), http.post('/api/me/api-key', () => HttpResponse.json({ error: 'Failed to generate API key' }, { status: 400 })));
+    server.use(antiforgeryHandler(), http.post('/api/me/api-key', () => HttpResponse.json({ error: "Couldn't generate an API key. Try again." }, { status: 400 })));
     await generateKeyViaDialog();
 
-    expect(await screen.findByText('Failed to generate API key')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Generate Key' })).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't generate an API key. Try again.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate API key' })).toBeInTheDocument();
   });
 
   it('uses the generic message when the server gives none', async () => {
     serve();
     server.use(antiforgeryHandler(), http.post('/api/me/api-key', () => new HttpResponse(null, { status: 500 })));
     await generateKeyViaDialog();
-    expect(await screen.findByText('Failed to generate API key')).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't generate an API key. Try again.")).toBeInTheDocument();
   });
 
-  it('copies the key to the clipboard, shows Copied!, then reverts', async () => {
+  it('copies the key to the clipboard, shows Copied, then reverts', async () => {
     serve('copy-me');
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderWithProviders(<SettingsPage />);
@@ -103,7 +103,7 @@ describe('SettingsPage', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     await user.click(button);
 
-    expect(await screen.findByRole('button', { name: /Copied!/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Copied/ })).toBeInTheDocument();
     await expect(navigator.clipboard.readText()).resolves.toBe('copy-me');
     act(() => {
       vi.advanceTimersByTime(COPIED_RESET_DELAY_MS);

@@ -32,15 +32,15 @@ public class AgentAccessClientSeederTests
         var app = await manager.FindByClientIdAsync("dfrnt-claude", TestContext.Current.CancellationToken);
 
         Assert.NotNull(app);
-        Assert.Equal(OpenIddictConstants.ClientTypes.Public, await manager.GetClientTypeAsync(app!));
-        Assert.Equal(OpenIddictConstants.ConsentTypes.Explicit, await manager.GetConsentTypeAsync(app!));
-        Assert.Equal("Claude", await manager.GetDisplayNameAsync(app!));
+        Assert.Equal(OpenIddictConstants.ClientTypes.Public, await manager.GetClientTypeAsync(app!, TestContext.Current.CancellationToken));
+        Assert.Equal(OpenIddictConstants.ConsentTypes.Explicit, await manager.GetConsentTypeAsync(app!, TestContext.Current.CancellationToken));
+        Assert.Equal("Claude", await manager.GetDisplayNameAsync(app!, TestContext.Current.CancellationToken));
         Assert.Equal(
             [new Uri("https://claude.ai/api/mcp/auth_callback"), new Uri("https://claude.com/api/mcp/auth_callback")],
-            (await manager.GetRedirectUrisAsync(app!)).Select(u => new Uri(u)).OrderBy(u => u.Host));
-        Assert.Contains(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange, await manager.GetRequirementsAsync(app!));
+            (await manager.GetRedirectUrisAsync(app!, TestContext.Current.CancellationToken)).Select(u => new Uri(u)).OrderBy(u => u.Host));
+        Assert.Contains(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange, await manager.GetRequirementsAsync(app!, TestContext.Current.CancellationToken));
 
-        var permissions = await manager.GetPermissionsAsync(app!);
+        var permissions = await manager.GetPermissionsAsync(app!, TestContext.Current.CancellationToken);
         Assert.Contains(OpenIddictConstants.Permissions.Endpoints.Authorization, permissions);
         Assert.Contains(OpenIddictConstants.Permissions.Endpoints.Token, permissions);
         Assert.Contains(OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode, permissions);
@@ -84,8 +84,8 @@ public class AgentAccessClientSeederTests
         using var scope = provider.CreateScope();
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
         var app = await manager.FindByClientIdAsync("dfrnt-claude", TestContext.Current.CancellationToken);
-        Assert.Equal("Claude (web)", await manager.GetDisplayNameAsync(app!));
-        Assert.Single(await manager.GetRedirectUrisAsync(app!));
+        Assert.Equal("Claude (web)", await manager.GetDisplayNameAsync(app!, TestContext.Current.CancellationToken));
+        Assert.Single(await manager.GetRedirectUrisAsync(app!, TestContext.Current.CancellationToken));
     }
 
     [Fact]

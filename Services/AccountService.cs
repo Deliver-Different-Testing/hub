@@ -35,7 +35,7 @@ public class AccountService(
                 Log.Warning("User {CurrentEmail} attempting to login as {ModelEmail} without logging out first",
                     currentEmail, model.Email);
                 return AuthResult.Failure(
-                    $"You are currently logged in as {currentEmail}. Please logout first before logging in as a different user.");
+                    $"You're already logged in as {currentEmail}. Log out first to use a different account.");
             }
         }
 
@@ -53,13 +53,13 @@ public class AccountService(
         if (masterUser.CurrentTenant == null)
         {
             Log.Debug("Current Tenant Not Set for user {ModelEmail}", model.Email);
-            return AuthResult.Failure("Invalid login attempt.");
+            return AuthResult.Failure("The email or password is incorrect. Check them and try again.");
         }
 
         if (!VerifyPassword(model.Password, masterUser.Salt, masterUser.Password, masterUser.IsLegacyHash))
         {
             Log.Debug("Failed to authenticate user {ModelEmail}. Invalid password.", model.Email);
-            return AuthResult.Failure("Invalid login attempt.");
+            return AuthResult.Failure("The email or password is incorrect. Check them and try again.");
         }
 
         if (masterUser.IsLegacyHash)
@@ -83,7 +83,7 @@ public class AccountService(
                 Log.Warning(
                     "User {ModelEmail} is marked as courier but no active tucCourier record found in Despatch DB",
                     model.Email);
-                return AuthResult.Failure("Invalid login attempt. Courier account not properly configured.");
+                return AuthResult.Failure("Your courier account isn't set up yet. Contact your administrator.");
             }
 
             Log.Information("Courier validated with ID: {CourierId}", courierId.Value);
@@ -121,7 +121,7 @@ public class AccountService(
         {
             Log.Debug("Failed to authenticate Despatch User {ModelEmail}. Invalid username or password.",
                 model.Email);
-            return AuthResult.Failure("Invalid login attempt.");
+            return AuthResult.Failure("The email or password is incorrect. Check them and try again.");
         }
 
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, model.RememberMe,
@@ -153,7 +153,7 @@ public class AccountService(
             return AuthResult.Failure("Auto-login not configured.");
         }
 
-        const string manualLogin = "Auto-login failed. Please login manually.";
+        const string manualLogin = "Couldn't log you in automatically. Log in below.";
 
         // Get user by email and login type
         var masterUser = await authenticationRepository.GetUserByEmailAsync(presetEmail, false);
@@ -232,7 +232,7 @@ public class AccountService(
         if (masterUser == null)
         {
             Log.Debug("Failed to find user via reset key {ModelCode}", model.Code);
-            return AuthResult.Failure("This reset link is invalid or has expired.");
+            return AuthResult.Failure("This reset link has expired or already been used. Request a new one.");
         }
 
         var result = PasswordHelper.SaltHashNewPassword(model.Password);
@@ -254,7 +254,7 @@ public class AccountService(
             Log.Debug("Failed to authenticate Despatch User {ModelEmail}. Invalid username or password.",
                 masterUser.Email);
             return AuthResult.Failure(
-                "Your password was reset, but we could not sign you in automatically. Please log in.");
+                "Your password is reset. Log in with your new password.");
         }
 
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
@@ -550,12 +550,14 @@ public class AccountService(
         var userId = principal.FindFirst("UserID")?.Value;
         if (userId == null)
         {
-            return UpdateTenantResult.Fail("User not found");
+            Log.Debug("Tenant switch failed: no UserID claim");
+            return UpdateTenantResult.Fail("Couldn't switch organisation. Try again.");
         }
 
         if (tenantId == 0)
         {
-            return UpdateTenantResult.Fail("Invalid tenant ID");
+            Log.Debug("Tenant switch failed: invalid tenant ID {TenantId} for user {UserId}", tenantId, userId);
+            return UpdateTenantResult.Fail("Couldn't switch organisation. Try again.");
         }
 
         var userIdInt = int.Parse(userId);
@@ -564,7 +566,7 @@ public class AccountService(
         // Master-side access gate: the user must be linked to the target tenant.
         if (!await authenticationRepository.IsUserAssociatedWithTenantAsync(userIdInt, tenantId))
         {
-            return UpdateTenantResult.Fail("You don't have access to that tenant.");
+            return UpdateTenantResult.Fail("You don't have access to that organisation.");
         }
 
         // Resolve the target tenant's Despatch DB WITHOUT persisting the switch yet.
@@ -574,7 +576,7 @@ public class AccountService(
             Log.Error("Tenant switch blocked: tenant {TenantId} has no database connection (user {UserId}).",
                 tenantId, userId);
             return UpdateTenantResult.Fail(
-                "That tenant isn't fully configured (no database connection). Contact an administrator.");
+                "That organisation isn't ready yet. Ask your administrator to finish setting it up.");
         }
 
         // Validate-before-write: confirm the user actually has an active operator
@@ -593,8 +595,7 @@ public class AccountService(
                 + "but has no active tucClientContact there — provisioning gap; CurrentTenant left unchanged.",
                 userIdInt, email, tenantId);
             return UpdateTenantResult.Fail(
-                $"Your account isn't set up in that tenant yet — there's no operator record for {email} "
-                + "there. Ask an administrator to add you to that tenant before switching.");
+            "Your account isn't set up in that organisation yet. Ask your administrator to add you.");
         }
 
         // Contact verified — now it's safe to persist the tenant switch.
@@ -602,7 +603,8 @@ public class AccountService(
 
         if (!success)
         {
-            return UpdateTenantResult.Fail("Update database failed");
+            Log.Error("Tenant switch failed: could not update current tenant {TenantId} for user {UserId}", tenantId, userId);
+            return UpdateTenantResult.Fail("Couldn't switch organisation. Try again.");
         }
 
         var masterUser = await authenticationRepository.GetUserByIdAsync(userIdInt);
@@ -610,13 +612,13 @@ public class AccountService(
         if (masterUser == null)
         {
             Log.Debug("Failed to find master user {UserId}", userId);
-            return UpdateTenantResult.Fail("User not found");
+            return UpdateTenantResult.Fail("Couldn't switch organisation. Try again.");
         }
 
         if (masterUser.CurrentTenant == null)
         {
             Log.Debug("Current Tenant Not Set for user {UserId}", userId);
-            return UpdateTenantResult.Fail($"Current Tenant Not Set for user {userId}");
+            return UpdateTenantResult.Fail("Couldn't switch organisation. Try again.");
         }
 
         // Defensive consistency check: the just-persisted CurrentTenant must match the
@@ -628,7 +630,7 @@ public class AccountService(
         {
             Log.Error("Tenant switch did not persist: requested {Requested}, persisted {Persisted} for user {UserId}",
                 tenantId, masterUser.CurrentTenant.TenantId, userId);
-            return UpdateTenantResult.Fail("Tenant update did not persist");
+            return UpdateTenantResult.Fail("Couldn't switch organisation. Try again.");
         }
 
         //Changed Tenant - switch connection

@@ -15,7 +15,7 @@ public partial class StrongPasswordAttribute : ValidationAttribute
 
         var regex = PasswordRegex();
         return !regex.IsMatch(password) 
-            ? new ValidationResult("Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character.")
+            ? new ValidationResult("Use at least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.")
             : ValidationResult.Success;
     }
 
@@ -25,7 +25,7 @@ public partial class StrongPasswordAttribute : ValidationAttribute
 public sealed class ResetPasswordViewModel
 {
     [Required]
-    [StringLength(100, ErrorMessage = "The {0} must be at least {2} characters long.", MinimumLength = 8)]
+    [StringLength(100, ErrorMessage = "Password must be 8 to 100 characters.", MinimumLength = 8)]
     [DataType(DataType.Password)]
     [Display(Name = "Password")]
     [StrongPassword]
@@ -33,7 +33,7 @@ public sealed class ResetPasswordViewModel
 
     [DataType(DataType.Password)]
     [Display(Name = "Confirm password")]
-    [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+    [Compare("Password", ErrorMessage = "Passwords don't match.")]
     public string ConfirmPassword { get; init; } = string.Empty;
 
     [Required]

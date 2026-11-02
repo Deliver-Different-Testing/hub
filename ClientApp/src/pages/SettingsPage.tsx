@@ -11,7 +11,7 @@ import Icon from '../components/Icon';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 export const COPIED_RESET_DELAY_MS = 2000;
-const API_KEY_ERROR = 'Failed to generate API key';
+const API_KEY_ERROR = "Couldn't generate an API key. Try again.";
 const API_KEY_SETTING = 'APIKey';
 
 export default function SettingsPage() {
@@ -66,18 +66,17 @@ export default function SettingsPage() {
   return (
     <div>
       <Title order={2} mb="md">
-        User Settings
+        Settings
       </Title>
 
       <Card mb="lg">
         <Title order={3} mb="sm">
-          API Key
+          API key
         </Title>
         <Group align="flex-end" wrap="nowrap">
           <TextInput
             id="ApiKey"
-            label="API Key"
-            placeholder="API Key"
+            label="API key"
             readOnly
             value={apiKey}
             error={error || undefined}
@@ -86,15 +85,15 @@ export default function SettingsPage() {
           {apiKey ? (
             <Button
               variant="default"
-              title="Copy to clipboard"
+              title="Copy API key"
               leftSection={<Icon icon={copied ? Check : Copy} size={16} />}
               onClick={() => void copy()}
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? 'Copied' : 'Copy'}
             </Button>
           ) : (
             <Button variant="default" onClick={() => setConfirming(true)}>
-              Generate Key
+              Generate API key
             </Button>
           )}
         </Group>
@@ -102,7 +101,7 @@ export default function SettingsPage() {
 
       <Card>
         <Title order={3} mb="sm">
-          Other Settings
+          Other settings
         </Title>
         <Table highlightOnHover>
           <Table.Thead>
@@ -129,11 +128,11 @@ export default function SettingsPage() {
           onClose={() => setConfirming(false)}
         />
         <Text p="lg">
-          Generate an API key for your account? You can copy it once it has been created.
+          Generate a new API key for your account? You can copy it once it's ready.
         </Text>
         <DialogFooter
           onCancel={() => setConfirming(false)}
-          submitLabel="Generate Key"
+          submitLabel="Generate API key"
           onSubmit={() => generate.mutate()}
           isSubmitting={generate.isPending}
         />

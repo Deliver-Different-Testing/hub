@@ -45,7 +45,7 @@ function statusOf(r: FuelSurchargeRow, today: string): number {
   return isoDate(r.start) > isoDate(today) ? 1 : 2;
 }
 
-const effective = (r: FuelSurchargeRow) => `${formatShortDate(r.start)} – ${r.end ? formatShortDate(r.end) : 'open'}`;
+const effective = (r: FuelSurchargeRow) => `${formatShortDate(r.start)} – ${r.end ? formatShortDate(r.end) : 'ongoing'}`;
 
 function sortValue(r: FuelSurchargeRow, key: SortKey, today: string): string {
   switch (key) {
@@ -114,7 +114,7 @@ export default function FuelSurchargePage() {
 
   return (
     <div id="urgent-hub">
-      <PageHeader eyebrow="Fuel Surcharge" today={data?.today} />
+      <PageHeader eyebrow="Fuel surcharge" today={data?.today} />
       {isPending && (
         <Center py="xl">
           <Loader aria-label="Loading fuel surcharge" />
@@ -126,7 +126,7 @@ export default function FuelSurchargePage() {
           <Stack align="center" gap={4} py="md">
             <Icon icon={IconGasStation} set="tabler" size={28} />
             <Text fw={600}>No fuel surcharge records are available for your account.</Text>
-            <Text c="dimmed" size="sm">Rates will show here once Urgent sets a fuel surcharge for your account.</Text>
+            <Text c="dimmed" size="sm">Rates will show here once your courier sets a fuel surcharge for your account.</Text>
           </Stack>
         </Card>
       )}
