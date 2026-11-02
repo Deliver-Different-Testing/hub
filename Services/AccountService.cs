@@ -89,23 +89,8 @@ public class AccountService(
             Log.Information("Courier validated with ID: {CourierId}", courierId.Value);
 
             // Courier users don't need staff user validation - skip to claims generation with default values
-            var claims = GenerateClaims(new ClaimsInput(
-                Email: model.Email,
-                UserId: masterUser.UserId,
-                CurrentTenantId: masterUser.CurrentTenant.TenantId,
-                ContactId: "0",
-                ClientId: "0",
-                StaffId: string.Empty,
-                Connection: masterUser.CurrentTenant.Dbconnection,
-                RememberMe: model.RememberMe,
-                CountryCode: masterUser.CurrentTenant.CountryCode,
-                TimeZone: masterUser.CurrentTenant.TimeZone,
-                TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
-                InternalTenantUser: false,
-                IsCourier: true,
-                CourierId: courierId,
-                AccountsMode: accountsMode
-            ));
+            var claims = GenerateClaims(
+                BuildCourierClaimsInput(masterUser, courierId.Value, accountsMode, model.RememberMe, model.Email));
 
             await SignInUserAsync(httpContext, claims, model.RememberMe);
 
@@ -486,6 +471,31 @@ public class AccountService(
             ClientTypeId: user.UcctClient.ClientTypeId,
             NpAgentId: user.UcctClient.NpAgentId);
 
+    // Courier login claims, shared by the password login and AcceptCourierAppToken so the two
+    // can't drift. Couriers have no tucClientContact / tucClient, hence the fixed defaults.
+    private static ClaimsInput BuildCourierClaimsInput(
+        Models.Master.User masterUser,
+        int courierId,
+        int? accountsMode,
+        bool rememberMe,
+        string email) =>
+        new(
+            Email: email,
+            UserId: masterUser.UserId,
+            CurrentTenantId: masterUser.CurrentTenant.TenantId,
+            ContactId: "0",
+            ClientId: "0",
+            StaffId: string.Empty,
+            Connection: masterUser.CurrentTenant.Dbconnection,
+            RememberMe: rememberMe,
+            CountryCode: masterUser.CurrentTenant.CountryCode,
+            TimeZone: masterUser.CurrentTenant.TimeZone,
+            TenantCode: masterUser.CurrentTenant.Code ?? string.Empty,
+            InternalTenantUser: false,
+            IsCourier: true,
+            CourierId: courierId,
+            AccountsMode: accountsMode);
+
     private void SetTenantConnectionString(string dbConnection)
     {
         var credentials = Environment.GetEnvironmentVariable("SQLCredentials") ?? string.Empty;
@@ -753,6 +763,66 @@ public class AccountService(
     }
 
     private sealed record TenantSwitchTokenPayload(int UserId, int TenantId, long ExpiresAt, bool RememberMe);
+
+    // UC #866: the DFRNT Drive app opens After Hours through here so the courier isn't asked to
+    // log in a second time. MarsAPI issues the token for the courier on the app's session; the
+    // checks mirror AcceptTenantSwitchToken plus the courier-login check (active tucCourier).
+    public async Task<bool> AcceptCourierAppTokenAsync(HttpContext httpContext, string? t)
+    {
+        var payload = CourierAppToken.Read(t, Environment.GetEnvironmentVariable("CourierAppSsoKey") ?? string.Empty);
+        if (payload == null || payload.UserId <= 0 || payload.TenantId <= 0 || payload.CourierId <= 0)
+        {
+            Log.Warning("AcceptCourierAppToken: token missing, unsigned or invalid");
+            return false;
+        }
+
+        if (payload.ExpiresAt < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+        {
+            Log.Warning("AcceptCourierAppToken: token expired (user {UserId}, courier {CourierId})",
+                payload.UserId, payload.CourierId);
+            return false;
+        }
+
+        var masterUser = await authenticationRepository.GetUserByIdAsync(payload.UserId);
+        if (masterUser?.CurrentTenant == null || masterUser.IsCourier != true)
+        {
+            Log.Warning("AcceptCourierAppToken: user {UserId} not found, has no current tenant or is not a courier",
+                payload.UserId);
+            return false;
+        }
+
+        // This Hub must serve the tenant the token was issued for, so a token can't be replayed
+        // at another tenant's Hub.
+        var hostTenant = ExtractTenantFromHost(httpContext.Request.Host.Host);
+        if (hostTenant == null ||
+            !string.Equals(hostTenant, masterUser.CurrentTenant.Code, StringComparison.OrdinalIgnoreCase) ||
+            masterUser.CurrentTenant.TenantId != payload.TenantId)
+        {
+            Log.Warning(
+                "AcceptCourierAppToken: token tenant {TokenTenant}/{TokenCode} does not match host {HostTenant} (user {UserId})",
+                payload.TenantId, masterUser.CurrentTenant.Code, hostTenant, payload.UserId);
+            return false;
+        }
+
+        SetTenantConnectionString(masterUser.CurrentTenant.Dbconnection);
+
+        var courierId = await despatchRepository.ValidateCourierByEmailAsync(masterUser.Email);
+        if (courierId != payload.CourierId)
+        {
+            Log.Warning("AcceptCourierAppToken: active courier for {Email} is {CourierId}, token says {TokenCourierId}",
+                masterUser.Email, courierId, payload.CourierId);
+            return false;
+        }
+
+        var accountsMode = await despatchRepository.GetAccountsModeAsync();
+        var claims = GenerateClaims(
+            BuildCourierClaimsInput(masterUser, payload.CourierId, accountsMode, rememberMe: false, masterUser.Email));
+
+        await SignInUserAsync(httpContext, claims, isPersistent: false);
+
+        Log.Information("AcceptCourierAppToken: courier {CourierId} signed in from the driver app", payload.CourierId);
+        return true;
+    }
 
     // The "stack" tenant used for end-to-end testing of the staging stack. Its DNS
     // is special-cased to live at the bare staging hostname (hub.staging.deliverdifferent.com)

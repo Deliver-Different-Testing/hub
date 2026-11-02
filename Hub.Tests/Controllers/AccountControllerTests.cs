@@ -62,4 +62,33 @@ public class AccountControllerTests
 
         Assert.Equal("/Account/Login", redirect.Url);
     }
+
+    [Fact]
+    public async Task AcceptCourierAppToken_Accepted_RedirectsToThisTenantsAfterHours()
+    {
+        var (controller, service) = Create();
+        service.AcceptCourierAppTokenAsync(controller.HttpContext, "tok").Returns(true);
+        Environment.SetEnvironmentVariable("TenantURL", "https://app_name.test.staging.deliverdifferent.com");
+        try
+        {
+            var redirect = Assert.IsType<RedirectResult>(await controller.AcceptCourierAppToken("tok"));
+
+            Assert.Equal("https://afterhours.test.staging.deliverdifferent.com", redirect.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TenantURL", null);
+        }
+    }
+
+    [Fact]
+    public async Task AcceptCourierAppToken_Rejected_RedirectsToLoginWithTheAutoLoginCode()
+    {
+        var (controller, service) = Create();
+        service.AcceptCourierAppTokenAsync(controller.HttpContext, "tok").Returns(false);
+
+        var redirect = Assert.IsType<RedirectResult>(await controller.AcceptCourierAppToken("tok"));
+
+        Assert.Equal("/Account/Login?error=autologin-failed", redirect.Url);
+    }
 }
