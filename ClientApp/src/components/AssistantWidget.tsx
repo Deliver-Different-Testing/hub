@@ -132,7 +132,7 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
             radius="xl"
             size={56}
           >
-            <AutoMateLogo size={42} />
+            <AutoMateLogo variant="mono" size={32} />
           </ActionIcon>
         </Tooltip>
       )}
