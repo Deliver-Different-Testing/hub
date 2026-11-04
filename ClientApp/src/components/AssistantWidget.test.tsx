@@ -26,6 +26,16 @@ describe('AssistantWidget', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Open Auto-mate assistant' })).not.toBeInTheDocument());
   });
 
+  it('shows the brand Auto-mate logo on a surface launcher', async () => {
+    server.use(enabled);
+    renderWithProviders(<AssistantWidget />);
+
+    const launcher = await screen.findByRole('button', { name: 'Open Auto-mate assistant' });
+    expect(launcher).toHaveAttribute('data-variant', 'default');
+    expect(launcher.querySelector('img')).toHaveAttribute('width', '44');
+    expect(launcher.querySelector('svg')).toBeNull();
+  });
+
   it('streams the answer and shows cited articles as badges', async () => {
     let body: unknown;
     server.use(

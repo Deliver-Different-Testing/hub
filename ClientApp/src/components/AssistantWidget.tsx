@@ -127,12 +127,11 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
             className={classes.launcher}
             onClick={() => setOpened(true)}
             aria-label="Open Auto-mate assistant"
-            variant="filled"
-            autoContrast
+            variant="default"
             radius="xl"
             size={56}
           >
-            <AutoMateLogo size={42} />
+            <AutoMateLogo size={44} />
           </ActionIcon>
         </Tooltip>
       )}
