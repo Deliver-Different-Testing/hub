@@ -118,6 +118,24 @@ public class AccountServiceHostHelperTests
     }
 
     [Theory]
+    [InlineData("hub.urgent.deliverdifferent.com", "prod", "urgent")]
+    [InlineData("hub.urgent.staging.deliverdifferent.com", "staging", "urgent")]
+    [InlineData("hub.staging.deliverdifferent.com", "staging", "dfrnt")]
+    public void ExtractEnvAndTenantFromHost_TellsProdFromStaging(string host, string env, string tenant)
+    {
+        Assert.Equal((env, tenant), AccountService.ExtractEnvAndTenantFromHost(host));
+    }
+
+    [Theory]
+    [InlineData("hub.local.deliverdifferent.com")]
+    [InlineData("hub.dev.deliverdifferent.com")]
+    [InlineData("hub.example.com")]
+    public void ExtractEnvAndTenantFromHost_NoTenant_ReturnsNull(string host)
+    {
+        Assert.Null(AccountService.ExtractEnvAndTenantFromHost(host));
+    }
+
+    [Theory]
     [InlineData("hub.local.deliverdifferent.com")]
     [InlineData("hub.dev.deliverdifferent.com")]
     public void ExtractTenantFromHost_LocalOrDev_ReturnsNull(string host)

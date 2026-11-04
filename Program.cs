@@ -54,8 +54,8 @@ builder.Services
 
 builder.Services.AddAiAssistant(builder.Configuration, builder.Environment);
 
-// Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix, else /hub/<tenant>/agent-access for the issuer's tenant,
-// and are created there when missing; neither = ephemeral keys and a closed gate.
+// Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix, else /hub/<env>/<tenant>/agent-access for the issuer's
+// host, and are created there when missing; neither = ephemeral keys and a closed gate.
 var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
 var agentAccessIssuer = Environment.GetEnvironmentVariable("AgentAccessIssuer");
 // The OAuth store should use its own least-privilege SQL login (reaches only the McpOAuth tables).

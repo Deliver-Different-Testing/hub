@@ -6,7 +6,7 @@ using Hub.Services;
 
 namespace Hub.Features.AgentAccess.Keys;
 
-/// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = /hub/&lt;tenant&gt;/agent-access, the tenant taken from the issuer host.</param>
+/// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = /hub/&lt;env&gt;/&lt;tenant&gt;/agent-access, both taken from the issuer host.</param>
 /// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer.</param>
 /// <param name="KeySource">Where the key parameters are read from and created in.</param>
 /// <param name="LoadTimeout">Upper bound on the whole startup SSM exchange: read, any create and the re-read (default 10 s).</param>
@@ -85,10 +85,14 @@ public static class AgentAccessKeyBootstrap
         }
 
         var reason = outcome.Created ? "persistent keys created in SSM and loaded back" : "persistent keys loaded from SSM";
-        return new AgentAccessBootstrapResult(load.Keys, issuer, new AgentAccessKeyState(true, reason, load.Keys.Signing.KeyId));
+        return new AgentAccessBootstrapResult(
+            load.Keys, issuer, new AgentAccessKeyState(true, reason, load.Keys.Signing.KeyId, load.Keys.Encryption.KeyId));
     }
 
-    /// <summary>The configured prefix, else /hub/&lt;tenant&gt;/agent-access for the issuer's tenant; null when there is neither.</summary>
+    /// <summary>
+    /// The configured prefix, else /hub/&lt;env&gt;/&lt;tenant&gt;/agent-access (env prod or staging) for the issuer's
+    /// host; null when there is neither. The env keeps staging and production apart if they share an AWS account.
+    /// </summary>
     public static string? ResolvePrefix(string? configuredPrefix, string? issuer) =>
         ResolvePrefix(configuredPrefix, ParseIssuer(issuer, out _));
 
@@ -96,8 +100,9 @@ public static class AgentAccessKeyBootstrap
     {
         if (!string.IsNullOrWhiteSpace(configuredPrefix)) return configuredPrefix.Trim();
 
-        var tenant = issuer is null ? null : AccountService.ExtractTenantFromHost(issuer.Host);
-        return string.IsNullOrEmpty(tenant) ? null : $"/hub/{tenant}/agent-access";
+        return issuer is not null && AccountService.ExtractEnvAndTenantFromHost(issuer.Host) is var (env, tenant)
+            ? $"/hub/{env}/{tenant}/agent-access"
+            : null;
     }
 
     // Keys are only ever used as SSM gives them back, never from memory: a key no other pod can read must not sign.

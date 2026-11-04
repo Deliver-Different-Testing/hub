@@ -5,9 +5,13 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Hub.Features.AgentAccess.Keys;
 
-public sealed record AgentAccessKeyState(bool Persistent, string Reason, string? SigningKeyId) : IAgentAccessKeyState;
+public sealed record AgentAccessKeyState(bool Persistent, string Reason, string? SigningKeyId, string? EncryptionKeyId = null)
+    : IAgentAccessKeyState;
 
-/// <summary>Every key under the prefix, newest first. The first signing key signs; the rest are only published.</summary>
+/// <summary>
+/// Every key under the prefix, in the order they are used: the first signing key signs and the first
+/// encryption key encrypts; the rest are only published or accepted.
+/// </summary>
 public sealed record AgentAccessKeys(IReadOnlyList<RsaSecurityKey> SigningKeys, IReadOnlyList<RsaSecurityKey> EncryptionKeys)
 {
     public RsaSecurityKey Signing => SigningKeys[0];
@@ -22,9 +26,9 @@ public sealed record AgentAccessKeyLoadResult(
 
 /// <summary>
 /// Turns the SSM parameters into RSA keys. Two layouts sit side by side under the prefix: the hand-made
-/// SigningKey, EncryptionKey and SigningKeyPrevious, and the keys Hub creates itself under signing/&lt;kid&gt;
-/// and encryption/&lt;kid&gt;. Failure messages name the parameter and the rule that failed; they never
-/// contain the PEM text or any part of a key.
+/// SigningKey, EncryptionKey and SigningKeyPrevious, used first exactly as before, and the keys Hub creates
+/// itself under signing/&lt;kid&gt; and encryption/&lt;kid&gt;, earliest written first. Failure messages name
+/// the parameter and the rule that failed; they never contain the PEM text or any part of a key.
 /// </summary>
 public static partial class AgentAccessKeyLoader
 {
@@ -36,7 +40,7 @@ public static partial class AgentAccessKeyLoader
 
     private const int MinimumKeySize = 2048;
 
-    public static AgentAccessKeyLoadResult Load(IReadOnlyDictionary<string, string> parameters)
+    public static AgentAccessKeyLoadResult Load(IReadOnlyDictionary<string, AgentAccessKeyParameter> parameters)
     {
         var (signing, signingFailure) = Collect(parameters, SigningFolder, SigningKeyName, PreviousSigningKeyName);
         if (signingFailure is not null) return new AgentAccessKeyLoadResult(null, signingFailure);
@@ -60,20 +64,24 @@ public static partial class AgentAccessKeyLoader
     public static string NewKeyId(DateTime utcNow) =>
         $"{utcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}-{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4))}";
 
-    // Created keys newest first (the kid starts with its creation time), then the hand-made ones, which predate them.
+    // Hand-made keys first, as before. Then created keys by the date SSM wrote them, earliest first, kid as the
+    // tie-break: every pod that sees a later key also sees the earlier one, so pods that raced to create keys
+    // at first start still agree on which one signs and encrypts.
     private static (List<RsaSecurityKey> Keys, string? Failure) Collect(
-        IReadOnlyDictionary<string, string> parameters, string folder, params string[] handMade)
+        IReadOnlyDictionary<string, AgentAccessKeyParameter> parameters, string folder, params string[] handMade)
     {
-        var names = parameters.Keys
-            .Where(name => name.StartsWith(folder + "/", StringComparison.Ordinal)
-                           && KeyIdPattern().IsMatch(name[(folder.Length + 1)..]))
-            .OrderByDescending(name => name, StringComparer.Ordinal)
-            .Concat(handMade.Where(parameters.ContainsKey));
+        var created = parameters
+            .Where(p => p.Key.StartsWith(folder + "/", StringComparison.Ordinal)
+                        && KeyIdPattern().IsMatch(p.Key[(folder.Length + 1)..]))
+            .OrderBy(p => p.Value.LastModified)
+            .ThenBy(p => p.Key, StringComparer.Ordinal)
+            .Select(p => p.Key);
+        var names = handMade.Where(parameters.ContainsKey).Concat(created);
 
         var keys = new List<RsaSecurityKey>();
         foreach (var name in names)
         {
-            var (key, failure) = Parse(name, parameters[name]);
+            var (key, failure) = Parse(name, parameters[name].Value);
             if (failure is not null) return (keys, failure);
             if (key is not null) keys.Add(key);
         }
@@ -130,4 +138,7 @@ public interface IAgentAccessKeyState
 
     /// <summary>Key id of the current signing key when persistent; safe to log.</summary>
     string? SigningKeyId { get; }
+
+    /// <summary>Key id of the current encryption key when persistent; safe to log.</summary>
+    string? EncryptionKeyId { get; }
 }

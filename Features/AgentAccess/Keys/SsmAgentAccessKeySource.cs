@@ -11,11 +11,11 @@ namespace Hub.Features.AgentAccess.Keys;
 /// <param name="kmsKeyId">KMS key for new SecureString parameters (env AgentAccessKmsKeyId). Unset = SSM's default key.</param>
 public sealed class SsmAgentAccessKeySource(IAmazonSimpleSystemsManagement ssm, string? kmsKeyId = null) : IAgentAccessKeySource
 {
-    public async Task<IReadOnlyDictionary<string, string>> ReadAsync(
+    public async Task<IReadOnlyDictionary<string, AgentAccessKeyParameter>> ReadAsync(
         string prefix, CancellationToken cancellationToken = default)
     {
         var path = prefix.TrimEnd('/');
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        var result = new Dictionary<string, AgentAccessKeyParameter>(StringComparer.Ordinal);
         string? nextToken = null;
 
         do
@@ -36,7 +36,7 @@ public sealed class SsmAgentAccessKeySource(IAmazonSimpleSystemsManagement ssm, 
                 var name = parameter.Name.StartsWith(path + "/", StringComparison.Ordinal)
                     ? parameter.Name[(path.Length + 1)..]
                     : parameter.Name[(parameter.Name.LastIndexOf('/') + 1)..];
-                result[name] = parameter.Value;
+                result[name] = new AgentAccessKeyParameter(parameter.Value, parameter.LastModifiedDate ?? DateTime.MaxValue);
             }
 
             nextToken = response.NextToken;
@@ -60,13 +60,17 @@ public sealed class SsmAgentAccessKeySource(IAmazonSimpleSystemsManagement ssm, 
     }
 }
 
+/// <param name="Value">The decrypted parameter value.</param>
+/// <param name="LastModified">When SSM last wrote the parameter (UTC); the same on every pod that reads it.</param>
+public sealed record AgentAccessKeyParameter(string Value, DateTime LastModified);
+
 public interface IAgentAccessKeySource
 {
     /// <summary>
     /// Reads every parameter under the prefix, keyed by its name below it (SigningKey, EncryptionKey,
     /// signing/&lt;kid&gt;, ...).
     /// </summary>
-    Task<IReadOnlyDictionary<string, string>> ReadAsync(string prefix, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, AgentAccessKeyParameter>> ReadAsync(string prefix, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Creates a SecureString parameter at prefix/name. Never overwrites: throws when it already exists.

@@ -187,14 +187,25 @@ public partial class AgentAccessAuthorizePipelineTests
     }
 
     [Fact]
-    public async Task With_several_signing_keys_the_newest_signs_and_every_one_is_published()
+    public async Task With_several_created_signing_keys_the_earliest_written_signs_and_every_one_is_published()
     {
-        var (legacy, older, newest) = (AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
-        var parameters = AgentAccessKeyLoaderTests.Parameters(legacy, AgentAccessKeyLoaderTests.Pem());
-        parameters["signing/20261105010203-ffffffff"] = older;
-        parameters["signing/20261106000000-00000000"] = newest;
+        var (earliest, later, latest) = (AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        var parameters = new Dictionary<string, string>
+        {
+            [AgentAccessKeyLoader.EncryptionKeyName] = AgentAccessKeyLoaderTests.Pem(),
+            ["signing/20261105000000-ffffffff"] = earliest,
+            ["signing/20261106000000-00000000"] = later,
+            ["signing/20261104000000-00000000"] = latest
+        };
+        // Neither the highest nor the lowest kid: only the write dates make "earliest" sign.
+        var dates = new Dictionary<string, DateTime>
+        {
+            ["signing/20261105000000-ffffffff"] = AgentAccessKeyLoaderTests.Written,
+            ["signing/20261106000000-00000000"] = AgentAccessKeyLoaderTests.Written.AddSeconds(1),
+            ["signing/20261104000000-00000000"] = AgentAccessKeyLoaderTests.Written.AddSeconds(2)
+        };
         var keySource = Substitute.For<IAgentAccessKeySource>();
-        keySource.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, string>)parameters);
+        keySource.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, AgentAccessKeyParameter>)AgentAccessKeyLoaderTests.Stored(parameters, dates));
         await using var app = await StartAsync(keySource: keySource);
         var code = AssertRedirectToClient(await Consent(app, AuthorizeUrl(), "allow"))["code"]!;
 
@@ -204,9 +215,9 @@ public partial class AgentAccessAuthorizePipelineTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(body.GetProperty("access_token").GetString());
-        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(newest), jwt.Header.Kid);
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(earliest), jwt.Header.Kid);
         Assert.Equal(
-            new[] { newest, older, legacy }.Select(AgentAccessKeyLoaderTests.KidOf).Order(),
+            new[] { earliest, later, latest }.Select(AgentAccessKeyLoaderTests.KidOf).Order(),
             jwks.GetProperty("keys").EnumerateArray().Select(k => k.GetProperty("kid").GetString()).Order());
     }
 

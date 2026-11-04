@@ -27,8 +27,8 @@ public class SsmAgentAccessKeySourceTests
 
         var result = await new SsmAgentAccessKeySource(ssm).ReadAsync(Prefix, TestContext.Current.CancellationToken);
 
-        Assert.Equal("sign", result["SigningKey"]);
-        Assert.Equal("enc", result["EncryptionKey"]);
+        Assert.Equal("sign", result["SigningKey"].Value);
+        Assert.Equal("enc", result["EncryptionKey"].Value);
         await ssm.Received(1).GetParametersByPathAsync(
             Arg.Is<GetParametersByPathRequest>(r => r.Path == Prefix && r.WithDecryption == true && r.Recursive == true),
             Arg.Any<CancellationToken>());
@@ -51,9 +51,25 @@ public class SsmAgentAccessKeySourceTests
 
         var result = await new SsmAgentAccessKeySource(ssm).ReadAsync(Prefix, TestContext.Current.CancellationToken);
 
-        Assert.Equal("legacy", result["SigningKey"]);
-        Assert.Equal("sign", result["signing/20261105010203-0a1b2c3d"]);
-        Assert.Equal("enc", result["encryption/20261105010203-4e5f6a7b"]);
+        Assert.Equal("legacy", result["SigningKey"].Value);
+        Assert.Equal("sign", result["signing/20261105010203-0a1b2c3d"].Value);
+        Assert.Equal("enc", result["encryption/20261105010203-4e5f6a7b"].Value);
+    }
+
+    [Fact]
+    public async Task Carries_each_parameters_last_modified_date()
+    {
+        var written = new DateTime(2026, 11, 5, 1, 2, 3, DateTimeKind.Utc);
+        var ssm = Substitute.For<IAmazonSimpleSystemsManagement>();
+        ssm.GetParametersByPathAsync(Arg.Any<GetParametersByPathRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new GetParametersByPathResponse
+            {
+                Parameters = [new Parameter { Name = $"{Prefix}/signing/20261105010203-0a1b2c3d", Value = "sign", LastModifiedDate = written }]
+            });
+
+        var result = await new SsmAgentAccessKeySource(ssm).ReadAsync(Prefix, TestContext.Current.CancellationToken);
+
+        Assert.Equal(written, result["signing/20261105010203-0a1b2c3d"].LastModified);
     }
 
     [Fact]

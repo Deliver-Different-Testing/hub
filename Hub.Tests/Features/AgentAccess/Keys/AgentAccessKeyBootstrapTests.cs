@@ -112,7 +112,7 @@ public class AgentAccessKeyBootstrapTests
     {
         var source = Substitute.For<IAgentAccessKeySource>();
         source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns<IReadOnlyDictionary<string, string>>(_ => throw new InvalidOperationException("AccessDenied secret-detail"));
+            .Returns<IReadOnlyDictionary<string, AgentAccessKeyParameter>>(_ => throw new InvalidOperationException("AccessDenied secret-detail"));
 
         var result = AgentAccessKeyBootstrap.Resolve(new AgentAccessOAuthSettings(Prefix, Issuer, source));
 
@@ -130,7 +130,7 @@ public class AgentAccessKeyBootstrapTests
             .Returns(async call =>
             {
                 await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
-                return (IReadOnlyDictionary<string, string>)new Dictionary<string, string>();
+                return (IReadOnlyDictionary<string, AgentAccessKeyParameter>)new Dictionary<string, AgentAccessKeyParameter>();
             });
 
         var result = AgentAccessKeyBootstrap.Resolve(
@@ -187,7 +187,7 @@ public class AgentAccessKeyBootstrapTests
     {
         // A write that SSM does not keep: the pod must not sign with a key no other pod can read.
         var source = Substitute.For<IAgentAccessKeySource>();
-        IReadOnlyDictionary<string, string> empty = new Dictionary<string, string>();
+        IReadOnlyDictionary<string, AgentAccessKeyParameter> empty = new Dictionary<string, AgentAccessKeyParameter>();
         source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(empty);
 
         var result = AgentAccessKeyBootstrap.Resolve(Settings(source));
@@ -270,6 +270,51 @@ public class AgentAccessKeyBootstrapTests
         source.Received(1).CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public void Pods_that_both_create_keys_on_first_start_settle_on_the_same_ones()
+    {
+        var shared = new Dictionary<string, string>();
+        var dates = new Dictionary<string, DateTime>();
+
+        // Pod A writes first and re-reads before pod B's write lands: it sees only its own keys.
+        var podA = AgentAccessKeyBootstrap.Resolve(Settings(Store(shared, dates, writtenAt: AgentAccessKeyLoaderTests.Written)));
+        // Pod B read the prefix before A wrote, so it writes too, later, then re-reads and sees both.
+        var podB = AgentAccessKeyBootstrap.Resolve(Settings(
+            Store(shared, dates, writtenAt: AgentAccessKeyLoaderTests.Written.AddSeconds(3), staleFirstRead: true)));
+
+        Assert.True(podA.State.Persistent, podA.State.Reason);
+        Assert.True(podB.State.Persistent, podB.State.Reason);
+        Assert.Equal(4, shared.Count);
+        Assert.Equal(podA.State.SigningKeyId, podB.State.SigningKeyId);
+        Assert.Equal(podA.State.EncryptionKeyId, podB.State.EncryptionKeyId);
+        Assert.Equal(2, podB.Keys!.SigningKeys.Count);
+    }
+
+    [Fact]
+    public void The_state_names_both_the_signing_and_the_encryption_kid()
+    {
+        var (signing, encryption) = (AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(Store(AgentAccessKeyLoaderTests.Parameters(signing, encryption))));
+
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(signing), result.State.SigningKeyId);
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(encryption), result.State.EncryptionKeyId);
+    }
+
+    [Fact]
+    public void Hand_made_keys_still_sign_and_encrypt_when_created_keys_sit_beside_them()
+    {
+        var (signing, encryption) = (AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        var parameters = AgentAccessKeyLoaderTests.Parameters(signing, encryption);
+        parameters["signing/20261105010203-0a1b2c3d"] = AgentAccessKeyLoaderTests.Pem();
+        parameters["encryption/20261105010203-0a1b2c3d"] = AgentAccessKeyLoaderTests.Pem();
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(Store(parameters)));
+
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(signing), result.State.SigningKeyId);
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(encryption), result.State.EncryptionKeyId);
+    }
+
     [Theory]
     [InlineData("TooManyUpdatesException")]
     [InlineData("ThrottlingException")]
@@ -320,10 +365,11 @@ public class AgentAccessKeyBootstrapTests
     // ---- prefix -----------------------------------------------------------
 
     [Theory]
-    [InlineData("https://hub.urgent.deliverdifferent.com", "/hub/urgent/agent-access")]
-    [InlineData("https://hub.urgent.staging.deliverdifferent.com", "/hub/urgent/agent-access")]
-    [InlineData("https://hub.staging.deliverdifferent.com", "/hub/dfrnt/agent-access")]
-    public void Without_a_configured_prefix_it_comes_from_the_issuers_tenant(string issuer, string expected)
+    [InlineData("https://hub.urgent.deliverdifferent.com", "/hub/prod/urgent/agent-access")]
+    [InlineData("https://hub.urgent.staging.deliverdifferent.com", "/hub/staging/urgent/agent-access")]
+    [InlineData("https://hub.dfrnt.deliverdifferent.com", "/hub/prod/dfrnt/agent-access")]
+    [InlineData("https://hub.staging.deliverdifferent.com", "/hub/staging/dfrnt/agent-access")]
+    public void Without_a_configured_prefix_it_comes_from_the_issuers_environment_and_tenant(string issuer, string expected)
     {
         var source = Store(new Dictionary<string, string>());
 
@@ -357,16 +403,26 @@ public class AgentAccessKeyBootstrapTests
 
     // ---- helpers ----------------------------------------------------------
 
-    // Stands in for SSM: reads see what earlier writes stored.
-    private static IAgentAccessKeySource Store(Dictionary<string, string> parameters)
+    // Stands in for SSM: reads see what earlier writes stored, each with the date it was written. A stale
+    // first read stands for a pod that read the prefix before another pod's write landed.
+    private static IAgentAccessKeySource Store(
+        Dictionary<string, string> parameters,
+        Dictionary<string, DateTime>? dates = null,
+        DateTime? writtenAt = null,
+        bool staleFirstRead = false)
     {
+        dates ??= new Dictionary<string, DateTime>();
+        var reads = 0;
         var source = Substitute.For<IAgentAccessKeySource>();
         source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ => (IReadOnlyDictionary<string, string>)new Dictionary<string, string>(parameters));
+            .Returns(_ => (IReadOnlyDictionary<string, AgentAccessKeyParameter>)(staleFirstRead && reads++ == 0
+                ? new Dictionary<string, AgentAccessKeyParameter>()
+                : AgentAccessKeyLoaderTests.Stored(parameters, dates)));
         source.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 parameters.Add(call.ArgAt<string>(1), call.ArgAt<string>(2));
+                dates[call.ArgAt<string>(1)] = writtenAt ?? AgentAccessKeyLoaderTests.Written;
                 return Task.CompletedTask;
             });
         return source;
@@ -378,8 +434,8 @@ public class AgentAccessKeyBootstrapTests
     private static IAgentAccessKeySource Source(Dictionary<string, string>? parameters = null)
     {
         var source = Substitute.For<IAgentAccessKeySource>();
-        IReadOnlyDictionary<string, string> value = parameters
-            ?? AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        IReadOnlyDictionary<string, AgentAccessKeyParameter> value = AgentAccessKeyLoaderTests.Stored(parameters
+            ?? AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem()));
         source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(value);
         return source;
     }

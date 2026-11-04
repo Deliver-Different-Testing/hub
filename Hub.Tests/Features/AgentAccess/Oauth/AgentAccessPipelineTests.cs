@@ -116,7 +116,7 @@ public class AgentAccessPipelineTests
     {
         var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
         parameters[AgentAccessKeyLoader.PreviousSigningKeyName] = AgentAccessKeyLoaderTests.Pem();
-        var expected = AgentAccessKeyLoader.Load(parameters).Keys!;
+        var expected = AgentAccessKeyLoaderTests.Load(parameters).Keys!;
         await using var app = await StartAsync(gateOpen: true, AgentAccessPersistentKeysTests.Settings(parameters));
 
         var body = await Client(app).GetStringAsync("/.well-known/jwks", TestContext.Current.CancellationToken);
