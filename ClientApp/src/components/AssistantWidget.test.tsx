@@ -26,14 +26,14 @@ describe('AssistantWidget', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Open Auto-mate assistant' })).not.toBeInTheDocument());
   });
 
-  it('fills the launcher with the primary and draws the mark in its contrast colour', async () => {
+  it('shows the brand Auto-mate logo on a surface launcher', async () => {
     server.use(enabled);
     renderWithProviders(<AssistantWidget />);
 
     const launcher = await screen.findByRole('button', { name: 'Open Auto-mate assistant' });
-    expect(launcher).toHaveAttribute('data-variant', 'filled');
-    expect(launcher.querySelector('svg [stroke="currentColor"]')).not.toBeNull();
-    expect(launcher.querySelector('img')).toBeNull();
+    expect(launcher).toHaveAttribute('data-variant', 'default');
+    expect(launcher.querySelector('img')).toHaveAttribute('width', '44');
+    expect(launcher.querySelector('svg')).toBeNull();
   });
 
   it('streams the answer and shows cited articles as badges', async () => {
