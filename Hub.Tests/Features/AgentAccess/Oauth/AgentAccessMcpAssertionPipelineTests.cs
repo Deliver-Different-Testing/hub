@@ -240,6 +240,33 @@ public partial class AgentAccessAuthorizePipelineTests
         await AppPass(response);
     }
 
+    [Theory]
+    [InlineData("5xx")]
+    [InlineData("timeout")]
+    public async Task When_the_cluster_keys_cannot_be_fetched_the_assertion_is_invalid_client_not_a_server_error(string failure)
+    {
+        var (app, tokens, _) = await ConnectedAsync(mcpSecret: null);
+        await using var _ = app;
+        app.Services.GetRequiredService<ClusterOidcStub>().Failure = failure;
+
+        var response = await AssertionExchange(app, tokens.Access, ServiceAccountToken());
+
+        Assert.Contains(RefusedByHub, await response.Content.ReadAsStringAsync(Ct));
+        await AssertUnauthenticated(response);
+    }
+
+    [Fact]
+    public async Task Without_a_configured_issuer_the_audience_is_never_taken_from_the_request_host()
+    {
+        await using var app = await StartAsync(mcpSecret: null, issuer: null);
+
+        // The test client calls https://localhost, so a request-derived audience would accept this token.
+        var response = await AssertionExchange(app, "a.b.c", ServiceAccountToken(audience: "https://localhost"));
+
+        Assert.Contains(RefusedByHub, await response.Content.ReadAsStringAsync(Ct));
+        await AssertUnauthenticated(response);
+    }
+
     // The cluster's OIDC discovery document and key set, as EKS serves them.
     private sealed class ClusterOidcStub : HttpMessageHandler
     {
@@ -249,9 +276,14 @@ public partial class AgentAccessAuthorizePipelineTests
 
         public int Requests => _requests;
 
+        /// <summary>Set to make the cluster answer 503, or time out the way HttpClient reports it.</summary>
+        public string? Failure { get; set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _requests);
+            if (Failure == "timeout") throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout.", new TimeoutException());
+            if (Failure == "5xx") return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
             var url = request.RequestUri!.AbsoluteUri;
             string? body = null;
             if (url == ClusterIssuer + "/.well-known/openid-configuration")

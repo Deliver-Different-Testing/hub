@@ -35,10 +35,16 @@ public sealed class AgentAccessMcpAssertionHandler(IAgentAccessMcpAssertionValid
             return;
         }
 
-        var issuer = context.Options.Issuer ?? context.BaseUri
-                     ?? throw new InvalidOperationException("The token endpoint has no issuer to check the assertion audience against.");
+        // The audience must be the configured issuer: a request-derived one would follow the Host header.
+        if (context.Options.Issuer is not { } issuer)
+        {
+            Log.Warning("Agent access refused the MCP server's service-account token: AgentAccessIssuer is not set");
+            context.Reject(Errors.InvalidClient, "The client assertion is not valid.");
+            return;
+        }
+
         var audience = issuer.AbsoluteUri;
-        var result = await assertions.ValidateAsync(context.ClientAssertion, [audience, audience.TrimEnd('/')]);
+        var result = await assertions.ValidateAsync(context.ClientAssertion, [audience, audience.TrimEnd('/')], context.CancellationToken);
         if (!result.Accepted)
         {
             Log.Warning("Agent access refused the MCP server's service-account token: {Reason}", result.Failure);

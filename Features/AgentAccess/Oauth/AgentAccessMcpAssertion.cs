@@ -119,7 +119,8 @@ public interface IAgentAccessMcpAssertionValidator
 
     /// <param name="assertion">The client_assertion as sent.</param>
     /// <param name="audiences">This Hub's issuer, in every accepted spelling.</param>
-    Task<AgentAccessMcpAssertionResult> ValidateAsync(string assertion, IReadOnlyCollection<string> audiences);
+    Task<AgentAccessMcpAssertionResult> ValidateAsync(
+        string assertion, IReadOnlyCollection<string> audiences, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -134,13 +135,18 @@ public sealed class AgentAccessMcpAssertionValidator(AgentAccessMcpAssertionOpti
 
     public bool Enabled => options.Enabled;
 
-    public async Task<AgentAccessMcpAssertionResult> ValidateAsync(string assertion, IReadOnlyCollection<string> audiences)
+    public async Task<AgentAccessMcpAssertionResult> ValidateAsync(
+        string assertion, IReadOnlyCollection<string> audiences, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            return await ValidateCoreAsync(assertion, audiences);
+            var result = await ValidateCoreAsync(assertion, audiences);
+            cancellationToken.ThrowIfCancellationRequested();
+            return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // A key fetch that times out surfaces as a cancellation too; only the caller's own cancellation propagates.
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             Log.Warning(ex, "Agent access could not validate the MCP server's service-account token");
             return AgentAccessMcpAssertionResult.Refused("validation_error");
