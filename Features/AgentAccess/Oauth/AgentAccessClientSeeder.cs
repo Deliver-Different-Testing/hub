@@ -39,6 +39,10 @@ public sealed class AgentAccessClientSeeder(
     private bool _done;
     private DateTimeOffset _retryAtUtc = DateTimeOffset.MinValue;
 
+    public bool Seeded => _done;
+
+    public bool TokenExchangeConfigured => !string.IsNullOrEmpty(mcpClientSecret);
+
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
         if (_done) return;
@@ -248,6 +252,12 @@ public sealed class AgentAccessClientSeeder(
 // and retried later, and the OAuth endpoints simply reject unknown clients until it succeeds.
 public interface IAgentAccessClientSeeder
 {
+    /// <summary>True once every configured client has been written, or there was nothing to write.</summary>
+    bool Seeded { get; }
+
+    /// <summary>True when the token-exchange client's secret is configured, so the MCP server can exchange passes.</summary>
+    bool TokenExchangeConfigured { get; }
+
     Task EnsureAsync(CancellationToken cancellationToken = default);
 }
 
