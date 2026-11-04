@@ -12,6 +12,8 @@ using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Grants;
 using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
+using Hub.Interfaces;
+using Hub.Models.Master;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -363,11 +365,21 @@ public partial class AgentAccessAuthorizePipelineTests
         };
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret")
+    private const int HubTenantId = 12;
+    private const string HubTenantName = "Urgent Couriers";
+
+    private static async Task<WebApplication> StartAsync(
+        bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret",
+        AgentAccessReason closedReason = AgentAccessReason.FeatureNotReleased)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
-            gateOpen, gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.TenantSwitchOff));
+            gateOpen, gateOpen ? AgentAccessReason.Enabled : closedReason));
+        var tenants = Substitute.For<IAgentAccessTenantResolver>();
+        tenants.ResolveAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenant(HubTenantId, "urgent", HubTenantName));
+        var master = Substitute.For<IAuthenticationRepository>();
+        master.GetTenantByIdAsync(Arg.Any<int>()).Returns(ci => new Tenant { TenantId = ci.Arg<int>(), Code = "dfrnt", Name = "DFRNT" });
+        master.IsUserAssociatedWithTenantAsync(Arg.Any<int>(), Arg.Any<int>()).Returns(true);
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -377,6 +389,9 @@ public partial class AgentAccessAuthorizePipelineTests
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(gate);
+        builder.Services.AddSingleton(tenants);
+        builder.Services.AddSingleton(master);
+        builder.Services.AddSingleton(Substitute.For<IAccountService>());
         builder.Services.AddAuthentication("Identity.Application").AddScheme<AuthenticationSchemeOptions, TestCookieHandler>("Identity.Application", _ => { });
         builder.Services.AddAuthorization();
         builder.Services.AddControllersWithViews().AddApplicationPart(typeof(AgentAccessAuthorizeController).Assembly);

@@ -20,6 +20,7 @@ public class AgentAccessPipelineTests
     [InlineData("/connect/authorize")]
     [InlineData("/connect/token")]
     [InlineData("/.well-known/openid-configuration")]
+    [InlineData("/.well-known/oauth-authorization-server")]
     [InlineData("/.well-known/jwks")]
     public async Task Closed_gate_makes_every_oauth_path_404(string path)
     {
@@ -55,6 +56,46 @@ public class AgentAccessPipelineTests
         Assert.Contains("\"token_endpoint\"", body);
         Assert.Contains("\"S256\"", body);
         Assert.DoesNotContain("\"plain\"", body);
+    }
+
+    [Fact]
+    public async Task Open_gate_serves_the_rfc8414_metadata_too()
+    {
+        // The MCP spec has clients try /.well-known/oauth-authorization-server; without it Hub's SPA fallback answered HTML.
+        await using var app = await StartAsync(gateOpen: true);
+
+        var response = await Client(app)
+            .GetAsync("/.well-known/oauth-authorization-server", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("\"authorization_endpoint\"", body);
+    }
+
+    [Theory]
+    [InlineData("/.well-known/openid-configuration")]
+    [InlineData("/.well-known/oauth-authorization-server")]
+    [InlineData("/.well-known/jwks")]
+    public async Task A_switched_off_tenant_still_serves_discovery(string path)
+    {
+        await using var app = await StartAsync(AgentAccessReason.TenantSwitchOff);
+
+        var response = await Client(app).GetAsync(path, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task A_hub_that_cannot_tell_its_tenant_hides_discovery()
+    {
+        await using var app = await StartAsync(AgentAccessReason.Enabled, tenantKnown: false);
+
+        var response = await Client(app)
+            .GetAsync("/.well-known/openid-configuration", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -118,15 +159,23 @@ public class AgentAccessPipelineTests
         return client;
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen, AgentAccessOAuthSettings? settings = null)
+    private static Task<WebApplication> StartAsync(bool gateOpen, AgentAccessOAuthSettings? settings = null) =>
+        StartAsync(gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.FeatureNotReleased, settings);
+
+    private static async Task<WebApplication> StartAsync(
+        AgentAccessReason reason, AgentAccessOAuthSettings? settings = null, bool tenantKnown = true)
     {
         var gate = Substitute.For<IAgentAccessGate>();
-        gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
-            gateOpen, gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.TenantSwitchOff));
+        gate.EvaluateAsync(Arg.Any<CancellationToken>())
+            .Returns(new AgentAccessDecision(reason == AgentAccessReason.Enabled, reason));
+        var tenants = Substitute.For<IAgentAccessTenantResolver>();
+        tenants.ResolveAsync(Arg.Any<CancellationToken>())
+            .Returns(tenantKnown ? new AgentAccessTenant(12, "urgent", "Urgent Couriers") : null);
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(gate);
+        builder.Services.AddSingleton(tenants);
         builder.Services.AddAuthentication("Cookies").AddCookie("Cookies");
         builder.Services.AddAuthorization();
         builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", settings);

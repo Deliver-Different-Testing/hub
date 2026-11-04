@@ -22,6 +22,7 @@ public static class AgentAccessExtensions
     {
         var bootstrap = AgentAccessKeyBootstrap.Resolve(settings);
         services.AddSingleton<IAgentAccessKeyState>(bootstrap.State);
+        services.AddSingleton(new AgentAccessIssuer(bootstrap.Issuer));
 
         var mcpResource = AgentAccessResource.Resolve(settings?.Issuer, settings?.McpResource);
         services.AddSingleton(new AgentAccessMcpResource(mcpResource));
@@ -85,7 +86,8 @@ public static class AgentAccessExtensions
             {
                 server.SetAuthorizationEndpointUris("/connect/authorize")
                     .SetTokenEndpointUris("/connect/token")
-                    .SetConfigurationEndpointUris("/.well-known/openid-configuration")
+                    // RFC 8414's address as well as OIDC's: the MCP authorization spec has clients try both.
+                    .SetConfigurationEndpointUris("/.well-known/oauth-authorization-server", "/.well-known/openid-configuration")
                     .SetJsonWebKeySetEndpointUris("/.well-known/jwks");
 
                 server.AllowAuthorizationCodeFlow()
@@ -151,7 +153,10 @@ public static class AgentAccessExtensions
         return services;
     }
 
-    /// <summary>Answers 404 for the OAuth endpoints unless the agent access gate is open. Place before UseAuthentication.</summary>
+    /// <summary>
+    /// Answers 404 for the OAuth endpoints while agent access is dark, and says why when the tenant has it switched off.
+    /// Place before UseAuthentication.
+    /// </summary>
     public static void UseAgentAccessEndpointGate(this IApplicationBuilder app)
     {
         app.UseMiddleware<AgentAccessEndpointGate>();
