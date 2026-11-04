@@ -40,7 +40,30 @@ public class AgentAccessPersistentKeysTests
         // OpenIddict signs with the first credential, so the current key must come first.
         Assert.Equal(2, options.SigningCredentials.Count);
         Assert.Equal(expected.Signing.KeyId, options.SigningCredentials[0].Key.KeyId);
-        Assert.Equal(expected.PreviousSigning!.KeyId, options.SigningCredentials[1].Key.KeyId);
+        Assert.Equal(expected.SigningKeys[1].KeyId, options.SigningCredentials[1].Key.KeyId);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(20)] // past 16, where List.Sort stops being an insertion sort and OpenIddict's sort can reorder equal keys
+    public void Every_key_is_registered_newest_first(int count)
+    {
+        var parameters = new Dictionary<string, string>();
+        for (var i = 0; i < count; i++)
+        {
+            parameters[$"signing/202611050102{i:00}-0a1b2c3d"] = AgentAccessKeyLoaderTests.Pem();
+            parameters[$"encryption/202611050102{i:00}-0a1b2c3d"] = AgentAccessKeyLoaderTests.Pem();
+        }
+
+        var newestSigning = AgentAccessKeyLoaderTests.KidOf(parameters[$"signing/202611050102{count - 1:00}-0a1b2c3d"]);
+        var newestEncryption = AgentAccessKeyLoaderTests.KidOf(parameters[$"encryption/202611050102{count - 1:00}-0a1b2c3d"]);
+
+        var options = ServerOptions(Settings(parameters));
+
+        Assert.Equal(count, options.SigningCredentials.Count);
+        Assert.Equal(count, options.EncryptionCredentials.Count);
+        Assert.Equal(newestSigning, options.SigningCredentials[0].Key.KeyId);
+        Assert.Equal(newestEncryption, options.EncryptionCredentials[0].Key.KeyId);
     }
 
     [Fact]

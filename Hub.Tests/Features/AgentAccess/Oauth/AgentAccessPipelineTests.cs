@@ -126,7 +126,7 @@ public class AgentAccessPipelineTests
         var kids = keys.Select(k => k.GetProperty("kid").GetString()).ToArray();
         Assert.Equal(2, kids.Length);
         Assert.Contains(expected.Signing.KeyId, kids);
-        Assert.Contains(expected.PreviousSigning!.KeyId, kids);
+        Assert.Contains(expected.SigningKeys[1].KeyId, kids);
         Assert.DoesNotContain(keys, k => k.GetProperty("kid").GetString() == expected.Encryption.KeyId);
         foreach (var key in keys)
         {

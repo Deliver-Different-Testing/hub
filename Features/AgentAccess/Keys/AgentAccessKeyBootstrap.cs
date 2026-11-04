@@ -1,15 +1,20 @@
+using System.Security.Cryptography;
+using Amazon.Runtime;
+using Amazon.SimpleSystemsManagement.Model;
 using Hub.Features.AgentAccess.Oauth;
+using Hub.Services;
 
 namespace Hub.Features.AgentAccess.Keys;
 
-/// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = ephemeral keys.</param>
+/// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = /hub/&lt;tenant&gt;/agent-access, the tenant taken from the issuer host.</param>
 /// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer.</param>
-/// <param name="KeySource">Where the key parameters are read from.</param>
-/// <param name="LoadTimeout">Upper bound on the startup SSM read (default 10 s).</param>
+/// <param name="KeySource">Where the key parameters are read from and created in.</param>
+/// <param name="LoadTimeout">Upper bound on the whole startup SSM exchange: read, any create and the re-read (default 10 s).</param>
 /// <param name="Clients">Pre-registered OAuth clients (AgentAccess:Clients); seeded once agent access opens.</param>
 /// <param name="ClientMetadataHosts">Hosts whose client ID metadata documents may be fetched (AgentAccess:ClientMetadata:AllowedHosts). Empty = the feature is off.</param>
 /// <param name="McpClientSecret">Secret of the confidential token-exchange client dfrnt-mcp, one per tenant Hub, from env AgentAccessMcpClientSecret. Unset = the exchange is off.</param>
 /// <param name="McpResource">Optional override of this tenant's MCP resource URL, from env AgentAccessMcpResource. Unset = derived from the issuer.</param>
+/// <param name="KeyWriteSettle">Pause after creating keys before reading them back (default 2 s), so pods starting together see each other's keys.</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
     string? Issuer = null,
@@ -18,26 +23,32 @@ public sealed record AgentAccessOAuthSettings(
     IReadOnlyList<AgentAccessClientOptions>? Clients = null,
     string? McpResource = null,
     IReadOnlyList<string>? ClientMetadataHosts = null,
-    string? McpClientSecret = null);
+    string? McpClientSecret = null,
+    TimeSpan? KeyWriteSettle = null);
 
 public sealed record AgentAccessBootstrapResult(AgentAccessKeys? Keys, Uri? Issuer, AgentAccessKeyState State);
 
 /// <summary>
-/// Startup decision: persistent keys from SSM plus a valid issuer, or not. Never throws; any
-/// problem yields "not persistent" with a reason that contains no key material, and Hub
-/// carries on with ephemeral keys while the agent access gate stays closed.
+/// Startup decision: persistent keys from SSM plus a valid issuer, or not. A key missing from SSM is
+/// created there and read back, so every pod signs with keys the others can read. Never throws; any
+/// problem yields "not persistent" with a reason that contains no key material or parameter path, and
+/// Hub carries on with ephemeral keys while the agent access gate stays closed.
 /// </summary>
 public static class AgentAccessKeyBootstrap
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan DefaultWriteSettle = TimeSpan.FromSeconds(2);
+    private const int MaxWriteAttempts = 3;
+    private const int NewKeySize = 3072;
 
     public static AgentAccessBootstrapResult Resolve(AgentAccessOAuthSettings? settings)
     {
         var issuer = ParseIssuer(settings?.Issuer, out var issuerFailure);
+        var prefix = ResolvePrefix(settings?.SsmPrefix, issuer);
 
-        if (settings is null || string.IsNullOrWhiteSpace(settings.SsmPrefix))
+        if (settings is null || prefix is null)
         {
-            return NotPersistent(null, issuer, "AgentAccessSsmPrefix is not set; using ephemeral keys");
+            return NotPersistent(null, issuer, "AgentAccessSsmPrefix is not set and AgentAccessIssuer names no tenant; using ephemeral keys");
         }
 
         if (settings.KeySource is null)
@@ -45,23 +56,24 @@ public static class AgentAccessKeyBootstrap
             return NotPersistent(null, issuer, "no SSM key source is configured; using ephemeral keys");
         }
 
-        IReadOnlyDictionary<string, string> parameters;
+        (AgentAccessKeyLoadResult Load, bool Created) outcome;
         try
         {
             using var timeout = new CancellationTokenSource(settings.LoadTimeout ?? DefaultTimeout);
-            parameters = settings.KeySource.ReadAsync(settings.SsmPrefix, timeout.Token).GetAwaiter().GetResult();
+            outcome = LoadOrCreateAsync(settings.KeySource, prefix, settings.KeyWriteSettle ?? DefaultWriteSettle, timeout.Token)
+                .GetAwaiter().GetResult();
         }
         catch (OperationCanceledException)
         {
-            return NotPersistent(null, issuer, "reading the keys from SSM timed out; using ephemeral keys");
+            return NotPersistent(null, issuer, "reading or creating the keys in SSM timed out; using ephemeral keys");
         }
         catch (Exception ex)
         {
             // Type only: the message can carry the parameter path or account details.
-            return NotPersistent(null, issuer, $"reading the keys from SSM failed ({ex.GetType().Name}); using ephemeral keys");
+            return NotPersistent(null, issuer, $"reading or creating the keys in SSM failed ({ex.GetType().Name}); using ephemeral keys");
         }
 
-        var load = AgentAccessKeyLoader.Load(parameters);
+        var load = outcome.Load;
         if (load.Keys is null)
         {
             return NotPersistent(null, issuer, $"the SSM keys are not usable: {load.Failure}; using ephemeral keys");
@@ -72,9 +84,66 @@ public static class AgentAccessKeyBootstrap
             return NotPersistent(load.Keys, null, issuerFailure);
         }
 
-        return new AgentAccessBootstrapResult(
-            load.Keys, issuer, new AgentAccessKeyState(true, "persistent keys loaded from SSM", load.Keys.Signing.KeyId));
+        var reason = outcome.Created ? "persistent keys created in SSM and loaded back" : "persistent keys loaded from SSM";
+        return new AgentAccessBootstrapResult(load.Keys, issuer, new AgentAccessKeyState(true, reason, load.Keys.Signing.KeyId));
     }
+
+    /// <summary>The configured prefix, else /hub/&lt;tenant&gt;/agent-access for the issuer's tenant; null when there is neither.</summary>
+    public static string? ResolvePrefix(string? configuredPrefix, string? issuer) =>
+        ResolvePrefix(configuredPrefix, ParseIssuer(issuer, out _));
+
+    private static string? ResolvePrefix(string? configuredPrefix, Uri? issuer)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredPrefix)) return configuredPrefix.Trim();
+
+        var tenant = issuer is null ? null : AccountService.ExtractTenantFromHost(issuer.Host);
+        return string.IsNullOrEmpty(tenant) ? null : $"/hub/{tenant}/agent-access";
+    }
+
+    // Keys are only ever used as SSM gives them back, never from memory: a key no other pod can read must not sign.
+    private static async Task<(AgentAccessKeyLoadResult Load, bool Created)> LoadOrCreateAsync(
+        IAgentAccessKeySource source, string prefix, TimeSpan settle, CancellationToken cancellationToken)
+    {
+        var load = AgentAccessKeyLoader.Load(await source.ReadAsync(prefix, cancellationToken));
+
+        for (var attempt = 1; load.SigningMissing || load.EncryptionMissing; attempt++)
+        {
+            try
+            {
+                if (load.SigningMissing)
+                {
+                    await CreateKeyAsync(source, prefix, AgentAccessKeyLoader.SigningFolder, cancellationToken);
+                }
+
+                if (load.EncryptionMissing)
+                {
+                    await CreateKeyAsync(source, prefix, AgentAccessKeyLoader.EncryptionFolder, cancellationToken);
+                }
+
+                await Task.Delay(settle, cancellationToken);
+                return (AgentAccessKeyLoader.Load(await source.ReadAsync(prefix, cancellationToken)), true);
+            }
+            catch (Exception ex) when (attempt < MaxWriteAttempts && IsContention(ex))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(200, 801)), cancellationToken);
+                load = AgentAccessKeyLoader.Load(await source.ReadAsync(prefix, cancellationToken));
+            }
+        }
+
+        return (load, false);
+    }
+
+    private static Task CreateKeyAsync(IAgentAccessKeySource source, string prefix, string folder, CancellationToken cancellationToken)
+    {
+        using var rsa = RSA.Create(NewKeySize);
+        var name = $"{folder}/{AgentAccessKeyLoader.NewKeyId(DateTime.UtcNow)}";
+        return source.CreateAsync(prefix, name, rsa.ExportPkcs8PrivateKeyPem(), cancellationToken);
+    }
+
+    // Another pod writing at the same moment, or SSM pushing back; worth a re-read and another go.
+    private static bool IsContention(Exception ex) =>
+        ex is ParameterAlreadyExistsException or TooManyUpdatesException
+        || ex is AmazonServiceException { ErrorCode: "ThrottlingException" };
 
     private static AgentAccessBootstrapResult NotPersistent(AgentAccessKeys? keys, Uri? issuer, string reason) =>
         new(keys, issuer, new AgentAccessKeyState(false, reason, null));

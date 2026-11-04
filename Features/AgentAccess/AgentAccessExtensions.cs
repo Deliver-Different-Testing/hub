@@ -114,14 +114,16 @@ public static class AgentAccessExtensions
                 // ephemeral keys so the options validate; the gate stays closed in that case.
                 if (bootstrap.Keys is { } keys)
                 {
-                    // OpenIddict signs with the first credential; the previous key is only published.
-                    server.AddSigningKey(keys.Signing);
-                    if (keys.PreviousSigning is { } previous)
+                    // Newest first: OpenIddict signs with the first credential; the older keys are only published.
+                    foreach (var signing in keys.SigningKeys)
                     {
-                        server.AddSigningKey(previous);
+                        server.AddSigningKey(signing);
                     }
 
-                    server.AddEncryptionKey(keys.Encryption);
+                    foreach (var encryption in keys.EncryptionKeys)
+                    {
+                        server.AddEncryptionKey(encryption);
+                    }
                 }
                 else
                 {

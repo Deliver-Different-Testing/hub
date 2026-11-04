@@ -14,6 +14,7 @@ using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
 using Hub.Interfaces;
 using Hub.Models.Master;
+using Hub.Tests.Features.AgentAccess.Keys;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -183,6 +184,30 @@ public partial class AgentAccessAuthorizePipelineTests
         Assert.Contains("mcp", jwt.Claims.Where(c => c.Type == "scope").SelectMany(c => c.Value.Split(' ')));
         Assert.True(body.TryGetProperty("refresh_token", out _));
         Assert.DoesNotContain(jwt.Claims, c => c.Type is "Connection" or "RememberMe" or "CourierID");
+    }
+
+    [Fact]
+    public async Task With_several_signing_keys_the_newest_signs_and_every_one_is_published()
+    {
+        var (legacy, older, newest) = (AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        var parameters = AgentAccessKeyLoaderTests.Parameters(legacy, AgentAccessKeyLoaderTests.Pem());
+        parameters["signing/20261105010203-ffffffff"] = older;
+        parameters["signing/20261106000000-00000000"] = newest;
+        var keySource = Substitute.For<IAgentAccessKeySource>();
+        keySource.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, string>)parameters);
+        await using var app = await StartAsync(keySource: keySource);
+        var code = AssertRedirectToClient(await Consent(app, AuthorizeUrl(), "allow"))["code"]!;
+
+        var response = await Token(app, code, Verifier);
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement;
+        var jwks = JsonDocument.Parse(await Client(app).GetStringAsync("/.well-known/jwks", Ct)).RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(body.GetProperty("access_token").GetString());
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(newest), jwt.Header.Kid);
+        Assert.Equal(
+            new[] { newest, older, legacy }.Select(AgentAccessKeyLoaderTests.KidOf).Order(),
+            jwks.GetProperty("keys").EnumerateArray().Select(k => k.GetProperty("kid").GetString()).Order());
     }
 
     [Fact]
@@ -370,7 +395,7 @@ public partial class AgentAccessAuthorizePipelineTests
 
     private static async Task<WebApplication> StartAsync(
         bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret",
-        AgentAccessReason closedReason = AgentAccessReason.FeatureNotReleased)
+        AgentAccessReason closedReason = AgentAccessReason.FeatureNotReleased, IAgentAccessKeySource? keySource = null)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
@@ -407,7 +432,7 @@ public partial class AgentAccessAuthorizePipelineTests
         identities.LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new AgentPassLoad(AgentGrantEligibility.Eligible, new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "New Zealand Standard Time", "urgent", true, false, 2, 4, null, "Sam", "Staff", 1)));
         builder.Services.AddSingleton(identities);
-        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret));
+        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(SsmPrefix: keySource is null ? null : "/hub/urgent/agent-access", Issuer: Issuer, KeySource: keySource, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret));
         var metadataFetcher = Substitute.For<IClientMetadataFetcher>();
         builder.Services.RemoveAll(typeof(IClientMetadataFetcher));
         builder.Services.AddSingleton(metadataFetcher);

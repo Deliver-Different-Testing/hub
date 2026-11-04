@@ -1,45 +1,89 @@
+using System.Globalization;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Hub.Features.AgentAccess.Keys;
 
 public sealed record AgentAccessKeyState(bool Persistent, string Reason, string? SigningKeyId) : IAgentAccessKeyState;
 
-public sealed record AgentAccessKeys(RsaSecurityKey Signing, RsaSecurityKey Encryption, RsaSecurityKey? PreviousSigning);
+/// <summary>Every key under the prefix, newest first. The first signing key signs; the rest are only published.</summary>
+public sealed record AgentAccessKeys(IReadOnlyList<RsaSecurityKey> SigningKeys, IReadOnlyList<RsaSecurityKey> EncryptionKeys)
+{
+    public RsaSecurityKey Signing => SigningKeys[0];
 
-public sealed record AgentAccessKeyLoadResult(AgentAccessKeys? Keys, string? Failure);
+    public RsaSecurityKey Encryption => EncryptionKeys[0];
+}
+
+/// <param name="SigningMissing">No signing key exists at all, so one may be created. False when one exists but is unusable.</param>
+/// <param name="EncryptionMissing">The same for the encryption key.</param>
+public sealed record AgentAccessKeyLoadResult(
+    AgentAccessKeys? Keys, string? Failure, bool SigningMissing = false, bool EncryptionMissing = false);
 
 /// <summary>
-/// Turns the SSM parameters into RSA keys. Failure messages name the parameter and the rule
-/// that failed; they never contain the PEM text or any part of a key.
+/// Turns the SSM parameters into RSA keys. Two layouts sit side by side under the prefix: the hand-made
+/// SigningKey, EncryptionKey and SigningKeyPrevious, and the keys Hub creates itself under signing/&lt;kid&gt;
+/// and encryption/&lt;kid&gt;. Failure messages name the parameter and the rule that failed; they never
+/// contain the PEM text or any part of a key.
 /// </summary>
-public static class AgentAccessKeyLoader
+public static partial class AgentAccessKeyLoader
 {
     public const string SigningKeyName = "SigningKey";
     public const string EncryptionKeyName = "EncryptionKey";
     public const string PreviousSigningKeyName = "SigningKeyPrevious";
+    public const string SigningFolder = "signing";
+    public const string EncryptionFolder = "encryption";
 
     private const int MinimumKeySize = 2048;
 
     public static AgentAccessKeyLoadResult Load(IReadOnlyDictionary<string, string> parameters)
     {
-        var (signing, signingFailure) = Parse(parameters, SigningKeyName, required: true);
+        var (signing, signingFailure) = Collect(parameters, SigningFolder, SigningKeyName, PreviousSigningKeyName);
         if (signingFailure is not null) return new AgentAccessKeyLoadResult(null, signingFailure);
 
-        var (encryption, encryptionFailure) = Parse(parameters, EncryptionKeyName, required: true);
+        var (encryption, encryptionFailure) = Collect(parameters, EncryptionFolder, EncryptionKeyName);
         if (encryptionFailure is not null) return new AgentAccessKeyLoadResult(null, encryptionFailure);
 
-        var (previous, previousFailure) = Parse(parameters, PreviousSigningKeyName, required: false);
-        return previousFailure is not null ? new AgentAccessKeyLoadResult(null, previousFailure) : new AgentAccessKeyLoadResult(new AgentAccessKeys(signing!, encryption!, previous), null);
+        if (signing.Count == 0 || encryption.Count == 0)
+        {
+            return new AgentAccessKeyLoadResult(
+                null,
+                signing.Count == 0 ? $"{SigningKeyName} is missing" : $"{EncryptionKeyName} is missing",
+                SigningMissing: signing.Count == 0,
+                EncryptionMissing: encryption.Count == 0);
+        }
+
+        return new AgentAccessKeyLoadResult(new AgentAccessKeys(signing, encryption), null);
     }
 
-    private static (RsaSecurityKey? Key, string? Failure) Parse(
-        IReadOnlyDictionary<string, string> parameters, string name, bool required)
+    /// <summary>A created key's name below its folder: UTC creation time, then random hex so racing pods never collide.</summary>
+    public static string NewKeyId(DateTime utcNow) =>
+        $"{utcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}-{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4))}";
+
+    // Created keys newest first (the kid starts with its creation time), then the hand-made ones, which predate them.
+    private static (List<RsaSecurityKey> Keys, string? Failure) Collect(
+        IReadOnlyDictionary<string, string> parameters, string folder, params string[] handMade)
     {
-        if (!parameters.TryGetValue(name, out var pem) || string.IsNullOrWhiteSpace(pem))
+        var names = parameters.Keys
+            .Where(name => name.StartsWith(folder + "/", StringComparison.Ordinal)
+                           && KeyIdPattern().IsMatch(name[(folder.Length + 1)..]))
+            .OrderByDescending(name => name, StringComparer.Ordinal)
+            .Concat(handMade.Where(parameters.ContainsKey));
+
+        var keys = new List<RsaSecurityKey>();
+        foreach (var name in names)
         {
-            return required ? (null, $"{name} is missing") : (null, null);
+            var (key, failure) = Parse(name, parameters[name]);
+            if (failure is not null) return (keys, failure);
+            if (key is not null) keys.Add(key);
         }
+
+        return (keys, null);
+    }
+
+    private static (RsaSecurityKey? Key, string? Failure) Parse(string name, string pem)
+    {
+        if (string.IsNullOrWhiteSpace(pem)) return (null, null);
 
         var rsa = RSA.Create();
         try
@@ -68,6 +112,9 @@ public static class AgentAccessKeyLoader
     // RFC 7638 JWK thumbprint of the public key: stable for the same key, different per key.
     private static string Thumbprint(RsaSecurityKey key) =>
         Base64UrlEncoder.Encode(JsonWebKeyConverter.ConvertFromRSASecurityKey(key).ComputeJwkThumbprint());
+
+    [GeneratedRegex("^[0-9]{14}-[0-9a-f]{8}$")]
+    private static partial Regex KeyIdPattern();
 }
 
 // Whether the OAuth server runs on persistent keys from SSM and a configured issuer

@@ -6,7 +6,7 @@ using NSubstitute;
 namespace Hub.Tests.Features.AgentAccess.Keys;
 
 // Phase 1.3: the pod IAM policy allows ssm:GetParametersByPath (and PutParameter) only, so
-// the keys are read with GetParametersByPath, decrypted, paginated.
+// the keys are read with GetParametersByPath, decrypted, paginated, and created with PutParameter.
 public class SsmAgentAccessKeySourceTests
 {
     private const string Prefix = "/Hub/urgent/AgentAccess";
@@ -30,8 +30,72 @@ public class SsmAgentAccessKeySourceTests
         Assert.Equal("sign", result["SigningKey"]);
         Assert.Equal("enc", result["EncryptionKey"]);
         await ssm.Received(1).GetParametersByPathAsync(
-            Arg.Is<GetParametersByPathRequest>(r => r.Path == Prefix && r.WithDecryption == true && r.Recursive == false),
+            Arg.Is<GetParametersByPathRequest>(r => r.Path == Prefix && r.WithDecryption == true && r.Recursive == true),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Created_keys_under_the_prefix_are_read_by_their_name_below_it()
+    {
+        var ssm = Substitute.For<IAmazonSimpleSystemsManagement>();
+        ssm.GetParametersByPathAsync(Arg.Any<GetParametersByPathRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new GetParametersByPathResponse
+            {
+                Parameters =
+                [
+                    new Parameter { Name = $"{Prefix}/SigningKey", Value = "legacy" },
+                    new Parameter { Name = $"{Prefix}/signing/20261105010203-0a1b2c3d", Value = "sign" },
+                    new Parameter { Name = $"{Prefix}/encryption/20261105010203-4e5f6a7b", Value = "enc" }
+                ]
+            });
+
+        var result = await new SsmAgentAccessKeySource(ssm).ReadAsync(Prefix, TestContext.Current.CancellationToken);
+
+        Assert.Equal("legacy", result["SigningKey"]);
+        Assert.Equal("sign", result["signing/20261105010203-0a1b2c3d"]);
+        Assert.Equal("enc", result["encryption/20261105010203-4e5f6a7b"]);
+    }
+
+    [Fact]
+    public async Task Creates_a_secure_string_that_never_overwrites()
+    {
+        var ssm = Substitute.For<IAmazonSimpleSystemsManagement>();
+
+        await new SsmAgentAccessKeySource(ssm).CreateAsync(
+            Prefix + "/", "signing/20261105010203-0a1b2c3d", "pem", TestContext.Current.CancellationToken);
+
+        await ssm.Received(1).PutParameterAsync(
+            Arg.Is<PutParameterRequest>(r =>
+                r.Name == $"{Prefix}/signing/20261105010203-0a1b2c3d"
+                && r.Value == "pem"
+                && r.Type == ParameterType.SecureString
+                && r.Overwrite == false
+                && r.KeyId == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Uses_the_configured_kms_key_when_there_is_one()
+    {
+        var ssm = Substitute.For<IAmazonSimpleSystemsManagement>();
+
+        await new SsmAgentAccessKeySource(ssm, "alias/hub-agent-access").CreateAsync(
+            Prefix, "encryption/20261105010203-0a1b2c3d", "pem", TestContext.Current.CancellationToken);
+
+        await ssm.Received(1).PutParameterAsync(
+            Arg.Is<PutParameterRequest>(r => r.KeyId == "alias/hub-agent-access"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_parameter_that_already_exists_propagates_so_the_caller_can_re_read()
+    {
+        var ssm = Substitute.For<IAmazonSimpleSystemsManagement>();
+        ssm.PutParameterAsync(Arg.Any<PutParameterRequest>(), Arg.Any<CancellationToken>())
+            .Returns<PutParameterResponse>(_ => throw new ParameterAlreadyExistsException("exists"));
+
+        await Assert.ThrowsAsync<ParameterAlreadyExistsException>(
+            () => new SsmAgentAccessKeySource(ssm).CreateAsync(Prefix, "signing/x", "pem", TestContext.Current.CancellationToken));
     }
 
     [Fact]
