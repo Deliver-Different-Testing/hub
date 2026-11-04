@@ -52,6 +52,74 @@ public class AgentAccessMcpAssertionOptionsTests
         Assert.Equal([Account], options.ServiceAccounts);
     }
 
+    private const string McpProjectPrefix = "system:serviceaccount:dfrnt-automate-mcp-87595416-*";
+
+    [Fact]
+    public void An_exact_entry_allows_only_that_subject()
+    {
+        var options = AgentAccessMcpAssertionOptions.Resolve(Cluster, [Account]);
+
+        Assert.True(options.Allows(Account));
+        Assert.False(options.Allows(Account + "x"));
+        Assert.False(options.Allows("system:serviceaccount:dfrnt-automate-mcp-1-urgent-staging:other"));
+    }
+
+    [Theory]
+    [InlineData("system:serviceaccount:dfrnt-automate-mcp-87595416-staging:default")]
+    [InlineData("system:serviceaccount:dfrnt-automate-mcp-87595416-production:dfrnt-automate-mcp")]
+    public void A_trailing_star_matches_every_subject_that_starts_with_the_rest(string subject)
+    {
+        var options = AgentAccessMcpAssertionOptions.Resolve(Cluster, [McpProjectPrefix]);
+
+        Assert.True(options.Enabled);
+        Assert.True(options.Allows(subject));
+    }
+
+    [Theory]
+    [InlineData("system:serviceaccount:hub-12345-staging:default")]
+    [InlineData("system:serviceaccount:dfrnt-automate-mcp-87595417-staging:default")]
+    [InlineData("system:serviceaccount:dfrnt-automate-mcp-87595416:default")]
+    [InlineData("system:serviceaccount:dfrnt-automate-mcp-87595416")]
+    [InlineData("SYSTEM:SERVICEACCOUNT:DFRNT-AUTOMATE-MCP-87595416-STAGING:DEFAULT")]
+    [InlineData("")]
+    public void A_prefix_refuses_every_other_subject(string subject)
+    {
+        var options = AgentAccessMcpAssertionOptions.Resolve(Cluster, [McpProjectPrefix]);
+
+        Assert.False(options.Allows(subject));
+    }
+
+    [Theory]
+    [InlineData("*")]
+    [InlineData("system:serviceaccount:*")]
+    [InlineData("system:serviceaccount:*:default")]
+    [InlineData("system:serviceaccount:dfrnt-*-mcp*")]
+    [InlineData("system:serviceaccount:dfrnt-automate-mcp-87595416-staging:*:*")]
+    public void Patterns_other_than_one_trailing_star_after_a_namespace_are_ignored(string entry)
+    {
+        var options = AgentAccessMcpAssertionOptions.Resolve(Cluster, [entry]);
+
+        Assert.False(options.Enabled);
+        Assert.Empty(options.ServiceAccounts);
+        Assert.False(options.Allows("system:serviceaccount:dfrnt-automate-mcp-87595416-staging:default"));
+    }
+
+    [Fact]
+    public void The_shipped_default_allows_the_mcp_projects_namespaces_and_nothing_else()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false)
+            .Build();
+
+        var options = AgentAccessMcpAssertionOptions.Resolve(
+            configuration["AgentAccess:ClusterIssuer"], configuration.GetSection("AgentAccess:McpServiceAccounts").Get<string[]>());
+
+        Assert.True(options.Enabled);
+        Assert.Equal([McpProjectPrefix], options.ServiceAccounts);
+        Assert.True(options.Allows("system:serviceaccount:dfrnt-automate-mcp-87595416-staging:default"));
+        Assert.False(options.Allows("system:serviceaccount:hub-12345-staging:default"));
+    }
+
     [Theory]
     [InlineData("mcp-secret", null, true, false)]
     [InlineData(null, Account, false, true)]

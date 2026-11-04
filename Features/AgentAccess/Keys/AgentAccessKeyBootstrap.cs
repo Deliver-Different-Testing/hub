@@ -16,7 +16,7 @@ namespace Hub.Features.AgentAccess.Keys;
 /// <param name="McpResource">Optional override of this tenant's MCP resource URL, from env AgentAccessMcpResource. Unset = derived from the issuer.</param>
 /// <param name="KeyWriteSettle">Pause after creating keys before reading them back (default 2 s), so pods starting together see each other's keys.</param>
 /// <param name="ClusterIssuer">OIDC issuer of the Kubernetes cluster whose projected service-account tokens the MCP server presents (AgentAccess:ClusterIssuer). Unset = assertion auth is off.</param>
-/// <param name="McpServiceAccounts">Service-account subjects (system:serviceaccount:ns:sa) allowed to authenticate as dfrnt-mcp (AgentAccess:McpServiceAccounts). Empty = assertion auth is off.</param>
+/// <param name="McpServiceAccounts">Service-account subjects (system:serviceaccount:ns:sa, or a prefix of one ending in *) allowed to authenticate as dfrnt-mcp (AgentAccess:McpServiceAccounts). Empty = assertion auth is off.</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
     string? Issuer = null,

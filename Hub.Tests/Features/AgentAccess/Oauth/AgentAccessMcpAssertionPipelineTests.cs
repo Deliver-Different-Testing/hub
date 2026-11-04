@@ -74,6 +74,19 @@ public partial class AgentAccessAuthorizePipelineTests
         Assert.Equal("dfrnt-mcp", JsonDocument.Parse(pass.Claims.Single(c => c.Type == "act").Value).RootElement.GetProperty("client_id").GetString());
     }
 
+    [Fact]
+    public async Task A_namespace_prefix_in_the_allow_list_lets_the_mcp_projects_service_account_exchange()
+    {
+        var (app, tokens, _) = await ConnectedAsync(
+            mcpSecret: null, mcpServiceAccounts: ["system:serviceaccount:dfrnt-automate-mcp-87595416-*"]);
+        await using var _ = app;
+
+        await AppPass(await AssertionExchange(app, tokens.Access,
+            ServiceAccountToken(subject: "system:serviceaccount:dfrnt-automate-mcp-87595416-staging:default")));
+        await AssertUnauthenticated(await AssertionExchange(app, tokens.Access,
+            ServiceAccountToken(subject: "system:serviceaccount:dfrnt-automate-mcp-87595416:default")));
+    }
+
     [Theory]
     [InlineData(Issuer)]
     [InlineData(Issuer + "/")]

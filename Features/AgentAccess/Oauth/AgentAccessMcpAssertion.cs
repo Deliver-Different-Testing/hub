@@ -22,16 +22,30 @@ public sealed partial class AgentAccessMcpAssertionOptions
     /// <summary>The cluster's OIDC issuer (an https URL), or null when unset or unusable.</summary>
     public Uri? ClusterIssuer { get; }
 
-    /// <summary>Allowed subjects, each "system:serviceaccount:{namespace}:{service account}".</summary>
+    /// <summary>
+    /// Allowed subjects, each "system:serviceaccount:{namespace}:{service account}", or a prefix of one ending in a
+    /// single "*" that matches every subject starting with the rest.
+    /// </summary>
     public IReadOnlySet<string> ServiceAccounts { get; }
 
     /// <summary>False unless both the issuer and at least one service account are configured.</summary>
     public bool Enabled => ClusterIssuer is not null && ServiceAccounts.Count > 0;
 
+    /// <summary>Ordinal: an exact entry, or a trailing-"*" entry whose prefix the subject starts with.</summary>
+    public bool Allows(string subject) =>
+        !string.IsNullOrEmpty(subject)
+        && ServiceAccounts.Any(entry => entry.EndsWith('*')
+            ? subject.StartsWith(entry[..^1], StringComparison.Ordinal)
+            : string.Equals(entry, subject, StringComparison.Ordinal));
+
     public static AgentAccessMcpAssertionOptions Disabled { get; } = new(null, new HashSet<string>());
 
-    [GeneratedRegex("^system:serviceaccount:[^:]+:[^:]+$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^system:serviceaccount:[^:*]+:[^:*]+$", RegexOptions.CultureInvariant)]
     private static partial Regex ServiceAccountSubject();
+
+    // At least the start of a namespace before the one "*": a broader pattern would let any workload in the cluster in.
+    [GeneratedRegex(@"^system:serviceaccount:[^:*]+(:[^:*]*)?\*$", RegexOptions.CultureInvariant)]
+    private static partial Regex ServiceAccountPrefix();
 
     public static AgentAccessMcpAssertionOptions Resolve(string? clusterIssuer, IEnumerable<string>? serviceAccounts)
     {
@@ -55,13 +69,13 @@ public sealed partial class AgentAccessMcpAssertionOptions
         foreach (var account in serviceAccounts ?? [])
         {
             var trimmed = account?.Trim() ?? string.Empty;
-            if (ServiceAccountSubject().IsMatch(trimmed))
+            if (ServiceAccountSubject().IsMatch(trimmed) || ServiceAccountPrefix().IsMatch(trimmed))
             {
                 accounts.Add(trimmed);
             }
             else
             {
-                Log.Warning("AgentAccess:McpServiceAccounts entry {Entry} is not system:serviceaccount:<namespace>:<name>; it is ignored", account);
+                Log.Warning("AgentAccess:McpServiceAccounts entry {Entry} is not system:serviceaccount:<namespace>:<name> or a prefix of one ending in a single *; it is ignored", account);
             }
         }
 
@@ -210,7 +224,7 @@ public sealed class AgentAccessMcpAssertionValidator(AgentAccessMcpAssertionOpti
             return AgentAccessMcpAssertionResult.Refused("lifetime_too_long");
         }
 
-        if (token.Subject is not { Length: > 0 } subject || !options.ServiceAccounts.Contains(subject))
+        if (token.Subject is not { Length: > 0 } subject || !options.Allows(subject))
         {
             return AgentAccessMcpAssertionResult.Refused("service_account_not_allowed");
         }
