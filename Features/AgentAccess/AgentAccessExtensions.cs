@@ -57,11 +57,25 @@ public static class AgentAccessExtensions
             Log.Information("Agent access accepts client ID metadata documents from {Hosts}", string.Join(", ", metadataOptions.AllowedHosts));
         }
 
+        var mcpAssertion = AgentAccessMcpAssertionOptions.Resolve(settings?.ClusterIssuer, settings?.McpServiceAccounts);
+        services.AddSingleton(mcpAssertion);
+        services.AddSingleton(new AgentAccessMcpExchange(
+            SecretConfigured: !string.IsNullOrEmpty(settings?.McpClientSecret), AssertionConfigured: mcpAssertion.Enabled));
+        services.AddSingleton<IAgentAccessClusterJwks, AgentAccessClusterJwks>();
+        services.TryAddSingleton<IAgentAccessMcpAssertionValidator, AgentAccessMcpAssertionValidator>();
+        services.AddHttpClient(AgentAccessClusterJwks.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+        if (mcpAssertion.Enabled)
+        {
+            Log.Information("Agent access accepts the MCP server's service-account token from {ClusterIssuer} for {ServiceAccounts}",
+                mcpAssertion.ClusterIssuer, string.Join(", ", mcpAssertion.ServiceAccounts));
+        }
+
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));
         services.AddSingleton<IAgentAccessClientSeeder>(provider =>
             new AgentAccessClientSeeder(
-                provider.GetRequiredService<IServiceScopeFactory>(), clients, mcpClientSecret: settings?.McpClientSecret));
+                provider.GetRequiredService<IServiceScopeFactory>(), clients,
+                mcpClientSecret: settings?.McpClientSecret, mcpAssertion: mcpAssertion.Enabled));
         if (bootstrap.State.Persistent)
         {
             Log.Information(
@@ -149,6 +163,7 @@ public static class AgentAccessExtensions
 
                 server.AddEventHandler(AgentAccessClientMetadataHandler.Descriptor);
                 server.AddEventHandler(AgentAccessClientMetadataDiscoveryHandler.Descriptor);
+                server.AddEventHandler(AgentAccessMcpAssertionHandler.Descriptor);
 
                 server.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()

@@ -406,7 +406,9 @@ public partial class AgentAccessAuthorizePipelineTests
 
     private static async Task<WebApplication> StartAsync(
         bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret",
-        AgentAccessReason closedReason = AgentAccessReason.Error, IAgentAccessKeySource? keySource = null)
+        AgentAccessReason closedReason = AgentAccessReason.Error, IAgentAccessKeySource? keySource = null,
+        string? clusterIssuer = ClusterIssuer, string[]? mcpServiceAccounts = null, string? issuer = Issuer)
+    {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
             gateOpen, gateOpen ? AgentAccessReason.Enabled : closedReason));
@@ -442,7 +444,13 @@ public partial class AgentAccessAuthorizePipelineTests
         identities.LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new AgentPassLoad(AgentGrantEligibility.Eligible, new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "New Zealand Standard Time", "urgent", true, false, 2, 4, null, "Sam", "Staff", 1)));
         builder.Services.AddSingleton(identities);
-        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(SsmPrefix: keySource is null ? null : "/hub/urgent/agent-access", Issuer: Issuer, KeySource: keySource, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret));
+        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(
+            SsmPrefix: keySource is null ? null : "/hub/urgent/agent-access", Issuer: issuer, KeySource: keySource,
+            Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret,
+            ClusterIssuer: clusterIssuer, McpServiceAccounts: mcpServiceAccounts ?? [McpServiceAccount]));
+        var cluster = new ClusterOidcStub();
+        builder.Services.AddSingleton(cluster);
+        builder.Services.AddHttpClient(AgentAccessClusterJwks.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => cluster);
         var metadataFetcher = Substitute.For<IClientMetadataFetcher>();
         builder.Services.RemoveAll(typeof(IClientMetadataFetcher));
         builder.Services.AddSingleton(metadataFetcher);
