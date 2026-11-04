@@ -116,7 +116,7 @@ public class AgentAccessPipelineTests
     {
         var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
         parameters[AgentAccessKeyLoader.PreviousSigningKeyName] = AgentAccessKeyLoaderTests.Pem();
-        var expected = AgentAccessKeyLoader.Load(parameters).Keys!;
+        var expected = AgentAccessKeyLoaderTests.Load(parameters).Keys!;
         await using var app = await StartAsync(gateOpen: true, AgentAccessPersistentKeysTests.Settings(parameters));
 
         var body = await Client(app).GetStringAsync("/.well-known/jwks", TestContext.Current.CancellationToken);
@@ -126,7 +126,7 @@ public class AgentAccessPipelineTests
         var kids = keys.Select(k => k.GetProperty("kid").GetString()).ToArray();
         Assert.Equal(2, kids.Length);
         Assert.Contains(expected.Signing.KeyId, kids);
-        Assert.Contains(expected.PreviousSigning!.KeyId, kids);
+        Assert.Contains(expected.SigningKeys[1].KeyId, kids);
         Assert.DoesNotContain(keys, k => k.GetProperty("kid").GetString() == expected.Encryption.KeyId);
         foreach (var key in keys)
         {

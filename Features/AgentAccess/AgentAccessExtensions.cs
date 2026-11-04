@@ -64,7 +64,9 @@ public static class AgentAccessExtensions
                 provider.GetRequiredService<IServiceScopeFactory>(), clients, mcpClientSecret: settings?.McpClientSecret));
         if (bootstrap.State.Persistent)
         {
-            Log.Information("Agent access keys are persistent (signing kid {SigningKeyId})", bootstrap.State.SigningKeyId);
+            Log.Information(
+                "Agent access keys are persistent (signing kid {SigningKeyId}, encryption kid {EncryptionKeyId})",
+                bootstrap.State.SigningKeyId, bootstrap.State.EncryptionKeyId);
         }
         else
         {
@@ -114,14 +116,17 @@ public static class AgentAccessExtensions
                 // ephemeral keys so the options validate; the gate stays closed in that case.
                 if (bootstrap.Keys is { } keys)
                 {
-                    // OpenIddict signs with the first credential; the previous key is only published.
-                    server.AddSigningKey(keys.Signing);
-                    if (keys.PreviousSigning is { } previous)
+                    // In loader order: OpenIddict signs and encrypts with the first credential; the rest are only
+                    // published (signing) or accepted (encryption).
+                    foreach (var signing in keys.SigningKeys)
                     {
-                        server.AddSigningKey(previous);
+                        server.AddSigningKey(signing);
                     }
 
-                    server.AddEncryptionKey(keys.Encryption);
+                    foreach (var encryption in keys.EncryptionKeys)
+                    {
+                        server.AddEncryptionKey(encryption);
+                    }
                 }
                 else
                 {
