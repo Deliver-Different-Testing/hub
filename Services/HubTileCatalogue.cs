@@ -137,6 +137,14 @@ public static class HubTileCatalogue
                 ctx => ctx.AppUrl("dfrntcrm"),
                 _ => true),
 
+            // DFRNT Voice (Una, the phone agent), a paid add-on (Steve 2026-10-31).
+            // Its front door at voice.<tenant> reads this same sign-in cookie.
+            // Catalogued closed for tenants (dbmigrationsv2 20261031160000):
+            // DF Admin opens it per tenant in Access Control.
+            new("hub-tile-dfrnt-voice", "DFRNT Voice", "dfrnt-voice.svg",
+                ctx => ctx.AppUrl("voice"),
+                _ => true),
+
             new("hub-tile-despatchweb", "Dispatch", "dispatch.svg",
                 ctx => ctx.AppUrl("despatch"),
                 _ => true),
