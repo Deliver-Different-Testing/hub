@@ -28,9 +28,9 @@ public partial class AgentAccessAuthorizePipelineTests
 
     private sealed record Tokens(string Access, string Refresh);
 
-    private static async Task<(WebApplication App, Tokens Tokens, string AuthorizationId)> ConnectedAsync()
+    private static async Task<(WebApplication App, Tokens Tokens, string AuthorizationId)> ConnectedAsync(string? mcpSecret = "mcp-secret", string? clusterIssuer = ClusterIssuer)
     {
-        var app = await StartAsync();
+        var app = await StartAsync(mcpSecret: mcpSecret, clusterIssuer: clusterIssuer);
         var code = AssertRedirectToClient(await Consent(app, AuthorizeUrl(), "allow"))["code"]!;
         var tokens = await ReadTokens(await Token(app, code, Verifier));
         return (app, tokens!, AuthorizationId(app));

@@ -10,6 +10,8 @@ namespace Hub.Features.AgentAccess.Keys;
 /// <param name="ClientMetadataHosts">Hosts whose client ID metadata documents may be fetched (AgentAccess:ClientMetadata:AllowedHosts). Empty = the feature is off.</param>
 /// <param name="McpClientSecret">Secret of the confidential token-exchange client dfrnt-mcp, one per tenant Hub, from env AgentAccessMcpClientSecret. Unset = the exchange is off.</param>
 /// <param name="McpResource">Optional override of this tenant's MCP resource URL, from env AgentAccessMcpResource. Unset = derived from the issuer.</param>
+/// <param name="ClusterIssuer">OIDC issuer of the Kubernetes cluster whose projected service-account tokens the MCP server presents (AgentAccess:ClusterIssuer). Unset = assertion auth is off.</param>
+/// <param name="McpServiceAccounts">Service-account subjects (system:serviceaccount:ns:sa) allowed to authenticate as dfrnt-mcp (AgentAccess:McpServiceAccounts). Empty = assertion auth is off.</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
     string? Issuer = null,
@@ -18,7 +20,9 @@ public sealed record AgentAccessOAuthSettings(
     IReadOnlyList<AgentAccessClientOptions>? Clients = null,
     string? McpResource = null,
     IReadOnlyList<string>? ClientMetadataHosts = null,
-    string? McpClientSecret = null);
+    string? McpClientSecret = null,
+    string? ClusterIssuer = null,
+    IReadOnlyList<string>? McpServiceAccounts = null);
 
 public sealed record AgentAccessBootstrapResult(AgentAccessKeys? Keys, Uri? Issuer, AgentAccessKeyState State);
 
