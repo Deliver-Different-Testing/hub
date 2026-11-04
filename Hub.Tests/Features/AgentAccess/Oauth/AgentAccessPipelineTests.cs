@@ -160,7 +160,7 @@ public class AgentAccessPipelineTests
     }
 
     private static Task<WebApplication> StartAsync(bool gateOpen, AgentAccessOAuthSettings? settings = null) =>
-        StartAsync(gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.FeatureNotReleased, settings);
+        StartAsync(gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.Error, settings);
 
     private static async Task<WebApplication> StartAsync(
         AgentAccessReason reason, AgentAccessOAuthSettings? settings = null, bool tenantKnown = true)

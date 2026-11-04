@@ -139,8 +139,6 @@ public class AgentAccessEndpointGateTests
     [Theory]
     [InlineData(AgentAccessReason.TenantSwitchOff)]
     [InlineData(AgentAccessReason.ForcedOff)]
-    [InlineData(AgentAccessReason.LifecycleNotAllowed)]
-    [InlineData(AgentAccessReason.LifecycleUnknown)]
     public async Task A_switched_off_tenant_still_serves_discovery(AgentAccessReason reason)
     {
         foreach (var path in new[] { "/.well-known/openid-configuration", "/.well-known/oauth-authorization-server", "/.well-known/jwks" })
@@ -185,7 +183,6 @@ public class AgentAccessEndpointGateTests
     }
 
     [Theory]
-    [InlineData(AgentAccessReason.FeatureNotReleased)]
     [InlineData(AgentAccessReason.KeysNotPersistent)]
     [InlineData(AgentAccessReason.Error)]
     public async Task Dark_reasons_hide_even_discovery_and_authorize(AgentAccessReason reason)
@@ -276,7 +273,7 @@ public class AgentAccessEndpointGateTests
     // ---- helpers ----------------------------------------------------------
 
     private static AgentAccessDecision Decision(bool enabled) =>
-        new(enabled, enabled ? AgentAccessReason.Enabled : AgentAccessReason.FeatureNotReleased);
+        new(enabled, enabled ? AgentAccessReason.Enabled : AgentAccessReason.Error);
 
     private static IAgentAccessTenantResolver Tenants()
     {

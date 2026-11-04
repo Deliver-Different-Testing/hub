@@ -370,7 +370,7 @@ public partial class AgentAccessAuthorizePipelineTests
 
     private static async Task<WebApplication> StartAsync(
         bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret",
-        AgentAccessReason closedReason = AgentAccessReason.FeatureNotReleased)
+        AgentAccessReason closedReason = AgentAccessReason.Error)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(

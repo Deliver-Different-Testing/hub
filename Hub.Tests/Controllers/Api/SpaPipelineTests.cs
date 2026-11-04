@@ -67,7 +67,7 @@ public sealed class HubFactory : WebApplicationFactory<Program>
 
             var gate = Substitute.For<IAgentAccessGate>();
             gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(_ => new AgentAccessDecision(
-                AgentGateOpen, AgentGateOpen ? AgentAccessReason.Enabled : AgentAccessReason.FeatureNotReleased));
+                AgentGateOpen, AgentGateOpen ? AgentAccessReason.Enabled : AgentAccessReason.Error));
             services.AddScoped(_ => gate);
             var tenants = Substitute.For<IAgentAccessTenantResolver>();
             tenants.ResolveAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenant(12, "urgent", "Urgent Couriers"));
