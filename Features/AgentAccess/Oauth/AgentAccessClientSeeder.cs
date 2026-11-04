@@ -44,8 +44,6 @@ public sealed class AgentAccessClientSeeder(
 
     public bool Seeded => _done;
 
-    public bool TokenExchangeConfigured => !string.IsNullOrEmpty(mcpClientSecret);
-
     private bool McpExchangeConfigured => !string.IsNullOrEmpty(mcpClientSecret) || mcpAssertion;
 
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
@@ -286,9 +284,6 @@ public interface IAgentAccessClientSeeder
 {
     /// <summary>True once every configured client has been written, or there was nothing to write.</summary>
     bool Seeded { get; }
-
-    /// <summary>True when the token-exchange client's secret is configured, so the MCP server can exchange passes.</summary>
-    bool TokenExchangeConfigured { get; }
 
     Task EnsureAsync(CancellationToken cancellationToken = default);
 }

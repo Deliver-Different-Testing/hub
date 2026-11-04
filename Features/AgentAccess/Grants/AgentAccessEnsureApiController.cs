@@ -21,7 +21,8 @@ public class AgentAccessEnsureApiController(
     IAgentAccessGate gate,
     IAgentAccessClientSeeder seeder,
     IAgentAccessKeyState keys,
-    AgentAccessIssuer issuer) : Controller
+    AgentAccessIssuer issuer,
+    AgentAccessMcpExchange mcpExchange) : Controller
 {
     [HttpPost("~/api/agent-access/tenants/{tenantId:int}/ensure")]
     public async Task<IActionResult> Ensure(
@@ -54,9 +55,9 @@ public class AgentAccessEnsureApiController(
             clientsSeeded
                 ? new("clients", true, "The AI apps are registered.")
                 : new("clients", false, decision.Enabled ? "The AI apps could not be registered yet." : "The AI apps are not registered until access is on."),
-            seeder.TokenExchangeConfigured
+            mcpExchange.Configured
                 ? new("mcpExchange", true, "The connection to the DFRNT MCP server is set up.")
-                : new("mcpExchange", false, "The connection to the DFRNT MCP server is not set up.")
+                : new("mcpExchange", false, "The MCP server can't exchange tokens: neither a client secret nor service-account sign-in is configured.")
         };
 
         return Ok(new AgentAccessEnsureResult(decision.Enabled && checks.All(c => c.Ok), decision.Reason.ToString(), checks));
@@ -69,6 +70,8 @@ public class AgentAccessEnsureApiController(
         AgentAccessReason.Error => new("switch", false, "The AI app access setting could not be read."),
         // The gate reads the switch only after the keys, so it says nothing about the switch here.
         AgentAccessReason.KeysNotPersistent => new("switch", false, "The AI app access setting is not checked until the sign-in keys are set up."),
-        _ => new("switch", true, "AI app access is switched on.")
+        AgentAccessReason.Enabled => new("switch", true, "AI app access is switched on."),
+        // Fail closed: a reason added later must not read as "switched on".
+        _ => new("switch", false, "The AI app access setting could not be confirmed.")
     };
 }

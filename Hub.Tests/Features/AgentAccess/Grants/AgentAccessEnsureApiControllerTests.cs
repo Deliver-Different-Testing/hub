@@ -4,6 +4,7 @@ using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
+using System.Text.Json;
 
 namespace Hub.Tests.Features.AgentAccess.Grants;
 
@@ -17,6 +18,7 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
     private readonly IAgentAccessClientSeeder _seeder = Substitute.For<IAgentAccessClientSeeder>();
     private IAgentAccessKeyState _keys = new AgentAccessKeyState(true, "persistent", "kid");
     private AgentAccessIssuer _issuer = new(new Uri("https://hub.acme.example"));
+    private AgentAccessMcpExchange _mcpExchange = new(SecretConfigured: true, AssertionConfigured: false);
 
     public AgentAccessEnsureApiControllerTests()
     {
@@ -24,7 +26,6 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
         _tenants.ResolveAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenant(12, "acme", "Acme"));
         _gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(true, AgentAccessReason.Enabled));
         _seeder.Seeded.Returns(true);
-        _seeder.TokenExchangeConfigured.Returns(true);
     }
 
     public void Dispose()
@@ -35,7 +36,7 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private AgentAccessEnsureApiController Sut() => new(_tenants, _gate, _seeder, _keys, _issuer);
+    private AgentAccessEnsureApiController Sut() => new(_tenants, _gate, _seeder, _keys, _issuer, _mcpExchange);
 
     private async Task<AgentAccessEnsureResult> Ensure()
     {
@@ -135,16 +136,58 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
         Assert.False(Check(result, "clients").Ok);
     }
 
-    [Fact]
-    public async Task A_missing_mcp_exchange_secret_fails_the_mcp_exchange_check()
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
+    public async Task The_mcp_exchange_check_passes_when_a_secret_or_service_account_sign_in_is_configured(bool secret, bool assertion, bool ok)
     {
-        _seeder.TokenExchangeConfigured.Returns(false);
+        _mcpExchange = new AgentAccessMcpExchange(secret, assertion);
+
+        var result = await Ensure();
+
+        Assert.Equal(ok, Check(result, "mcpExchange").Ok);
+        Assert.Equal(ok, result.Ready);
+        Assert.True(Check(result, "clients").Ok);
+        if (!ok) Assert.Contains("neither a client secret nor service-account sign-in", Check(result, "mcpExchange").Detail);
+    }
+
+    [Fact]
+    public async Task An_unknown_gate_reason_fails_the_switch_check_closed()
+    {
+        _gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(false, (AgentAccessReason)999));
 
         var result = await Ensure();
 
         Assert.False(result.Ready);
-        Assert.False(Check(result, "mcpExchange").Ok);
-        Assert.True(Check(result, "clients").Ok);
+        Assert.False(Check(result, "switch").Ok);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task A_non_positive_tenant_id_is_a_bad_request_and_reads_nothing(int tenantId)
+    {
+        Assert.IsType<BadRequestResult>(await Sut().Ensure(tenantId, Key, Ct));
+
+        await _tenants.DidNotReceiveWithAnyArgs().ResolveAsync(default);
+        await _seeder.DidNotReceiveWithAnyArgs().EnsureAsync(default);
+    }
+
+    [Fact]
+    public async Task The_result_serialises_as_camel_case_json()
+    {
+        var result = await Ensure();
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("ready").GetBoolean());
+        Assert.Equal("Enabled", root.GetProperty("reason").GetString());
+        var first = root.GetProperty("checks")[0];
+        Assert.Equal("keys", first.GetProperty("key").GetString());
+        Assert.True(first.GetProperty("ok").GetBoolean());
+        Assert.False(string.IsNullOrEmpty(first.GetProperty("detail").GetString()));
     }
 
     [Fact]
