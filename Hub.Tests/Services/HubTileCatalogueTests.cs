@@ -114,6 +114,18 @@ public class HubTileCatalogueTests
     }
 
     [Fact]
+    public void The_dfrnt_voice_tile_opens_the_tenant_voice_front_door()
+    {
+        // voice.<tenant> is the DFRNT Voice front door; it reads the Hub cookie itself.
+        var voice = HubTileCatalogue.Resolve(Permissive(), AllKeys())
+            .Single(t => t.Key == "hub-tile-dfrnt-voice");
+
+        Assert.False(voice.IsDisabled);
+        Assert.Equal("https://voice.test", voice.Href);
+        Assert.Equal("dfrnt-voice.svg", voice.Icon);
+    }
+
+    [Fact]
     public void The_setup_dashboard_tile_opens_the_spa_base_path()
     {
         // The SPA is served under /setup-dashboard/, not the host root.
