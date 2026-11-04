@@ -401,6 +401,50 @@ public class AgentAccessKeyBootstrapTests
         Assert.Null(AgentAccessKeyBootstrap.ResolvePrefix(null, issuer));
     }
 
+    [Fact]
+    public void A_configured_issuer_wins_over_the_tenant_url()
+    {
+        var (issuer, source) = AgentAccessKeyBootstrap.ResolveIssuer(
+            " https://hub.urgent.deliverdifferent.com ", "https://app_name.other.deliverdifferent.com");
+
+        Assert.Equal("https://hub.urgent.deliverdifferent.com", issuer);
+        Assert.Equal(AgentAccessIssuerSource.Configured, source);
+    }
+
+    [Theory]
+    [InlineData("https://app_name.urgent.deliverdifferent.com", "https://hub.urgent.deliverdifferent.com")]
+    [InlineData("https://app_name.urgent.staging.deliverdifferent.com", "https://hub.urgent.staging.deliverdifferent.com")]
+    [InlineData("https://app_name.staging.deliverdifferent.com", "https://hub.staging.deliverdifferent.com")]
+    [InlineData(" https://app_name.urgent.deliverdifferent.com/ ", "https://hub.urgent.deliverdifferent.com")]
+    public void Without_one_the_issuer_is_this_tenants_hub_from_the_tenant_url(string tenantUrl, string expected)
+    {
+        var (issuer, source) = AgentAccessKeyBootstrap.ResolveIssuer(null, tenantUrl);
+
+        Assert.Equal(expected, issuer);
+        Assert.Equal(AgentAccessIssuerSource.TenantUrl, source);
+        Assert.NotNull(AgentAccessKeyBootstrap.ResolvePrefix(null, issuer));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("https://booking.urgent.deliverdifferent.com")]
+    [InlineData("http://app_name.urgent.deliverdifferent.com")]
+    [InlineData("https://app_name.local.deliverdifferent.com")]
+    [InlineData("https://app_name.dev.deliverdifferent.com")]
+    [InlineData("https://app_name.urgent.example.test")]
+    [InlineData("https://app_name.urgent.notdeliverdifferent.com")]
+    [InlineData("https://x.app_name.urgent.deliverdifferent.com")]
+    [InlineData("https://app_name.urgent.deliverdifferent.com:8443")]
+    [InlineData("not a url app_name")]
+    public void A_tenant_url_that_names_no_tenant_hub_leaves_the_issuer_unset(string? tenantUrl)
+    {
+        var (issuer, source) = AgentAccessKeyBootstrap.ResolveIssuer("  ", tenantUrl);
+
+        Assert.Null(issuer);
+        Assert.Equal(AgentAccessIssuerSource.None, source);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     // Stands in for SSM: reads see what earlier writes stored, each with the date it was written. A stale

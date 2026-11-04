@@ -57,7 +57,11 @@ builder.Services.AddAiAssistant(builder.Configuration, builder.Environment);
 // Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix, else /hub/<env>/<tenant>/agent-access for the issuer's
 // host, and are created there when missing; neither = ephemeral keys and a closed gate.
 var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
-var agentAccessIssuer = Environment.GetEnvironmentVariable("AgentAccessIssuer");
+// Never derived in Development: a local TenantURL may name a deployed tenant, whose issuer and keys a local Hub must not take on.
+var (agentAccessIssuer, agentAccessIssuerSource) = AgentAccessKeyBootstrap.ResolveIssuer(
+    Environment.GetEnvironmentVariable("AgentAccessIssuer"),
+    builder.Environment.IsDevelopment() ? null : Environment.GetEnvironmentVariable("TenantURL"));
+Log.Information("Agent access issuer: {Issuer} (source: {Source})", agentAccessIssuer ?? "unset", agentAccessIssuerSource);
 // The OAuth store should use its own least-privilege SQL login (reaches only the McpOAuth tables).
 var agentAccessStore = AgentAccessOAuthStore.ResolveConnectionString(
     connectionString, Environment.GetEnvironmentVariable("AgentAccessOAuthSQLConnection"));

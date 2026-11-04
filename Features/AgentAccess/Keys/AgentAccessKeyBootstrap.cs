@@ -7,7 +7,7 @@ using Hub.Services;
 namespace Hub.Features.AgentAccess.Keys;
 
 /// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = /hub/&lt;env&gt;/&lt;tenant&gt;/agent-access, both taken from the issuer host.</param>
-/// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer.</param>
+/// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer, else derived from TenantURL (see ResolveIssuer).</param>
 /// <param name="KeySource">Where the key parameters are read from and created in.</param>
 /// <param name="LoadTimeout">Upper bound on the whole startup SSM exchange: read, any create and the re-read (default 10 s).</param>
 /// <param name="Clients">Pre-registered OAuth clients (AgentAccess:Clients); seeded once agent access opens.</param>
@@ -29,6 +29,8 @@ public sealed record AgentAccessOAuthSettings(
     TimeSpan? KeyWriteSettle = null,
     string? ClusterIssuer = null,
     IReadOnlyList<string>? McpServiceAccounts = null);
+
+public enum AgentAccessIssuerSource { None, Configured, TenantUrl }
 
 public sealed record AgentAccessBootstrapResult(AgentAccessKeys? Keys, Uri? Issuer, AgentAccessKeyState State);
 
@@ -91,6 +93,38 @@ public static class AgentAccessKeyBootstrap
         var reason = outcome.Created ? "persistent keys created in SSM and loaded back" : "persistent keys loaded from SSM";
         return new AgentAccessBootstrapResult(
             load.Keys, issuer, new AgentAccessKeyState(true, reason, load.Keys.Signing.KeyId, load.Keys.Encryption.KeyId));
+    }
+
+    private const string TenantUrlPattern = "https://app_name.";
+
+    /// <summary>
+    /// AgentAccessIssuer when set, else this tenant's Hub origin from TenantURL (https://app_name.&lt;tenant host&gt;
+    /// becomes https://hub.&lt;tenant host&gt;), but only when that names a deliverdifferent.com Hub with a known tenant.
+    /// Otherwise none, and the gate stays closed.
+    /// </summary>
+    public static (string? Issuer, AgentAccessIssuerSource Source) ResolveIssuer(string? configuredIssuer, string? tenantUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredIssuer)) return (configuredIssuer.Trim(), AgentAccessIssuerSource.Configured);
+
+        return HubOriginFromTenantUrl(tenantUrl) is { } derived
+            ? (derived, AgentAccessIssuerSource.TenantUrl)
+            : (null, AgentAccessIssuerSource.None);
+    }
+
+    private static string? HubOriginFromTenantUrl(string? tenantUrl)
+    {
+        var trimmed = tenantUrl?.Trim();
+        if (string.IsNullOrEmpty(trimmed) || !trimmed.StartsWith(TenantUrlPattern, StringComparison.OrdinalIgnoreCase)) return null;
+
+        if (!Uri.TryCreate("https://hub." + trimmed[TenantUrlPattern.Length..], UriKind.Absolute, out var uri)
+            || !uri.IsDefaultPort
+            || !uri.Host.EndsWith(".deliverdifferent.com", StringComparison.OrdinalIgnoreCase)
+            || AccountService.ExtractEnvAndTenantFromHost(uri.Host) is null)
+        {
+            return null;
+        }
+
+        return uri.GetLeftPart(UriPartial.Authority);
     }
 
     /// <summary>
