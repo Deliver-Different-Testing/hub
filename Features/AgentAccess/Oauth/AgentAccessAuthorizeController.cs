@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
 using System.Security.Claims;
 using System.Text.Json;
+using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Grants;
+using Hub.Interfaces;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -24,7 +26,10 @@ public class AgentAccessAuthorizeController(
     AgentAccessClientCatalog catalog,
     IAgentGrantStore grants,
     TimeProvider time,
-    IAntiforgery antiforgery) : Controller
+    IAntiforgery antiforgery,
+    IAgentAccessTenantResolver tenants,
+    IAuthenticationRepository master,
+    IAccountService accounts) : Controller
 {
     private const string CookieScheme = "Identity.Application";
     private const string TenantIdProperty = "tenant_id";
@@ -37,6 +42,7 @@ public class AgentAccessAuthorizeController(
                       ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
 
         var user = await ReadUserAsync();
+        var hubTenant = await tenants.ResolveAsync(HttpContext.RequestAborted);
         var application = await applications.FindByClientIdAsync(request.ClientId!)
                           ?? throw new InvalidOperationException("The client application cannot be found.");
 
@@ -50,7 +56,8 @@ public class AgentAccessAuthorizeController(
                 request.GetResources().ToList(),
                 (request.Prompt ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries),
                 existing),
-            resource.Value);
+            resource.Value,
+            hubTenant?.TenantId);
 
         switch (decision.Outcome)
         {
@@ -61,6 +68,9 @@ public class AgentAccessAuthorizeController(
                 return Challenge(
                     new AuthenticationProperties { RedirectUri = Request.PathBase + Request.Path + Request.QueryString },
                     CookieScheme);
+
+            case AgentAccessAuthorizeOutcome.TenantSwitchRequired:
+                return await SwitchTenantAsync(request, user!, application, hubTenant!);
 
             case AgentAccessAuthorizeOutcome.Issue:
                 return await IssueAsync(request, user!, application, createAuthorization: false);
@@ -79,6 +89,64 @@ public class AgentAccessAuthorizeController(
             new Uri(resource.Value!).Host,
             request.GetScopes().ToList()));
     }
+
+    // Only DFRNT staff belong to more than one tenant. They are told which tenant they are signed in to and offered this
+    // Hub's; the switch is the one Hub's own organisation picker makes, and the authorization then starts again with the
+    // new cookie. Someone who does not belong to this Hub's tenant is not offered one.
+    private async Task<IActionResult> SwitchTenantAsync(
+        OpenIddictRequest request, AgentAccessUser user, object application, AgentAccessTenant hubTenant)
+    {
+        var member = int.TryParse(user.UserId, out var userId)
+                     && await master.IsUserAssociatedWithTenantAsync(userId, hubTenant.TenantId);
+        string? error = null;
+
+        if (Request.Method == HttpMethods.Post)
+        {
+            try
+            {
+                await antiforgery.ValidateRequestAsync(HttpContext);
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return BadRequest();
+            }
+
+            if (!string.Equals(Request.Form["decision"], "switch", StringComparison.Ordinal))
+            {
+                return Refuse(Errors.AccessDenied, "The user did not switch tenant.");
+            }
+
+            if (member)
+            {
+                // The result's redirect URL is the hop to the tenant's own Hub, which is this one, so it is not followed.
+                var result = await accounts.UpdateCurrentTenantAsync(HttpContext, hubTenant.TenantId);
+                if (result.Success)
+                {
+                    Log.Information(
+                        "Agent access: user {UserId} switched from tenant {FromTenantId} to {ToTenantId} to connect {ClientId}",
+                        user.UserId, user.TenantId, hubTenant.TenantId, request.ClientId);
+                    return Redirect(AuthorizeUrlFromForm());
+                }
+
+                error = result.Message ?? "Couldn't switch organisation. Try again.";
+            }
+        }
+
+        ApplyConsentHeaders();
+        var current = await master.GetTenantByIdAsync(user.TenantId!.Value);
+        return View("~/Features/AgentAccess/Views/SwitchTenant.cshtml", new AgentAccessSwitchTenantViewModel(
+            await applications.GetDisplayNameAsync(application) ?? request.ClientId!,
+            current?.Name ?? current?.Code ?? "another organisation",
+            hubTenant.Name,
+            member,
+            error));
+    }
+
+    // The original authorization request, from the switch form's hidden fields.
+    private string AuthorizeUrlFromForm() =>
+        Request.PathBase + Request.Path + QueryString.Create(Request.Form
+            .Where(p => p.Key is not ("decision" or "__RequestVerificationToken"))
+            .SelectMany(p => p.Value.Select(v => KeyValuePair.Create(p.Key, v))));
 
     private async Task<IActionResult> DecideAsync(OpenIddictRequest request, AgentAccessUser user, object application)
     {
@@ -201,6 +269,13 @@ public class AgentAccessAuthorizeController(
         Response.Headers.CacheControl = "no-store";
     }
 }
+
+public sealed record AgentAccessSwitchTenantViewModel(
+    string ClientName,
+    string CurrentTenantName,
+    string HubTenantName,
+    bool CanSwitch,
+    string? Error);
 
 public sealed record AgentAccessConsentViewModel(
     string ClientName,

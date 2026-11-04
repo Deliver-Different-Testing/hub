@@ -67,8 +67,11 @@ public sealed class HubFactory : WebApplicationFactory<Program>
 
             var gate = Substitute.For<IAgentAccessGate>();
             gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(_ => new AgentAccessDecision(
-                AgentGateOpen, AgentGateOpen ? AgentAccessReason.Enabled : AgentAccessReason.ForcedOff));
+                AgentGateOpen, AgentGateOpen ? AgentAccessReason.Enabled : AgentAccessReason.FeatureNotReleased));
             services.AddScoped(_ => gate);
+            var tenants = Substitute.For<IAgentAccessTenantResolver>();
+            tenants.ResolveAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenant(12, "urgent", "Urgent Couriers"));
+            services.AddScoped(_ => tenants);
             services.AddSingleton(Substitute.For<IAgentAccessClientSeeder>());
             services.AddScoped(_ => Accounts);
         });
@@ -322,6 +325,19 @@ public sealed class SpaPipelineTests : IClassFixture<HubFactory>
         var response = await client.GetAsync("/connect/authorize", Ct);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.False(IsSpaShell(await BodyAsync(response)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Fallback_does_not_swallow_the_rfc8414_metadata(bool gateOpen)
+    {
+        using var factory = new HubFactory { AgentGateOpen = gateOpen };
+        var client = factory.CreateSpaClient();
+
+        var response = await client.GetAsync("/.well-known/oauth-authorization-server", Ct);
+
         Assert.False(IsSpaShell(await BodyAsync(response)));
     }
 

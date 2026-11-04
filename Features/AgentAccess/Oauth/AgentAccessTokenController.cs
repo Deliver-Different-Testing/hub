@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Grants;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
@@ -24,7 +25,8 @@ public class AgentAccessTokenController(
     IAgentGrantStore grants,
     IAgentPassIdentityLoader identities,
     IAgentSubjectTokenValidator subjectTokens,
-    TimeProvider time) : Controller
+    TimeProvider time,
+    IAgentAccessTenantResolver tenants) : Controller
 {
     private const string AppPassAudience = "dfrnt-apps";
     private const string AccessTokenType = "urn:ietf:params:oauth:token-type:access_token";
@@ -162,6 +164,14 @@ public class AgentAccessTokenController(
         {
             await Revoke(authorization, authorizationId, cancellationToken);
             return new GrantEvaluation(AgentGrantDecision.Refused("The authorization is incomplete; approve the app again."), null);
+        }
+
+        // A Hub serves one tenant; a grant made for another is never honoured here.
+        if ((await tenants.ResolveAsync(cancellationToken))?.TenantId != tenantId)
+        {
+            Log.Warning("Agent access grant {AuthorizationId} for tenant {TenantId} was presented to another tenant's Hub",
+                authorizationId, tenantId);
+            return new GrantEvaluation(AgentGrantDecision.Refused("The authorization belongs to a different tenant."), null);
         }
 
         var valid = string.Equals(status, Statuses.Valid, StringComparison.Ordinal);
