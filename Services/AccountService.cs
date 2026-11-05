@@ -896,6 +896,20 @@ public class AccountService(
     }
 
     /// <summary>
+    /// Returns the environment ("prod" or "staging") and tenant code a request host serves, or null where
+    /// <see cref="ExtractTenantFromHost"/> finds no tenant (local/dev shared host, unrecognised shape).
+    /// </summary>
+    public static (string Env, string Tenant)? ExtractEnvAndTenantFromHost(string host)
+    {
+        if (ExtractTenantFromHost(host) is not { } tenant || ParseHost(host) is not { } parsed)
+        {
+            return null;
+        }
+
+        return (parsed.Env ?? "prod", tenant);
+    }
+
+    /// <summary>
     /// Parses a deliverdifferent.com host into (env, tenant) segments.
     /// env is "staging"/"local"/"dev" or null for prod. tenant is the tenant code
     /// or null when the env subdomain itself serves a default tenant (e.g. staging

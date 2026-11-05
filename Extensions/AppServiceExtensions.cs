@@ -20,7 +20,7 @@ public static class AppServiceExtensions
         services.AddScoped<IFuelSurchargeRepository, FuelSurchargeRepository>();
         services.AddScoped<IFeatureResolver, FeatureResolver>();
         services.AddScoped<IAgentAccessGate, AgentAccessGate>();
-        services.AddScoped<IAgentAccessFeatureReader, AgentAccessFeatureReader>();
+        services.AddScoped<IAgentAccessTenantResolver, AgentAccessTenantResolver>();
         services.AddScoped<ITenantAgentSettingSource, SqlTenantAgentSettingSource>();
         services.AddScoped<ITileAccessResolver, TileAccessResolver>();
         services.AddScoped<IAccountService, AccountService>();

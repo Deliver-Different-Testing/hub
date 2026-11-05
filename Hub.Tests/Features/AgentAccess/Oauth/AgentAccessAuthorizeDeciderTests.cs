@@ -18,8 +18,8 @@ public class AgentAccessAuthorizeDeciderTests
     private static string[] Split(string joined) => joined.Length == 0 ? [] : joined.Split('|');
 
     private static AgentAccessAuthorizeDecision Decide(
-        AgentAccessUser? user, AgentAccessAuthorizeInput input, string? resource = Resource) =>
-        AgentAccessAuthorizeDecider.Decide(user, input, resource);
+        AgentAccessUser? user, AgentAccessAuthorizeInput input, string? resource = Resource, int? hubTenantId = 12) =>
+        AgentAccessAuthorizeDecider.Decide(user, input, resource, hubTenantId);
 
     [Theory]
     [InlineData(4)]
@@ -157,5 +157,53 @@ public class AgentAccessAuthorizeDeciderTests
         var decision = Decide(User(clientType: 2), Input(existing: true));
 
         Assert.Equal(Errors.AccessDenied, decision.Error);
+    }
+
+    // ---- the Hub serves one tenant: someone signed in to another is offered a switch ----
+
+    [Fact]
+    public void Signed_in_to_another_tenant_is_offered_a_switch()
+    {
+        var decision = Decide(User(tenantId: 3), Input(), hubTenantId: 12);
+
+        Assert.Equal(AgentAccessAuthorizeOutcome.TenantSwitchRequired, decision.Outcome);
+    }
+
+    [Fact]
+    public void The_switch_is_offered_before_the_client_type_is_judged()
+    {
+        // The cookie's client type belongs to the other tenant, so it says nothing about this one.
+        var decision = Decide(User(clientType: 2, tenantId: 3), Input(), hubTenantId: 12);
+
+        Assert.Equal(AgentAccessAuthorizeOutcome.TenantSwitchRequired, decision.Outcome);
+    }
+
+    [Fact]
+    public void An_old_authorization_never_skips_the_switch()
+    {
+        var decision = Decide(User(tenantId: 3), Input(existing: true), hubTenantId: 12);
+
+        Assert.Equal(AgentAccessAuthorizeOutcome.TenantSwitchRequired, decision.Outcome);
+    }
+
+    [Fact]
+    public void Prompt_none_signed_in_to_another_tenant_needs_interaction()
+    {
+        var decision = Decide(User(tenantId: 3), Input(prompts: ["none"]), hubTenantId: 12);
+
+        Assert.Equal(Errors.InteractionRequired, decision.Error);
+    }
+
+    [Fact]
+    public void A_hub_that_cannot_tell_its_tenant_denies()
+    {
+        Assert.Equal(AgentAccessAuthorizeOutcome.Reject, Decide(User(), Input(), hubTenantId: null).Outcome);
+    }
+
+    [Fact]
+    public void The_switch_check_comes_after_the_resource_and_scope_checks()
+    {
+        Assert.Equal(Errors.InvalidTarget, Decide(User(tenantId: 3), Input(resources: ["https://elsewhere"]), hubTenantId: 12).Error);
+        Assert.Equal(Errors.InvalidScope, Decide(User(tenantId: 3), Input(scopes: ["openid"]), hubTenantId: 12).Error);
     }
 }

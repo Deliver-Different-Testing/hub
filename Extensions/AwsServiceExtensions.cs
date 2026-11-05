@@ -35,10 +35,10 @@ public static class AwsServiceExtensions
     }
 
     /// <summary>
-    /// SSM reader for the OAuth keys (phase 1.3). Short timeout and one retry so a slow SSM cannot hold up
-    /// startup; the pod role allows ssm:GetParametersByPath only.
+    /// SSM reader and creator for the OAuth keys (phase 1.3). Short timeout and one retry so a slow SSM cannot
+    /// hold up startup; the pod role allows ssm:GetParametersByPath and ssm:PutParameter.
     /// </summary>
-    public static IAgentAccessKeySource CreateAgentAccessKeySource(IConfiguration configuration)
+    public static IAgentAccessKeySource CreateAgentAccessKeySource(IConfiguration configuration, string? kmsKeyId)
     {
         var awsOptions = configuration.GetAWSOptions();
         var config = new AmazonSimpleSystemsManagementConfig
@@ -48,6 +48,6 @@ public static class AwsServiceExtensions
             MaxErrorRetry = 1
         };
 
-        return new SsmAgentAccessKeySource(new AmazonSimpleSystemsManagementClient(config));
+        return new SsmAgentAccessKeySource(new AmazonSimpleSystemsManagementClient(config), kmsKeyId);
     }
 }

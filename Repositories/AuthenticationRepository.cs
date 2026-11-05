@@ -128,6 +128,18 @@ public sealed class AuthenticationRepository(MasterContext context) : IAuthentic
     public async Task<Tenant?> GetTenantByIdAsync(int tenantId) =>
         await context.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.TenantId == tenantId);
 
+    public async Task<Tenant?> GetTenantByCodeAsync(string code)
+    {
+        var matches = await context.Tenants.AsNoTracking().Where(t => t.Code == code).Take(2).ToListAsync();
+        if (matches.Count > 1)
+        {
+            Log.Error("More than one tenant has the code {TenantCode}", code);
+            return null;
+        }
+
+        return matches.SingleOrDefault();
+    }
+
     public async Task<string?> GetTenantTimeZoneAsync(int tenantId) =>
         await context.Tenants
             .AsNoTracking()

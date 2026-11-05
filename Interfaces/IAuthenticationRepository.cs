@@ -22,6 +22,9 @@ public interface IAuthenticationRepository
     Task<string?> GetTenantTimeZoneAsync(int tenantId);
     Task<string?> GetTenantCountryCodeAsync(int tenantId);
     Task<Tenant?> GetTenantByIdAsync(int tenantId);
+
+    /// <summary>The tenant with this code; null when there is none, or more than one.</summary>
+    Task<Tenant?> GetTenantByCodeAsync(string code);
     Task<string?> GetTenantConnectionStringAsync(int tenantId);
 
     // Phase 5+28a §B.1 — Network Partner user provisioning, called from

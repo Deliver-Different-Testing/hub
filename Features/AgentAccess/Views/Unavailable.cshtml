@@ -1,0 +1,23 @@
+@model Hub.Features.AgentAccess.Gate.AgentAccessUnavailableViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="robots" content="noindex"/>
+    <title>AI app access</title>
+    <link rel="stylesheet" href="~/consent.css" asp-append-version="true"/>
+</head>
+<body>
+<div class="auth-wrapper">
+    <div class="auth-card" id="agentAccessUnavailable">
+        <h2>AI app access</h2>
+        <p class="auth-subtitle">@Model.Message</p>
+        <p class="text-muted small">You can close this window.</p>
+    </div>
+</div>
+</body>
+</html>

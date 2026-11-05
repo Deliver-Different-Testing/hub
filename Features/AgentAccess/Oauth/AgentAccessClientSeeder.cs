@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -23,7 +25,8 @@ public sealed class AgentAccessClientSeeder(
     IServiceScopeFactory scopes,
     IReadOnlyList<AgentAccessClientOptions> clients,
     TimeProvider? timeProvider = null,
-    string? mcpClientSecret = null) : IAgentAccessClientSeeder
+    string? mcpClientSecret = null,
+    bool mcpAssertion = false) : IAgentAccessClientSeeder
 {
     /// <summary>Reserved for the confidential token-exchange client (phase 1.9); never a pre-registered AI app.</summary>
     public const string ReservedTokenExchangeClientId = "dfrnt-mcp";
@@ -39,6 +42,10 @@ public sealed class AgentAccessClientSeeder(
     private bool _done;
     private DateTimeOffset _retryAtUtc = DateTimeOffset.MinValue;
 
+    public bool Seeded => _done;
+
+    private bool McpExchangeConfigured => !string.IsNullOrEmpty(mcpClientSecret) || mcpAssertion;
+
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
         if (_done) return;
@@ -48,7 +55,7 @@ public sealed class AgentAccessClientSeeder(
         {
             if (_done) return;
 
-            if (clients.Count == 0 && string.IsNullOrEmpty(mcpClientSecret))
+            if (clients.Count == 0 && !McpExchangeConfigured)
             {
                 _done = true;
                 return;
@@ -101,7 +108,7 @@ public sealed class AgentAccessClientSeeder(
             desired.Add(ToDescriptor(client));
         }
 
-        if (desired.Count == 0 && string.IsNullOrEmpty(mcpClientSecret)) return;
+        if (desired.Count == 0 && !McpExchangeConfigured) return;
 
         using var scope = scopes.CreateScope();
         var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
@@ -111,27 +118,39 @@ public sealed class AgentAccessClientSeeder(
             await UpsertAsync(manager, descriptor, cancellationToken);
         }
 
-        if (!string.IsNullOrEmpty(mcpClientSecret))
+        if (McpExchangeConfigured)
         {
             await UpsertTokenExchangeClientAsync(manager, mcpClientSecret, cancellationToken);
         }
     }
 
-    // The one confidential client: the MCP server for this tenant, with one secret per tenant deployment. A changed
-    // secret in configuration replaces the stored hash.
+    // The one confidential client: the MCP server for this tenant. It authenticates with its service-account token
+    // (AgentAccessMcpAssertionHandler) and, while that rolls out, with a per-tenant secret when one is configured. A
+    // changed secret replaces the stored hash; no secret configured removes it, so only the assertion is accepted.
     private static async Task UpsertTokenExchangeClientAsync(
-        IOpenIddictApplicationManager manager, string secret, CancellationToken cancellationToken)
+        IOpenIddictApplicationManager manager, string? secret, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrEmpty(secret)) secret = null;
+
+        var existing = await manager.FindByClientIdAsync(ReservedTokenExchangeClientId, cancellationToken);
+        var current = new OpenIddictApplicationDescriptor();
+        if (existing is not null)
+        {
+            await manager.PopulateAsync(current, existing, cancellationToken);
+        }
+
         var desired = new OpenIddictApplicationDescriptor
         {
             ClientId = ReservedTokenExchangeClientId,
             DisplayName = "DFRNT MCP server",
             ClientType = ClientTypes.Confidential,
-            ClientSecret = secret
+            ClientSecret = secret,
+            // OpenIddict stores a confidential client only with a secret or a signing key. Without a secret it gets a
+            // public key whose private half was never kept, so OpenIddict's own assertion check can never pass for it.
+            JsonWebKeySet = secret is null ? (HasSigningKey(current.JsonWebKeySet) ? current.JsonWebKeySet : UnusableKeySet()) : null
         };
         desired.Permissions.UnionWith([Permissions.Endpoints.Token, Permissions.GrantTypes.TokenExchange]);
 
-        var existing = await manager.FindByClientIdAsync(ReservedTokenExchangeClientId, cancellationToken);
         if (existing is null)
         {
             await manager.CreateAsync(desired, cancellationToken);
@@ -139,12 +158,27 @@ public sealed class AgentAccessClientSeeder(
             return;
         }
 
-        var current = new OpenIddictApplicationDescriptor();
-        await manager.PopulateAsync(current, existing, cancellationToken);
-        if (Same(current, desired) && await manager.ValidateClientSecretAsync(existing, secret, cancellationToken)) return;
+        var sameCredentials = secret is null
+            ? string.IsNullOrEmpty(current.ClientSecret) && ReferenceEquals(desired.JsonWebKeySet, current.JsonWebKeySet)
+            : current.JsonWebKeySet is null && await manager.ValidateClientSecretAsync(existing, secret, cancellationToken);
+        if (Same(current, desired) && sameCredentials) return;
 
         await manager.UpdateAsync(existing, desired, cancellationToken);
         Log.Information("Agent access token-exchange client updated");
+    }
+
+    private static bool HasSigningKey(JsonWebKeySet? set) =>
+        set is not null && set.Keys.Any(key => key.Kty == "RSA" && key.Use is "sig" or null);
+
+    private static JsonWebKeySet UnusableKeySet()
+    {
+        using var rsa = RSA.Create(2048);
+        var key = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(rsa.ExportParameters(includePrivateParameters: false)));
+        key.Use = JsonWebKeyUseNames.Sig;
+        key.Kid = "unusable-" + Guid.NewGuid().ToString("N");
+        var set = new JsonWebKeySet();
+        set.Keys.Add(key);
+        return set;
     }
 
     // Creates a missing client, updates a changed one in place, leaves an identical one alone.
@@ -248,6 +282,9 @@ public sealed class AgentAccessClientSeeder(
 // and retried later, and the OAuth endpoints simply reject unknown clients until it succeeds.
 public interface IAgentAccessClientSeeder
 {
+    /// <summary>True once every configured client has been written, or there was nothing to write.</summary>
+    bool Seeded { get; }
+
     Task EnsureAsync(CancellationToken cancellationToken = default);
 }
 
