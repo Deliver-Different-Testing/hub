@@ -49,7 +49,7 @@ public class AgentPassIdentityLoaderTests : IDisposable
         tenant.GetAccountsModeAsync().Returns(2);
 
         var settings = Substitute.For<ITenantAgentSettingSource>();
-        settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow("Live", SwitchOn: true, ForcedOff: false));
+        settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow(SwitchOn: true, ForcedOff: false));
 
         var connection = Substitute.For<IConnectionStringManager>();
         var store = Substitute.For<IAgentGrantStore>();
@@ -144,17 +144,14 @@ public class AgentPassIdentityLoaderTests : IDisposable
     }
 
     [Theory]
-    [InlineData("Live", true, false, true)]
-    [InlineData("Demo", true, false, true)]
-    [InlineData("Live", false, false, false)]
-    [InlineData("Live", true, true, false)]
-    [InlineData("Suspended", true, false, false)]
-    [InlineData("Configuring", true, false, false)]
-    [InlineData(null, true, false, false)]
-    public async Task The_tenant_must_have_agent_access_on_and_be_live_or_demo(string? lifecycle, bool switchOn, bool forcedOff, bool allowed)
+    [InlineData(true, false, true)]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, false)]
+    public async Task The_tenant_must_have_agent_access_on_and_not_forced_off(bool switchOn, bool forcedOff, bool allowed)
     {
         var rig = Build();
-        rig.Settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow(lifecycle, switchOn, forcedOff));
+        rig.Settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow(switchOn, forcedOff));
 
         var result = await Load(rig);
 

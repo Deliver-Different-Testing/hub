@@ -49,11 +49,11 @@ public sealed class AgentPassIdentityLoader(
 
             connectionStringManager.SetConnectionString(connection + credentials);
 
-            // The tenant database is the source of truth for the switch, the DF Admin force-off and the lifecycle. When it says
+            // The tenant database is the source of truth for the switch and the DF Admin force-off. When it says
             // off, the Redis flag the apps check is raised (or renewed), so a missed update heals on the next refresh. Only ever
             // raised here: clearing is left to expiry so a racing refresh can never undo a switch-off.
             var row = await settings.GetAsync(cancellationToken);
-            if (row is not { SwitchOn: true, ForcedOff: false } || !TenantLifecycle.AllowsAgentAccess(row.LifecycleState))
+            if (row is not { SwitchOn: true, ForcedOff: false })
             {
                 await grants.SetTenantOffAsync(tenantId, cancellationToken);
                 return Result(AgentGrantEligibility.TenantOff);

@@ -28,8 +28,6 @@ public partial class AgentAccessAuthorizePipelineTests
     [Theory]
     [InlineData(AgentAccessReason.TenantSwitchOff, "AI app access is switched off for Urgent Couriers")]
     [InlineData(AgentAccessReason.ForcedOff, "switched off for Urgent Couriers by DFRNT")]
-    [InlineData(AgentAccessReason.LifecycleNotAllowed, "isn&#x27;t available for Urgent Couriers yet")]
-    [InlineData(AgentAccessReason.LifecycleUnknown, "isn&#x27;t available for Urgent Couriers yet")]
     public async Task The_unavailable_page_says_why(AgentAccessReason reason, string expected)
     {
         await using var app = await StartAsync(gateOpen: false, closedReason: reason);
@@ -43,7 +41,6 @@ public partial class AgentAccessAuthorizePipelineTests
     }
 
     [Theory]
-    [InlineData(AgentAccessReason.FeatureNotReleased)]
     [InlineData(AgentAccessReason.KeysNotPersistent)]
     [InlineData(AgentAccessReason.Error)]
     public async Task The_unavailable_page_does_not_exist_while_agent_access_is_dark(AgentAccessReason reason)
