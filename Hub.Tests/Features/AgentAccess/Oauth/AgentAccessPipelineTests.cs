@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Hub.Extensions;
 using Hub.Features.AgentAccess;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Keys;
@@ -149,6 +150,21 @@ public class AgentAccessPipelineTests
         Assert.Equal("https://hub.urgent.example.test/", doc.RootElement.GetProperty("issuer").GetString());
     }
 
+    // TLS ends at the nginx ingress, so the pod sees http and only the forwarded proto says https.
+    [Fact]
+    public async Task Discovery_answers_behind_the_tls_ingress()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        await using var app = await StartAsync(AgentAccessReason.Enabled, AgentAccessPersistentKeysTests.Settings(parameters), behindIngress: true);
+        var client = app.GetTestClient();
+        client.BaseAddress = new Uri("http://localhost");
+        client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
+
+        var response = await client.GetAsync("/.well-known/openid-configuration", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     // OpenIddict refuses plain HTTP, and GetTestClient returns a fresh client on every call.
@@ -163,7 +179,7 @@ public class AgentAccessPipelineTests
         StartAsync(gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.Error, settings);
 
     private static async Task<WebApplication> StartAsync(
-        AgentAccessReason reason, AgentAccessOAuthSettings? settings = null, bool tenantKnown = true)
+        AgentAccessReason reason, AgentAccessOAuthSettings? settings = null, bool tenantKnown = true, bool behindIngress = false)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>())
@@ -181,6 +197,7 @@ public class AgentAccessPipelineTests
         builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", settings);
 
         var app = builder.Build();
+        if (behindIngress) app.UseIngressForwardedHeaders();
         app.UseRouting();
         app.UseAgentAccessEndpointGate();
         app.UseAuthentication();
