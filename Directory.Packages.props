@@ -39,7 +39,6 @@
   <!-- Test Dependencies -->
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.14" />
-    <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="coverlet.msbuild" Version="10.1.0" />
   </ItemGroup>
