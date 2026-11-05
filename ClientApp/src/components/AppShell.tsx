@@ -59,6 +59,7 @@ export default function AppShell({ me }: { me: Me }) {
       </Container>
       <footer className={footerClasses.footer}>
         <Container size={1500} w="85%" maw="100%">
+          {/* oxlint-disable-next-line react/purity -- the copyright year only changes on New Year's Day */}
           <div className={footerClasses.row}>&copy; {new Date().getFullYear()} Deliver DFRNT</div>
         </Container>
       </footer>
