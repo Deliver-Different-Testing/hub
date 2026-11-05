@@ -22,6 +22,7 @@ public static class AgentAccessExtensions
     {
         var bootstrap = AgentAccessKeyBootstrap.Resolve(settings);
         services.AddSingleton<IAgentAccessKeyState>(bootstrap.State);
+        services.AddSingleton(new AgentAccessIssuer(bootstrap.Issuer));
 
         var mcpResource = AgentAccessResource.Resolve(settings?.Issuer, settings?.McpResource);
         services.AddSingleton(new AgentAccessMcpResource(mcpResource));
@@ -56,14 +57,30 @@ public static class AgentAccessExtensions
             Log.Information("Agent access accepts client ID metadata documents from {Hosts}", string.Join(", ", metadataOptions.AllowedHosts));
         }
 
+        var mcpAssertion = AgentAccessMcpAssertionOptions.Resolve(settings?.ClusterIssuer, settings?.McpServiceAccounts);
+        services.AddSingleton(mcpAssertion);
+        services.AddSingleton(new AgentAccessMcpExchange(
+            SecretConfigured: !string.IsNullOrEmpty(settings?.McpClientSecret), AssertionConfigured: mcpAssertion.Enabled));
+        services.AddSingleton<IAgentAccessClusterJwks, AgentAccessClusterJwks>();
+        services.TryAddSingleton<IAgentAccessMcpAssertionValidator, AgentAccessMcpAssertionValidator>();
+        services.AddHttpClient(AgentAccessClusterJwks.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+        if (mcpAssertion.Enabled)
+        {
+            Log.Information("Agent access accepts the MCP server's service-account token from {ClusterIssuer} for {ServiceAccounts}",
+                mcpAssertion.ClusterIssuer, string.Join(", ", mcpAssertion.ServiceAccounts));
+        }
+
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));
         services.AddSingleton<IAgentAccessClientSeeder>(provider =>
             new AgentAccessClientSeeder(
-                provider.GetRequiredService<IServiceScopeFactory>(), clients, mcpClientSecret: settings?.McpClientSecret));
+                provider.GetRequiredService<IServiceScopeFactory>(), clients,
+                mcpClientSecret: settings?.McpClientSecret, mcpAssertion: mcpAssertion.Enabled));
         if (bootstrap.State.Persistent)
         {
-            Log.Information("Agent access keys are persistent (signing kid {SigningKeyId})", bootstrap.State.SigningKeyId);
+            Log.Information(
+                "Agent access keys are persistent (signing kid {SigningKeyId}, encryption kid {EncryptionKeyId})",
+                bootstrap.State.SigningKeyId, bootstrap.State.EncryptionKeyId);
         }
         else
         {
@@ -85,7 +102,8 @@ public static class AgentAccessExtensions
             {
                 server.SetAuthorizationEndpointUris("/connect/authorize")
                     .SetTokenEndpointUris("/connect/token")
-                    .SetConfigurationEndpointUris("/.well-known/openid-configuration")
+                    // RFC 8414's address as well as OIDC's: the MCP authorization spec has clients try both.
+                    .SetConfigurationEndpointUris("/.well-known/oauth-authorization-server", "/.well-known/openid-configuration")
                     .SetJsonWebKeySetEndpointUris("/.well-known/jwks");
 
                 server.AllowAuthorizationCodeFlow()
@@ -112,14 +130,17 @@ public static class AgentAccessExtensions
                 // ephemeral keys so the options validate; the gate stays closed in that case.
                 if (bootstrap.Keys is { } keys)
                 {
-                    // OpenIddict signs with the first credential; the previous key is only published.
-                    server.AddSigningKey(keys.Signing);
-                    if (keys.PreviousSigning is { } previous)
+                    // In loader order: OpenIddict signs and encrypts with the first credential; the rest are only
+                    // published (signing) or accepted (encryption).
+                    foreach (var signing in keys.SigningKeys)
                     {
-                        server.AddSigningKey(previous);
+                        server.AddSigningKey(signing);
                     }
 
-                    server.AddEncryptionKey(keys.Encryption);
+                    foreach (var encryption in keys.EncryptionKeys)
+                    {
+                        server.AddEncryptionKey(encryption);
+                    }
                 }
                 else
                 {
@@ -142,6 +163,7 @@ public static class AgentAccessExtensions
 
                 server.AddEventHandler(AgentAccessClientMetadataHandler.Descriptor);
                 server.AddEventHandler(AgentAccessClientMetadataDiscoveryHandler.Descriptor);
+                server.AddEventHandler(AgentAccessMcpAssertionHandler.Descriptor);
 
                 server.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
@@ -151,7 +173,10 @@ public static class AgentAccessExtensions
         return services;
     }
 
-    /// <summary>Answers 404 for the OAuth endpoints unless the agent access gate is open. Place before UseAuthentication.</summary>
+    /// <summary>
+    /// Answers 404 for the OAuth endpoints while agent access is dark, and says why when the tenant has it switched off.
+    /// Place before UseAuthentication.
+    /// </summary>
     public static void UseAgentAccessEndpointGate(this IApplicationBuilder app)
     {
         app.UseMiddleware<AgentAccessEndpointGate>();

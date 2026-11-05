@@ -256,6 +256,111 @@ public class AgentAccessClientSeederTests
         Assert.Equal(clients!.Select(c => c.ClientId).Order().ToArray(), Snapshot(provider).Select(r => r.ClientId).Order().ToArray());
     }
 
+    // ---- the token-exchange client dfrnt-mcp --------------------------------
+
+    private static async Task<(string? ClientType, string? StoredSecret, bool AcceptsSecret)> McpClient(ServiceProvider provider, string trySecret = "mcp-secret")
+    {
+        using var scope = provider.CreateScope();
+        var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var app = await manager.FindByClientIdAsync("dfrnt-mcp", TestContext.Current.CancellationToken);
+        if (app is null) return (null, null, false);
+        var ctx = scope.ServiceProvider.GetRequiredService<AgentAccessOpenIddictDbContext>();
+        var stored = ctx.Set<OpenIddictEntityFrameworkCoreApplication<Guid>>().AsNoTracking().Single(a => a.ClientId == "dfrnt-mcp").ClientSecret;
+        return (await manager.GetClientTypeAsync(app, TestContext.Current.CancellationToken), stored,
+            await manager.ValidateClientSecretAsync(app, trySecret, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task With_only_the_assertion_configured_the_mcp_client_is_confidential_with_no_secret()
+    {
+        await using var provider = Provider(nameof(With_only_the_assertion_configured_the_mcp_client_is_confidential_with_no_secret));
+
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpAssertion: true)
+            .EnsureAsync(TestContext.Current.CancellationToken);
+
+        var (type, stored, _) = await McpClient(provider);
+        Assert.Equal(OpenIddictConstants.ClientTypes.Confidential, type);
+        Assert.True(string.IsNullOrEmpty(stored));
+        var key = Assert.Single((await McpKeySet(provider))!.Keys);
+        Assert.Equal("RSA", key.Kty);
+        Assert.False(key.HasPrivateKey);
+        Assert.Null(key.D);
+    }
+
+    [Fact]
+    public async Task Running_again_with_only_the_assertion_keeps_the_same_key_set()
+    {
+        await using var provider = Provider(nameof(Running_again_with_only_the_assertion_keeps_the_same_key_set));
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpAssertion: true)
+            .EnsureAsync(TestContext.Current.CancellationToken);
+        var before = Snapshot(provider).Single(r => r.ClientId == "dfrnt-mcp");
+
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpAssertion: true)
+            .EnsureAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(before, Snapshot(provider).Single(r => r.ClientId == "dfrnt-mcp"));
+    }
+
+    [Fact]
+    public async Task Going_back_to_a_secret_drops_the_key_set()
+    {
+        await using var provider = Provider(nameof(Going_back_to_a_secret_drops_the_key_set));
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpAssertion: true)
+            .EnsureAsync(TestContext.Current.CancellationToken);
+
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpClientSecret: "mcp-secret")
+            .EnsureAsync(TestContext.Current.CancellationToken);
+
+        Assert.True((await McpClient(provider)).AcceptsSecret);
+        Assert.Null(await McpKeySet(provider));
+    }
+
+    private static async Task<Microsoft.IdentityModel.Tokens.JsonWebKeySet?> McpKeySet(ServiceProvider provider)
+    {
+        using var scope = provider.CreateScope();
+        var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+        var app = await manager.FindByClientIdAsync("dfrnt-mcp", TestContext.Current.CancellationToken);
+        return await manager.GetJsonWebKeySetAsync(app!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Dropping_the_secret_once_the_assertion_is_configured_removes_the_stored_secret()
+    {
+        await using var provider = Provider(nameof(Dropping_the_secret_once_the_assertion_is_configured_removes_the_stored_secret));
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpClientSecret: "mcp-secret")
+            .EnsureAsync(TestContext.Current.CancellationToken);
+        Assert.True((await McpClient(provider)).AcceptsSecret);
+
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpAssertion: true)
+            .EnsureAsync(TestContext.Current.CancellationToken);
+
+        var (type, stored, accepts) = await McpClient(provider);
+        Assert.Equal(OpenIddictConstants.ClientTypes.Confidential, type);
+        Assert.True(string.IsNullOrEmpty(stored));
+        Assert.False(accepts);
+    }
+
+    [Fact]
+    public async Task With_both_configured_the_secret_is_kept()
+    {
+        await using var provider = Provider(nameof(With_both_configured_the_secret_is_kept));
+
+        await new AgentAccessClientSeeder(provider.GetRequiredService<IServiceScopeFactory>(), [], mcpClientSecret: "mcp-secret", mcpAssertion: true)
+            .EnsureAsync(TestContext.Current.CancellationToken);
+
+        Assert.True((await McpClient(provider)).AcceptsSecret);
+    }
+
+    [Fact]
+    public async Task With_neither_configured_there_is_no_mcp_client()
+    {
+        await using var provider = Provider(nameof(With_neither_configured_there_is_no_mcp_client));
+
+        await Seeder(provider, Claude()).EnsureAsync(TestContext.Current.CancellationToken);
+
+        Assert.Null((await McpClient(provider)).ClientType);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     private static ServiceProvider Provider(string databaseName)

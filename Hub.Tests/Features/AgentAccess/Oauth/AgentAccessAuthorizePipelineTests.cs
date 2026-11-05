@@ -12,6 +12,9 @@ using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Grants;
 using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
+using Hub.Interfaces;
+using Hub.Models.Master;
+using Hub.Tests.Features.AgentAccess.Keys;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -181,6 +184,41 @@ public partial class AgentAccessAuthorizePipelineTests
         Assert.Contains("mcp", jwt.Claims.Where(c => c.Type == "scope").SelectMany(c => c.Value.Split(' ')));
         Assert.True(body.TryGetProperty("refresh_token", out _));
         Assert.DoesNotContain(jwt.Claims, c => c.Type is "Connection" or "RememberMe" or "CourierID");
+    }
+
+    [Fact]
+    public async Task With_several_created_signing_keys_the_earliest_written_signs_and_every_one_is_published()
+    {
+        var (earliest, later, latest) = (AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        var parameters = new Dictionary<string, string>
+        {
+            [AgentAccessKeyLoader.EncryptionKeyName] = AgentAccessKeyLoaderTests.Pem(),
+            ["signing/20261105000000-ffffffff"] = earliest,
+            ["signing/20261106000000-00000000"] = later,
+            ["signing/20261104000000-00000000"] = latest
+        };
+        // Neither the highest nor the lowest kid: only the write dates make "earliest" sign.
+        var dates = new Dictionary<string, DateTime>
+        {
+            ["signing/20261105000000-ffffffff"] = AgentAccessKeyLoaderTests.Written,
+            ["signing/20261106000000-00000000"] = AgentAccessKeyLoaderTests.Written.AddSeconds(1),
+            ["signing/20261104000000-00000000"] = AgentAccessKeyLoaderTests.Written.AddSeconds(2)
+        };
+        var keySource = Substitute.For<IAgentAccessKeySource>();
+        keySource.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, AgentAccessKeyParameter>)AgentAccessKeyLoaderTests.Stored(parameters, dates));
+        await using var app = await StartAsync(keySource: keySource);
+        var code = AssertRedirectToClient(await Consent(app, AuthorizeUrl(), "allow"))["code"]!;
+
+        var response = await Token(app, code, Verifier);
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement;
+        var jwks = JsonDocument.Parse(await Client(app).GetStringAsync("/.well-known/jwks", Ct)).RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(body.GetProperty("access_token").GetString());
+        Assert.Equal(AgentAccessKeyLoaderTests.KidOf(earliest), jwt.Header.Kid);
+        Assert.Equal(
+            new[] { earliest, later, latest }.Select(AgentAccessKeyLoaderTests.KidOf).Order(),
+            jwks.GetProperty("keys").EnumerateArray().Select(k => k.GetProperty("kid").GetString()).Order());
     }
 
     [Fact]
@@ -363,11 +401,22 @@ public partial class AgentAccessAuthorizePipelineTests
         };
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret")
+    private const int HubTenantId = 12;
+    private const string HubTenantName = "Urgent Couriers";
+
+    private static async Task<WebApplication> StartAsync(
+        bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret",
+        AgentAccessReason closedReason = AgentAccessReason.Error, IAgentAccessKeySource? keySource = null,
+        string? clusterIssuer = ClusterIssuer, string[]? mcpServiceAccounts = null, string? issuer = Issuer)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
-            gateOpen, gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.TenantSwitchOff));
+            gateOpen, gateOpen ? AgentAccessReason.Enabled : closedReason));
+        var tenants = Substitute.For<IAgentAccessTenantResolver>();
+        tenants.ResolveAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessTenant(HubTenantId, "urgent", HubTenantName));
+        var master = Substitute.For<IAuthenticationRepository>();
+        master.GetTenantByIdAsync(Arg.Any<int>()).Returns(ci => new Tenant { TenantId = ci.Arg<int>(), Code = "dfrnt", Name = "DFRNT" });
+        master.IsUserAssociatedWithTenantAsync(Arg.Any<int>(), Arg.Any<int>()).Returns(true);
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -377,6 +426,9 @@ public partial class AgentAccessAuthorizePipelineTests
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(gate);
+        builder.Services.AddSingleton(tenants);
+        builder.Services.AddSingleton(master);
+        builder.Services.AddSingleton(Substitute.For<IAccountService>());
         builder.Services.AddAuthentication("Identity.Application").AddScheme<AuthenticationSchemeOptions, TestCookieHandler>("Identity.Application", _ => { });
         builder.Services.AddAuthorization();
         builder.Services.AddControllersWithViews().AddApplicationPart(typeof(AgentAccessAuthorizeController).Assembly);
@@ -392,7 +444,13 @@ public partial class AgentAccessAuthorizePipelineTests
         identities.LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new AgentPassLoad(AgentGrantEligibility.Eligible, new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "New Zealand Standard Time", "urgent", true, false, 2, 4, null, "Sam", "Staff", 1)));
         builder.Services.AddSingleton(identities);
-        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(Issuer: Issuer, Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret));
+        builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", new AgentAccessOAuthSettings(
+            SsmPrefix: keySource is null ? null : "/hub/urgent/agent-access", Issuer: issuer, KeySource: keySource,
+            Clients: clients, ClientMetadataHosts: metadataHosts ?? ["claude.ai"], McpClientSecret: mcpSecret,
+            ClusterIssuer: clusterIssuer, McpServiceAccounts: mcpServiceAccounts ?? [McpServiceAccount]));
+        var cluster = new ClusterOidcStub();
+        builder.Services.AddSingleton(cluster);
+        builder.Services.AddHttpClient(AgentAccessClusterJwks.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => cluster);
         var metadataFetcher = Substitute.For<IClientMetadataFetcher>();
         builder.Services.RemoveAll(typeof(IClientMetadataFetcher));
         builder.Services.AddSingleton(metadataFetcher);

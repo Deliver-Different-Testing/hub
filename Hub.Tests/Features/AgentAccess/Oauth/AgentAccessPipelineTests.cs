@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Hub.Extensions;
 using Hub.Features.AgentAccess;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Keys;
@@ -20,6 +21,7 @@ public class AgentAccessPipelineTests
     [InlineData("/connect/authorize")]
     [InlineData("/connect/token")]
     [InlineData("/.well-known/openid-configuration")]
+    [InlineData("/.well-known/oauth-authorization-server")]
     [InlineData("/.well-known/jwks")]
     public async Task Closed_gate_makes_every_oauth_path_404(string path)
     {
@@ -58,6 +60,46 @@ public class AgentAccessPipelineTests
     }
 
     [Fact]
+    public async Task Open_gate_serves_the_rfc8414_metadata_too()
+    {
+        // The MCP spec has clients try /.well-known/oauth-authorization-server; without it Hub's SPA fallback answered HTML.
+        await using var app = await StartAsync(gateOpen: true);
+
+        var response = await Client(app)
+            .GetAsync("/.well-known/oauth-authorization-server", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("\"authorization_endpoint\"", body);
+    }
+
+    [Theory]
+    [InlineData("/.well-known/openid-configuration")]
+    [InlineData("/.well-known/oauth-authorization-server")]
+    [InlineData("/.well-known/jwks")]
+    public async Task A_switched_off_tenant_still_serves_discovery(string path)
+    {
+        await using var app = await StartAsync(AgentAccessReason.TenantSwitchOff);
+
+        var response = await Client(app).GetAsync(path, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task A_hub_that_cannot_tell_its_tenant_hides_discovery()
+    {
+        await using var app = await StartAsync(AgentAccessReason.Enabled, tenantKnown: false);
+
+        var response = await Client(app)
+            .GetAsync("/.well-known/openid-configuration", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Open_gate_serves_the_jwks()
     {
         await using var app = await StartAsync(gateOpen: true);
@@ -75,7 +117,7 @@ public class AgentAccessPipelineTests
     {
         var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
         parameters[AgentAccessKeyLoader.PreviousSigningKeyName] = AgentAccessKeyLoaderTests.Pem();
-        var expected = AgentAccessKeyLoader.Load(parameters).Keys!;
+        var expected = AgentAccessKeyLoaderTests.Load(parameters).Keys!;
         await using var app = await StartAsync(gateOpen: true, AgentAccessPersistentKeysTests.Settings(parameters));
 
         var body = await Client(app).GetStringAsync("/.well-known/jwks", TestContext.Current.CancellationToken);
@@ -85,7 +127,7 @@ public class AgentAccessPipelineTests
         var kids = keys.Select(k => k.GetProperty("kid").GetString()).ToArray();
         Assert.Equal(2, kids.Length);
         Assert.Contains(expected.Signing.KeyId, kids);
-        Assert.Contains(expected.PreviousSigning!.KeyId, kids);
+        Assert.Contains(expected.SigningKeys[1].KeyId, kids);
         Assert.DoesNotContain(keys, k => k.GetProperty("kid").GetString() == expected.Encryption.KeyId);
         foreach (var key in keys)
         {
@@ -108,6 +150,21 @@ public class AgentAccessPipelineTests
         Assert.Equal("https://hub.urgent.example.test/", doc.RootElement.GetProperty("issuer").GetString());
     }
 
+    // TLS ends at the nginx ingress, so the pod sees http and only the forwarded proto says https.
+    [Fact]
+    public async Task Discovery_answers_behind_the_tls_ingress()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        await using var app = await StartAsync(AgentAccessReason.Enabled, AgentAccessPersistentKeysTests.Settings(parameters), behindIngress: true);
+        var client = app.GetTestClient();
+        client.BaseAddress = new Uri("http://localhost");
+        client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
+
+        var response = await client.GetAsync("/.well-known/openid-configuration", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     // OpenIddict refuses plain HTTP, and GetTestClient returns a fresh client on every call.
@@ -118,20 +175,29 @@ public class AgentAccessPipelineTests
         return client;
     }
 
-    private static async Task<WebApplication> StartAsync(bool gateOpen, AgentAccessOAuthSettings? settings = null)
+    private static Task<WebApplication> StartAsync(bool gateOpen, AgentAccessOAuthSettings? settings = null) =>
+        StartAsync(gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.Error, settings);
+
+    private static async Task<WebApplication> StartAsync(
+        AgentAccessReason reason, AgentAccessOAuthSettings? settings = null, bool tenantKnown = true, bool behindIngress = false)
     {
         var gate = Substitute.For<IAgentAccessGate>();
-        gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
-            gateOpen, gateOpen ? AgentAccessReason.Enabled : AgentAccessReason.TenantSwitchOff));
+        gate.EvaluateAsync(Arg.Any<CancellationToken>())
+            .Returns(new AgentAccessDecision(reason == AgentAccessReason.Enabled, reason));
+        var tenants = Substitute.For<IAgentAccessTenantResolver>();
+        tenants.ResolveAsync(Arg.Any<CancellationToken>())
+            .Returns(tenantKnown ? new AgentAccessTenant(12, "urgent", "Urgent Couriers") : null);
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(gate);
+        builder.Services.AddSingleton(tenants);
         builder.Services.AddAuthentication("Cookies").AddCookie("Cookies");
         builder.Services.AddAuthorization();
         builder.Services.AddAgentAccessOAuth("Server=unused;Database=unused;", settings);
 
         var app = builder.Build();
+        if (behindIngress) app.UseIngressForwardedHeaders();
         app.UseRouting();
         app.UseAgentAccessEndpointGate();
         app.UseAuthentication();

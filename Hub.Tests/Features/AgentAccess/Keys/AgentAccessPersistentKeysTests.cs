@@ -19,7 +19,7 @@ public class AgentAccessPersistentKeysTests
     public void Persistent_keys_become_the_signing_and_encryption_credentials()
     {
         var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
-        var expected = AgentAccessKeyLoader.Load(parameters).Keys!;
+        var expected = AgentAccessKeyLoaderTests.Load(parameters).Keys!;
 
         var options = ServerOptions(Settings(parameters));
 
@@ -33,14 +33,44 @@ public class AgentAccessPersistentKeysTests
     {
         var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
         parameters[AgentAccessKeyLoader.PreviousSigningKeyName] = AgentAccessKeyLoaderTests.Pem();
-        var expected = AgentAccessKeyLoader.Load(parameters).Keys!;
+        var expected = AgentAccessKeyLoaderTests.Load(parameters).Keys!;
 
         var options = ServerOptions(Settings(parameters));
 
         // OpenIddict signs with the first credential, so the current key must come first.
         Assert.Equal(2, options.SigningCredentials.Count);
         Assert.Equal(expected.Signing.KeyId, options.SigningCredentials[0].Key.KeyId);
-        Assert.Equal(expected.PreviousSigning!.KeyId, options.SigningCredentials[1].Key.KeyId);
+        Assert.Equal(expected.SigningKeys[1].KeyId, options.SigningCredentials[1].Key.KeyId);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(20)] // past 16, where List.Sort stops being an insertion sort and OpenIddict's sort can reorder equal keys
+    public void Every_key_is_registered_and_the_earliest_written_comes_first(int count)
+    {
+        // The key in the middle of the kid range is the earliest written, so no kid order alone picks it.
+        var earliest = count / 2;
+        var parameters = new Dictionary<string, string>();
+        var dates = new Dictionary<string, DateTime>();
+        for (var i = 0; i < count; i++)
+        {
+            foreach (var folder in new[] { "signing", "encryption" })
+            {
+                var name = $"{folder}/202611050102{i:00}-0a1b2c3d";
+                parameters[name] = AgentAccessKeyLoaderTests.Pem();
+                dates[name] = AgentAccessKeyLoaderTests.Written.AddSeconds(i == earliest ? 0 : i + 1);
+            }
+        }
+
+        var earliestSigning = AgentAccessKeyLoaderTests.KidOf(parameters[$"signing/202611050102{earliest:00}-0a1b2c3d"]);
+        var earliestEncryption = AgentAccessKeyLoaderTests.KidOf(parameters[$"encryption/202611050102{earliest:00}-0a1b2c3d"]);
+
+        var options = ServerOptions(Settings(parameters, dates));
+
+        Assert.Equal(count, options.SigningCredentials.Count);
+        Assert.Equal(count, options.EncryptionCredentials.Count);
+        Assert.Equal(earliestSigning, options.SigningCredentials[0].Key.KeyId);
+        Assert.Equal(earliestEncryption, options.EncryptionCredentials[0].Key.KeyId);
     }
 
     [Fact]
@@ -94,10 +124,11 @@ public class AgentAccessPersistentKeysTests
     private static Dictionary<string, string> DefaultParameters() =>
         AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
 
-    internal static AgentAccessOAuthSettings Settings(Dictionary<string, string> parameters)
+    internal static AgentAccessOAuthSettings Settings(
+        Dictionary<string, string> parameters, Dictionary<string, DateTime>? dates = null)
     {
         var source = Substitute.For<IAgentAccessKeySource>();
-        IReadOnlyDictionary<string, string> value = parameters;
+        IReadOnlyDictionary<string, AgentAccessKeyParameter> value = AgentAccessKeyLoaderTests.Stored(parameters, dates);
         source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(value);
         return new AgentAccessOAuthSettings(Prefix, Issuer, source);
     }

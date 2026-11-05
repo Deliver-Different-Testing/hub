@@ -15,6 +15,7 @@ public enum AgentAccessAuthorizeOutcome
 {
     Reject,
     LoginRequired,
+    TenantSwitchRequired,
     NeedsConsent,
     Issue
 }
@@ -34,7 +35,7 @@ public static class AgentAccessAuthorizeDecider
     private static readonly HashSet<int> AllowedClientTypes = [4, 5];
 
     public static AgentAccessAuthorizeDecision Decide(
-        AgentAccessUser? user, AgentAccessAuthorizeInput input, string? mcpResource)
+        AgentAccessUser? user, AgentAccessAuthorizeInput input, string? mcpResource, int? hubTenantId)
     {
         if (mcpResource is null
             || input.Resources.Count != 1
@@ -58,10 +59,26 @@ public static class AgentAccessAuthorizeDecider
                 : new AgentAccessAuthorizeDecision(AgentAccessAuthorizeOutcome.LoginRequired);
         }
 
-        if (string.IsNullOrWhiteSpace(user.UserId)
-            || user.TenantId is null
-            || user.ClientTypeId is not { } clientType
-            || !AllowedClientTypes.Contains(clientType))
+        if (string.IsNullOrWhiteSpace(user.UserId) || user.TenantId is null)
+        {
+            return AgentAccessAuthorizeDecision.Rejected(Errors.AccessDenied, "This user cannot connect AI apps.");
+        }
+
+        if (hubTenantId is null)
+        {
+            return AgentAccessAuthorizeDecision.Rejected(Errors.AccessDenied, "This Hub cannot tell which tenant it serves.");
+        }
+
+        // A Hub connects AI apps to its own tenant only. Someone signed in to another (DFRNT staff can belong to several)
+        // is offered a switch first; the cookie's client type belongs to that other tenant, so it is judged afterwards.
+        if (user.TenantId != hubTenantId)
+        {
+            return promptNone
+                ? AgentAccessAuthorizeDecision.Rejected(Errors.InteractionRequired, "The user is signed in to a different tenant.")
+                : new AgentAccessAuthorizeDecision(AgentAccessAuthorizeOutcome.TenantSwitchRequired);
+        }
+
+        if (user.ClientTypeId is not { } clientType || !AllowedClientTypes.Contains(clientType))
         {
             return AgentAccessAuthorizeDecision.Rejected(Errors.AccessDenied, "This user cannot connect AI apps.");
         }

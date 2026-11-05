@@ -54,8 +54,14 @@ builder.Services
 
 builder.Services.AddAiAssistant(builder.Configuration, builder.Environment);
 
-// Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix; both variables unset = ephemeral keys and a closed gate.
+// Per-tenant OAuth keys live in SSM under AgentAccessSsmPrefix, else /hub/<env>/<tenant>/agent-access for the issuer's
+// host, and are created there when missing; neither = ephemeral keys and a closed gate.
 var agentAccessSsmPrefix = Environment.GetEnvironmentVariable("AgentAccessSsmPrefix");
+// Never derived in Development: a local TenantURL may name a deployed tenant, whose issuer and keys a local Hub must not take on.
+var (agentAccessIssuer, agentAccessIssuerSource) = AgentAccessKeyBootstrap.ResolveIssuer(
+    Environment.GetEnvironmentVariable("AgentAccessIssuer"),
+    builder.Environment.IsDevelopment() ? null : Environment.GetEnvironmentVariable("TenantURL"));
+Log.Information("Agent access issuer: {Issuer} (source: {Source})", agentAccessIssuer ?? "unset", agentAccessIssuerSource);
 // The OAuth store should use its own least-privilege SQL login (reaches only the McpOAuth tables).
 var agentAccessStore = AgentAccessOAuthStore.ResolveConnectionString(
     connectionString, Environment.GetEnvironmentVariable("AgentAccessOAuthSQLConnection"));
@@ -72,14 +78,17 @@ builder.Services.AddAgentAccessOAuth(
     agentAccessStore.ConnectionString,
     new AgentAccessOAuthSettings(
         agentAccessSsmPrefix,
-        Environment.GetEnvironmentVariable("AgentAccessIssuer"),
-        string.IsNullOrWhiteSpace(agentAccessSsmPrefix)
+        agentAccessIssuer,
+        AgentAccessKeyBootstrap.ResolvePrefix(agentAccessSsmPrefix, agentAccessIssuer) is null
             ? null
-            : AwsServiceExtensions.CreateAgentAccessKeySource(builder.Configuration),
+            : AwsServiceExtensions.CreateAgentAccessKeySource(
+                builder.Configuration, Environment.GetEnvironmentVariable("AgentAccessKmsKeyId")),
         Clients: builder.Configuration.GetSection("AgentAccess:Clients").Get<List<AgentAccessClientOptions>>() ?? [],
         McpResource: Environment.GetEnvironmentVariable("AgentAccessMcpResource"),
         ClientMetadataHosts: builder.Configuration.GetSection("AgentAccess:ClientMetadata:AllowedHosts").Get<string[]>(),
-        McpClientSecret: Environment.GetEnvironmentVariable("AgentAccessMcpClientSecret")));
+        McpClientSecret: Environment.GetEnvironmentVariable("AgentAccessMcpClientSecret"),
+        ClusterIssuer: builder.Configuration["AgentAccess:ClusterIssuer"],
+        McpServiceAccounts: builder.Configuration.GetSection("AgentAccess:McpServiceAccounts").Get<string[]>()));
 
 if (builder.Environment.IsDevelopment())
 {
@@ -209,6 +218,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+app.UseIngressForwardedHeaders();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/healthz");
