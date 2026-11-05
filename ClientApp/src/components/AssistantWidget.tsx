@@ -61,10 +61,10 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
   const input = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    let live = true;
-    void getAssistantEnabled().then((on) => live && setEnabled(on));
+    const unmounted = new AbortController();
+    void getAssistantEnabled().then((on) => !unmounted.signal.aborted && setEnabled(on));
     return () => {
-      live = false;
+      unmounted.abort();
       abort.current?.abort();
     };
   }, []);

@@ -7,7 +7,6 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
-    "react/immutability": "off",
     "typescript/ban-ts-comment": "error",
     "typescript/no-array-constructor": "error",
     "typescript/no-duplicate-enum-values": "error",
