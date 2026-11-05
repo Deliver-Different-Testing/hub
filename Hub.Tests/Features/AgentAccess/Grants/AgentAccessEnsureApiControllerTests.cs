@@ -19,6 +19,7 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
     private IAgentAccessKeyState _keys = new AgentAccessKeyState(true, "persistent", "kid");
     private AgentAccessIssuer _issuer = new(new Uri("https://hub.acme.example"));
     private AgentAccessMcpExchange _mcpExchange = new(SecretConfigured: true, AssertionConfigured: false);
+    private AgentAccessMcpResource _mcpResource = new("https://mcp.acme.example/mcp");
 
     public AgentAccessEnsureApiControllerTests()
     {
@@ -36,7 +37,7 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private AgentAccessEnsureApiController Sut() => new(_tenants, _gate, _seeder, _keys, _issuer, _mcpExchange);
+    private AgentAccessEnsureApiController Sut() => new(_tenants, _gate, _seeder, _keys, _issuer, _mcpExchange, _mcpResource);
 
     private async Task<AgentAccessEnsureResult> Ensure()
     {
@@ -56,6 +57,27 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
 
         await _tenants.DidNotReceiveWithAnyArgs().ResolveAsync(default);
         await _seeder.DidNotReceiveWithAnyArgs().EnsureAsync(default);
+    }
+
+    [Fact]
+    public async Task The_mcp_url_ai_apps_connect_to_is_returned()
+    {
+        var result = await Ensure();
+
+        Assert.Equal("https://mcp.acme.example/mcp", result.McpUrl);
+        Assert.True(Check(result, "mcpUrl").Ok);
+    }
+
+    [Fact]
+    public async Task A_missing_mcp_url_is_not_ready()
+    {
+        _mcpResource = new(null);
+
+        var result = await Ensure();
+
+        Assert.False(result.Ready);
+        Assert.Null(result.McpUrl);
+        Assert.False(Check(result, "mcpUrl").Ok);
     }
 
     [Fact]
@@ -96,7 +118,7 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
 
         Assert.True(result.Ready);
         Assert.Equal("Enabled", result.Reason);
-        Assert.Equal(["keys", "issuer", "switch", "clients", "mcpExchange"], result.Checks.Select(c => c.Key).ToArray());
+        Assert.Equal(["keys", "issuer", "mcpUrl", "switch", "clients", "mcpExchange"], result.Checks.Select(c => c.Key).ToArray());
         Assert.All(result.Checks, c => Assert.True(c.Ok));
         await _seeder.Received(1).EnsureAsync(Arg.Any<CancellationToken>());
     }

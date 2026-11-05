@@ -9,7 +9,8 @@ namespace Hub.Features.AgentAccess.Grants;
 
 public sealed record AgentAccessEnsureCheck(string Key, bool Ok, string Detail);
 
-public sealed record AgentAccessEnsureResult(bool Ready, string Reason, IReadOnlyList<AgentAccessEnsureCheck> Checks);
+/// <param name="McpUrl">The MCP server URL AI apps connect to, shown in Integration Manager's quick start; null when unset.</param>
+public sealed record AgentAccessEnsureResult(bool Ready, string Reason, IReadOnlyList<AgentAccessEnsureCheck> Checks, string? McpUrl);
 
 // Integration Manager calls this after an admin saves the AI app access switch. Hub sets itself up (seeds the OAuth
 // clients, but only while the gate is open) and reports whether agent access is ready. Safe to repeat or run
@@ -22,7 +23,8 @@ public class AgentAccessEnsureApiController(
     IAgentAccessClientSeeder seeder,
     IAgentAccessKeyState keys,
     AgentAccessIssuer issuer,
-    AgentAccessMcpExchange mcpExchange) : Controller
+    AgentAccessMcpExchange mcpExchange,
+    AgentAccessMcpResource mcpResource) : Controller
 {
     [HttpPost("~/api/agent-access/tenants/{tenantId:int}/ensure")]
     public async Task<IActionResult> Ensure(
@@ -51,6 +53,9 @@ public class AgentAccessEnsureApiController(
             issuer.Value is not null
                 ? new("issuer", true, "The sign-in address is set.")
                 : new("issuer", false, "The sign-in address is missing or not valid."),
+            mcpResource.Value is not null
+                ? new("mcpUrl", true, "The address AI apps connect to is set.")
+                : new("mcpUrl", false, "The address AI apps connect to is not set."),
             SwitchCheck(decision.Reason),
             clientsSeeded
                 ? new("clients", true, "The AI apps are registered.")
@@ -60,7 +65,7 @@ public class AgentAccessEnsureApiController(
                 : new("mcpExchange", false, "The MCP server can't exchange tokens: neither a client secret nor service-account sign-in is configured.")
         };
 
-        return Ok(new AgentAccessEnsureResult(decision.Enabled && checks.All(c => c.Ok), decision.Reason.ToString(), checks));
+        return Ok(new AgentAccessEnsureResult(decision.Enabled && checks.All(c => c.Ok), decision.Reason.ToString(), checks, mcpResource.Value));
     }
 
     private static AgentAccessEnsureCheck SwitchCheck(AgentAccessReason reason) => reason switch
