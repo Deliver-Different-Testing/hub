@@ -140,6 +140,63 @@ public class AgentAccessKeyBootstrapTests
         Assert.Contains("timed out", result.State.Reason);
     }
 
+    // Generating RSA keys is CPU work on a pod that may be throttled at start; it must not eat the SSM budget.
+    [Fact]
+    public void Slow_key_generation_does_not_count_against_the_ssm_timeout()
+    {
+        var parameters = new Dictionary<string, string>();
+        var pem = AgentAccessKeyLoaderTests.Pem();
+
+        var result = AgentAccessKeyBootstrap.Resolve(new AgentAccessOAuthSettings(
+            Prefix, Issuer, Store(parameters), LoadTimeout: TimeSpan.FromMilliseconds(300), KeyWriteSettle: TimeSpan.Zero,
+            NewPrivateKeyPem: () =>
+            {
+                Thread.Sleep(400);
+                return pem;
+            }));
+
+        Assert.True(result.State.Persistent, result.State.Reason);
+        Assert.Equal(2, parameters.Count);
+    }
+
+    [Fact]
+    public void A_retried_write_sends_the_same_key_under_the_same_name()
+    {
+        var parameters = new Dictionary<string, string>();
+        var source = Store(parameters);
+        var writes = new List<(string Name, string Pem)>();
+        var throttled = false;
+        source.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                writes.Add((call.ArgAt<string>(1), call.ArgAt<string>(2)));
+                if (!throttled)
+                {
+                    throttled = true;
+                    throw new TooManyUpdatesException("busy");
+                }
+
+                parameters.Add(call.ArgAt<string>(1), call.ArgAt<string>(2));
+                return Task.CompletedTask;
+            });
+        var generated = 0;
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(source) with
+        {
+            NewPrivateKeyPem = () =>
+            {
+                generated++;
+                return AgentAccessKeyLoaderTests.Pem();
+            }
+        });
+
+        Assert.True(result.State.Persistent, result.State.Reason);
+        Assert.Equal(2, generated);
+        var signingWrites = writes.Where(w => w.Name.StartsWith("signing/", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, signingWrites.Count);
+        Assert.Equal(signingWrites[0], signingWrites[1]);
+    }
+
     // ---- keys create themselves --------------------------------------------
 
     [Fact]
