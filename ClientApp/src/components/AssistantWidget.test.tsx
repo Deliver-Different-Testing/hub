@@ -54,7 +54,7 @@ describe('AssistantWidget', () => {
 
     await ask('Which email should I use?');
 
-    expect(await screen.findByText('Use your company email. See Signing up for an account.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Use your company email. See Signing up for an account.')).toBeInTheDocument());
     expect(await screen.findByText('Signing up for an account', { selector: '.mantine-Badge-label' })).toBeInTheDocument();
     expect(body).toEqual({
       messages: [{ role: 'user', content: 'Which email should I use?' }],
@@ -77,7 +77,7 @@ describe('AssistantWidget', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open Auto-mate assistant' }));
     fireEvent.click(await screen.findByRole('button', { name: 'How do I switch to another organisation?' }));
 
-    expect(await screen.findByText('Use the organisation menu.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Use the organisation menu.')).toBeInTheDocument());
     expect(body?.messages[0].content).toBe('How do I switch to another organisation?');
   });
 
@@ -87,7 +87,7 @@ describe('AssistantWidget', () => {
 
     await ask('Can I sign up today?');
 
-    expect(await screen.findByText('Yes.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Yes.')).toBeInTheDocument());
     expect(document.querySelector('.mantine-Badge-root')).toBeNull();
   });
 
@@ -135,7 +135,7 @@ describe('AssistantWidget', () => {
     // The status line shows "Thinking…" first; wait for the server's status frame to replace it.
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Searching help articles…'));
     release();
-    expect(await screen.findByText('Use the organisation menu.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Use the organisation menu.')).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
   });
 

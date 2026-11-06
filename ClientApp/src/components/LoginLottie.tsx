@@ -68,12 +68,12 @@ export default function LoginLottie() {
   useEffect(() => {
     if (data == null || !container.current) return;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let cancelled = false;
+    const unmounted = new AbortController();
     let destroy: (() => void) | undefined;
     // The light player (SVG only, no expression eval) is enough for these files. Only the login
     // page needs it, so it stays out of the app shell chunk.
     void import('lottie-web/build/player/lottie_light').then(({ default: lottie }) => {
-      if (cancelled || !container.current) return;
+      if (unmounted.signal.aborted || !container.current) return;
       const animation = lottie.loadAnimation({
         container: container.current,
         renderer: 'svg',
@@ -84,7 +84,7 @@ export default function LoginLottie() {
       destroy = () => animation.destroy();
     });
     return () => {
-      cancelled = true;
+      unmounted.abort();
       destroy?.();
     };
   }, [data, mode]);

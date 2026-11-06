@@ -10,6 +10,9 @@ import ProfileMenu from './ProfileMenu';
 import TenantLogo from './TenantLogo';
 import { SEEDS } from '../styles/md3';
 import bar from './appBar.module.css';
+
+/** Read once at load rather than on every render: React treats `new Date()` in render as impure. */
+const COPYRIGHT_YEAR = new Date().getFullYear();
 import footerClasses from './footer.module.css';
 import home from '../styles/homeBackground.module.css';
 
@@ -59,7 +62,7 @@ export default function AppShell({ me }: { me: Me }) {
       </Container>
       <footer className={footerClasses.footer}>
         <Container size={1500} w="85%" maw="100%">
-          <div className={footerClasses.row}>&copy; {new Date().getFullYear()} Deliver DFRNT</div>
+          <div className={footerClasses.row}>&copy; {COPYRIGHT_YEAR} Deliver DFRNT</div>
         </Container>
       </footer>
       <AssistantWidget pageContext={pageContext} />
