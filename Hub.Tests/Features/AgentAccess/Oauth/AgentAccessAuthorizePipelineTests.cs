@@ -45,12 +45,13 @@ public partial class AgentAccessAuthorizePipelineTests
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     private static string AuthorizeUrl(
-        string? resource = Resource, string scope = "mcp offline_access", string? prompt = null, string clientId = "dfrnt-claude")
+        string? resource = Resource, string scope = "mcp offline_access", string? prompt = null, string clientId = "dfrnt-claude",
+        string redirectUri = RedirectUri)
     {
         var query = new List<string>
         {
             $"client_id={Uri.EscapeDataString(clientId)}",
-            $"redirect_uri={Uri.EscapeDataString(RedirectUri)}",
+            $"redirect_uri={Uri.EscapeDataString(redirectUri)}",
             "response_type=code",
             $"scope={Uri.EscapeDataString(scope)}",
             "state=xyz",
@@ -184,6 +185,48 @@ public partial class AgentAccessAuthorizePipelineTests
         Assert.Contains("mcp", jwt.Claims.Where(c => c.Type == "scope").SelectMany(c => c.Value.Split(' ')));
         Assert.True(body.TryGetProperty("refresh_token", out _));
         Assert.DoesNotContain(jwt.Claims, c => c.Type is "Connection" or "RememberMe" or "CourierID");
+    }
+
+    // ---- Claude Code: client ID metadata document with loopback redirects (RFC 8252) ----
+
+    private const string ClaudeCodeClientId = "https://claude.ai/oauth/claude-code-client-metadata";
+
+    private static async Task<WebApplication> StartWithClaudeCodeAsync()
+    {
+        var app = await StartAsync(metadataHosts: ["claude.ai/oauth/"]);
+        app.Services.GetRequiredService<IClientMetadataFetcher>()
+            .FetchAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>())
+            .Returns(new ClientMetadataFetchResult(
+                $$"""{"client_id":"{{ClaudeCodeClientId}}","client_name":"Claude Code","client_uri":"https://claude.ai","redirect_uris":["http://localhost/callback","http://127.0.0.1/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}""",
+                null));
+        return app;
+    }
+
+    [Fact]
+    public async Task Claude_code_signs_in_on_any_loopback_port_and_redeems_its_code()
+    {
+        await using var app = await StartWithClaudeCodeAsync();
+        const string loopback = "http://localhost:44945/callback";
+
+        var response = await Consent(app, AuthorizeUrl(clientId: ClaudeCodeClientId, redirectUri: loopback, prompt: "consent"), "allow");
+        var code = AssertRedirectToClient(response, loopback)["code"]!;
+        var token = await Token(app, code, Verifier, ClaudeCodeClientId, loopback);
+
+        Assert.Equal(HttpStatusCode.OK, token.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("http://localhost:44945/other")]
+    [InlineData("http://evil.test:44945/callback")]
+    [InlineData("https://localhost:44945/callback")]
+    public async Task Claude_code_redirects_off_its_registered_loopback_paths_are_refused(string redirectUri)
+    {
+        await using var app = await StartWithClaudeCodeAsync();
+
+        var response = await Get(app, AuthorizeUrl(clientId: ClaudeCodeClientId, redirectUri: redirectUri), Staff());
+
+        Assert.NotEqual(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
@@ -370,13 +413,14 @@ public partial class AgentAccessAuthorizePipelineTests
             .Where(m => m.Groups[1].Value != "__RequestVerificationToken")
             .ToDictionary(m => WebUtility.HtmlDecode(m.Groups[1].Value), m => WebUtility.HtmlDecode(m.Groups[2].Value));
 
-    private static Task<HttpResponseMessage> Token(WebApplication app, string code, string verifier, string clientId = "dfrnt-claude") =>
+    private static Task<HttpResponseMessage> Token(
+        WebApplication app, string code, string verifier, string clientId = "dfrnt-claude", string redirectUri = RedirectUri) =>
         Client(app).PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["client_id"] = clientId,
             ["code"] = code,
-            ["redirect_uri"] = RedirectUri,
+            ["redirect_uri"] = redirectUri,
             ["code_verifier"] = verifier
         }), Ct);
 
@@ -388,11 +432,11 @@ public partial class AgentAccessAuthorizePipelineTests
         Assert.Null(query["code"]);
     }
 
-    private static Dictionary<string, string?> AssertRedirectToClient(HttpResponseMessage response)
+    private static Dictionary<string, string?> AssertRedirectToClient(HttpResponseMessage response, string redirectUri = RedirectUri)
     {
         Assert.True(response.StatusCode == HttpStatusCode.Redirect, $"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().Result}");
         var location = response.Headers.Location!;
-        Assert.StartsWith(RedirectUri, location.GetLeftPart(UriPartial.Path));
+        Assert.StartsWith(redirectUri, location.GetLeftPart(UriPartial.Path));
         var parsed = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(
             location.Query.Length > 0 ? location.Query : "?" + location.Fragment.TrimStart('#'));
         return new Dictionary<string, string?>(parsed.Select(p => KeyValuePair.Create(p.Key, (string?)p.Value.ToString())))

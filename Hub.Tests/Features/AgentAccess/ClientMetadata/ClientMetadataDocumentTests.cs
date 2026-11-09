@@ -37,12 +37,25 @@ public class ClientMetadataDocumentTests
     [InlineData("""["/relative"]""")]
     [InlineData("""["javascript:alert(1)"]""")]
     [InlineData("""["https://claude.ai/cb", "http://evil.test/cb"]""")]
+    [InlineData("""["http://localhost.evil.test/callback"]""")]
+    [InlineData("""["http://127.0.0.1.evil.test/callback"]""")]
+    [InlineData("""["http://localhost/callback#frag"]""")]
     [InlineData("""[1]""")]
     [InlineData("""{"a":1}""")]
     [InlineData("""null""")]
     public void Redirect_uris_must_be_a_non_empty_list_of_https_uris_without_fragments(string redirects)
     {
         Assert.NotNull(ClientMetadataDocument.Parse(Doc(redirects: redirects), Url).Error);
+    }
+
+    // RFC 8252: native apps such as Claude Code receive the code on a loopback http listener.
+    [Theory]
+    [InlineData("""["http://localhost/callback","http://127.0.0.1/callback"]""")]
+    [InlineData("""["http://[::1]/callback"]""")]
+    [InlineData("""["https://claude.ai/cb","http://localhost/callback"]""")]
+    public void Loopback_http_redirect_uris_are_accepted(string redirects)
+    {
+        Assert.Null(ClientMetadataDocument.Parse(Doc(redirects: redirects), Url).Error);
     }
 
     [Fact]
