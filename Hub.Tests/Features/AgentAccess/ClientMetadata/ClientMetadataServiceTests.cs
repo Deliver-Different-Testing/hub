@@ -108,6 +108,42 @@ public class ClientMetadataServiceTests
     }
 
     [Fact]
+    public async Task A_document_with_loopback_redirects_is_stored_as_a_native_client()
+    {
+        await using var rig = new Rig("claude.ai/oauth/");
+        rig.Respond(Doc(callback: "http://localhost/callback"));
+
+        Assert.True((await rig.Ensure(redirect: "http://localhost:44945/callback")).Ready);
+
+        var row = (await rig.Row())!;
+        Assert.Equal(ApplicationTypes.Native, row.ApplicationType);
+        Assert.Equal([new Uri("http://localhost/callback")], row.RedirectUris);
+    }
+
+    [Fact]
+    public async Task A_document_with_only_https_redirects_is_stored_as_a_web_client()
+    {
+        await using var rig = new Rig();
+
+        await rig.Ensure();
+
+        Assert.Equal(ApplicationTypes.Web, (await rig.Row())!.ApplicationType);
+    }
+
+    [Fact]
+    public async Task A_new_loopback_port_does_not_trigger_a_refetch()
+    {
+        await using var rig = new Rig();
+        rig.Respond(Doc(callback: "http://localhost/callback"));
+        await rig.Ensure(redirect: "http://localhost:44945/callback");
+        rig.Time.Advance(TimeSpan.FromMinutes(2));
+
+        Assert.True((await rig.Ensure(redirect: "http://localhost:51234/callback")).Ready);
+
+        await rig.Fetcher.Received(1).FetchAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_fresh_row_is_served_without_another_fetch()
     {
         await using var rig = new Rig();
