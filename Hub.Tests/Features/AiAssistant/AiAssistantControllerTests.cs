@@ -18,7 +18,7 @@ namespace Hub.Tests.Features.AiAssistant;
 public class AiAssistantControllerTests
 {
     private readonly IAiAssistantService _service = Substitute.For<IAiAssistantService>();
-    private readonly AiAssistantOptions _options = new() { ApiKey = "key" };
+    private readonly AiAssistantOptions _options = new() { Federation = TestFederation.Connected() };
 
     private AiAssistantController Create(out DefaultHttpContext http)
     {
@@ -62,12 +62,11 @@ public class AiAssistantControllerTests
     }
 
     [Theory]
-    [InlineData("key", true)]
-    [InlineData(null, false)]
-    [InlineData("  ", false)]
-    public void Status_ReflectsTheApiKey(string? apiKey, bool enabled)
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Status_ReflectsWhetherClaudeIsConnected(bool enabled)
     {
-        _options.ApiKey = apiKey;
+        _options.Federation = enabled ? TestFederation.Connected() : new AiAssistantOptions.FederationOptions();
 
         var ok = Assert.IsType<OkObjectResult>(Create(out _).Status());
 
@@ -123,14 +122,15 @@ public class AiAssistantControllerTests
     }
 
     [Fact]
-    public async Task Messages_WhenNotEnabled_Is503_WithoutCallingTheService()
+    public async Task Messages_WhenNotConnected_Is503_WithoutCallingTheService()
     {
-        _options.ApiKey = null;
+        _options.Federation = new AiAssistantOptions.FederationOptions();
         var controller = Create(out var http);
 
         await controller.Messages(Req(), CancellationToken.None);
 
         Assert.Equal(503, http.Response.StatusCode);
+        Assert.Contains("Sorry, I'm not connected right now. Please try again later.", BodyOf(http));
         _service.DidNotReceiveWithAnyArgs().ChatStreamAsync(null!, TestContext.Current.CancellationToken);
     }
 

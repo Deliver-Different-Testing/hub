@@ -82,8 +82,8 @@ public sealed class AiAssistantService(
     {
         if (!options.Enabled)
         {
-            logger.LogError("AI assistant is not configured: no Anthropic API key");
-            yield return Failure("Auto-mate isn't set up for this account.", 503);
+            logger.LogWarning("AI assistant skipped: Claude isn't connected (no workload identity token)");
+            yield return Failure(AiAssistantOptions.NotConnectedMessage, 503);
             yield break;
         }
 
@@ -344,6 +344,7 @@ public sealed class AiAssistantService(
         var (message, status) = failure switch
         {
             LlmFailure.Config => ("Auto-mate isn't set up correctly. Contact support.", 503),
+            LlmFailure.NotConnected => (AiAssistantOptions.NotConnectedMessage, 503),
             LlmFailure.RateLimited => ("Auto-mate is busy right now. Try again in a minute.", 429),
             LlmFailure.BadRequest => ("Auto-mate couldn't follow this conversation. Start a new chat and try again.", 400),
             _ => ("Couldn't reach Auto-mate. Try again.", 502)
