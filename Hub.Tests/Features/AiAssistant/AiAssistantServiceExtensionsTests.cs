@@ -20,19 +20,27 @@ public class AiAssistantServiceExtensionsTests
     }
 
     [Fact]
-    public void ApiKey_IsReadFromTheSharedAutoMateAnthropicKey()
+    public void Federation_IsReadFromTheSharedAutoMateAnthropicSection()
     {
-        var options = Register(new() { ["AutoMate:Anthropic:ApiKey"] = "sk-shared", ["AiAssistant:Model"] = "claude-sonnet-5-5" });
+        var options = Register(new()
+        {
+            ["AutoMate:Anthropic:Federation:RuleId"] = "fdrl_hub",
+            ["AutoMate:Anthropic:Federation:OrganizationId"] = "org",
+            ["AutoMate:Anthropic:Federation:ServiceAccountId"] = "svac_hub",
+            ["AiAssistant:Model"] = "claude-sonnet-5-5"
+        });
 
-        Assert.Equal("sk-shared", options.ApiKey);
-        Assert.True(options.Enabled);
+        Assert.Equal("fdrl_hub", options.Federation.RuleId);
+        Assert.Equal("org", options.Federation.OrganizationId);
+        Assert.Equal("svac_hub", options.Federation.ServiceAccountId);
+        Assert.Equal("/var/run/secrets/anthropic.com/token", options.Federation.IdentityTokenFile);
         Assert.Equal("claude-sonnet-5-5", options.Model);
     }
 
     [Fact]
-    public void WithoutTheSharedKey_TheAssistantIsOff()
+    public void AnApiKey_NoLongerTurnsTheAssistantOn()
     {
-        var options = Register(new() { ["AiAssistant:ApiKey"] = "sk-old" });
+        var options = Register(new() { ["AutoMate:Anthropic:ApiKey"] = "sk-shared", ["AiAssistant:ApiKey"] = "sk-old" });
 
         Assert.False(options.Enabled);
     }

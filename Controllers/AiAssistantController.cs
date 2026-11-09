@@ -29,7 +29,7 @@ public sealed class AiAssistantController(IAiAssistantService assistant, AiAssis
         if (!options.Enabled)
         {
             Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            await Response.WriteAsJsonAsync(new ApiError("Auto-mate isn't set up for this account."), ct);
+            await Response.WriteAsJsonAsync(new ApiError(AiAssistantOptions.NotConnectedMessage), ct);
             return;
         }
 
