@@ -3,6 +3,7 @@ using Hub.Features.AgentAccess.Oauth;
 using Microsoft.Extensions.Caching.Memory;
 using OpenIddict.Abstractions;
 using Serilog;
+using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Hub.Features.AgentAccess.ClientMetadata;
 
@@ -53,8 +54,8 @@ public sealed class ClientMetadataService(
 
             fetchedAt = parsed;
             var age = time.GetUtcNow() - parsed;
-            var redirectKnown = redirectUri is null
-                                || (await applications.GetRedirectUrisAsync(existing, cancellationToken)).Contains(redirectUri, StringComparer.Ordinal);
+            // OpenIddict's own check, so a native client's loopback redirect matches on any port.
+            var redirectKnown = redirectUri is null || await applications.ValidateRedirectUriAsync(existing, redirectUri, cancellationToken);
             if (age < options.Ttl && (redirectKnown || age < options.RefetchFloor))
             {
                 return ClientMetadataOutcome.Ok;
@@ -84,7 +85,9 @@ public sealed class ClientMetadataService(
                 return KeepOrReject(fetchedAt, transient, parsedDocument.Error!);
             }
 
-            if (document.RedirectUris.Any(r => !options.IsTrustedRedirectHost(new Uri(r).Host)))
+            // A loopback redirect returns the code to the signed-in user's own machine, and PKCE is required.
+            var redirects = document.RedirectUris.Select(r => new Uri(r)).ToList();
+            if (redirects.Any(r => !r.IsLoopback && !options.IsTrustedRedirectHost(r.Host)))
             {
                 const string reason = "A redirect URI is not on a trusted host.";
                 Log.Warning("Client metadata for {ClientId} rejected: {Reason}", clientId, reason);
@@ -99,6 +102,8 @@ public sealed class ClientMetadataService(
                 RedirectUris = [.. document.RedirectUris]
             });
             descriptor.Properties[MarkerProperty] = JsonSerializer.SerializeToElement(time.GetUtcNow().ToString("O"));
+            // Native lets OpenIddict accept any port on a loopback redirect (RFC 8252 section 7.3).
+            descriptor.ApplicationType = redirects.Any(r => r.IsLoopback) ? ApplicationTypes.Native : ApplicationTypes.Web;
 
             if (existing is null)
             {

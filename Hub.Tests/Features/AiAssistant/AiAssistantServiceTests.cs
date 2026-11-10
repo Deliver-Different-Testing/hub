@@ -15,7 +15,7 @@ public class AiAssistantServiceTests
     private static readonly Guid Article1 = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly Guid Article2 = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
-    private readonly AiAssistantOptions _options = new() { ApiKey = "test-key", MaxToolRounds = 1, GroundingTimeoutMs = 200 };
+    private readonly AiAssistantOptions _options = new() { Federation = TestFederation.Connected(), MaxToolRounds = 1, GroundingTimeoutMs = 200 };
     private readonly SequenceHandler _anthropic = new();
     private readonly ICspKnowledgeClient _knowledge = Substitute.For<ICspKnowledgeClient>();
     private readonly KbTurnSources _sources = new();
@@ -444,15 +444,17 @@ public class AiAssistantServiceTests
     // ---- request validation & Claude failures -------------------------------------------------
 
     [Fact]
-    public async Task NoApiKey_Is503()
+    public async Task NotConnected_Is503_WithoutCallingClaude()
     {
-        _options.ApiKey = null;
+        _options.Federation = new AiAssistantOptions.FederationOptions();
 
         var events = await Collect(CreateSut().ChatStreamAsync(Request(), CancellationToken.None));
 
         var error = Assert.Single(events);
         Assert.Equal("error", error.Type);
+        Assert.Equal("Sorry, I'm not connected right now. Please try again later.", error.Error);
         Assert.Equal(503, error.HttpStatus);
+        Assert.Empty(_anthropic.Bodies);
     }
 
     [Fact]
@@ -535,6 +537,24 @@ public class AiAssistantServiceTests
 
         var error = Assert.Single(events, e => e.Type == "error");
         Assert.Equal(expected, error.HttpStatus);
+    }
+
+    [Theory]
+    [InlineData(401, "Sorry, I'm not connected right now. Please try again later.")]
+    [InlineData(403, "Sorry, I'm not connected right now. Please try again later.")]
+    [InlineData(404, "Auto-mate isn't set up correctly. Contact support.")]
+    public async Task ARejectedTokenSaysNotConnected_AMissingModelSaysSetUp(int claudeStatus, string expected)
+    {
+        _anthropic.Queue(new HttpResponseMessage((HttpStatusCode)claudeStatus)
+        {
+            Content = new StringContent("""{"type":"error","error":{"type":"x","message":"y"}}""", Encoding.UTF8, "application/json")
+        });
+
+        var events = await Collect(CreateSut().ChatStreamAsync(Request(), CancellationToken.None));
+
+        var error = Assert.Single(events, e => e.Type == "error");
+        Assert.Equal(expected, error.Error);
+        Assert.Equal(503, error.HttpStatus);
     }
 
     [Fact]

@@ -23,8 +23,7 @@
         "PartnerDirectoryApiKey": "<PartnerDirectoryApiKey>",
         "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy",
         "CspKnowledge__BaseUrl": "http://localhost:5310",
-        "ServiceAuth__ClientSecret": "<same value as dfrntcrm KnowledgeApi__DevBootstrapSecret>",
-        "AutoMate__Anthropic__ApiKey": "<Anthropic API key>"
+        "ServiceAuth__ClientSecret": "<same value as dfrntcrm KnowledgeApi__DevBootstrapSecret>"
       }
     }
   }
