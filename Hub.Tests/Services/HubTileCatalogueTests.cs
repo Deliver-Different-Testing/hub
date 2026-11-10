@@ -1,3 +1,4 @@
+using Hub.Tests.Helpers;
 using Hub.Services;
 
 namespace Hub.Tests.Services;
@@ -144,6 +145,38 @@ public class HubTileCatalogueTests
             Assert.False(string.IsNullOrWhiteSpace(tile.Icon), $"{tile.Key} has no icon");
             Assert.False(string.IsNullOrWhiteSpace(tile.Title), $"{tile.Key} has no title");
         }
+    }
+
+    [Theory]
+    [InlineData("hub-tile-tracking", "job-search.svg")]
+    [InlineData("hub-tile-routed-operations", "routed-operations.svg")]
+    [InlineData("hub-tile-configurator", "workflow.svg")]
+    // A new name rather than an overwrite: /images is cached for a day, so the
+    // old clipboard art would linger beside the new set.
+    [InlineData("hub-tile-setup-dashboard", "setup-dashboard-launch.svg")]
+    public void Tiles_use_the_november_2026_icon_set(string key, string icon)
+    {
+        var tile = HubTileCatalogue.Resolve(Permissive(), AllKeys()).Single(t => t.Key == key);
+
+        Assert.Equal(icon, tile.Icon);
+    }
+
+    [Fact]
+    public void Routed_operations_no_longer_borrows_the_route_builder_icon()
+    {
+        var tiles = HubTileCatalogue.Resolve(Permissive(), AllKeys());
+
+        Assert.NotEqual(
+            tiles.Single(t => t.Key == "hub-tile-route-builder").Icon,
+            tiles.Single(t => t.Key == "hub-tile-routed-operations").Icon);
+    }
+
+    [Fact]
+    public void Every_tile_icon_exists_on_disk()
+    {
+        Assert.All(
+            HubTileCatalogue.Resolve(Permissive(), AllKeys()),
+            t => Assert.True(TileIconFiles.Exists(t.Icon), $"{t.Key}: {t.Icon} missing"));
     }
 
     [Fact]
