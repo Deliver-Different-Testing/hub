@@ -159,7 +159,7 @@ public static class HubTileCatalogue
                 ctx => ctx.AppUrl("integrationmanager") + "/auth/entry",
                 _ => true),
 
-            new("hub-tile-tracking", "Job Search", "tracker.svg",
+            new("hub-tile-tracking", "Job Search", "job-search.svg",
                 ctx => ctx.AppUrl("tracking"),
                 _ => true),
 
@@ -173,7 +173,7 @@ public static class HubTileCatalogue
 
             // The Route Builder successor, running alongside it until parity is
             // signed off.
-            new("hub-tile-routed-operations", "Routed Operations", "route-builder.svg",
+            new("hub-tile-routed-operations", "Routed Operations", "routed-operations.svg",
                 ctx => ctx.AppUrl("routedoperations"),
                 _ => true),
 
@@ -184,14 +184,14 @@ public static class HubTileCatalogue
             // Renamed from Workflows 2026-08-31. Couriers and NPs used to see
             // this same tile labelled "DFRNT Drive"; one list means one label,
             // and Steve confirmed on 2026-09-01 that the label is not the point.
-            new("hub-tile-configurator", "Settings", "workflow.png",
+            new("hub-tile-configurator", "Settings", "workflow.svg",
                 ctx => ctx.AppUrl("dfrntdriveconfig"),
                 _ => true),
 
             // DFRNT onboarding wizard (Steve 2026-10-15). Seeded DF Admin only;
             // Setup Dashboard enforces the same key server side, so switching
             // the tile off blocks the app rather than just hiding it.
-            new("hub-tile-setup-dashboard", "Setup Dashboard", "setup-dashboard.svg",
+            new("hub-tile-setup-dashboard", "Setup Dashboard", "setup-dashboard-launch.svg",
                 ctx => ctx.AppUrl("setupdashboard") + "/setup-dashboard/",
                 _ => true)
         ];

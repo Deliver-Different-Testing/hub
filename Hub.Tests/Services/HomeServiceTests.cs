@@ -130,7 +130,22 @@ public class HomeServiceTests : IDisposable
         Assert.Equal("https://courierportal.example.com", home.Tiles[1].Href);
         Assert.Equal("https://dfrntdriveconfig.example.com", home.Tiles[2].Href);
         Assert.Equal("/images/icons/dispatch.svg", home.Tiles[0].Icon);
+        Assert.Equal("/images/icons/workflow.svg", home.Tiles[2].Icon);
         Assert.All(home.Tiles, t => Assert.False(t.IsDisabled));
+    }
+
+    [Fact]
+    public async Task GetHome_CourierTileIcons_ExistOnDisk()
+    {
+        // Courier tiles are hardcoded here rather than in HubTileCatalogue, so
+        // the catalogue's own disk check never sees them.
+        var courier = ClaimsPrincipalFactory.Create(isCourier: true, courierId: 1);
+        var service = CreateService();
+
+        var home = await service.GetHomeAsync(courier);
+
+        Assert.NotNull(home);
+        Assert.All(home.Tiles, t => Assert.True(TileIconFiles.Exists(t.Icon), $"{t.Key}: {t.Icon} missing"));
     }
 
     [Fact]

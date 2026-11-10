@@ -128,7 +128,7 @@ public class HomeService(
         // Courier-portal cutover: the new React portal is served by the configurator
         // (dfrntdriveconfig). It is added alongside the legacy Courier Portal tile
         // rather than swapping, so couriers can use either while it is validated.
-        tiles.Add(new HomeTileResponse("hub-tile-dfrnt-drive", "DFRNT Drive", IconPath("workflow.png"),
+        tiles.Add(new HomeTileResponse("hub-tile-dfrnt-drive", "DFRNT Drive", IconPath("workflow.svg"),
             TenantAppUrl("dfrntdriveconfig"), false));
         return tiles;
     }
