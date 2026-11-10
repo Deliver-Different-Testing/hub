@@ -11,6 +11,7 @@ public sealed record ClientMetadataParseResult(ClientMetadata? Document, string?
 
 // A client ID metadata document is untrusted input from the internet (phase 1.8). Only a small, strict subset is
 // accepted: a public client using the authorization code flow, identified by the exact URL it was fetched from.
+// Redirects are https, or http on a loopback address for native apps such as Claude Code (RFC 8252).
 public static class ClientMetadataDocument
 {
     private const int MaxClientIdLength = 100; // McpOAuthApplication.ClientId is nvarchar(100)
@@ -127,10 +128,10 @@ public static class ClientMetadataDocument
             if (string.IsNullOrEmpty(value)
                 || value.Length > MaxRedirectUriLength
                 || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
-                || uri.Scheme != Uri.UriSchemeHttps
+                || !(uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback))
                 || !string.IsNullOrEmpty(uri.Fragment))
             {
-                error = "Every redirect URI must be an absolute https URI without a fragment.";
+                error = "Every redirect URI must be an absolute https (or loopback http) URI without a fragment.";
                 return false;
             }
 

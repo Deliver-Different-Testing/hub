@@ -1,4 +1,3 @@
-using Anthropic;
 using Hub.Features.AiAssistant.Tools;
 
 namespace Hub.Features.AiAssistant;
@@ -13,7 +12,8 @@ public static class AiAssistantServiceExtensions
         this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         var assistant = configuration.GetSection(AiAssistantOptions.SectionName).Get<AiAssistantOptions>() ?? new AiAssistantOptions();
-        assistant.ApiKey = configuration[AiAssistantOptions.ApiKeyPath];
+        assistant.Federation = configuration.GetSection(AiAssistantOptions.FederationPath).Get<AiAssistantOptions.FederationOptions>()
+            ?? new AiAssistantOptions.FederationOptions();
         var serviceAuth = configuration.GetSection(ServiceAuthOptions.SectionName).Get<ServiceAuthOptions>() ?? new ServiceAuthOptions();
         var csp = new CspKnowledgeOptions
         {
@@ -32,12 +32,7 @@ public static class AiAssistantServiceExtensions
         services.AddSingleton(serviceAuth);
         services.AddSingleton(csp);
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(new AnthropicClient
-        {
-            ApiKey = assistant.ApiKey ?? string.Empty,
-            Timeout = TimeSpan.FromSeconds(assistant.TimeoutSeconds),
-            MaxRetries = assistant.MaxRetries
-        });
+        services.AddSingleton(AnthropicClientFactory.Create(assistant));
 
         // No shared retry or breaker: a missing CSP must fail fast. Budgets live in CspKnowledgeClient, the breaker in CspKnowledgeCircuit.
         services.AddSingleton<CspKnowledgeCircuit>();
