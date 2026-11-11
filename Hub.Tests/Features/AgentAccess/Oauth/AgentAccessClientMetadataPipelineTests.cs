@@ -54,12 +54,12 @@ public partial class AgentAccessAuthorizePipelineTests
         await using var app = await Oauth.AgentAccessAuthorizePipelineTests.StartAsync();
         ServeDocument(app, CimdDocument(name: "Claude Connector"));
 
-        var page = await Oauth.AgentAccessAuthorizePipelineTests.Get(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(clientId: CimdUrl), Oauth.AgentAccessAuthorizePipelineTests.Staff());
-        var html = await page.Content.ReadAsStringAsync(Oauth.AgentAccessAuthorizePipelineTests.Ct);
+        var (page, _) = await Oauth.AgentAccessAuthorizePipelineTests.Page(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(clientId: CimdUrl), Oauth.AgentAccessAuthorizePipelineTests.Staff());
 
-        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("Claude Connector", html);
-        Assert.Contains("Claude Connector (claude.ai)", System.Net.WebUtility.HtmlDecode(html));
+        Assert.Equal("Claude Connector", page.GetProperty("clientName").GetString());
+        // The name is the document's own claim; the host it was fetched from is what DFRNT vouches for.
+        Assert.Equal("claude.ai", page.GetProperty("clientHost").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, page.GetProperty("verifiedVendor").ValueKind);
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public partial class AgentAccessAuthorizePipelineTests
 
         var response = await Oauth.AgentAccessAuthorizePipelineTests.Get(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(), Oauth.AgentAccessAuthorizePipelineTests.Staff());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Oauth.AgentAccessAuthorizePipelineTests.AssertSentToConnectPage(response);
         await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
     }
 }

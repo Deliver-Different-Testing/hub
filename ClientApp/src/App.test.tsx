@@ -109,6 +109,56 @@ describe('routing', () => {
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });
 
+  it('renders the AI-app unavailable page without the shell or a login', async () => {
+    server.use(
+      unauthorizedMeHandler(),
+      http.get('/api/agent-access/unavailable', () => HttpResponse.json({ message: 'AI app access is switched off for Urgent Couriers.' })),
+    );
+    renderApp('/agent-access/unavailable');
+    expect(await screen.findByText('AI app access is switched off for Urgent Couriers.')).toBeInTheDocument();
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/agent-access/unavailable');
+  });
+
+  it('renders the AI-app connect page on its own card, outside the shell', async () => {
+    server.use(
+      meHandler(),
+      logoHandler(),
+      http.get('/api/agent-access/connect', () =>
+        HttpResponse.json({
+          kind: 'consent', clientName: 'Claude', verifiedVendor: 'Anthropic', clientHost: null,
+          resourceHost: 'mcp.urgent.co.nz', redirectHost: 'claude.ai', currentOrganisation: null, hubOrganisation: null,
+          canSwitch: false, error: null, parameters: [], antiforgeryFieldName: '__RequestVerificationToken', antiforgeryToken: 't',
+        }),
+      ),
+    );
+    renderApp('/agent-access/connect?ticket=abc');
+    expect(await screen.findByRole('heading', { name: 'Connect Claude' })).toBeInTheDocument();
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+  });
+
+  it('shows an expired connect ticket at once, without retrying the request', async () => {
+    let calls = 0;
+    server.use(
+      meHandler(),
+      logoHandler(),
+      http.get('/api/agent-access/connect', () => {
+        calls += 1;
+        return HttpResponse.json({ error: "Couldn't open this connection request. It has expired." }, { status: 400 });
+      }),
+    );
+    renderApp('/agent-access/connect?ticket=old');
+    expect(await screen.findByRole('alert')).toHaveTextContent('It has expired.');
+    expect(calls).toBe(1);
+  });
+
+  it('sends a logged-out visitor on the connect page to log in and back', async () => {
+    server.use(unauthorizedMeHandler(), http.get('/api/agent-access/connect', () => HttpResponse.json({}, { status: 401 })));
+    renderApp('/agent-access/connect?ticket=abc');
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/Account/Login?returnUrl=%2Fagent-access%2Fconnect%3Fticket%3Dabc');
+  });
+
   it('redirects an unknown path to home', async () => {
     serveAuthed();
     renderApp('/definitely/not/a/page');

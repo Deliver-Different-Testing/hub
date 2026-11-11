@@ -93,3 +93,28 @@ export interface StreamEvent {
   error?: string | null;
   sources?: KbSource[] | null;
 }
+
+/** One hidden field of the original authorization request, posted back to /connect/authorize. */
+export interface AgentAccessParameter {
+  name: string;
+  value: string;
+}
+
+/** GET api/agent-access/connect: what the AI-app connect page shows, from the ticket the authorize endpoint sealed. */
+export interface AgentAccessConnectPage {
+  kind: 'consent' | 'switch';
+  clientName: string;
+  /** Only for apps DFRNT configured itself; a metadata document's name is the app's own claim. */
+  verifiedVendor: string | null;
+  /** The host of a URL client id (a client metadata document). */
+  clientHost: string | null;
+  resourceHost: string;
+  redirectHost: string | null;
+  currentOrganisation: string | null;
+  hubOrganisation: string | null;
+  canSwitch: boolean;
+  error: string | null;
+  parameters: AgentAccessParameter[];
+  antiforgeryFieldName: string;
+  antiforgeryToken: string;
+}

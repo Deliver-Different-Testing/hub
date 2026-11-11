@@ -72,6 +72,7 @@ public static class AgentAccessExtensions
 
         IReadOnlyList<AgentAccessClientOptions> clients = settings?.Clients ?? [];
         services.AddSingleton(new AgentAccessClientCatalog(clients));
+        services.AddSingleton<AgentAccessConnectTickets>();
         services.AddSingleton<IAgentAccessClientSeeder>(provider =>
             new AgentAccessClientSeeder(
                 provider.GetRequiredService<IServiceScopeFactory>(), clients,
@@ -180,6 +181,35 @@ public static class AgentAccessExtensions
     public static void UseAgentAccessEndpointGate(this IApplicationBuilder app)
     {
         app.UseMiddleware<AgentAccessEndpointGate>();
+    }
+
+    /// <summary>The SPA's pages for connecting an AI app (consent, organisation switch, unavailable) live under this path.</summary>
+    public const string PagePathPrefix = "/agent-access";
+
+    /// <summary>
+    /// The connect pages are SPA routes, so the framing and caching rules the Razor consent page used to send go on
+    /// the index.html response instead (RFC 9700 section 4.16; a meta tag or client-side check would do nothing).
+    /// Set as the response starts, so they replace the static-file Cache-Control. Place before UseStaticFiles.
+    /// </summary>
+    public static void UseAgentAccessPageHeaders(this IApplicationBuilder app)
+    {
+        app.Use((context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments(PagePathPrefix))
+            {
+                context.Response.OnStarting(() =>
+                {
+                    context.Response.Headers["X-Frame-Options"] = "DENY";
+                    context.Response.Headers.ContentSecurityPolicy = "frame-ancestors 'none'";
+                    context.Response.Headers.CacheControl = "no-store";
+                    context.Response.Headers.Remove("Pragma");
+                    context.Response.Headers.Remove("Expires");
+                    return Task.CompletedTask;
+                });
+            }
+
+            return next(context);
+        });
     }
 }
 
