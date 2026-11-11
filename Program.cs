@@ -259,6 +259,8 @@ var staticFileOptions = new StaticFileOptions
     }
 };
 
+// Frame/cache headers for the SPA's AI-app connect pages; must wrap the index.html the fallback serves.
+app.UseAgentAccessPageHeaders();
 app.UseStaticFiles(staticFileOptions);
 
 app.UseSession();
@@ -276,8 +278,9 @@ app.MapControllerRoute(
 // An unknown API path is a 404, never the SPA shell. The literal prefix outranks the catch-all below.
 app.MapFallback("/api/{**path}", () => Results.NotFound(new ApiError("Not found.")));
 
-// Every other path that is not a file belongs to the React router. MVC routes (Account/CreditCard,
-// Account/AcceptTenantSwitchToken, the OAuth consent page) and the middleware endpoints match first.
+// Every other path that is not a file belongs to the React router, including the AI-app connect pages under
+// /agent-access. MVC routes (Account/CreditCard, Account/AcceptTenantSwitchToken, /connect/authorize) and the
+// middleware endpoints match first.
 app.MapFallbackToFile("{*path:nonfile}", "index.html", staticFileOptions);
 
 app.Run();

@@ -20,6 +20,16 @@ describe('AuthCard', () => {
     expect(screen.getByRole('main')).toBe(screen.getByTestId('auth-field'));
   });
 
+  it('labels its progress bar for the action under way', () => {
+    renderWithProviders(<AuthCard busy busyLabel="Connecting">card body</AuthCard>);
+    expect(screen.getByRole('progressbar')).toHaveAccessibleName('Connecting');
+  });
+
+  it('says signing in by default, for the login pages', () => {
+    renderWithProviders(<AuthCard busy>card body</AuthCard>);
+    expect(screen.getByRole('progressbar')).toHaveAccessibleName('Signing in');
+  });
+
   it('keeps the old login field: Ink Blue ground, tiled chevron pattern and three glows', () => {
     expect(css).toMatch(/background-color:\s*var\(--mantine-color-ink-9\)/);
     expect(css).toMatch(/url\("data:image\/svg\+xml/);

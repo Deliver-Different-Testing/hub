@@ -47,6 +47,8 @@ export default defineConfig({
             /^\/Account\/AcceptCourierAppToken/,
             /^\/Account\/CreditCard/,
             /^\/images/,
+            // The AI-app connect pages: the server's frame-ancestors / no-store headers must apply, not a precached shell.
+            /^\/agent-access/,
           ],
           globIgnores: ['static/zxcvbn*.js', 'static/lottie*.js'], // lazy, single-page chunks (reset-password dictionary, login animation): not worth precaching
           cleanupOutdatedCaches: true,
@@ -77,13 +79,7 @@ export default defineConfig({
     emptyOutDir: false,
     assetsDir: 'static',
     rollupOptions: {
-      input: {
-        main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        consent: fileURLToPath(new URL('./src/styles/consent/consent.css', import.meta.url)),
-      },
       output: {
-        assetFileNames: (asset) =>
-          asset.names?.some((n) => n === 'consent.css') ? 'consent.css' : 'static/[name]-[hash][extname]',
         manualChunks(id: string) {
           if (!id.includes('node_modules')) return undefined;
           if (/node_modules\/(react|react-dom|react-router|react-router-dom)\//.test(id)) return 'vendor-react';

@@ -1,6 +1,7 @@
 export const APP_NAME = 'Deliver DFRNT';
 
-const ANONYMOUS_PATHS = ['/account/login', '/account/forgotpassword', '/account/resetpassword'];
+// The AI-app unavailable page is reached before sign-in, from the app's own login window.
+const ANONYMOUS_PATHS = ['/account/login', '/account/forgotpassword', '/account/resetpassword', '/agent-access/unavailable'];
 
 /** Routes that render without a signed-in user (api/me returns 401 there by design). */
 export function isAnonymousPath(pathname: string): boolean {

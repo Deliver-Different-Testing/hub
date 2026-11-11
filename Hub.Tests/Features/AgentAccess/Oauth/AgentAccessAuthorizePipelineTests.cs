@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Hub.Features.AgentAccess;
 using Hub.Features.AgentAccess.ClientMetadata;
 using Hub.Features.AgentAccess.Gate;
@@ -15,8 +14,10 @@ using Hub.Features.AgentAccess.Oauth;
 using Hub.Interfaces;
 using Hub.Models.Master;
 using Hub.Tests.Features.AgentAccess.Keys;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -30,7 +31,7 @@ using OpenIddict.EntityFrameworkCore.Models;
 namespace Hub.Tests.Features.AgentAccess.Oauth;
 
 // Phase 1.5 end to end on a real ASP.NET Core pipeline: OpenIddict registered exactly as Hub registers it,
-// the open gate, a stand-in for the Hub cookie, the real controllers and the consent view.
+// the open gate, a stand-in for the Hub cookie, the real controllers and the connect-page API the SPA reads.
 public partial class AgentAccessAuthorizePipelineTests
 {
     private const string Issuer = "https://hub.urgent.example.test";
@@ -134,16 +135,65 @@ public partial class AgentAccessAuthorizePipelineTests
     {
         await using var app = await StartAsync();
 
-        var response = await Get(app, AuthorizeUrl(), Staff(clientType));
-        var html = await response.Content.ReadAsStringAsync(Ct);
+        var (page, response) = await Page(app, AuthorizeUrl(), Staff(clientType));
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Claude", html);
-        Assert.Contains("Anthropic", html);
-        Assert.Contains("mcp.urgent.example.test", html);
-        Assert.Contains("__RequestVerificationToken", html);
+        Assert.Equal("consent", page.GetProperty("kind").GetString());
+        Assert.Equal("Claude", page.GetProperty("clientName").GetString());
+        Assert.Equal("Anthropic", page.GetProperty("verifiedVendor").GetString());
+        Assert.False(page.TryGetProperty("verified", out _));
+        Assert.Equal("mcp.urgent.example.test", page.GetProperty("resourceHost").GetString());
+        Assert.Equal("claude.ai", page.GetProperty("redirectHost").GetString());
+        Assert.Equal("__RequestVerificationToken", page.GetProperty("antiforgeryFieldName").GetString());
+        Assert.False(string.IsNullOrEmpty(page.GetProperty("antiforgeryToken").GetString()));
+        Assert.Equal("xyz", Fields(page)["state"]);
+        Assert.True(response.Headers.CacheControl!.NoStore);
+    }
+
+    [Fact]
+    public async Task The_connect_page_is_an_spa_route_that_cannot_be_framed_or_cached()
+    {
+        await using var app = await StartAsync();
+
+        var response = await Get(app, "/agent-access/connect?ticket=x", Staff());
+
+        Assert.Equal("shell", await response.Content.ReadAsStringAsync(Ct));
         Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
-        Assert.Contains("frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+        Assert.Equal("frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+        Assert.True(response.Headers.CacheControl!.NoStore);
+    }
+
+    [Fact]
+    public async Task Other_spa_routes_keep_their_own_headers()
+    {
+        await using var app = await StartAsync();
+
+        var response = await Get(app, "/FuelSurcharge", Staff());
+
+        Assert.False(response.Headers.Contains("X-Frame-Options"));
+    }
+
+    [Fact]
+    public async Task A_tampered_ticket_is_refused()
+    {
+        await using var app = await StartAsync();
+
+        var response = await Get(app, "/api/agent-access/connect?ticket=not-a-ticket", Staff());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Couldn't open this connection request. It has expired.", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact]
+    public async Task A_ticket_only_opens_for_the_person_it_was_issued_to()
+    {
+        await using var app = await StartAsync();
+        var ticket = Uri.EscapeDataString(await Ticket(app, AuthorizeUrl(), Staff()));
+
+        var otherUser = await Get(app, "/api/agent-access/connect?ticket=" + ticket, Staff().Replace("UserID=55", "UserID=56"));
+        var otherTenant = await Get(app, "/api/agent-access/connect?ticket=" + ticket, Staff(tenantId: "3"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, otherUser.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, otherTenant.StatusCode);
     }
 
     [Fact]
@@ -308,7 +358,7 @@ public partial class AgentAccessAuthorizePipelineTests
 
         var response = await Get(app, AuthorizeUrl(prompt: "consent"), Staff());
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertSentToConnectPage(response);
     }
 
     [Fact]
@@ -329,15 +379,15 @@ public partial class AgentAccessAuthorizePipelineTests
 
         var response = await Get(app, AuthorizeUrl(), Staff(tenantId: "12"));
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertSentToConnectPage(response);
     }
 
     [Fact]
     public async Task Posting_without_the_antiforgery_token_is_rejected_and_creates_nothing()
     {
         await using var app = await StartAsync();
-        var page = await Get(app, AuthorizeUrl(), Staff());
-        var fields = HiddenFields(await page.Content.ReadAsStringAsync(Ct));
+        var (page, _) = await Page(app, AuthorizeUrl(), Staff());
+        var fields = Fields(page);
         fields["decision"] = "allow";
         var request = new HttpRequestMessage(HttpMethod.Post, AuthorizeUrl())
         {
@@ -385,21 +435,47 @@ public partial class AgentAccessAuthorizePipelineTests
         return Client(app).SendAsync(request, Ct);
     }
 
+    // The authorize endpoint sends the browser to the SPA's connect page with a sealed ticket; the page reads it back.
+    private static async Task<string> Ticket(WebApplication app, string url, string user)
+    {
+        var response = await Get(app, url, user);
+        AssertSentToConnectPage(response);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(new Uri("https://localhost"), response.Headers.Location!).Query);
+        return query["ticket"].ToString();
+    }
+
+    private static async Task<(JsonElement Page, HttpResponseMessage Response)> Page(WebApplication app, string url, string user)
+    {
+        var ticket = await Ticket(app, url, user);
+        var response = await Get(app, "/api/agent-access/connect?ticket=" + Uri.EscapeDataString(ticket), user);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement, response);
+    }
+
+    private static void AssertSentToConnectPage(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/agent-access/connect?ticket=", response.Headers.Location!.OriginalString);
+    }
+
+    // What the SPA's form posts back: the original authorization request, one hidden field per parameter.
+    private static Dictionary<string, string> Fields(JsonElement page) =>
+        page.GetProperty("parameters").EnumerateArray()
+            .ToDictionary(p => p.GetProperty("name").GetString()!, p => p.GetProperty("value").GetString()!);
+
     private static async Task<HttpResponseMessage> Consent(WebApplication app, string url, string decision, string? user = null)
     {
         user ??= Staff();
-        var page = await Get(app, url, user);
-        var html = await page.Content.ReadAsStringAsync(Ct);
-        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
-        var cookies = page.Headers.TryGetValues("Set-Cookie", out var set)
+        var (page, response) = await Page(app, url, user);
+        var cookies = response.Headers.TryGetValues("Set-Cookie", out var set)
             ? string.Join("; ", set.Select(c => c.Split(';')[0]))
             : string.Empty;
 
-        var fields = HiddenFields(html);
+        var fields = Fields(page);
         fields["decision"] = decision;
-        fields["__RequestVerificationToken"] = token;
+        fields[page.GetProperty("antiforgeryFieldName").GetString()!] = page.GetProperty("antiforgeryToken").GetString()!;
 
-        var post = new HttpRequestMessage(HttpMethod.Post, url)
+        var post = new HttpRequestMessage(HttpMethod.Post, "/connect/authorize")
         {
             Content = new FormUrlEncodedContent(fields)
         };
@@ -407,11 +483,6 @@ public partial class AgentAccessAuthorizePipelineTests
         if (cookies.Length > 0) post.Headers.Add("Cookie", cookies);
         return await Client(app).SendAsync(post, Ct);
     }
-
-    private static Dictionary<string, string> HiddenFields(string html) =>
-        Regex.Matches(html, "<input type=\"hidden\" name=\"([^\"]+)\" value=\"([^\"]*)\"")
-            .Where(m => m.Groups[1].Value != "__RequestVerificationToken")
-            .ToDictionary(m => WebUtility.HtmlDecode(m.Groups[1].Value), m => WebUtility.HtmlDecode(m.Groups[2].Value));
 
     private static Task<HttpResponseMessage> Token(
         WebApplication app, string code, string verifier, string clientId = "dfrnt-claude", string redirectUri = RedirectUri) =>
@@ -451,7 +522,8 @@ public partial class AgentAccessAuthorizePipelineTests
     private static async Task<WebApplication> StartAsync(
         bool gateOpen = true, string[]? metadataHosts = null, string? mcpSecret = "mcp-secret",
         AgentAccessReason closedReason = AgentAccessReason.Error, IAgentAccessKeySource? keySource = null,
-        string? clusterIssuer = ClusterIssuer, string[]? mcpServiceAccounts = null, string? issuer = Issuer)
+        string? clusterIssuer = ClusterIssuer, string[]? mcpServiceAccounts = null, string? issuer = Issuer,
+        string? antiforgeryFieldName = null)
     {
         var gate = Substitute.For<IAgentAccessGate>();
         gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(
@@ -476,6 +548,7 @@ public partial class AgentAccessAuthorizePipelineTests
         builder.Services.AddAuthentication("Identity.Application").AddScheme<AuthenticationSchemeOptions, TestCookieHandler>("Identity.Application", _ => { });
         builder.Services.AddAuthorization();
         builder.Services.AddControllersWithViews().AddApplicationPart(typeof(AgentAccessAuthorizeController).Assembly);
+        if (antiforgeryFieldName is not null) builder.Services.Configure<AntiforgeryOptions>(o => o.FormFieldName = antiforgeryFieldName);
 
         var clients = new List<AgentAccessClientOptions>
         {
@@ -511,8 +584,11 @@ public partial class AgentAccessAuthorizePipelineTests
         app.UseRouting();
         app.UseAgentAccessEndpointGate();
         app.UseAuthentication();
+        app.UseAgentAccessPageHeaders();
         app.UseAuthorization();
         app.MapControllers();
+        // Stands in for Program's MapFallbackToFile("index.html"): every other path is the SPA shell.
+        app.MapFallback(context => context.Response.WriteAsync("shell"));
         await app.StartAsync();
         return app;
     }
