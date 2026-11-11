@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using Serilog;
@@ -29,7 +30,9 @@ public class AgentAccessAuthorizeController(
     IAntiforgery antiforgery,
     IAgentAccessTenantResolver tenants,
     IAuthenticationRepository master,
-    IAccountService accounts) : Controller
+    IAccountService accounts,
+    AgentAccessConnectTickets tickets,
+    IOptions<AntiforgeryOptions> antiforgeryOptions) : Controller
 {
     private const string CookieScheme = "Identity.Application";
     private const string TenantIdProperty = "tenant_id";
@@ -81,14 +84,43 @@ public class AgentAccessAuthorizeController(
             return await DecideAsync(request, user!, application);
         }
 
-        ApplyConsentHeaders();
-        return View("~/Features/AgentAccess/Views/Consent.cshtml", new AgentAccessConsentViewModel(
-            await applications.GetDisplayNameAsync(application) ?? request.ClientId!,
-            catalog.FindVendor(request.ClientId!)
-            ?? (Uri.TryCreate(request.ClientId, UriKind.Absolute, out var clientUri) ? clientUri.Host : null),
-            new Uri(resource.Value!).Host,
-            request.GetScopes().ToList()));
+        return await ToConnectPageAsync(request, user!, application, AgentAccessConnectTicket.Consent);
     }
+
+    // The consent and switch pages are SPA routes. What they show travels in a sealed ticket rather than the page's URL,
+    // and the original request rides along so the page's form can post it back here for OpenIddict to validate again.
+    private async Task<IActionResult> ToConnectPageAsync(
+        OpenIddictRequest request, AgentAccessUser user, object application, string kind,
+        string? currentOrganisation = null, string? hubOrganisation = null, bool canSwitch = false, string? error = null)
+    {
+        var clientId = request.ClientId!;
+        var clientUri = Uri.TryCreate(clientId, UriKind.Absolute, out var parsed) ? parsed : null;
+        var ticket = new AgentAccessConnectTicket(
+            kind,
+            user.UserId,
+            user.TenantId!.Value,
+            OriginalParameters().ToList(),
+            await applications.GetDisplayNameAsync(application) ?? clientId,
+            catalog.FindVendor(clientId),
+            // A metadata document's name is the app's own claim (CIMD section 10.10), so the page names the host it came
+            // from alongside it. Only allow-listed hosts get this far (ClientMetadataService).
+            clientUri?.Host,
+            new Uri(resource.Value!).Host,
+            Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out var redirect) ? redirect.Host : null,
+            currentOrganisation,
+            hubOrganisation,
+            canSwitch,
+            error);
+
+        return Redirect(Request.PathBase + AgentAccessExtensions.PagePathPrefix + "/connect?ticket="
+                        + Uri.EscapeDataString(tickets.Protect(ticket)));
+    }
+
+    // The authorization request as it arrived: the query on the first visit, the form once the page has posted it back.
+    private IEnumerable<AgentAccessParameter> OriginalParameters() =>
+        (Request.HasFormContentType ? Request.Form.AsEnumerable() : Request.Query.AsEnumerable())
+        .Where(p => p.Key != "decision" && p.Key != antiforgeryOptions.Value.FormFieldName)
+        .SelectMany(p => p.Value.Select(v => new AgentAccessParameter(p.Key, v ?? string.Empty)));
 
     // Only DFRNT staff belong to more than one tenant. They are told which tenant they are signed in to and offered this
     // Hub's; the switch is the one Hub's own organisation picker makes, and the authorization then starts again with the
@@ -132,21 +164,16 @@ public class AgentAccessAuthorizeController(
             }
         }
 
-        ApplyConsentHeaders();
         var current = await master.GetTenantByIdAsync(user.TenantId!.Value);
-        return View("~/Features/AgentAccess/Views/SwitchTenant.cshtml", new AgentAccessSwitchTenantViewModel(
-            await applications.GetDisplayNameAsync(application) ?? request.ClientId!,
-            current?.Name ?? current?.Code ?? "another organisation",
-            hubTenant.Name,
-            member,
-            error));
+        return await ToConnectPageAsync(
+            request, user, application, AgentAccessConnectTicket.Switch,
+            current?.Name ?? current?.Code ?? "another organisation", hubTenant.Name, member, error);
     }
 
     // The original authorization request, from the switch form's hidden fields.
     private string AuthorizeUrlFromForm() =>
-        Request.PathBase + Request.Path + QueryString.Create(Request.Form
-            .Where(p => p.Key is not ("decision" or "__RequestVerificationToken"))
-            .SelectMany(p => p.Value.Select(v => KeyValuePair.Create(p.Key, v))));
+        Request.PathBase + Request.Path + QueryString.Create(
+            OriginalParameters().Select(p => KeyValuePair.Create(p.Name, (string?)p.Value)));
 
     private async Task<IActionResult> DecideAsync(OpenIddictRequest request, AgentAccessUser user, object application)
     {
@@ -261,24 +288,4 @@ public class AgentAccessAuthorizeController(
                 [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
             }),
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-
-    private void ApplyConsentHeaders()
-    {
-        Response.Headers["X-Frame-Options"] = "DENY";
-        Response.Headers["Content-Security-Policy"] = "frame-ancestors 'none'";
-        Response.Headers.CacheControl = "no-store";
-    }
 }
-
-public sealed record AgentAccessSwitchTenantViewModel(
-    string ClientName,
-    string CurrentTenantName,
-    string HubTenantName,
-    bool CanSwitch,
-    string? Error);
-
-public sealed record AgentAccessConsentViewModel(
-    string ClientName,
-    string? Vendor,
-    string ResourceHost,
-    IReadOnlyList<string> Scopes);

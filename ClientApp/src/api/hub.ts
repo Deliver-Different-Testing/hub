@@ -1,5 +1,6 @@
 import { ensureAntiforgery, http, notifyUnauthorized, readXsrfToken } from './client';
 import type {
+  AgentAccessConnectPage,
   AiChatRequest,
   FuelSurchargeData,
   HomeData,
@@ -33,6 +34,11 @@ export const resetPassword = (body: { code: string; password: string; confirmPas
 export const updateCurrentTenant = (tenantId: number) =>
   http.put<RedirectResponse>('me/current-tenant', { tenantId }).then((r) => r.data);
 export const generateApiKey = () => http.post<{ apiKey: string }>('me/api-key').then((r) => r.data);
+
+export const getAgentAccessConnect = (ticket: string) =>
+  http.get<AgentAccessConnectPage>('agent-access/connect', { params: { ticket } }).then((r) => r.data);
+export const getAgentAccessUnavailable = () =>
+  http.get<{ message: string }>('agent-access/unavailable').then((r) => r.data);
 
 /** False when the chat is switched off or the status call fails, so the widget stays hidden. */
 export const getAssistantEnabled = () =>
