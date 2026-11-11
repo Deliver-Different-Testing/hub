@@ -11,7 +11,7 @@ React 19 + Vite 8 + TypeScript (strict) + Mantine 9 SPA/PWA for the Hub. Built i
 
 - `npm run dev` - Vite on :5173 (use `http://hub.local.deliverdifferent.com:5173` so the shared `.local.deliverdifferent.com` cookie works). Proxies `/api`, `/connect`, `/Account/AcceptTenantSwitchToken`, `/Account/CreditCard`, `/images`, `/health` to Kestrel (`HUB_BACKEND`, default `http://localhost:5000`).
 - `npm run lint` / `npm test` / `npm run test:coverage` (Vitest + MSW + Testing Library; thresholds in `vite.config.ts`).
-- `npm run build` - `tsc --noEmit` + `vite build` into `../wwwroot` (`emptyOutDir: false`, assets under `/static`, `sw.js` + `manifest.webmanifest` at the root, unhashed `consent.css`).
+- `npm run build` - `tsc --noEmit` + `vite build` into `../wwwroot` (`emptyOutDir: false`, assets under `/static`, `sw.js` + `manifest.webmanifest` at the root).
 - `npm run gen:icons` - regenerates `public/icons/*` (192, 512, maskable) from `wwwroot/images/DFRNT_Mark.png`.
 
 ## Contract
@@ -29,7 +29,7 @@ All server calls go through `src/api/hub.ts` against `docs/spa-api-contract.md` 
 
 ## PWA
 
-`vite-plugin-pwa`, `registerType: 'prompt'`; `UpdatePrompt` shows a Mantine notification with Reload. `/api` is `NetworkOnly`; navigation fallback never covers `/api`, `/connect`, `/health`, `/diagnostics`, `/Account/AcceptTenantSwitchToken`, `/Account/CreditCard`, `/images`. Only Vite output is precached (lazy `zxcvbn` chunk excluded). Tests alias `virtual:pwa-register/react` to `src/test/pwaRegisterStub.ts` (mock it with `vi.mock`). The plugin is off under Vitest.
+`vite-plugin-pwa`, `registerType: 'prompt'`; `UpdatePrompt` shows a Mantine notification with Reload. `/api` is `NetworkOnly`; navigation fallback never covers `/api`, `/connect`, `/health`, `/diagnostics`, `/Account/AcceptTenantSwitchToken`, `/Account/CreditCard`, `/images`, `/agent-access` (the AI-app connect pages need the server's `frame-ancestors`/`no-store` headers). Only Vite output is precached (lazy `zxcvbn` chunk excluded). Tests alias `virtual:pwa-register/react` to `src/test/pwaRegisterStub.ts` (mock it with `vi.mock`). The plugin is off under Vitest.
 
 ## Conventions
 

@@ -44,12 +44,12 @@ describe('vite PWA / build configuration', () => {
     expect(config).not.toMatch(/globPatterns:[^\]]*images/);
   });
 
-  it('emits the OAuth consent stylesheet unhashed at the output root', () => {
-    expect(config).toContain('src/styles/consent/consent.css');
-    expect(config).toContain("'consent.css'");
-    const entry = readFileSync(join(__dirname, '../styles/consent/consent.css'), 'utf8');
-    expect(entry).toContain('bootstrap.min.css');
-    expect(entry).toContain('dfrnt-bootstrap.css');
+  it('always fetches the AI-app connect pages from the server, so their frame and no-store headers apply', () => {
+    expect(config).toContain('/^\\/agent-access/');
+  });
+
+  it('builds no separate stylesheet for server-rendered pages', () => {
+    expect(config).not.toContain('consent');
   });
 
   it('proxies the server-owned routes to Kestrel in dev', () => {

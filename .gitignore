@@ -395,7 +395,6 @@ wwwroot/manifest.webmanifest
 wwwroot/sw.js
 wwwroot/workbox-*.js
 wwwroot/registerSW.js
-wwwroot/consent.css
 wwwroot/favicon.svg
 wwwroot/icons/
 wwwroot/static/

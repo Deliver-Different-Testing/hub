@@ -1,6 +1,8 @@
 using System.Net;
+using System.Text.Json;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Interfaces;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -32,11 +34,22 @@ public partial class AgentAccessAuthorizePipelineTests
     {
         await using var app = await StartAsync(gateOpen: false, closedReason: reason);
 
-        var response = await Get(app, "/agent-access/unavailable", user: null);
-        var html = await response.Content.ReadAsStringAsync(Ct);
+        var response = await Get(app, "/api/agent-access/unavailable", user: null);
+        var body = await response.Content.ReadAsStringAsync(Ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains(expected, html);
+        Assert.Contains(expected, JsonDocument.Parse(body).RootElement.GetProperty("message").GetString());
+        Assert.True(response.Headers.CacheControl!.NoStore);
+    }
+
+    [Fact]
+    public async Task The_unavailable_page_is_an_spa_route_that_cannot_be_framed()
+    {
+        await using var app = await StartAsync(gateOpen: false, closedReason: AgentAccessReason.TenantSwitchOff);
+
+        var response = await Get(app, "/agent-access/unavailable", user: null);
+
+        Assert.Equal("shell", await response.Content.ReadAsStringAsync(Ct));
         Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
     }
 
@@ -47,7 +60,7 @@ public partial class AgentAccessAuthorizePipelineTests
     {
         await using var app = await StartAsync(gateOpen: false, closedReason: reason);
 
-        Assert.Equal(HttpStatusCode.NotFound, (await Get(app, "/agent-access/unavailable", user: null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Get(app, "/api/agent-access/unavailable", user: null)).StatusCode);
     }
 
     [Fact]
@@ -55,9 +68,9 @@ public partial class AgentAccessAuthorizePipelineTests
     {
         await using var app = await StartAsync();
 
-        var html = await (await Get(app, "/agent-access/unavailable", user: null)).Content.ReadAsStringAsync(Ct);
+        var body = await (await Get(app, "/api/agent-access/unavailable", user: null)).Content.ReadAsStringAsync(Ct);
 
-        Assert.Contains("AI app access is on for Urgent Couriers", html);
+        Assert.Contains("AI app access is on for Urgent Couriers", body);
     }
 
     // ---- signed in to another tenant -----------------------------------------
@@ -67,15 +80,13 @@ public partial class AgentAccessAuthorizePipelineTests
     {
         await using var app = await StartAsync();
 
-        var response = await Get(app, AuthorizeUrl(), Staff(tenantId: "3"));
-        var html = await response.Content.ReadAsStringAsync(Ct);
+        var (page, _) = await Page(app, AuthorizeUrl(), Staff(tenantId: "3"));
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("DFRNT", html);
-        Assert.Contains("Switch to Urgent Couriers", html);
-        Assert.Contains("value=\"switch\"", html);
-        Assert.Equal("xyz", HiddenFields(html)["state"]);
-        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("switch", page.GetProperty("kind").GetString());
+        Assert.Equal("DFRNT", page.GetProperty("currentOrganisation").GetString());
+        Assert.Equal("Urgent Couriers", page.GetProperty("hubOrganisation").GetString());
+        Assert.True(page.GetProperty("canSwitch").GetBoolean());
+        Assert.Equal("xyz", Fields(page)["state"]);
     }
 
     [Fact]
@@ -107,10 +118,27 @@ public partial class AgentAccessAuthorizePipelineTests
             .Returns(UpdateTenantResult.Fail("Your account isn't set up in that organisation yet. Ask your administrator to add you."));
 
         var response = await Consent(app, AuthorizeUrl(), "switch", Staff(tenantId: "3"));
-        var html = await response.Content.ReadAsStringAsync(Ct);
+        var page = await PageFrom(app, response, Staff(tenantId: "3"));
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("set up in that organisation yet", html);
+        Assert.Equal("switch", page.GetProperty("kind").GetString());
+        Assert.Contains("set up in that organisation yet", page.GetProperty("error").GetString());
+        Assert.Equal("xyz", Fields(page)["state"]);
+    }
+
+    [Fact]
+    public async Task The_antiforgery_token_never_rides_into_the_next_ticket_whatever_its_field_is_called()
+    {
+        await using var app = await StartAsync(antiforgeryFieldName: "af-token");
+        app.Services.GetRequiredService<IAccountService>()
+            .UpdateCurrentTenantAsync(Arg.Any<HttpContext>(), HubTenantId)
+            .Returns(UpdateTenantResult.Fail("Couldn't switch organisation. Try again."));
+
+        var response = await Consent(app, AuthorizeUrl(), "switch", Staff(tenantId: "3"));
+        var page = await PageFrom(app, response, Staff(tenantId: "3"));
+
+        Assert.Equal("af-token", page.GetProperty("antiforgeryFieldName").GetString());
+        Assert.DoesNotContain("af-token", Fields(page).Keys);
+        Assert.Equal("xyz", Fields(page)["state"]);
     }
 
     [Fact]
@@ -132,10 +160,10 @@ public partial class AgentAccessAuthorizePipelineTests
         app.Services.GetRequiredService<IAuthenticationRepository>()
             .IsUserAssociatedWithTenantAsync(55, HubTenantId).Returns(false);
 
-        var html = await (await Get(app, AuthorizeUrl(), Staff(tenantId: "3"))).Content.ReadAsStringAsync(Ct);
+        var (page, _) = await Page(app, AuthorizeUrl(), Staff(tenantId: "3"));
 
-        Assert.Contains("doesn't have access to Urgent Couriers", html);
-        Assert.DoesNotContain("value=\"switch\"", html);
+        Assert.Equal("switch", page.GetProperty("kind").GetString());
+        Assert.False(page.GetProperty("canSwitch").GetBoolean());
     }
 
     [Fact]
@@ -155,8 +183,8 @@ public partial class AgentAccessAuthorizePipelineTests
     public async Task A_switch_without_the_antiforgery_token_is_rejected()
     {
         await using var app = await StartAsync();
-        var html = await (await Get(app, AuthorizeUrl(), Staff(tenantId: "3"))).Content.ReadAsStringAsync(Ct);
-        var fields = HiddenFields(html);
+        var (page, _) = await Page(app, AuthorizeUrl(), Staff(tenantId: "3"));
+        var fields = Fields(page);
         fields["decision"] = "switch";
         var request = new HttpRequestMessage(HttpMethod.Post, AuthorizeUrl()) { Content = new FormUrlEncodedContent(fields) };
         request.Headers.Add("X-Test-User", Staff(tenantId: "3"));
@@ -173,10 +201,19 @@ public partial class AgentAccessAuthorizePipelineTests
     {
         await using var app = await StartAsync();
 
-        var html = await (await Get(app, AuthorizeUrl(), Staff(tenantId: "12"))).Content.ReadAsStringAsync(Ct);
+        var (page, _) = await Page(app, AuthorizeUrl(), Staff(tenantId: "12"));
 
-        Assert.Contains("value=\"allow\"", html);
-        Assert.DoesNotContain("value=\"switch\"", html);
+        Assert.Equal("consent", page.GetProperty("kind").GetString());
+    }
+
+    // A failed switch sends the browser back to the connect page with a fresh ticket carrying the error.
+    private static async Task<JsonElement> PageFrom(WebApplication app, HttpResponseMessage response, string user)
+    {
+        AssertSentToConnectPage(response);
+        var ticket = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(new Uri("https://localhost"), response.Headers.Location!).Query)["ticket"].ToString();
+        var page = await Get(app, "/api/agent-access/connect?ticket=" + Uri.EscapeDataString(ticket), user);
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        return JsonDocument.Parse(await page.Content.ReadAsStringAsync(Ct)).RootElement;
     }
 
     // ---- a grant only works on its own tenant's Hub --------------------------
