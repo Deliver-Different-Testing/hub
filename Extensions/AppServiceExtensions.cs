@@ -1,3 +1,4 @@
+using Hub.Features.AgentAccess.Capabilities;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.Branding;
 using Hub.Interfaces;
@@ -23,6 +24,7 @@ public static class AppServiceExtensions
         services.AddScoped<IAgentAccessTenantResolver, AgentAccessTenantResolver>();
         services.AddScoped<ITenantAgentSettingSource, SqlTenantAgentSettingSource>();
         services.AddScoped<ITileAccessResolver, TileAccessResolver>();
+        services.AddScoped<IAgentCapabilityResolver, AgentCapabilityResolver>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IHomeService, HomeService>();

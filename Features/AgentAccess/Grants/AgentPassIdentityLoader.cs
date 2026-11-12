@@ -1,10 +1,13 @@
+using Hub.Features.AgentAccess.Capabilities;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Interfaces;
 using Serilog;
 
 namespace Hub.Features.AgentAccess.Grants;
 
-public sealed record AgentPassLoad(AgentGrantEligibility Eligibility, AgentPassIdentity? Identity);
+/// <param name="Capabilities">What the user's AI apps may do (Access Control); set only when Eligible.</param>
+public sealed record AgentPassLoad(
+    AgentGrantEligibility Eligibility, AgentPassIdentity? Identity, IReadOnlySet<string>? Capabilities = null);
 
 public interface IAgentPassIdentityLoader
 {
@@ -15,14 +18,15 @@ public interface IAgentPassIdentityLoader
     Task<AgentPassLoad> LoadAsync(int tenantId, string userId, int contactId, CancellationToken cancellationToken = default);
 }
 
-// A deactivated contact, a changed client type, a removed user or a tenant that is switched off fails the refresh or
-// the exchange. Anything that stops the check is Unknown, never Eligible.
+// A deactivated contact, a changed client type, a removed user, a tenant that is switched off or a role without
+// agent-connect fails the refresh or the exchange. Anything that stops the check is Unknown, never Eligible.
 public sealed class AgentPassIdentityLoader(
     IAuthenticationRepository master,
     IDespatchRepository tenant,
     IConnectionStringManager connectionStringManager,
     ITenantAgentSettingSource settings,
-    IAgentGrantStore grants) : IAgentPassIdentityLoader
+    IAgentGrantStore grants,
+    IAgentCapabilityResolver capabilities) : IAgentPassIdentityLoader
 {
     private static readonly HashSet<int> AllowedClientTypes = [4, 5];
 
@@ -68,6 +72,14 @@ public sealed class AgentPassIdentityLoader(
                 return Result(AgentGrantEligibility.NoLongerEligible);
             }
 
+            // Access Control: the role must hold agent-connect, read live on every refresh and exchange.
+            var allowed = await capabilities.ResolveAsync(
+                new AgentCapabilitySubject(contact.UcctId, clientId, client.UcclInternal, tenantRow.CountryCode), cancellationToken);
+            if (!allowed.Contains(AgentCapabilities.Connect))
+            {
+                return Result(AgentGrantEligibility.NotPermitted);
+            }
+
             var identity = new AgentPassIdentity(
                 Email: user.Email,
                 UserId: user.UserId,
@@ -86,7 +98,7 @@ public sealed class AgentPassIdentityLoader(
                 FirstName: contact.UcctFirstname ?? string.Empty,
                 Surname: contact.UcctSurname ?? string.Empty,
                 AccountsMode: await tenant.GetAccountsModeAsync());
-            return new AgentPassLoad(AgentGrantEligibility.Eligible, identity);
+            return new AgentPassLoad(AgentGrantEligibility.Eligible, identity, allowed);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
