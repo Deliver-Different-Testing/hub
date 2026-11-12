@@ -11,15 +11,6 @@ public static class AgentAccessApiKey
     public static bool IsValid(string? apiKey) => ApiKeyCheck.Matches(apiKey, "PartnerDirectoryApiKey", "Agent access API");
 }
 
-// The key for the admin connections list and revoke (cross-tenant-capable, so it is NOT the shared partner-directory
-// key every internal app holds). Only configurator is given it. Unset or empty refuses everything.
-public static class AgentAdminApiKey
-{
-    public const string ConfigName = "AgentAdminApiKey";
-
-    public static bool IsValid(string? apiKey) => ApiKeyCheck.Matches(apiKey, ConfigName, "Agent admin API");
-}
-
 internal static class ApiKeyCheck
 {
     internal static bool Matches(string? apiKey, string envName, string logLabel)

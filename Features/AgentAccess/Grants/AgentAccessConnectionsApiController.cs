@@ -13,23 +13,23 @@ public sealed record AgentConnectionsResponse(
 /// <param name="ActorName">Their display name.</param>
 public sealed record AgentConnectionRevokeRequest(string? ActorUserId, string? ActorName);
 
-// The admin Connected AI apps list and Revoke that configurator proxies (X-Api-Key = AgentAdminApiKey, held only by
-// configurator, not the shared partner-directory key).
+// The admin Connected AI apps list and Revoke that configurator proxies (Authorization: Bearer <its Kubernetes service-account
+// token>, validated against the cluster OIDC issuer, audience dfrnt-hub-admin, subject in AgentAccess:AdminServiceAccounts).
 // Configurator decides who may call it (agent-manage-connections, DF Admin always). Everything is scoped to the tenant
 // in the query string: a grant id from another tenant is simply not found.
 [Route("api/agent-access/connections")]
 [AllowAnonymous]
 [EnableRateLimiting("api")]
 public class AgentAccessConnectionsApiController(
-    IAgentConnectionDirectory directory, IAgentGrantAdmin admin, IAgentAdminAudit audit) : Controller
+    IAgentConnectionDirectory directory, IAgentGrantAdmin admin, IAgentAdminAudit audit, IAgentAccessAdminTokenValidator tokens) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> List(
         [FromQuery] int tenantId,
-        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromHeader(Name = "Authorization")] string? authorization,
         CancellationToken cancellationToken)
     {
-        if (!AgentAdminApiKey.IsValid(apiKey)) return Unauthorized();
+        if (await tokens.AuthenticateAsync(authorization, cancellationToken) is not { } caller) return Unauthorized();
         if (tenantId <= 0) return BadRequest();
 
         var list = await directory.ListAsync(tenantId, cancellationToken);
@@ -45,10 +45,10 @@ public class AgentAccessConnectionsApiController(
         string grantId,
         [FromQuery] int tenantId,
         [FromBody] AgentConnectionRevokeRequest? body,
-        [FromHeader(Name = "X-Api-Key")] string? apiKey,
+        [FromHeader(Name = "Authorization")] string? authorization,
         CancellationToken cancellationToken)
     {
-        if (!AgentAdminApiKey.IsValid(apiKey)) return Unauthorized();
+        if (await tokens.AuthenticateAsync(authorization, cancellationToken) is not { } caller) return Unauthorized();
         if (body is null || tenantId <= 0 || string.IsNullOrWhiteSpace(body.ActorUserId)) return BadRequest();
 
         var result = await admin.RevokeAsync(grantId, tenantId, userId: string.Empty, allUsers: true, cancellationToken);
@@ -60,10 +60,10 @@ public class AgentAccessConnectionsApiController(
         if (result is not (AgentGrantRevokeResult.Revoked or AgentGrantRevokeResult.RevokedPendingPropagation)) return NotFound();
 
         // Audited as soon as the authorization is revoked, even when the liveness key removal is still pending.
-        // The key proves the caller is configurator; the actor is only asserted by it.
+        // The token proves the caller is that service account; the actor is only asserted by it.
         var actorUserId = SerilogAgentAdminAudit.Clean(body.ActorUserId);
         var actorName = SerilogAgentAdminAudit.Clean(body.ActorName);
-        audit.GrantRevoked(tenantId, grantId, actorUserId, actorName.Length == 0 ? actorUserId : actorName, SerilogAgentAdminAudit.ConfiguratorCaller);
+        audit.GrantRevoked(tenantId, grantId, actorUserId, actorName.Length == 0 ? actorUserId : actorName, caller);
         return result == AgentGrantRevokeResult.RevokedPendingPropagation
             ? StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = AgentAccessGrantsApiController.PendingMessage })
             : NoContent();

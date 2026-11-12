@@ -88,7 +88,8 @@ builder.Services.AddAgentAccessOAuth(
         ClientMetadataHosts: builder.Configuration.GetSection("AgentAccess:ClientMetadata:AllowedHosts").Get<string[]>(),
         McpClientSecret: Environment.GetEnvironmentVariable("AgentAccessMcpClientSecret"),
         ClusterIssuer: builder.Configuration["AgentAccess:ClusterIssuer"],
-        McpServiceAccounts: builder.Configuration.GetSection("AgentAccess:McpServiceAccounts").Get<string[]>()));
+        McpServiceAccounts: builder.Configuration.GetSection("AgentAccess:McpServiceAccounts").Get<string[]>(),
+        AdminServiceAccounts: builder.Configuration.GetSection("AgentAccess:AdminServiceAccounts").Get<string[]>()));
 
 if (builder.Environment.IsDevelopment())
 {
