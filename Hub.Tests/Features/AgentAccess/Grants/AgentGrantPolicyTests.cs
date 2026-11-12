@@ -21,6 +21,16 @@ public class AgentGrantPolicyTests
         Assert.Equal(AgentGrantVerdict.Allow, AgentGrantPolicy.Decide(State(), Now).Verdict);
     }
 
+    [Fact]
+    public void A_user_whose_role_does_not_allow_connecting_is_refused_but_keeps_the_grant()
+    {
+        var decision = AgentGrantPolicy.Decide(State(eligibility: AgentGrantEligibility.NotPermitted), Now);
+
+        Assert.Equal(AgentGrantVerdict.Refuse, decision.Verdict);
+        Assert.False(decision.RevokeGrant);
+        Assert.Contains("role", decision.Description);
+    }
+
     [Theory]
     [InlineData(Statuses.Revoked)]
     [InlineData(Statuses.Inactive)]

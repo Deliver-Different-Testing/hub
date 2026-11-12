@@ -1,3 +1,4 @@
+using Hub.Features.AgentAccess.Capabilities;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.AgentAccess.Grants;
 using Hub.Interfaces;
@@ -34,7 +35,8 @@ public class AgentPassIdentityLoaderTests : IDisposable
         IDespatchRepository Tenant,
         IConnectionStringManager Connection,
         ITenantAgentSettingSource Settings,
-        IAgentGrantStore Store);
+        IAgentGrantStore Store,
+        IAgentCapabilityResolver Capabilities);
 
     private static Rig Build()
     {
@@ -53,7 +55,11 @@ public class AgentPassIdentityLoaderTests : IDisposable
 
         var connection = Substitute.For<IConnectionStringManager>();
         var store = Substitute.For<IAgentGrantStore>();
-        return new Rig(new AgentPassIdentityLoader(master, tenant, connection, settings, store), master, tenant, connection, settings, store);
+        var capabilities = Substitute.For<IAgentCapabilityResolver>();
+        capabilities.ResolveDetailedAsync(new AgentCapabilitySubject(9, 3, true, "NZ"), Arg.Any<CancellationToken>())
+            .Returns(new AgentCapabilityDecision(new HashSet<string> { AgentCapabilities.Connect }, new Dictionary<string, AgentToolDecision>()));
+        return new Rig(new AgentPassIdentityLoader(master, tenant, connection, settings, store, capabilities),
+            master, tenant, connection, settings, store, capabilities);
     }
 
     private static TucClientContact Contact(bool active = true, int? clientType = 4, int? staffId = 7, int? clientId = 3) => new()
@@ -63,6 +69,20 @@ public class AgentPassIdentityLoaderTests : IDisposable
     };
 
     private static Task<AgentPassLoad> Load(Rig rig, string userId = "55") => rig.Loader.LoadAsync(12, userId, 9, Ct);
+
+    [Fact]
+    public async Task A_user_whose_roles_no_longer_allow_connecting_is_not_permitted_and_keeps_the_grant()
+    {
+        // Access Control > Roles: agent-connect switched off. The pass is refused until it is switched back on; the
+        // grant is not revoked, so the AI app works again without reconnecting.
+        var rig = Build();
+        rig.Capabilities.ResolveDetailedAsync(Arg.Any<AgentCapabilitySubject>(), Arg.Any<CancellationToken>()).Returns(AgentCapabilityDecision.Empty);
+
+        var result = await Load(rig);
+
+        Assert.Equal(AgentGrantEligibility.NotPermitted, result.Eligibility);
+        Assert.Null(result.Identity);
+    }
 
     [Fact]
     public async Task An_eligible_user_is_described_from_the_master_user_the_tenant_and_the_contact()
@@ -75,6 +95,7 @@ public class AgentPassIdentityLoaderTests : IDisposable
         Assert.Equal(
             new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "NZST", "urgent", true, true, 2, 4, 777, "Sam", "Staff", 2),
             result.Identity);
+        Assert.Equal([AgentCapabilities.Connect], result.Capabilities);
         rig.Connection.Received(1).SetConnectionString("Server=tenant;Database=d;;User Id=test;Password=test;");
         await rig.Store.DidNotReceiveWithAnyArgs().SetTenantOffAsync(0, TestContext.Current.CancellationToken);
     }

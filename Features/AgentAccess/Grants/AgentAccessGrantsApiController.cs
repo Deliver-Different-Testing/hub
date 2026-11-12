@@ -78,10 +78,12 @@ public class AgentAccessGrantsApiController(
         CancellationToken cancellationToken)
     {
         if (!AgentAccessApiKey.IsValid(apiKey)) return Unauthorized();
-        if (body.TenantId <= 0) return BadRequest();
+        if (body is null || body.TenantId <= 0) return BadRequest();
 
         return await admin.MarkNotifiedAsync(id, body.TenantId, body.Sent, cancellationToken) ? NoContent() : NotFound();
     }
+
+    internal const string PendingMessage = "Revoked, but it may take up to 30 minutes to stop working. Try again to finish.";
 
     [HttpPost("{id}/revoke")]
     public async Task<IActionResult> Revoke(
@@ -91,9 +93,15 @@ public class AgentAccessGrantsApiController(
         CancellationToken cancellationToken)
     {
         if (!AgentAccessApiKey.IsValid(apiKey)) return Unauthorized();
-        if (body.TenantId <= 0 || string.IsNullOrWhiteSpace(body.UserId)) return BadRequest();
+        if (body is null || body.TenantId <= 0 || string.IsNullOrWhiteSpace(body.UserId)) return BadRequest();
 
         var result = await admin.RevokeAsync(id, body.TenantId, body.UserId, body.AllUsers, cancellationToken);
-        return result == AgentGrantRevokeResult.Revoked ? NoContent() : NotFound();
+        return result switch
+        {
+            AgentGrantRevokeResult.Revoked => NoContent(),
+            AgentGrantRevokeResult.Failed => StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "The connection could not be revoked. Try again." }),
+            AgentGrantRevokeResult.RevokedPendingPropagation => StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = PendingMessage }),
+            _ => NotFound()
+        };
     }
 }
