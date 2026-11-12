@@ -8,13 +8,13 @@ public class AgentToolCatalogueTests
 {
     private static readonly (string Tool, string Verb, string Screens, string Tile)[] Expected =
     [
-        ("job_search", "agent-tool-job-search", "dw-job-search", "hub-tile-despatchweb"),
-        ("job_story", "agent-tool-job-story", "dw-job-search", "hub-tile-despatchweb"),
-        ("job_evidence", "agent-tool-job-evidence", "dw-job-search", "hub-tile-despatchweb"),
-        ("recurring_check", "agent-tool-recurring-check", "dw-recurring-jobs", "hub-tile-despatchweb"),
-        ("partner_inbox", "agent-tool-partner-inbox", "dw-partner-approvals", "hub-tile-despatchweb"),
-        ("dispatch_board", "agent-tool-dispatch-board", "dw-dispatch,view-dispatch-board", "hub-tile-despatchweb"),
-        ("driver_day", "agent-tool-driver-day", "dw-driver-management", "hub-tile-despatchweb")
+        ("job_search", "agent-tool-job-search", "", "hub-tile-despatchweb"),
+        ("job_story", "agent-tool-job-story", "", "hub-tile-despatchweb"),
+        ("job_evidence", "agent-tool-job-evidence", "", "hub-tile-despatchweb"),
+        ("recurring_check", "agent-tool-recurring-check", "", "hub-tile-despatchweb"),
+        ("partner_inbox", "agent-tool-partner-inbox", "", "hub-tile-despatchweb"),
+        ("dispatch_board", "agent-tool-dispatch-board", "view-dispatch-board", "hub-tile-despatchweb"),
+        ("driver_day", "agent-tool-driver-day", "", "hub-tile-despatchweb")
     ];
 
     [Fact]

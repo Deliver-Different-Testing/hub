@@ -44,7 +44,7 @@ public static class AgentCapabilities
 public sealed record AgentCapabilitySubject(int ContactId, int? ClientId, bool Internal, string? CountryCode);
 
 /// <param name="Verb">The tool's own verb is ticked for the role.</param>
-/// <param name="Screen">The hub tile and every screen key the tool needs are granted.</param>
+/// <param name="Screen">The hub tile and every role-action key the tool needs are granted (dw-* menu screens are not checked).</param>
 /// <param name="Reason">Plain words for why the tool is blocked; null when nothing blocks it.</param>
 public sealed record AgentToolDecision(bool Verb, bool Screen, string? Reason);
 
@@ -68,7 +68,7 @@ public interface IAgentCapabilityResolver
     /// <summary>The names of the active roles this contact holds, for the admin Connected AI apps list.</summary>
     Task<IReadOnlyList<string>> RoleNamesAsync(int contactId, CancellationToken cancellationToken = default);
 }
-// Every agent capability needs agent-connect. Screen keys are resolved like the configurator's RolePermissionResolver
+// Every agent capability needs agent-connect. Role-action keys a tool needs (the catalogue ScreenKeys) are resolved like the configurator's RolePermissionResolver
 // (per-client override beats the global row, union across stacked roles, an explicit None on an ancestor denies, else
 // the nearest explicit level up the tree). The agent-* verbs are stricter and fail closed: a verb counts only when the
 // role has an explicit row on that verb itself (global or the client's override) at level 1 or more, so a granted

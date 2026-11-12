@@ -3,8 +3,9 @@ using Hub.Interfaces;
 
 namespace Hub.Tests.Features.AgentAccess.Capabilities;
 
-// Tool verbs: granted only when the verb, the hub tile and every screen key all pass (the screen-key rule: level 1 or
-// more; no explicit row on the key or an ancestor falls back to the tile decision; explicit None denies).
+// Tool verbs: granted only when the verb, the hub tile and every role-action key the tool lists all pass (level 1 or
+// more; no explicit row on the key or an ancestor falls back to the tile decision; explicit None denies). dw-* menu
+// screens are deliberately not checked (Jacob, 2026-11-12).
 public partial class AgentCapabilityResolverTests
 {
     private static readonly string[] JobSearchTools =
@@ -78,69 +79,37 @@ public partial class AgentCapabilityResolverTests
     }
 
     [Fact]
-    public async Task An_explicit_none_on_dw_job_search_denies_the_job_tools_only()
+    public async Task An_explicit_none_on_a_dw_menu_key_no_longer_blocks_any_tool()
     {
-        await using var ctx = NewContext(nameof(An_explicit_none_on_dw_job_search_denies_the_job_tools_only));
+        await using var ctx = NewContext(nameof(An_explicit_none_on_a_dw_menu_key_no_longer_blocks_any_tool));
         Seed(ctx, roles: [RoleA]);
         GrantTools(ctx, RoleA);
         Set(ctx, RoleA, "dw-job-search", 0);
+        Set(ctx, RoleA, "dw-recurring-jobs", 0);
+        Set(ctx, RoleA, "dw-driver-management", 0);
         await ctx.SaveChangesAsync(Ct);
 
         var result = await ResolveDetailed(ctx);
 
-        foreach (var verb in JobSearchTools)
-        {
-            Assert.DoesNotContain(verb, result.Capabilities);
-            Assert.Equal(new AgentToolDecision(true, false, "dw-job-search is off for this role"), result.Tools[verb]);
-        }
-
+        foreach (var verb in JobSearchTools) Assert.Contains(verb, result.Capabilities);
         Assert.Contains("agent-tool-recurring-check", result.Capabilities);
         Assert.Contains("agent-tool-driver-day", result.Capabilities);
+        Assert.All(result.Tools.Values, t => Assert.Equal(new AgentToolDecision(true, true, null), t));
     }
 
     [Fact]
-    public async Task A_screen_ticked_for_the_role_allows_its_tools()
+    public async Task A_tool_verb_that_is_off_is_not_granted_even_when_the_tile_is_on()
     {
-        await using var ctx = NewContext(nameof(A_screen_ticked_for_the_role_allows_its_tools));
-        Seed(ctx, roles: [RoleA]);
-        GrantTools(ctx, RoleA);
-        Set(ctx, RoleA, "dw-job-search", 1);
-        Set(ctx, RoleA, "dw-recurring-jobs", 0);
-        await ctx.SaveChangesAsync(Ct);
-
-        var result = await Resolve(ctx);
-
-        Assert.Contains("agent-tool-job-search", result);
-        Assert.DoesNotContain("agent-tool-recurring-check", result);
-    }
-
-    [Fact]
-    public async Task A_tool_verb_that_is_off_is_not_granted_even_when_its_screen_is_on()
-    {
-        await using var ctx = NewContext(nameof(A_tool_verb_that_is_off_is_not_granted_even_when_its_screen_is_on));
+        await using var ctx = NewContext(nameof(A_tool_verb_that_is_off_is_not_granted_even_when_the_tile_is_on));
         Seed(ctx, roles: [RoleA]);
         GrantTools(ctx, RoleA);
         Set(ctx, RoleA, "agent-tool-job-story", 0);
-        Set(ctx, RoleA, "dw-job-search", 1);
         await ctx.SaveChangesAsync(Ct);
 
         var result = await ResolveDetailed(ctx);
 
         Assert.DoesNotContain("agent-tool-job-story", result.Capabilities);
         Assert.Equal(new AgentToolDecision(false, true, "agent-tool-job-story is off for this role"), result.Tools["agent-tool-job-story"]);
-    }
-
-    [Fact]
-    public async Task A_per_client_override_on_the_screen_beats_the_global_none()
-    {
-        await using var ctx = NewContext(nameof(A_per_client_override_on_the_screen_beats_the_global_none));
-        Seed(ctx, roles: [RoleA]);
-        GrantTools(ctx, RoleA);
-        Set(ctx, RoleA, "dw-job-search", 0);
-        Set(ctx, RoleA, "dw-job-search", 1, clientId: ClientId);
-        await ctx.SaveChangesAsync(Ct);
-
-        Assert.Contains("agent-tool-job-search", await Resolve(ctx));
     }
 
     [Fact]
@@ -159,12 +128,11 @@ public partial class AgentCapabilityResolverTests
     }
 
     [Fact]
-    public async Task The_dispatch_board_needs_both_dw_dispatch_and_view_dispatch_board()
+    public async Task The_dispatch_board_needs_view_dispatch_board()
     {
-        await using var ctx = NewContext(nameof(The_dispatch_board_needs_both_dw_dispatch_and_view_dispatch_board));
+        await using var ctx = NewContext(nameof(The_dispatch_board_needs_view_dispatch_board));
         Seed(ctx, roles: [RoleA]);
         GrantTools(ctx, RoleA);
-        Set(ctx, RoleA, "dw-dispatch", 1);
         Set(ctx, RoleA, "view-dispatch-board", 0);
         await ctx.SaveChangesAsync(Ct);
 
@@ -180,16 +148,29 @@ public partial class AgentCapabilityResolverTests
     }
 
     [Fact]
-    public async Task Stacked_roles_union_the_screen_keys()
+    public async Task A_per_client_override_on_view_dispatch_board_beats_the_global_none()
     {
-        await using var ctx = NewContext(nameof(Stacked_roles_union_the_screen_keys));
-        Seed(ctx, roles: [RoleA, RoleB]);
+        await using var ctx = NewContext(nameof(A_per_client_override_on_view_dispatch_board_beats_the_global_none));
+        Seed(ctx, roles: [RoleA]);
         GrantTools(ctx, RoleA);
-        Set(ctx, RoleA, "dw-driver-management", 0);
-        Set(ctx, RoleB, "dw-driver-management", 1);
+        Set(ctx, RoleA, "view-dispatch-board", 0);
+        Set(ctx, RoleA, "view-dispatch-board", 1, clientId: ClientId);
         await ctx.SaveChangesAsync(Ct);
 
-        Assert.Contains("agent-tool-driver-day", await Resolve(ctx));
+        Assert.Contains("agent-tool-dispatch-board", await Resolve(ctx));
+    }
+
+    [Fact]
+    public async Task Stacked_roles_union_view_dispatch_board()
+    {
+        await using var ctx = NewContext(nameof(Stacked_roles_union_view_dispatch_board));
+        Seed(ctx, roles: [RoleA, RoleB]);
+        GrantTools(ctx, RoleA);
+        Set(ctx, RoleA, "view-dispatch-board", 0);
+        Set(ctx, RoleB, "view-dispatch-board", 1);
+        await ctx.SaveChangesAsync(Ct);
+
+        Assert.Contains("agent-tool-dispatch-board", await Resolve(ctx));
     }
 
     [Fact]
