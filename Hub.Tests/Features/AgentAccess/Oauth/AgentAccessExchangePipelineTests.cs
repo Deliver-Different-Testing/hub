@@ -154,7 +154,7 @@ public partial class AgentAccessAuthorizePipelineTests
         var pass = await AppPass(await TokenExchange(app, tokens.Access));
         var types = pass.Claims.Select(c => c.Type).ToArray();
 
-        foreach (var expected in new[] { "UserID", "CurrentTenantID", "StaffID", "ContactID", "ClientID", "ClientTypeId", "TenantCode", "CountryCode", "TimeZone", "Internal", "IsCourier", "IsNetworkPartner", "NpRoleId", "RoleId", "NpAgentId", "FirstName", "Surname", "AccountsMode" })
+        foreach (var expected in new[] { "UserID", "CurrentTenantID", "StaffID", "ContactID", "ClientID", "ClientTypeId", "TenantCode", "CountryCode", "TimeZone", "Internal", "IsCourier", "IsNetworkPartner", "NpRoleId", "RoleId", "NpAgentId", "FirstName", "Surname", "AccountsMode", "BranchIds" })
         {
             Assert.Contains(expected, types);
         }

@@ -27,7 +27,7 @@ public class AgentPassClaimsTests
             {
                 ClaimTypes.Name, "UserID", "CurrentTenantID", "StaffID", "ContactID", "ClientID", "ClientTypeId", "TenantCode",
                 "CountryCode", "TimeZone", "Internal", "IsCourier", "IsNetworkPartner", "NpRoleId", "RoleId", "NpAgentId",
-                "FirstName", "Surname", "AccountsMode"
+                "FirstName", "Surname", "AccountsMode", "BranchIds"
             }.OrderBy(x => x),
             claims.Keys.OrderBy(x => x));
     }
@@ -99,5 +99,21 @@ public class AgentPassClaimsTests
         var identity = Identity() with { FirstName = null!, Surname = null!, Email = null!, TenantCode = null! };
 
         Assert.All(AgentPassClaims.Build(identity), claim => Assert.NotNull(claim.Value));
+    }
+
+    // Branches B1: the pass carries the same BranchIds as the cookie, so an AI app acting for a Florida-only user is
+    // Florida-only. Contract: ascending comma list, no spaces; empty = every branch.
+    [Fact]
+    public void BranchIds_is_empty_when_the_user_has_no_branches()
+    {
+        Assert.Equal(string.Empty, Build()["BranchIds"]);
+        Assert.Equal(string.Empty, Build(Identity() with { BranchIds = [] })["BranchIds"]);
+    }
+
+    [Fact]
+    public void BranchIds_is_an_ascending_comma_list_without_spaces_or_duplicates()
+    {
+        Assert.Equal("3", Build(Identity() with { BranchIds = [3] })["BranchIds"]);
+        Assert.Equal("2,7,11", Build(Identity() with { BranchIds = [11, 2, 7, 2] })["BranchIds"]);
     }
 }

@@ -34,6 +34,32 @@ public sealed class Repository(
             .Include(c => c.UcctClient)
             .FirstOrDefaultAsync(c => c.UcctId == contactId);
 
+    // Missing-table guard (B1): until the B0 migration reaches a tenant DB, tblContactBranch / tblBranch do not exist and
+    // the query fails with SQL error 208. That must not fail login, so it means "no rows" = no restriction (correct for
+    // such a tenant, since nobody can have branches there yet). No caching: a not-yet-migrated tenant pays one failed
+    // round trip per login / pass refresh, and the claim starts working the moment the migration lands, without a Hub
+    // restart. Any OTHER error is rethrown on purpose: emitting an empty claim on a timeout would silently widen a
+    // branch-limited user to every branch (fail open), so login fails instead (fail closed).
+    public async Task<int[]> GetContactBranchIdsAsync(int contactId)
+    {
+        try
+        {
+            return await (
+                    from cb in context.TblContactBranches.AsNoTracking()
+                    join b in context.TblBranches.AsNoTracking() on cb.BranchId equals b.BranchId
+                    where cb.ClientContactId == contactId && b.Active
+                    orderby cb.BranchId
+                    select cb.BranchId)
+                .ToArrayAsync(); // PK (ClientContactId, BranchId) means no duplicates
+        }
+        catch (Exception ex) when (Hub.Shared.BranchIdsClaim.IsMissingTable(ex))
+        {
+            Log.Debug("tblContactBranch / tblBranch not in this tenant DB yet; contact {ContactId} gets no branch restriction",
+                contactId);
+            return [];
+        }
+    }
+
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {
         var subAccounts = await context.TucClients

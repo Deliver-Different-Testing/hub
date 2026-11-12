@@ -41,5 +41,7 @@ public partial class DespatchContext
             entity.HasKey(e => new { e.ClientContactId, e.ContactRoleId });
             entity.ToTable("tblContactContactRole");
         });
+
+        ConfigureBranches(modelBuilder);
     }
 }

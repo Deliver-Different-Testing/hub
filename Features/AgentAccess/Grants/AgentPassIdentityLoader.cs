@@ -101,7 +101,10 @@ public sealed class AgentPassIdentityLoader(
                 NpAgentId: client.NpAgentId,
                 FirstName: contact.UcctFirstname ?? string.Empty,
                 Surname: contact.UcctSurname ?? string.Empty,
-                AccountsMode: await tenant.GetAccountsModeAsync());
+                AccountsMode: await tenant.GetAccountsModeAsync(),
+                // A failure here (other than the branch tables not existing yet) lands in the catch below as
+                // Unknown: never Eligible with an empty, i.e. unrestricted, BranchIds.
+                BranchIds: await tenant.GetContactBranchIdsAsync(contact.UcctId));
             return new AgentPassLoad(AgentGrantEligibility.Eligible, identity, allowed, decision.Tools);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

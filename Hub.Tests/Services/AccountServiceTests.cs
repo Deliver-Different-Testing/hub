@@ -11,6 +11,7 @@ using Hub.Tests.Helpers;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace Hub.Tests.Services;
@@ -1223,4 +1224,72 @@ public class AccountServiceTests : IDisposable
     [Fact]
     public async Task AcceptCourierAppToken_CourierIdIsNotThisUsersCourier_IsRejected() =>
         Assert.False(await AcceptCourierAsync(CreateForAccept(), CourierAppToken(courierId: 99)));
+
+    // ---- Branches B1: BranchIds login claim ----
+
+    [Fact]
+    public async Task Login_Staff_NoBranchRows_IssuesEmptyBranchIds()
+    {
+        var h = Create();
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(), Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("BranchIds", "")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_Staff_WithBranches_IssuesAscendingActiveBranchIds()
+    {
+        var h = Create();
+        h.DespatchCtx.TblBranches.AddRange(
+            new TblBranch { BranchId = 4, Active = true },
+            new TblBranch { BranchId = 12, Active = true },
+            new TblBranch { BranchId = 2, Active = false });
+        h.DespatchCtx.TblContactBranches.AddRange(
+            new TblContactBranch { ClientContactId = 3, BranchId = 12 },
+            new TblContactBranch { ClientContactId = 3, BranchId = 4 },
+            new TblContactBranch { ClientContactId = 3, BranchId = 2 });
+        await h.DespatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(), Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("BranchIds", "4,12")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_Staff_BranchTablesNotDeployed_StillLogsInWithEmptyBranchIds()
+    {
+        var h = Create();
+        await h.DespatchCtx.Database.ExecuteSqlRawAsync("DROP TABLE tblContactBranch", TestContext.Current.CancellationToken);
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(), Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("BranchIds", "")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_Courier_IssuesEmptyBranchIds()
+    {
+        var h = Create();
+
+        var result = await h.Service.LoginAsync(h.Http, Login("courier@test.com", "CourierPass1!", courier: true), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(), Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("BranchIds", "")),
+            Arg.Any<AuthenticationProperties>());
+    }
 }

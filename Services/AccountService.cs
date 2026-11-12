@@ -113,7 +113,7 @@ public class AccountService(
             masterUser.CurrentTenant.TenantId);
 
         var staffClaims = GenerateClaims(
-            BuildStaffClaimsInput(masterUser, user, accountsMode, model.RememberMe, model.Email));
+            await LoadStaffClaimsInputAsync(masterUser, user, accountsMode, model.RememberMe, model.Email));
 
         await SignInUserAsync(httpContext, staffClaims, model.RememberMe);
 
@@ -181,7 +181,7 @@ public class AccountService(
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, presetEmail));
+            await LoadStaffClaimsInputAsync(masterUser, user, accountsMode, rememberMe: false, presetEmail));
 
         await SignInUserAsync(httpContext, claims, false);
 
@@ -245,7 +245,7 @@ public class AccountService(
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, false, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe: false, masterUser.Email));
+            await LoadStaffClaimsInputAsync(masterUser, user, accountsMode, rememberMe: false, masterUser.Email));
 
         await SignInUserAsync(httpContext, claims, false);
 
@@ -386,7 +386,11 @@ public class AccountService(
         // Phase 5+ data-scope — tucClient.NpAgentId. The NP's Agent reference;
         // consuming apps filter scoped tables by it for NetworkPartner users.
         // Null for non-NP users / couriers.
-        int? NpAgentId = null);
+        int? NpAgentId = null,
+        // Branches B1 — formatted BranchIds claim value (see Shared/BranchIdsClaim).
+        // Empty = no restriction: every courier, customer and NP, and every
+        // tenant staff user with no tblContactBranch rows.
+        string BranchIds = "");
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
     [
@@ -432,7 +436,12 @@ public class AccountService(
         new("ClientTypeId", input.ClientTypeId?.ToString() ?? string.Empty),
         // Phase 5+ data-scope — see ClaimsInput.NpAgentId. Lets NP-scoped apps
         // apply WHERE NpAgentId = <claim> without a per-request tucClient lookup.
-        new("NpAgentId", input.NpAgentId?.ToString() ?? string.Empty)
+        new("NpAgentId", input.NpAgentId?.ToString() ?? string.Empty),
+        // Branches B1 (master spec BRANCHES-SCOPE-2026-10-28 §1 d5–7, §5.1) —
+        // the contact's ACTIVE tblContactBranch branches, e.g. "3,7"; empty = sees
+        // every branch. Next to ClientTypeId / NpAgentId so every app opened from
+        // Hub gates on it the same way. Changes take effect at next login.
+        new(BranchIdsClaim.Type, input.BranchIds)
     ];
 
     // Single source of truth for STAFF (non-courier) login claims. Every staff
@@ -442,13 +451,15 @@ public class AccountService(
     // omitted IsNetworkPartner.) The courier path builds its own minimal
     // ClaimsInput inline since couriers have no tucClient / ClientType.
     // ClientTypeId + NpAgentId come straight off the already-Included UcctClient
-    // nav, so this adds zero extra DB queries.
+    // nav (no extra query); BranchIds is the one extra read, done by
+    // LoadStaffClaimsInputAsync below.
     private static ClaimsInput BuildStaffClaimsInput(
         Models.Master.User masterUser,
         Models.TucClientContact user,
         int? accountsMode,
         bool rememberMe,
-        string email) =>
+        string email,
+        IEnumerable<int> branchIds) =>
         new(
             Email: email,
             UserId: masterUser.UserId,
@@ -469,7 +480,20 @@ public class AccountService(
             IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
             ContactRoleId: user.ContactRoleId,
             ClientTypeId: user.UcctClient.ClientTypeId,
-            NpAgentId: user.UcctClient.NpAgentId);
+            NpAgentId: user.UcctClient.NpAgentId,
+            BranchIds: BranchIdsClaim.Format(branchIds));
+
+    // Branches B1: the one extra tenant-DB read on the staff paths (tblContactBranch).
+    // Every staff auth path calls this rather than BuildStaffClaimsInput directly,
+    // so none of them can forget the branch lookup.
+    private async Task<ClaimsInput> LoadStaffClaimsInputAsync(
+        Models.Master.User masterUser,
+        Models.TucClientContact user,
+        int? accountsMode,
+        bool rememberMe,
+        string email) =>
+        BuildStaffClaimsInput(masterUser, user, accountsMode, rememberMe, email,
+            await despatchRepository.GetContactBranchIdsAsync(user.UcctId));
 
     // Courier login claims, shared by the password login and AcceptCourierAppToken so the two
     // can't drift. Couriers have no tucClientContact / tucClient, hence the fixed defaults.
@@ -655,7 +679,7 @@ public class AccountService(
         Log.Debug("About to write Claim details. Connection: {CurrentTenantDbconnection}",
             masterUser.CurrentTenant.Dbconnection);
 
-        var claims = GenerateClaims(BuildStaffClaimsInput(
+        var claims = GenerateClaims(await LoadStaffClaimsInputAsync(
             masterUser, user, accountsMode, rememberMe,
             principal.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty));
 
@@ -755,7 +779,7 @@ public class AccountService(
         await despatchRepository.UpdateUserAccessedAsync(user.UcctId, payload.RememberMe, masterUser.CurrentTenant.TenantId);
 
         var claims = GenerateClaims(
-            BuildStaffClaimsInput(masterUser, user, accountsMode, payload.RememberMe, masterUser.Email));
+            await LoadStaffClaimsInputAsync(masterUser, user, accountsMode, payload.RememberMe, masterUser.Email));
 
         await SignInUserAsync(httpContext, claims, payload.RememberMe);
 

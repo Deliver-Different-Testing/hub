@@ -13,4 +13,10 @@ public interface IDespatchRepository
     Task<int?> GetAccountsModeAsync();
     Task<bool> IsAfterHoursAuthorizedAsync(int courierId);
     Task<TucClientContact?> FetchAgentContactAsync(int contactId);
+
+    /// <summary>
+    /// Branches B1: the ACTIVE branches a contact is limited to (tblContactBranch joined to tblBranch.Active = 1),
+    /// ascending. Empty = no restriction. Empty too when the tenant DB has no branch tables yet (B0 not deployed).
+    /// </summary>
+    Task<int[]> GetContactBranchIdsAsync(int contactId);
 }

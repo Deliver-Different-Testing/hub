@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Hub.Shared;
 
 namespace Hub.Features.AgentAccess.Grants;
 
@@ -20,7 +21,9 @@ public sealed record AgentPassIdentity(
     int? NpAgentId,
     string FirstName,
     string Surname,
-    int? AccountsMode);
+    int? AccountsMode,
+    // Branches B1: the ACTIVE branches the person is limited to (tblContactBranch); empty or null = every branch.
+    IReadOnlyCollection<int>? BranchIds = null);
 
 // The app pass claims (phase 1.9): exactly the cookie's claim types, so apps that read User.FindFirst("StaffID")
 // keep working. Never Connection, RememberMe or CourierID. The cookie list lives in AccountController.GenerateClaims.
@@ -49,7 +52,10 @@ public static class AgentPassClaims
             new("NpRoleId", role),
             new("RoleId", role),
             new("ClientTypeId", i.ClientTypeId?.ToString() ?? string.Empty),
-            new("NpAgentId", i.NpAgentId?.ToString() ?? string.Empty)
+            new("NpAgentId", i.NpAgentId?.ToString() ?? string.Empty),
+            // Branches B1: same value and format as the cookie, so a pass acting for a Florida-only user is
+            // Florida-only. Read fresh on every refresh and exchange, so a branch change reaches the pass then.
+            new(BranchIdsClaim.Type, BranchIdsClaim.Format(i.BranchIds))
         ];
     }
 }

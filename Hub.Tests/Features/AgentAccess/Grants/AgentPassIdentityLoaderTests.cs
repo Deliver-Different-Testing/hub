@@ -38,6 +38,8 @@ public class AgentPassIdentityLoaderTests : IDisposable
         IAgentGrantStore Store,
         IAgentCapabilityResolver Capabilities);
 
+    private static readonly int[] NoBranches = [];
+
     private static Rig Build()
     {
         var master = Substitute.For<IAuthenticationRepository>();
@@ -49,6 +51,7 @@ public class AgentPassIdentityLoaderTests : IDisposable
         var tenant = Substitute.For<IDespatchRepository>();
         tenant.FetchAgentContactAsync(9).Returns(Contact());
         tenant.GetAccountsModeAsync().Returns(2);
+        tenant.GetContactBranchIdsAsync(9).Returns(NoBranches);
 
         var settings = Substitute.For<ITenantAgentSettingSource>();
         settings.GetAsync(Arg.Any<CancellationToken>()).Returns(new TenantAgentSettingRow(SwitchOn: true, ForcedOff: false));
@@ -93,7 +96,7 @@ public class AgentPassIdentityLoaderTests : IDisposable
 
         Assert.Equal(AgentGrantEligibility.Eligible, result.Eligibility);
         Assert.Equal(
-            new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "NZST", "urgent", true, true, 2, 4, 777, "Sam", "Staff", 2),
+            new AgentPassIdentity("staff@urgent.test", 55, 12, 9, 3, 7, "NZ", "NZST", "urgent", true, true, 2, 4, 777, "Sam", "Staff", 2, NoBranches),
             result.Identity);
         Assert.Equal([AgentCapabilities.Connect], result.Capabilities);
         rig.Connection.Received(1).SetConnectionString("Server=tenant;Database=d;;User Id=test;Password=test;");
@@ -217,6 +220,33 @@ public class AgentPassIdentityLoaderTests : IDisposable
 
         Environment.SetEnvironmentVariable("SQLCredentials", "");
         Assert.Equal(AgentGrantEligibility.Unknown, (await Load(Build())).Eligibility);
+    }
+
+    // Branches B1: the pass is limited to the same branches as the person, read fresh on every refresh and exchange.
+    [Fact]
+    public async Task The_identity_carries_the_contacts_active_branches()
+    {
+        var rig = Build();
+        rig.Tenant.GetContactBranchIdsAsync(9).Returns([3, 7]);
+
+        var result = await Load(rig);
+
+        Assert.Equal(AgentGrantEligibility.Eligible, result.Eligibility);
+        Assert.Equal([3, 7], result.Identity!.BranchIds!);
+        Assert.Equal("3,7", AgentPassClaims.Build(result.Identity).Single(c => c.Type == "BranchIds").Value);
+    }
+
+    [Fact]
+    public async Task A_branch_lookup_failure_is_unknown_never_an_unrestricted_pass()
+    {
+        // Fail closed: an empty BranchIds would mean every branch, so a broken lookup must not produce a pass.
+        var rig = Build();
+        rig.Tenant.GetContactBranchIdsAsync(9).ThrowsAsync(new TimeoutException("tenant DB timeout"));
+
+        var result = await Load(rig);
+
+        Assert.Equal(AgentGrantEligibility.Unknown, result.Eligibility);
+        Assert.Null(result.Identity);
     }
 }
 

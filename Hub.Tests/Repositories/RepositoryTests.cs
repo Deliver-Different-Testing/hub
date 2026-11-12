@@ -1,4 +1,5 @@
-﻿using Hub.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Hub.Interfaces;
 using Hub.Models;
 using Hub.Repositories;
 using Hub.Tests.Helpers;
@@ -224,5 +225,63 @@ public class RepositoryTests
 
         Assert.Equal(2, result.Count);
         Assert.Contains(result, r => r.InternetPermissionID == 12);
+    }
+
+    // ---- Branches B1: GetContactBranchIdsAsync ----
+
+    private static async Task SeedBranchesAsync(DynamicDespatchDbContext context)
+    {
+        context.TblBranches.AddRange(
+            new TblBranch { BranchId = 3, Active = true },
+            new TblBranch { BranchId = 7, Active = true },
+            new TblBranch { BranchId = 9, Active = false });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task GetContactBranchIds_NoRows_ReturnsEmpty()
+    {
+        var (repo, context) = CreateRepo();
+        await SeedBranchesAsync(context);
+
+        Assert.Empty(await repo.GetContactBranchIdsAsync(3));
+    }
+
+    [Fact]
+    public async Task GetContactBranchIds_Rows_ReturnsAscendingAndOnlyThatContacts()
+    {
+        var (repo, context) = CreateRepo();
+        await SeedBranchesAsync(context);
+        context.TblContactBranches.AddRange(
+            new TblContactBranch { ClientContactId = 3, BranchId = 7 },
+            new TblContactBranch { ClientContactId = 3, BranchId = 3 },
+            new TblContactBranch { ClientContactId = 4, BranchId = 9 });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var ids = await repo.GetContactBranchIdsAsync(3);
+        Assert.Equal(new[] { 3, 7 }, ids);
+    }
+
+    [Fact]
+    public async Task GetContactBranchIds_InactiveBranch_IsExcluded()
+    {
+        var (repo, context) = CreateRepo();
+        await SeedBranchesAsync(context);
+        context.TblContactBranches.AddRange(
+            new TblContactBranch { ClientContactId = 3, BranchId = 9 },
+            new TblContactBranch { ClientContactId = 3, BranchId = 7 });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var ids = await repo.GetContactBranchIdsAsync(3);
+        Assert.Equal(new[] { 7 }, ids);
+    }
+
+    [Fact]
+    public async Task GetContactBranchIds_TablesNotDeployedYet_ReturnsEmptyInsteadOfThrowing()
+    {
+        var (repo, context) = CreateRepo();
+        await context.Database.ExecuteSqlRawAsync("DROP TABLE tblContactBranch", TestContext.Current.CancellationToken);
+
+        Assert.Empty(await repo.GetContactBranchIdsAsync(3));
     }
 }
