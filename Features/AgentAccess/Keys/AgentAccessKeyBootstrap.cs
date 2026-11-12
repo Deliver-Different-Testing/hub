@@ -18,6 +18,7 @@ namespace Hub.Features.AgentAccess.Keys;
 /// <param name="KeyWriteSettle">Pause after creating keys before reading them back (default 2 s), so pods starting together see each other's keys.</param>
 /// <param name="ClusterIssuer">OIDC issuer of the Kubernetes cluster whose projected service-account tokens the MCP server presents (AgentAccess:ClusterIssuer). Unset = assertion auth is off.</param>
 /// <param name="McpServiceAccounts">Service-account subjects (system:serviceaccount:ns:sa, or a prefix of one ending in *) allowed to authenticate as dfrnt-mcp (AgentAccess:McpServiceAccounts). Empty = assertion auth is off.</param>
+/// <param name="AdminServiceAccounts">Service-account subjects allowed to call the admin connections APIs with their token (AgentAccess:AdminServiceAccounts). Empty = those APIs refuse everything.</param>
 /// <param name="NewPrivateKeyPem">Makes the PKCS#8 PEM of a new key (default RSA 3072).</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
@@ -31,7 +32,8 @@ public sealed record AgentAccessOAuthSettings(
     TimeSpan? KeyWriteSettle = null,
     string? ClusterIssuer = null,
     IReadOnlyList<string>? McpServiceAccounts = null,
-    Func<string>? NewPrivateKeyPem = null);
+    Func<string>? NewPrivateKeyPem = null,
+    IReadOnlyList<string>? AdminServiceAccounts = null);
 
 public enum AgentAccessIssuerSource { None, Configured, TenantUrl }
 

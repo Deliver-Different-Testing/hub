@@ -6,7 +6,7 @@ namespace Hub.Features.AgentAccess.Grants;
 public interface IAgentAdminAudit
 {
     /// <summary>An admin ended someone else's AI app connection. Written only after the grant was revoked.</summary>
-    /// <param name="caller">The system that holds the API key and made the call (authenticated).</param>
+    /// <param name="caller">The authenticated service-account subject that made the call.</param>
     void GrantRevoked(int tenantId, string grantId, string actorUserId, string actorName, string caller);
 }
 
@@ -14,7 +14,6 @@ public interface IAgentAdminAudit
 // the admin as actor, which the log search (CloudWatch) can filter on. The actor is asserted by the caller, not proven.
 public sealed class SerilogAgentAdminAudit : IAgentAdminAudit
 {
-    public const string ConfiguratorCaller = "configurator";
     private const int MaxActorLength = 100;
 
     public void GrantRevoked(int tenantId, string grantId, string actorUserId, string actorName, string caller) =>
