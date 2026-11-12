@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace Hub.Features.AgentAccess.Capabilities;
 
 /// <param name="Eligibility">Why the user can or cannot have a pass; capabilities are empty unless Eligible.</param>
-public sealed record AgentCapabilitiesResponse(string Eligibility, IReadOnlyList<string> Capabilities);
+/// <param name="Tools">Per tool verb: whether the verb is ticked, whether the tile and screens allow it, and why not. Empty unless Eligible.</param>
+public sealed record AgentCapabilitiesResponse(
+    string Eligibility, IReadOnlyList<string> Capabilities, IReadOnlyDictionary<string, AgentToolDecision>? Tools = null);
 
 // What an AI app may do for a user right now (Access Control verbs AND the hub tiles they need). The apps ask on agent
 // requests through DeliverDifferent.AgentAccess, caching for about a minute, so a role change applies within a minute
@@ -34,6 +36,9 @@ public class AgentAccessCapabilitiesApiController(IAgentPassIdentityLoader ident
         var capabilities = load.Eligibility == AgentGrantEligibility.Eligible
             ? AgentCapabilities.All.Where(c => load.Capabilities?.Contains(c) == true).ToList()
             : [];
-        return Ok(new AgentCapabilitiesResponse(load.Eligibility.ToString(), capabilities));
+        var tools = load.Eligibility == AgentGrantEligibility.Eligible
+            ? load.Tools ?? new Dictionary<string, AgentToolDecision>()
+            : new Dictionary<string, AgentToolDecision>();
+        return Ok(new AgentCapabilitiesResponse(load.Eligibility.ToString(), capabilities, tools));
     }
 }

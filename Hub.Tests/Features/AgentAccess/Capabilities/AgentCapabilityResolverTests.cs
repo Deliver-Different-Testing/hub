@@ -10,7 +10,7 @@ namespace Hub.Tests.Features.AgentAccess.Capabilities;
 // What an AI app may do for a contact: the role's agent-* verb AND, for exports, the hub tile of the app the data comes
 // from, decided exactly as the Hub launcher decides it. Verbs follow the configurator's RolePermissionResolver rules
 // (per-client override, union across roles, cascade from an ancestor, explicit None on an ancestor denies).
-public class AgentCapabilityResolverTests
+public partial class AgentCapabilityResolverTests
 {
     private const string IntegrationManager = "hub-tile-integration-manager";
     private const string DespatchWeb = "hub-tile-despatchweb";
@@ -108,16 +108,15 @@ public class AgentCapabilityResolverTests
     }
 
     [Fact]
-    public async Task A_verb_with_no_row_of_its_own_inherits_from_its_ancestors()
+    public async Task A_verb_with_no_row_of_its_own_is_off_whatever_its_ancestors_grant()
     {
-        // A role created before the configurator writes deny rows for it: the tile grant cascades, as in the
-        // configurator. This is why the migration writes explicit None rows.
-        await using var ctx = NewContext(nameof(A_verb_with_no_row_of_its_own_inherits_from_its_ancestors));
+        // Hub fails closed for agent-* verbs: a tile grant must never cascade a verb on.
+        await using var ctx = NewContext(nameof(A_verb_with_no_row_of_its_own_is_off_whatever_its_ancestors_grant));
         Seed(ctx, roles: [RoleA]);
         Set(ctx, RoleA, IntegrationManager, 1);
         await ctx.SaveChangesAsync(Ct);
 
-        Assert.Contains(AgentCapabilities.Connect, await Resolve(ctx));
+        Assert.Empty(await Resolve(ctx));
     }
 
     [Fact]
@@ -146,6 +145,68 @@ public class AgentCapabilityResolverTests
         Assert.Equal(
             new[] { AgentCapabilities.Connect, AgentCapabilities.ExportJobs }.Order(),
             (await Resolve(ctx)).Order());
+    }
+    private static void AddDuplicate(DynamicDespatchDbContext ctx, int roleId, string key, byte level, int? clientId = null) =>
+        ctx.RolePermissions.Add(new RolePermission
+        {
+            RolePermissionId = Interlocked.Increment(ref nextRowId),
+            ContactRoleId = roleId, PermissionKey = key, Allowed = level >= 1, AccessLevel = level, ClientId = clientId
+        });
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Duplicate_rows_for_the_same_role_key_and_scope_take_the_lowest_level_in_either_order(bool denyFirst)
+    {
+        await using var ctx = NewContext(nameof(Duplicate_rows_for_the_same_role_key_and_scope_take_the_lowest_level_in_either_order) + denyFirst);
+        Seed(ctx, roles: [RoleA]);
+        DenyAllVerbs(ctx, RoleA);
+        // Connect: a stray allow beside an explicit deny (global rows), and the same on the client override.
+        ctx.RolePermissions.RemoveRange(ctx.RolePermissions.Local.Where(r => r.PermissionKey == AgentCapabilities.Connect).ToList());
+        if (denyFirst) AddDuplicate(ctx, RoleA, AgentCapabilities.Connect, 0);
+        AddDuplicate(ctx, RoleA, AgentCapabilities.Connect, 1);
+        if (!denyFirst) AddDuplicate(ctx, RoleA, AgentCapabilities.Connect, 0);
+        await ctx.SaveChangesAsync(Ct);
+
+        Assert.Empty(await Resolve(ctx));
+    }
+
+    [Fact]
+    public async Task Duplicate_client_overrides_take_the_lowest_level_and_still_beat_the_global_row()
+    {
+        await using var ctx = NewContext(nameof(Duplicate_client_overrides_take_the_lowest_level_and_still_beat_the_global_row));
+        Seed(ctx, roles: [RoleA]);
+        DenyAllVerbs(ctx, RoleA);
+        Set(ctx, RoleA, AgentCapabilities.Connect, 1);
+        AddDuplicate(ctx, RoleA, AgentCapabilities.Connect, 1, ClientId);
+        AddDuplicate(ctx, RoleA, AgentCapabilities.Connect, 0, ClientId);
+        await ctx.SaveChangesAsync(Ct);
+
+        Assert.Empty(await Resolve(ctx));
+    }
+
+
+    [Fact]
+    public async Task A_granted_agent_access_parent_without_rows_on_the_verbs_grants_nothing()
+    {
+        await using var ctx = NewContext(nameof(A_granted_agent_access_parent_without_rows_on_the_verbs_grants_nothing));
+        Seed(ctx, roles: [RoleA]);
+        Set(ctx, RoleA, AgentCapabilities.ParentKey, 2);
+        await ctx.SaveChangesAsync(Ct);
+
+        Assert.Empty(await Resolve(ctx));
+    }
+
+    [Fact]
+    public async Task A_verb_with_its_own_row_is_granted_beside_a_granted_parent_but_its_unlisted_siblings_are_not()
+    {
+        await using var ctx = NewContext(nameof(A_verb_with_its_own_row_is_granted_beside_a_granted_parent_but_its_unlisted_siblings_are_not));
+        Seed(ctx, roles: [RoleA]);
+        Set(ctx, RoleA, AgentCapabilities.ParentKey, 2);
+        Set(ctx, RoleA, AgentCapabilities.Connect, 1);
+        await ctx.SaveChangesAsync(Ct);
+
+        Assert.Equal([AgentCapabilities.Connect], await Resolve(ctx));
     }
 
     [Fact]
@@ -210,13 +271,16 @@ public class AgentCapabilityResolverTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static async Task<IReadOnlySet<string>> Resolve(DynamicDespatchDbContext ctx, string[]? enabledTiles = null)
+        => (await ResolveDetailed(ctx, enabledTiles)).Capabilities;
+
+    private static async Task<AgentCapabilityDecision> ResolveDetailed(DynamicDespatchDbContext ctx, string[]? enabledTiles = null)
     {
         var features = Substitute.For<IFeatureResolver>();
         features.ResolveForClientAsync(ClientId, true, "NZ")
             .Returns(new HashSet<string>(enabledTiles ?? AllTiles, StringComparer.OrdinalIgnoreCase));
 
         return await new AgentCapabilityResolver(ctx, features, new TileAccessResolver(ctx))
-            .ResolveAsync(new AgentCapabilitySubject(ContactId, ClientId, Internal: true, CountryCode: "NZ"), Ct);
+            .ResolveDetailedAsync(new AgentCapabilitySubject(ContactId, ClientId, Internal: true, CountryCode: "NZ"), Ct);
     }
 
     private static void GrantAllVerbs(DynamicDespatchDbContext ctx, int roleId)
@@ -254,6 +318,10 @@ public class AgentCapabilityResolverTests
         foreach (var tile in AllTiles) ctx.Features.Add(NewFeature(tile, "HubTile", parent: null));
         ctx.Features.Add(NewFeature(AgentCapabilities.ParentKey, "MenuItem", IntegrationManager));
         foreach (var verb in AgentCapabilities.All) ctx.Features.Add(NewFeature(verb, "RolePermission", AgentCapabilities.ParentKey));
+        foreach (var screen in AgentToolCatalogue.Tools.SelectMany(t => t.ScreenKeys).Distinct())
+        {
+            ctx.Features.Add(NewFeature(screen, "RolePermission", DespatchWeb));
+        }
 
         foreach (var roleId in new[] { RoleA, RoleB })
         {

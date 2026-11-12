@@ -40,6 +40,9 @@ public partial class TblContactRole
     public int ContactRoleId { get; set; }
 
     public bool IsActive { get; set; }
+
+    /// <summary>tblContactRole.Name, for the admin Connected AI apps list.</summary>
+    public string? Name { get; set; }
 }
 
 /// <summary>Contact &lt;-&gt; role junction (role stacking). A contact may hold several roles.</summary>

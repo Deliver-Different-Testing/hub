@@ -36,6 +36,8 @@ public static class AgentAccessExtensions
             .Configure<TimeProvider>((options, time) => options.TimeProvider = time);
         services.TryAddSingleton<IAgentGrantStore, AgentGrantStore>();
         services.TryAddSingleton<IAgentGrantAdmin, AgentGrantAdmin>();
+        services.TryAddSingleton<IAgentAdminAudit, SerilogAgentAdminAudit>();
+        services.TryAddScoped<IAgentConnectionDirectory, AgentConnectionDirectory>();
         services.TryAddScoped<IAgentPassIdentityLoader, AgentPassIdentityLoader>();
         services.TryAddSingleton<IAgentSubjectTokenValidator, AgentSubjectTokenValidator>();
 

@@ -7,7 +7,10 @@ namespace Hub.Features.AgentAccess.Grants;
 
 /// <param name="Capabilities">What the user's AI apps may do (Access Control); set only when Eligible.</param>
 public sealed record AgentPassLoad(
-    AgentGrantEligibility Eligibility, AgentPassIdentity? Identity, IReadOnlySet<string>? Capabilities = null);
+    AgentGrantEligibility Eligibility,
+    AgentPassIdentity? Identity,
+    IReadOnlySet<string>? Capabilities = null,
+    IReadOnlyDictionary<string, AgentToolDecision>? Tools = null);
 
 public interface IAgentPassIdentityLoader
 {
@@ -73,8 +76,9 @@ public sealed class AgentPassIdentityLoader(
             }
 
             // Access Control: the role must hold agent-connect, read live on every refresh and exchange.
-            var allowed = await capabilities.ResolveAsync(
+            var decision = await capabilities.ResolveDetailedAsync(
                 new AgentCapabilitySubject(contact.UcctId, clientId, client.UcclInternal, tenantRow.CountryCode), cancellationToken);
+            var allowed = decision.Capabilities;
             if (!allowed.Contains(AgentCapabilities.Connect))
             {
                 return Result(AgentGrantEligibility.NotPermitted);
@@ -98,7 +102,7 @@ public sealed class AgentPassIdentityLoader(
                 FirstName: contact.UcctFirstname ?? string.Empty,
                 Surname: contact.UcctSurname ?? string.Empty,
                 AccountsMode: await tenant.GetAccountsModeAsync());
-            return new AgentPassLoad(AgentGrantEligibility.Eligible, identity, allowed);
+            return new AgentPassLoad(AgentGrantEligibility.Eligible, identity, allowed, decision.Tools);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

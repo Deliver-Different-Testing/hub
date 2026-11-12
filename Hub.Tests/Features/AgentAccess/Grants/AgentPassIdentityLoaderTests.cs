@@ -56,8 +56,8 @@ public class AgentPassIdentityLoaderTests : IDisposable
         var connection = Substitute.For<IConnectionStringManager>();
         var store = Substitute.For<IAgentGrantStore>();
         var capabilities = Substitute.For<IAgentCapabilityResolver>();
-        capabilities.ResolveAsync(new AgentCapabilitySubject(9, 3, true, "NZ"), Arg.Any<CancellationToken>())
-            .Returns(new HashSet<string> { AgentCapabilities.Connect });
+        capabilities.ResolveDetailedAsync(new AgentCapabilitySubject(9, 3, true, "NZ"), Arg.Any<CancellationToken>())
+            .Returns(new AgentCapabilityDecision(new HashSet<string> { AgentCapabilities.Connect }, new Dictionary<string, AgentToolDecision>()));
         return new Rig(new AgentPassIdentityLoader(master, tenant, connection, settings, store, capabilities),
             master, tenant, connection, settings, store, capabilities);
     }
@@ -76,7 +76,7 @@ public class AgentPassIdentityLoaderTests : IDisposable
         // Access Control > Roles: agent-connect switched off. The pass is refused until it is switched back on; the
         // grant is not revoked, so the AI app works again without reconnecting.
         var rig = Build();
-        rig.Capabilities.ResolveAsync(Arg.Any<AgentCapabilitySubject>(), Arg.Any<CancellationToken>()).Returns(new HashSet<string>());
+        rig.Capabilities.ResolveDetailedAsync(Arg.Any<AgentCapabilitySubject>(), Arg.Any<CancellationToken>()).Returns(AgentCapabilityDecision.Empty);
 
         var result = await Load(rig);
 
