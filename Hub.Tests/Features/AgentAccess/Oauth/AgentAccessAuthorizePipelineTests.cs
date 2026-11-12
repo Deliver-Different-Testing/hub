@@ -339,6 +339,39 @@ public partial class AgentAccessAuthorizePipelineTests
         Assert.Empty(ctx.Set<OpenIddictEntityFrameworkCoreAuthorization<Guid>>());
     }
 
+    [Theory]
+    [InlineData(AgentGrantEligibility.NotPermitted, "access_denied")]
+    [InlineData(AgentGrantEligibility.NoLongerEligible, "access_denied")]
+    [InlineData(AgentGrantEligibility.TenantOff, "access_denied")]
+    [InlineData(AgentGrantEligibility.Unknown, "temporarily_unavailable")]
+    public async Task Someone_who_could_not_get_a_pass_is_refused_before_the_consent_page(AgentGrantEligibility eligibility, string error)
+    {
+        // Access Control: a role without agent-connect cannot connect at all, rather than consent and then fail every call.
+        await using var app = await StartAsync();
+        RefusePasses(app, eligibility);
+
+        var response = await Get(app, AuthorizeUrl(), Staff());
+
+        AssertErrorRedirect(response, error);
+    }
+
+    [Fact]
+    public async Task An_existing_authorization_does_not_skip_the_role_check()
+    {
+        await using var app = await StartAsync();
+        await Consent(app, AuthorizeUrl(), "allow");
+        RefusePasses(app, AgentGrantEligibility.NotPermitted);
+
+        var response = await Get(app, AuthorizeUrl(), Staff());
+
+        AssertErrorRedirect(response, "access_denied");
+    }
+
+    private static void RefusePasses(WebApplication app, AgentGrantEligibility eligibility) =>
+        app.Services.GetRequiredService<IAgentPassIdentityLoader>()
+            .LoadAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new AgentPassLoad(eligibility, null));
+
     [Fact]
     public async Task An_existing_authorization_skips_consent_and_issues_a_code()
     {

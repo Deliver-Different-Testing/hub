@@ -32,6 +32,7 @@ public class AgentAccessAuthorizeController(
     IAuthenticationRepository master,
     IAccountService accounts,
     AgentAccessConnectTickets tickets,
+    IAgentPassIdentityLoader identities,
     IOptions<AntiforgeryOptions> antiforgeryOptions) : Controller
 {
     private const string CookieScheme = "Identity.Application";
@@ -74,9 +75,18 @@ public class AgentAccessAuthorizeController(
 
             case AgentAccessAuthorizeOutcome.TenantSwitchRequired:
                 return await SwitchTenantAsync(request, user!, application, hubTenant!);
+        }
 
-            case AgentAccessAuthorizeOutcome.Issue:
-                return await IssueAsync(request, user!, application, createAuthorization: false);
+        // Only someone who would get a pass may connect: the same check every refresh and exchange makes, including the
+        // role's agent-connect verb in Access Control. Asked before consent, and again when an earlier consent is reused.
+        if (await PassRefusalAsync(user!) is { } refusal)
+        {
+            return refusal;
+        }
+
+        if (decision.Outcome == AgentAccessAuthorizeOutcome.Issue)
+        {
+            return await IssueAsync(request, user!, application, createAuthorization: false);
         }
 
         if (Request.Method == HttpMethods.Post)
@@ -275,6 +285,25 @@ public class AgentAccessAuthorizeController(
             Number(principal, "ContactID"),
             Number(principal, "ClientTypeId"),
             Number(principal, "CurrentTenantID"));
+    }
+
+    private async Task<IActionResult?> PassRefusalAsync(AgentAccessUser user)
+    {
+        if (user.ContactId is not { } contactId)
+        {
+            return Refuse(Errors.AccessDenied, "This user cannot connect AI apps.");
+        }
+
+        var load = await identities.LoadAsync(user.TenantId!.Value, user.UserId, contactId, HttpContext.RequestAborted);
+        return load.Eligibility switch
+        {
+            AgentGrantEligibility.Eligible => null,
+            AgentGrantEligibility.NotPermitted => Refuse(Errors.AccessDenied,
+                "Your role does not allow AI app access. Ask your administrator to turn on 'Connect an AI app' for your role."),
+            AgentGrantEligibility.TenantOff => Refuse(Errors.AccessDenied, "AI app access is switched off for this tenant."),
+            AgentGrantEligibility.NoLongerEligible => Refuse(Errors.AccessDenied, "This user cannot connect AI apps."),
+            _ => Refuse(Errors.TemporarilyUnavailable, "The user could not be checked right now; try again shortly.")
+        };
     }
 
     private static int? Number(ClaimsPrincipal principal, string type) =>

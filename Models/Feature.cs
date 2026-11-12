@@ -15,6 +15,10 @@ public partial class Feature
 
     public string Category { get; set; }
 
+    // The catalogue tree (20260608100000_FeatureCascadeColumns.sql). Read by the agent capability resolver, which
+    // cascades and walk-up-denies verbs the way the configurator's RolePermissionResolver does.
+    public string ParentKey { get; set; }
+
     // Release state (tile-level direction, 2026-08-26). A feature reaches a
     // tenant only when ClientVisible AND ReleaseStatus == "Live". Added by
     // dbmigrationsv2 20260826170000_FeatureReleaseState.sql - that migration
