@@ -47,7 +47,8 @@ public sealed partial class AgentAccessMcpAssertionOptions
     [GeneratedRegex(@"^system:serviceaccount:[^:*]+(:[^:*]*)?\*$", RegexOptions.CultureInvariant)]
     private static partial Regex ServiceAccountPrefix();
 
-    public static AgentAccessMcpAssertionOptions Resolve(string? clusterIssuer, IEnumerable<string>? serviceAccounts)
+    public static AgentAccessMcpAssertionOptions Resolve(
+        string? clusterIssuer, IEnumerable<string>? serviceAccounts, string allowListSetting = "AgentAccess:McpServiceAccounts")
     {
         Uri? issuer = null;
         if (!string.IsNullOrWhiteSpace(clusterIssuer))
@@ -61,7 +62,7 @@ public sealed partial class AgentAccessMcpAssertionOptions
             }
             else
             {
-                Log.Warning("AgentAccess:ClusterIssuer must be an https URL; the MCP server cannot authenticate with its service-account token");
+                Log.Warning("AgentAccess:ClusterIssuer must be an https URL; service-account token authentication stays off");
             }
         }
 
@@ -75,7 +76,7 @@ public sealed partial class AgentAccessMcpAssertionOptions
             }
             else
             {
-                Log.Warning("AgentAccess:McpServiceAccounts entry {Entry} is not system:serviceaccount:<namespace>:<name> or a prefix of one ending in a single *; it is ignored", account);
+                Log.Warning("{Setting} entry {Entry} is not system:serviceaccount:<namespace>:<name> or a prefix of one ending in a single *; it is ignored", allowListSetting, account);
             }
         }
 

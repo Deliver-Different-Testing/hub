@@ -1,4 +1,9 @@
+using System.Security.Cryptography;
 using Hub.Features.AgentAccess.Grants;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -13,29 +18,60 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Hub.Tests.Features.AgentAccess.Grants;
 
-// The admin Connected AI apps list and Revoke (configurator proxies them). X-Api-Key, tenant scoped, audited.
+// The admin Connected AI apps list and Revoke (configurator proxies them). Service-account bearer token, tenant scoped, audited.
 [Collection("PartnerDirectoryApiKey")]
 public class AgentAccessConnectionsApiControllerTests : IDisposable
 {
-    private const string Key = "admin-key";
+    private const string Cluster = "https://oidc.eks.ap-southeast-2.amazonaws.com/id/ABC";
+    private const string Subject = "system:serviceaccount:dfrntdrive-configurator-804-urgent-staging:dfrntdrive-configurator";
+    private const string AllowedPrefix = "system:serviceaccount:dfrntdrive-configurator-804-*";
     private const string SharedKey = "shared-key";
-    private readonly string? _original = Environment.GetEnvironmentVariable("AgentAdminApiKey");
+    private static readonly RsaSecurityKey ClusterKey = new(RSA.Create(2048)) { KeyId = "k1" };
     private readonly string? _originalShared = Environment.GetEnvironmentVariable("PartnerDirectoryApiKey");
     private readonly IAgentConnectionDirectory _directory = Substitute.For<IAgentConnectionDirectory>();
     private readonly IAgentAdminAudit _audit = Substitute.For<IAgentAdminAudit>();
+    private readonly string Key = Bearer(Mint());
 
     public AgentAccessConnectionsApiControllerTests()
     {
-        Environment.SetEnvironmentVariable("AgentAdminApiKey", Key);
         Environment.SetEnvironmentVariable("PartnerDirectoryApiKey", SharedKey);
     }
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable("AgentAdminApiKey", _original);
         Environment.SetEnvironmentVariable("PartnerDirectoryApiKey", _originalShared);
         GC.SuppressFinalize(this);
     }
+
+    private static string Bearer(string token) => "Bearer " + token;
+
+    private static string Mint(
+        string subject = Subject, string audience = AgentAccessAdminTokenValidator.Audience, string issuer = Cluster,
+        TimeSpan? expiresIn = null, SecurityKey? key = null)
+    {
+        var now = DateTime.UtcNow;
+        var expires = now.Add(expiresIn ?? TimeSpan.FromMinutes(10));
+        var start = expires < now ? now.AddHours(-1) : now;
+        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = issuer,
+            Audience = audience,
+            Claims = new Dictionary<string, object> { ["sub"] = subject },
+            IssuedAt = start,
+            NotBefore = start,
+            Expires = expires,
+            SigningCredentials = new SigningCredentials(key ?? ClusterKey, SecurityAlgorithms.RsaSha256)
+        });
+    }
+
+    private sealed class StaticJwks : IAgentAccessClusterJwks
+    {
+        public BaseConfigurationManager? Manager { get; } = new StaticConfigurationManager<OpenIdConnectConfiguration>(
+            new OpenIdConnectConfiguration { Issuer = Cluster, SigningKeys = { ClusterKey } });
+    }
+
+    private static IAgentAccessAdminTokenValidator Tokens(params string[] allowed) => new AgentAccessAdminTokenValidator(
+        new AgentAccessAdminTokenOptions(AgentAccessMcpAssertionOptions.Resolve(Cluster, allowed)), new StaticJwks());
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static readonly AgentConnectionRevokeRequest Admin = new("77", "Ada Admin");
@@ -98,13 +134,17 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
         public ValueTask DisposeAsync() => Provider.DisposeAsync();
     }
 
-    private AgentAccessConnectionsApiController Controller(IAgentGrantAdmin admin) => new(_directory, admin, _audit);
+    private AgentAccessConnectionsApiController Controller(IAgentGrantAdmin admin, params string[] allowed) =>
+        new(_directory, admin, _audit, Tokens(allowed is { Length: > 0 } ? allowed : [AllowedPrefix]));
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("wrong")]
-    public async Task A_missing_or_wrong_key_is_refused_and_nothing_is_read_or_changed(string? key)
+    [InlineData("Bearer ")]
+    [InlineData("Bearer not.a.jwt")]
+    [InlineData("Basic abc")]
+    public async Task A_missing_or_malformed_token_is_refused_and_nothing_is_read_or_changed(string? key)
     {
         var admin = Substitute.For<IAgentGrantAdmin>();
         var sut = Controller(admin);
@@ -115,14 +155,6 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
         await _directory.DidNotReceiveWithAnyArgs().ListAsync(0, Ct);
         await admin.DidNotReceiveWithAnyArgs().RevokeAsync(null!, 0, null!, false, Ct);
         _audit.DidNotReceiveWithAnyArgs().GrantRevoked(0, null!, null!, null!, null!);
-    }
-
-    [Fact]
-    public async Task No_key_configured_means_nothing_is_allowed()
-    {
-        Environment.SetEnvironmentVariable("AgentAdminApiKey", "");
-
-        Assert.IsType<UnauthorizedResult>(await Controller(Substitute.For<IAgentGrantAdmin>()).List(12, "", Ct));
     }
 
     [Fact]
@@ -180,7 +212,7 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
         Assert.IsType<NoContentResult>(result);
         Assert.Equal(Statuses.Revoked, await rig.StatusOf(grant));
         Assert.False(await rig.IsLive(grant));
-        _audit.Received(1).GrantRevoked(12, grant, "77", "Ada Admin", "configurator");
+        _audit.Received(1).GrantRevoked(12, grant, "77", "Ada Admin", Subject);
     }
 
     [Fact]
@@ -216,11 +248,11 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
 
         await Controller(rig.GrantAdmin).Revoke(grant, 12, new AgentConnectionRevokeRequest("77", " "), Key, Ct);
 
-        _audit.Received(1).GrantRevoked(12, grant, "77", "77", "configurator");
+        _audit.Received(1).GrantRevoked(12, grant, "77", "77", Subject);
     }
 
     [Fact]
-    public async Task The_shared_partner_directory_key_is_refused_on_these_endpoints()
+    public async Task The_shared_partner_directory_key_and_the_old_api_key_header_are_refused_on_these_endpoints()
     {
         var admin = Substitute.For<IAgentGrantAdmin>();
         var sut = Controller(admin);
@@ -231,18 +263,7 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task An_unset_admin_key_refuses_everything_even_the_shared_key()
-    {
-        Environment.SetEnvironmentVariable("AgentAdminApiKey", null);
-        var sut = Controller(Substitute.For<IAgentGrantAdmin>());
-
-        Assert.IsType<UnauthorizedResult>(await sut.List(12, SharedKey, Ct));
-        Assert.IsType<UnauthorizedResult>(await sut.List(12, null, Ct));
-        Assert.IsType<UnauthorizedResult>(await sut.Revoke("g1", 12, Admin, "", Ct));
-    }
-
-    [Fact]
-    public async Task The_admin_key_is_accepted()
+    public async Task A_valid_service_account_token_is_accepted()
     {
         _directory.ListAsync(12, Arg.Any<CancellationToken>()).Returns(new AgentConnectionList([], true));
 
@@ -280,7 +301,7 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
 
         await Controller(admin).Revoke("g1", 12, new AgentConnectionRevokeRequest("77", name), Key, Ct);
 
-        _audit.Received(1).GrantRevoked(12, "g1", "77", Arg.Is<string>(n => n.Length == 100 && n.StartsWith("AdaFAKEx") && !n.Contains('\n')), "configurator");
+        _audit.Received(1).GrantRevoked(12, "g1", "77", Arg.Is<string>(n => n.Length == 100 && n.StartsWith("AdaFAKEx") && !n.Contains('\n')), Subject);
     }
 
     [Fact]
@@ -297,6 +318,71 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
         Assert.Equal(503, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Contains("30 minutes", result is ObjectResult { Value: { } v } ? v.ToString() : "");
         Assert.Equal(Statuses.Revoked, await rig.StatusOf(grant));
-        _audit.Received(1).GrantRevoked(12, grant, "77", "Ada Admin", "configurator");
+        _audit.Received(1).GrantRevoked(12, grant, "77", "Ada Admin", Subject);
+    }
+
+    [Fact]
+    public async Task A_valid_token_from_an_allowed_subject_can_list_and_revoke()
+    {
+        _directory.ListAsync(12, Arg.Any<CancellationToken>()).Returns(new AgentConnectionList([], false));
+        var admin = Substitute.For<IAgentGrantAdmin>();
+        admin.RevokeAsync("g1", 12, string.Empty, true, Arg.Any<CancellationToken>()).Returns(AgentGrantRevokeResult.Revoked);
+        var sut = Controller(admin);
+
+        Assert.IsType<OkObjectResult>(await sut.List(12, Key, Ct));
+        Assert.IsType<NoContentResult>(await sut.Revoke("g1", 12, Admin, Key, Ct));
+    }
+
+    public static TheoryData<string> BadTokens() => new()
+    {
+        Bearer(Mint(audience: "https://hub.example.test/")),
+        Bearer(Mint(issuer: "https://oidc.eks.ap-southeast-2.amazonaws.com/id/OTHER")),
+        Bearer(Mint(expiresIn: TimeSpan.FromMinutes(-10))),
+        Bearer(Mint(key: new RsaSecurityKey(RSA.Create(2048)) { KeyId = "k1" })),
+        Bearer(Mint(subject: "system:serviceaccount:other-ns:configurator")),
+        Bearer(Mint(subject: "system:serviceaccount:dfrnt-automate-mcp-87595416-staging:mcp")),
+    };
+
+    [Theory]
+    [MemberData(nameof(BadTokens))]
+    public async Task A_wrong_audience_issuer_expiry_signature_or_subject_is_refused(string authorization)
+    {
+        var admin = Substitute.For<IAgentGrantAdmin>();
+        var sut = Controller(admin);
+
+        Assert.IsType<UnauthorizedResult>(await sut.List(12, authorization, Ct));
+        Assert.IsType<UnauthorizedResult>(await sut.Revoke("g1", 12, Admin, authorization, Ct));
+        await _directory.DidNotReceiveWithAnyArgs().ListAsync(0, Ct);
+        await admin.DidNotReceiveWithAnyArgs().RevokeAsync(null!, 0, null!, false, Ct);
+        _audit.DidNotReceiveWithAnyArgs().GrantRevoked(0, null!, null!, null!, null!);
+    }
+
+    [Fact]
+    public async Task An_empty_allow_list_refuses_everything_even_a_well_formed_token()
+    {
+        var sut = new AgentAccessConnectionsApiController(
+            _directory, Substitute.For<IAgentGrantAdmin>(), _audit, Tokens());
+
+        Assert.IsType<UnauthorizedResult>(await sut.List(12, Key, Ct));
+        Assert.IsType<UnauthorizedResult>(await sut.Revoke("g1", 12, Admin, Key, Ct));
+    }
+
+    [Fact]
+    public async Task An_exact_subject_entry_is_accepted()
+    {
+        _directory.ListAsync(12, Arg.Any<CancellationToken>()).Returns(new AgentConnectionList([], false));
+
+        Assert.IsType<OkObjectResult>(await Controller(Substitute.For<IAgentGrantAdmin>(), Subject).List(12, Key, Ct));
+    }
+
+    [Fact]
+    public async Task The_audit_caller_is_the_token_subject()
+    {
+        var admin = Substitute.For<IAgentGrantAdmin>();
+        admin.RevokeAsync("g1", 12, string.Empty, true, Arg.Any<CancellationToken>()).Returns(AgentGrantRevokeResult.Revoked);
+
+        await Controller(admin).Revoke("g1", 12, Admin, Key, Ct);
+
+        _audit.Received(1).GrantRevoked(12, "g1", "77", "Ada Admin", Subject);
     }
 }

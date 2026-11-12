@@ -65,6 +65,20 @@ public static class AgentAccessExtensions
             SecretConfigured: !string.IsNullOrEmpty(settings?.McpClientSecret), AssertionConfigured: mcpAssertion.Enabled));
         services.AddSingleton<IAgentAccessClusterJwks, AgentAccessClusterJwks>();
         services.TryAddSingleton<IAgentAccessMcpAssertionValidator, AgentAccessMcpAssertionValidator>();
+        var adminTokens = AgentAccessMcpAssertionOptions.Resolve(
+            settings?.ClusterIssuer, settings?.AdminServiceAccounts, "AgentAccess:AdminServiceAccounts");
+        services.AddSingleton(new AgentAccessAdminTokenOptions(adminTokens));
+        services.TryAddSingleton<IAgentAccessAdminTokenValidator, AgentAccessAdminTokenValidator>();
+        if (adminTokens.Enabled)
+        {
+            Log.Information("Agent access admin APIs accept service-account tokens from {ClusterIssuer} for {ServiceAccounts}",
+                adminTokens.ClusterIssuer, string.Join(", ", adminTokens.ServiceAccounts));
+        }
+        else
+        {
+            Log.Warning("AgentAccess:AdminServiceAccounts or ClusterIssuer is not set, so the agent access admin APIs refuse every request");
+        }
+
         services.AddHttpClient(AgentAccessClusterJwks.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
         if (mcpAssertion.Enabled)
         {
