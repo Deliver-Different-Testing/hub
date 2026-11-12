@@ -59,6 +59,31 @@ public class AgentAccessCapabilitiesApiControllerTests : IDisposable
         Assert.Equal([AgentCapabilities.Connect, AgentCapabilities.ExportJobs], body.Capabilities);
     }
 
+    [Fact]
+    public async Task An_eligible_user_also_gets_each_tools_verb_screen_and_reason()
+    {
+        var tools = new Dictionary<string, AgentToolDecision>
+        {
+            ["agent-tool-job-search"] = new(true, false, "dw-job-search is off for this role")
+        };
+        _identities.LoadAsync(12, "55", 9, Arg.Any<CancellationToken>()).Returns(new AgentPassLoad(
+            AgentGrantEligibility.Eligible, null, new HashSet<string> { AgentCapabilities.Connect }, tools));
+
+        var body = Assert.IsType<AgentCapabilitiesResponse>(Assert.IsType<OkObjectResult>(await _sut.Get(12, "55", 9, Key, Ct)).Value);
+
+        Assert.Equal(new AgentToolDecision(true, false, "dw-job-search is off for this role"), body.Tools!["agent-tool-job-search"]);
+    }
+
+    [Fact]
+    public void The_response_serialises_tools_as_verb_screen_reason()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            new AgentCapabilitiesResponse("Eligible", [], new Dictionary<string, AgentToolDecision> { ["v"] = new(true, false, "why") }),
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+        Assert.Equal("""{"eligibility":"Eligible","capabilities":[],"tools":{"v":{"verb":true,"screen":false,"reason":"why"}}}""", json);
+    }
+
     [Theory]
     [InlineData(AgentGrantEligibility.NotPermitted)]
     [InlineData(AgentGrantEligibility.TenantOff)]

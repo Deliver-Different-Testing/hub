@@ -1,11 +1,13 @@
 using Hub.Features.AgentAccess.Grants;
 using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
+using NSubstitute;
 using OpenIddict.EntityFrameworkCore.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -23,15 +25,16 @@ public class AgentGrantAdminTests
         public AgentGrantStore Store { get; }
         public AgentGrantAdmin Admin { get; }
 
-        public Rig()
+        public Rig(Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor? interceptor = null)
         {
             var services = new ServiceCollection();
             services.AddLogging();
             var name = Guid.NewGuid().ToString("N");
-            services.AddDbContext<AgentAccessOpenIddictDbContext>(o =>
+            services.AddDbContext<AgentAccessOpenIddictDbContext>((sp, o) =>
             {
                 o.UseInMemoryDatabase(name);
                 o.UseOpenIddict<Guid>();
+                if (interceptor is not null) o.AddInterceptors(interceptor);
             });
             services.AddOpenIddict().AddCore(c => c.UseEntityFrameworkCore().UseDbContext<AgentAccessOpenIddictDbContext>().ReplaceDefaultEntities<Guid>());
             Provider = services.BuildServiceProvider();
@@ -271,6 +274,107 @@ public class AgentGrantAdminTests
 
         await rig.Admin.RevokeAsync(id, 12, "55", false, Ct);
 
-        Assert.Equal(AgentGrantRevokeResult.NotFound, await rig.Admin.RevokeAsync(id, 12, "55", false, Ct));
+        Assert.Equal(AgentGrantRevokeResult.Revoked, await rig.Admin.RevokeAsync(id, 12, "55", false, Ct));
+    }
+
+    // An authorization manager that cannot revoke (a lost concurrent update), over the same store.
+    private static AgentGrantAdmin AdminWithManager(Rig rig, IOpenIddictAuthorizationManager manager, IAgentGrantStore store)
+    {
+        var services = new ServiceCollection();
+        services.AddScoped(_ => rig.Provider.GetRequiredService<AgentAccessOpenIddictDbContext>());
+        services.AddScoped(_ => manager);
+        return new AgentGrantAdmin(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), store);
+    }
+
+    [Fact]
+    public async Task A_revoke_the_manager_could_not_apply_is_a_failure_and_leaves_the_liveness_key()
+    {
+        await using var rig = new Rig();
+        var id = await rig.AddGrant(await rig.AddApp("dfrnt-claude", "Claude"), "55", 12);
+        await rig.Store.MarkLiveAsync(id, Ct);
+        var manager = Substitute.For<IOpenIddictAuthorizationManager>();
+        var authorization = new object();
+        manager.FindByIdAsync(id, Arg.Any<CancellationToken>()).Returns(new ValueTask<object?>(authorization));
+        manager.TryRevokeAsync(authorization, Arg.Any<CancellationToken>()).Returns(new ValueTask<bool>(false));
+        manager.GetStatusAsync(authorization, Arg.Any<CancellationToken>()).Returns(new ValueTask<string?>(Statuses.Valid));
+
+        var result = await AdminWithManager(rig, manager, rig.Store).RevokeAsync(id, 12, "55", false, Ct);
+
+        Assert.Equal(AgentGrantRevokeResult.Failed, result);
+        Assert.True(await rig.Store.IsLiveAsync(id, Ct));
+    }
+
+    [Fact]
+    public async Task A_revoke_lost_to_a_concurrent_revoke_still_counts_as_revoked()
+    {
+        await using var rig = new Rig();
+        var id = await rig.AddGrant(await rig.AddApp("dfrnt-claude", "Claude"), "55", 12);
+        var manager = Substitute.For<IOpenIddictAuthorizationManager>();
+        var authorization = new object();
+        manager.FindByIdAsync(id, Arg.Any<CancellationToken>()).Returns(new ValueTask<object?>(authorization));
+        manager.TryRevokeAsync(authorization, Arg.Any<CancellationToken>()).Returns(new ValueTask<bool>(false));
+        manager.GetStatusAsync(authorization, Arg.Any<CancellationToken>()).Returns(new ValueTask<string?>(Statuses.Revoked));
+
+        Assert.Equal(AgentGrantRevokeResult.Revoked, await AdminWithManager(rig, manager, rig.Store).RevokeAsync(id, 12, "55", false, Ct));
+    }
+
+    [Fact]
+    public async Task A_redis_failure_after_the_authorization_is_revoked_is_reported_as_pending_and_a_retry_finishes_it()
+    {
+        await using var rig = new Rig();
+        var id = await rig.AddGrant(await rig.AddApp("dfrnt-claude", "Claude"), "55", 12);
+        var failing = Substitute.For<IAgentGrantStore>();
+        failing.RevokeAsync(id, Arg.Any<CancellationToken>()).Returns(Task.FromException(new InvalidOperationException("redis down")));
+        var admin = new AgentGrantAdmin(rig.Provider.GetRequiredService<IServiceScopeFactory>(), failing);
+
+        Assert.Equal(AgentGrantRevokeResult.RevokedPendingPropagation, await admin.RevokeAsync(id, 12, "55", false, Ct));
+        Assert.Equal(Statuses.Revoked, await rig.StatusOf(id));
+
+        // Redis is back: repeating the revoke only removes the key and succeeds.
+        await rig.Store.MarkLiveAsync(id, Ct);
+        Assert.Equal(AgentGrantRevokeResult.Revoked, await rig.Admin.RevokeAsync(id, 12, "55", false, Ct));
+        Assert.False(await rig.Store.IsLiveAsync(id, Ct));
+
+        // A revoked grant of someone else, or on another tenant, is still not reachable by the retry path.
+        Assert.Equal(AgentGrantRevokeResult.NotFound, await rig.Admin.RevokeAsync(id, 12, "56", false, Ct));
+        Assert.Equal(AgentGrantRevokeResult.NotFound, await rig.Admin.RevokeAsync(id, 99, "55", true, Ct));
+    }
+
+    // Makes the next SaveChanges lose an optimistic-concurrency race, as a refresh updating last_used_utc would.
+    private sealed class ConflictOnce : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        public Func<Task>? Before { get; set; }
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            var action = Before;
+            Before = null;
+            if (action is not null) await action();
+            return result;
+        }
+    }
+
+    [Fact]
+    public async Task A_revoke_that_loses_a_real_concurrency_race_is_a_failure_not_a_success()
+    {
+        var interceptor = new ConflictOnce();
+        await using var rig = new Rig(interceptor);
+        var id = await rig.AddGrant(await rig.AddApp("dfrnt-claude", "Claude"), "55", 12);
+        await rig.Store.MarkLiveAsync(id, Ct);
+        interceptor.Before = async () =>
+        {
+            using var other = rig.Provider.CreateScope();
+            var ctx = other.ServiceProvider.GetRequiredService<AgentAccessOpenIddictDbContext>();
+            var row = await ctx.Set<OpenIddictEntityFrameworkCoreAuthorization<Guid>>().FindAsync([Guid.Parse(id)], Ct);
+            row!.ConcurrencyToken = Guid.NewGuid().ToString();
+            await ctx.SaveChangesAsync(Ct);
+        };
+
+        var result = await rig.Admin.RevokeAsync(id, 12, "55", false, Ct);
+
+        Assert.Equal(AgentGrantRevokeResult.Failed, result);
+        Assert.Equal(Statuses.Valid, await rig.StatusOf(id));
+        Assert.True(await rig.Store.IsLiveAsync(id, Ct));
     }
 }
