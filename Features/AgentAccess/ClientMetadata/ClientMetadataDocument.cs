@@ -2,7 +2,8 @@ using System.Text.Json;
 
 namespace Hub.Features.AgentAccess.ClientMetadata;
 
-public sealed record ClientMetadata(string ClientId, string ClientName, IReadOnlyList<string> RedirectUris);
+// JwksUri is set for a private_key_jwt client (such as ChatGPT), which signs its token requests with keys published there.
+public sealed record ClientMetadata(string ClientId, string ClientName, IReadOnlyList<string> RedirectUris, Uri? JwksUri = null);
 
 public sealed record ClientMetadataParseResult(ClientMetadata? Document, string? Error)
 {
@@ -10,7 +11,8 @@ public sealed record ClientMetadataParseResult(ClientMetadata? Document, string?
 }
 
 // A client ID metadata document is untrusted input from the internet (phase 1.8). Only a small, strict subset is
-// accepted: a public client using the authorization code flow, identified by the exact URL it was fetched from.
+// accepted: a client using the authorization code flow, identified by the exact URL it was fetched from, that is
+// either public or authenticates with private_key_jwt against a published key set (never a shared secret).
 // Redirects are https, or http on a loopback address for native apps such as Claude Code (RFC 8252).
 public static class ClientMetadataDocument
 {
@@ -20,7 +22,14 @@ public static class ClientMetadataDocument
     private const int MaxNameLength = 100;
 
     private static readonly string[] ForbiddenFields =
-        ["client_secret", "client_secret_expires_at", "jwks", "jwks_uri", "tls_client_auth_subject_dn"];
+        ["client_secret", "client_secret_expires_at", "jwks", "tls_client_auth_subject_dn"];
+
+    // OpenIddict validates client assertions with these; HS* would need a shared secret.
+    private static readonly string[] SigningAlgorithms = ["RS256", "ES256"];
+
+    // ChatGPT lists the jwt-bearer grant. It is tolerated in the document but never granted: the application row only
+    // ever gets the authorization code and refresh token permissions.
+    private const string JwtBearerGrant = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
     public static bool IsAcceptableClientIdUrl(string? value, out Uri uri)
     {
@@ -74,13 +83,39 @@ public static class ClientMetadataDocument
                 if (root.TryGetProperty(field, out _)) return ClientMetadataParseResult.Fail($"{field} is not allowed.");
             }
 
-            if (root.TryGetProperty("token_endpoint_auth_method", out var method)
-                && !(method.ValueKind == JsonValueKind.String && method.GetString() == "none"))
+            var method = "none";
+            if (root.TryGetProperty("token_endpoint_auth_method", out var methodElement))
             {
-                return ClientMetadataParseResult.Fail("Only public clients (token_endpoint_auth_method none) are accepted.");
+                method = methodElement.ValueKind == JsonValueKind.String ? methodElement.GetString()! : string.Empty;
             }
 
-            if (!OnlyAllowed(root, "grant_types", "authorization_code", "refresh_token")) return ClientMetadataParseResult.Fail("Unsupported grant_types.");
+            if (method is not ("none" or "private_key_jwt"))
+            {
+                return ClientMetadataParseResult.Fail("Only public or private_key_jwt clients are accepted.");
+            }
+
+            Uri? jwksUri = null;
+            var hasJwksUri = root.TryGetProperty("jwks_uri", out var jwksElement);
+            if (method == "none" && hasJwksUri) return ClientMetadataParseResult.Fail("jwks_uri is only allowed for private_key_jwt clients.");
+            if (method == "private_key_jwt")
+            {
+                if (!hasJwksUri
+                    || jwksElement.ValueKind != JsonValueKind.String
+                    || !Uri.TryCreate(jwksElement.GetString(), UriKind.Absolute, out jwksUri)
+                    || jwksUri.Scheme != Uri.UriSchemeHttps
+                    || !string.IsNullOrEmpty(jwksUri.Fragment))
+                {
+                    return ClientMetadataParseResult.Fail("A private_key_jwt client needs an https jwks_uri.");
+                }
+
+                if (root.TryGetProperty("token_endpoint_auth_signing_alg", out var alg)
+                    && !(alg.ValueKind == JsonValueKind.String && SigningAlgorithms.Contains(alg.GetString())))
+                {
+                    return ClientMetadataParseResult.Fail("Unsupported token_endpoint_auth_signing_alg.");
+                }
+            }
+
+            if (!OnlyAllowed(root, "grant_types", "authorization_code", "refresh_token", JwtBearerGrant)) return ClientMetadataParseResult.Fail("Unsupported grant_types.");
             if (!OnlyAllowed(root, "response_types", "code")) return ClientMetadataParseResult.Fail("Unsupported response_types.");
 
             if (!TryString(root, "client_name", out var rawName) || Clean(rawName) is not { Length: > 0 } name)
@@ -90,7 +125,7 @@ public static class ClientMetadataDocument
 
             if (!TryRedirects(root, out var redirects, out var redirectError)) return ClientMetadataParseResult.Fail(redirectError!);
 
-            return new ClientMetadataParseResult(new ClientMetadata(clientId!, name, redirects), null);
+            return new ClientMetadataParseResult(new ClientMetadata(clientId!, name, redirects, jwksUri), null);
         }
     }
 

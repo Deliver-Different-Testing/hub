@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Hub.Features.AgentAccess.Oauth;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -34,6 +35,7 @@ public sealed class ClientMetadataService(
 {
     private const string MarkerProperty = "cimd_fetched_utc";
     private const int MaxConcurrentFetches = 4;
+    private const int MaxSigningKeys = 10;
     private static readonly SemaphoreSlim FetchGate = new(MaxConcurrentFetches);
 
     public async Task<ClientMetadataOutcome> EnsureAsync(string clientId, string? redirectUri, CancellationToken cancellationToken = default)
@@ -95,12 +97,28 @@ public sealed class ClientMetadataService(
                 return KeepOrReject(fetchedAt, transient: false, reason);
             }
 
+            // A private_key_jwt client's keys are fetched with its document and are only as trusted as it: same hosts, same
+            // fetcher. The token endpoint never fetches, so new keys arrive with the next authorization request.
+            JsonWebKeySet? signingKeys = null;
+            if (document.JwksUri is { } jwksUri)
+            {
+                var keys = await FetchSigningKeysAsync(jwksUri, cancellationToken);
+                if (keys.Error is { } keyError)
+                {
+                    Log.Warning("Client metadata for {ClientId} rejected: {Reason}", clientId, keyError);
+                    failures.Remember(clientId, new ClientMetadataFailure(keyError, keys.Transient), options.NegativeTtl);
+                    return KeepOrReject(fetchedAt, keys.Transient, keyError);
+                }
+
+                signingKeys = keys.Keys;
+            }
+
             var descriptor = AgentAccessClientSeeder.ToDescriptor(new AgentAccessClientOptions
             {
                 ClientId = document.ClientId,
                 DisplayName = document.ClientName,
                 RedirectUris = [.. document.RedirectUris]
-            });
+            }, signingKeys);
             descriptor.Properties[MarkerProperty] = JsonSerializer.SerializeToElement(time.GetUtcNow().ToString("O"));
             // Native lets OpenIddict accept any port on a loopback redirect (RFC 8252 section 7.3).
             descriptor.ApplicationType = redirects.Any(r => r.IsLoopback) ? ApplicationTypes.Native : ApplicationTypes.Web;
@@ -121,6 +139,43 @@ public sealed class ClientMetadataService(
         {
             FetchGate.Release();
         }
+    }
+
+    private async Task<(JsonWebKeySet? Keys, string? Error, bool Transient)> FetchSigningKeysAsync(Uri jwksUri, CancellationToken cancellationToken)
+    {
+        if (!options.IsTrustedRedirectHost(jwksUri.Host))
+        {
+            return (null, "The jwks_uri is not on a trusted host.", false);
+        }
+
+        var fetched = await fetcher.FetchAsync(jwksUri, cancellationToken);
+        if (fetched.Body is null) return (null, $"The key set could not be fetched: {fetched.Error}", true);
+
+        JsonWebKeySet set;
+        try
+        {
+            set = new JsonWebKeySet(fetched.Body);
+        }
+        catch (ArgumentException)
+        {
+            return (null, "The key set is not a valid JWK set.", false);
+        }
+
+        // A published private key means the client is compromised or broken; refuse the whole set.
+        if (set.Keys.Any(k => k.HasPrivateKey || !string.IsNullOrEmpty(k.D) || !string.IsNullOrEmpty(k.K)))
+        {
+            return (null, "The key set contains private or symmetric key material.", false);
+        }
+
+        var usable = new JsonWebKeySet();
+        foreach (var key in set.Keys.Where(k => k.Kty is "RSA" or "EC" && k.Use is null or "sig").Take(MaxSigningKeys))
+        {
+            usable.Keys.Add(key);
+        }
+
+        return usable.Keys.Count == 0
+            ? (null, "The key set has no public signing key.", false)
+            : (usable, null, false);
     }
 
     // Only a transport failure (timeout, 5xx, network) keeps serving the last known good row, and only for two

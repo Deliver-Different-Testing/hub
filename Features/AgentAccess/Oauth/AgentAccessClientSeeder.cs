@@ -211,15 +211,17 @@ public sealed class AgentAccessClientSeeder(
         && current.Permissions.SetEquals(desired.Permissions)
         && current.Requirements.SetEquals(desired.Requirements);
 
-    // A public client (no secret) using authorization code with PKCE, explicit consent, and refresh.
-    internal static OpenIddictApplicationDescriptor ToDescriptor(AgentAccessClientOptions client)
+    // A client using authorization code with PKCE, explicit consent, and refresh. Public (no secret) unless it has a
+    // published key set, in which case it is confidential and proves itself with private_key_jwt client assertions.
+    internal static OpenIddictApplicationDescriptor ToDescriptor(AgentAccessClientOptions client, JsonWebKeySet? signingKeys = null)
     {
         var descriptor = new OpenIddictApplicationDescriptor
         {
             ClientId = client.ClientId,
             DisplayName = client.DisplayName,
-            ClientType = ClientTypes.Public,
-            ConsentType = ConsentTypes.Explicit
+            ClientType = signingKeys is null ? ClientTypes.Public : ClientTypes.Confidential,
+            ConsentType = ConsentTypes.Explicit,
+            JsonWebKeySet = signingKeys
         };
 
         foreach (var uri in client.RedirectUris)
