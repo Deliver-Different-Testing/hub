@@ -1,8 +1,12 @@
 using System.Net;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Hub.Features.AgentAccess.ClientMetadata;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using NSubstitute;
 
 namespace Hub.Tests.Features.AgentAccess.Oauth;
@@ -130,6 +134,130 @@ public partial class AgentAccessAuthorizePipelineTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         await Fetcher(app).DidNotReceiveWithAnyArgs().FetchAsync(null!, TestContext.Current.CancellationToken);
+    }
+
+    // ---- private_key_jwt clients (ChatGPT) ----------------------------------
+
+    private const string CimdJwksUrl = "https://claude.ai/oauth/jwks.json";
+
+    private static string SigningDocument() =>
+        JsonSerializer.Serialize(new
+        {
+            client_id = CimdUrl,
+            client_name = "ChatGPT",
+            redirect_uris = new[] { Oauth.AgentAccessAuthorizePipelineTests.RedirectUri },
+            token_endpoint_auth_method = "private_key_jwt",
+            token_endpoint_auth_methods_supported = new[] { "none", "private_key_jwt" },
+            grant_types = new[] { "authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer" },
+            jwks_uri = CimdJwksUrl
+        });
+
+    private static string PublicKeySet(RSA rsa, string kid)
+    {
+        var key = JsonWebKeyConverter.ConvertFromRSASecurityKey(new RsaSecurityKey(rsa.ExportParameters(includePrivateParameters: false)));
+        key.Kid = kid;
+        key.Use = JsonWebKeyUseNames.Sig;
+        key.Alg = SecurityAlgorithms.RsaSha256;
+        return JsonSerializer.Serialize(new { keys = new[] { new { kty = key.Kty, kid = key.Kid, use = key.Use, alg = key.Alg, n = key.N, e = key.E } } });
+    }
+
+    // RFC 7523 section 3: iss = sub = client_id, aud = this authorization server.
+    private static string ClientAssertion(RSA rsa, string kid, string audience, string type = "client-authentication+jwt") =>
+        new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            TokenType = type,
+            Issuer = CimdUrl,
+            Audience = audience,
+            Subject = new ClaimsIdentity([new Claim("sub", CimdUrl), new Claim("jti", Guid.NewGuid().ToString("N"))]),
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            SigningCredentials = new SigningCredentials(new RsaSecurityKey(rsa) { KeyId = kid }, SecurityAlgorithms.RsaSha256)
+        });
+
+    private static Task<HttpResponseMessage> TokenWithAssertion(WebApplication app, string code, string? assertion) =>
+        Oauth.AgentAccessAuthorizePipelineTests.Client(app).PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "authorization_code",
+            ["client_id"] = CimdUrl,
+            ["code"] = code,
+            ["redirect_uri"] = Oauth.AgentAccessAuthorizePipelineTests.RedirectUri,
+            ["code_verifier"] = Oauth.AgentAccessAuthorizePipelineTests.Verifier,
+            ["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            ["client_assertion"] = assertion ?? string.Empty
+        }.Where(p => p.Value.Length > 0)), Oauth.AgentAccessAuthorizePipelineTests.Ct);
+
+    private static async Task<string> CodeFor(WebApplication app)
+    {
+        var response = await Oauth.AgentAccessAuthorizePipelineTests.Consent(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(clientId: CimdUrl), "allow");
+        return Oauth.AgentAccessAuthorizePipelineTests.AssertRedirectToClient(response)["code"]!;
+    }
+
+    // OpenIddict 7's own shape (draft-ietf-oauth-rfc7523bis), and the RFC 7523 shape ChatGPT may still send.
+    [Theory]
+    [InlineData("client-authentication+jwt", "")]
+    [InlineData("JWT", "")]
+    [InlineData("JWT", "/connect/token")]
+    [InlineData("client-authentication+jwt", "/connect/token")]
+    public async Task A_private_key_jwt_client_redeems_its_code_with_an_assertion_signed_by_its_published_key(string type, string audiencePath)
+    {
+        await using var app = await Oauth.AgentAccessAuthorizePipelineTests.StartAsync();
+        using var rsa = RSA.Create(2048);
+        ServeDocument(app, SigningDocument());
+        Fetcher(app).FetchAsync(new Uri(CimdJwksUrl), Arg.Any<CancellationToken>()).Returns(new ClientMetadataFetchResult(PublicKeySet(rsa, "k1"), null));
+
+        var code = await CodeFor(app);
+        var response = await TokenWithAssertion(app, code, ClientAssertion(rsa, "k1", Oauth.AgentAccessAuthorizePipelineTests.Issuer + audiencePath, type));
+
+        Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync(Oauth.AgentAccessAuthorizePipelineTests.Ct));
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Oauth.AgentAccessAuthorizePipelineTests.Ct)).RootElement;
+        Assert.True(body.TryGetProperty("refresh_token", out _));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("other key")]
+    [InlineData("other audience")]
+    public async Task A_private_key_jwt_client_cannot_redeem_its_code_without_a_valid_assertion(string fault)
+    {
+        await using var app = await Oauth.AgentAccessAuthorizePipelineTests.StartAsync();
+        using var rsa = RSA.Create(2048);
+        using var other = RSA.Create(2048);
+        ServeDocument(app, SigningDocument());
+        Fetcher(app).FetchAsync(new Uri(CimdJwksUrl), Arg.Any<CancellationToken>()).Returns(new ClientMetadataFetchResult(PublicKeySet(rsa, "k1"), null));
+
+        var assertion = fault switch
+        {
+            "missing" => null,
+            "other key" => ClientAssertion(other, "k1", Oauth.AgentAccessAuthorizePipelineTests.Issuer),
+            _ => ClientAssertion(rsa, "k1", "https://elsewhere.example.test/connect/token")
+        };
+        var response = await TokenWithAssertion(app, await CodeFor(app), assertion);
+
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("invalid_", await response.Content.ReadAsStringAsync(Oauth.AgentAccessAuthorizePipelineTests.Ct));
+    }
+
+    // RFC 9207: ChatGPT only uses its stable client document and redirect when every authorization response names the
+    // issuer, errors included.
+    [Fact]
+    public async Task Authorization_responses_name_the_issuer_whether_the_user_allows_or_denies()
+    {
+        await using var app = await Oauth.AgentAccessAuthorizePipelineTests.StartAsync();
+        ServeDocument(app, CimdDocument());
+
+        // Deny first: once allowed, a later request skips the consent page.
+        var denied = Oauth.AgentAccessAuthorizePipelineTests.AssertRedirectToClient(
+            await Oauth.AgentAccessAuthorizePipelineTests.Consent(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(clientId: CimdUrl), "deny"));
+        var allowed = Oauth.AgentAccessAuthorizePipelineTests.AssertRedirectToClient(
+            await Oauth.AgentAccessAuthorizePipelineTests.Consent(app, Oauth.AgentAccessAuthorizePipelineTests.AuthorizeUrl(clientId: CimdUrl), "allow"));
+        var discovery = JsonDocument.Parse(await Oauth.AgentAccessAuthorizePipelineTests.Client(app)
+            .GetStringAsync("/.well-known/oauth-authorization-server", Oauth.AgentAccessAuthorizePipelineTests.Ct)).RootElement;
+
+        var issuer = discovery.GetProperty("issuer").GetString();
+        Assert.StartsWith(Oauth.AgentAccessAuthorizePipelineTests.Issuer, issuer);
+        Assert.True(discovery.GetProperty("authorization_response_iss_parameter_supported").GetBoolean());
+        Assert.Equal(issuer, allowed["iss"]);
+        Assert.Equal("access_denied", denied["error"]);
+        Assert.Equal(issuer, denied["iss"]);
     }
 
     [Fact]

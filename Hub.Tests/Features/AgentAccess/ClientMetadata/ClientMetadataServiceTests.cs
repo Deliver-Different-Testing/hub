@@ -52,6 +52,9 @@ public class ClientMetadataServiceTests
         public void Respond(string body) =>
             Fetcher.FetchAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>()).Returns(new ClientMetadataFetchResult(body, null));
 
+        public void RespondAt(string url, string? body, string? error = null) =>
+            Fetcher.FetchAsync(new Uri(url), Arg.Any<CancellationToken>()).Returns(new ClientMetadataFetchResult(body, error));
+
         public void Fail(string error = "HTTP 500") =>
             Fetcher.FetchAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>()).Returns(new ClientMetadataFetchResult(null, error));
 
@@ -301,6 +304,81 @@ public class ClientMetadataServiceTests
         rig.Respond("""{"client_id":"https://claude.ai/oauth/mcp-client","client_name":"x","redirect_uris":["https://claude.ai/cb"],"client_secret":"s"}""");
 
         Assert.False((await rig.Ensure(redirect: null)).Ready);
+    }
+
+    // ---- private_key_jwt clients (ChatGPT) ----------------------------------
+
+    private const string JwksUrl = "https://claude.ai/oauth/jwks.json";
+
+    private static string SigningDoc(string jwksUri = JwksUrl) =>
+        $$"""{"client_id":"{{Url}}","client_name":"Claude","redirect_uris":["{{Callback}}"],"token_endpoint_auth_method":"private_key_jwt","jwks_uri":"{{jwksUri}}"}""";
+
+    private static string KeySet(string kid = "k1")
+    {
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var p = rsa.ExportParameters(includePrivateParameters: false);
+        return $$"""{"keys":[{"kty":"RSA","kid":"{{kid}}","use":"sig","alg":"RS256","n":"{{Microsoft.IdentityModel.Tokens.Base64UrlEncoder.Encode(p.Modulus)}}","e":"{{Microsoft.IdentityModel.Tokens.Base64UrlEncoder.Encode(p.Exponent)}}"}]}""";
+    }
+
+    [Fact]
+    public async Task A_private_key_jwt_document_is_stored_as_a_confidential_client_holding_its_published_keys()
+    {
+        await using var rig = new Rig();
+        rig.Respond(SigningDoc());
+        rig.RespondAt(JwksUrl, KeySet("k1"));
+
+        Assert.True((await rig.Ensure()).Ready);
+
+        var row = (await rig.Row())!;
+        Assert.Equal(ClientTypes.Confidential, row.ClientType);
+        Assert.Equal(ConsentTypes.Explicit, row.ConsentType);
+        Assert.Contains(Requirements.Features.ProofKeyForCodeExchange, row.Requirements);
+        Assert.Null(row.ClientSecret);
+        Assert.Equal("k1", Assert.Single(row.JsonWebKeySet!.Keys).Kid);
+    }
+
+    [Fact]
+    public async Task The_keys_are_fetched_again_with_the_document()
+    {
+        await using var rig = new Rig();
+        rig.Respond(SigningDoc());
+        rig.RespondAt(JwksUrl, KeySet("k1"));
+        await rig.Ensure();
+
+        rig.Time.Advance(TimeSpan.FromMinutes(90));
+        rig.RespondAt(JwksUrl, KeySet("k2"));
+        Assert.True((await rig.Ensure()).Ready);
+
+        Assert.Equal("k2", Assert.Single((await rig.Row())!.JsonWebKeySet!.Keys).Kid);
+    }
+
+    [Theory]
+    [InlineData(null, "HTTP 500")]
+    [InlineData("not json", null)]
+    [InlineData("""{"keys":[]}""", null)]
+    [InlineData("""{"keys":[{"kty":"oct","k":"c2VjcmV0"}]}""", null)]
+    [InlineData("""{"keys":[{"kty":"RSA","use":"enc","n":"AQAB","e":"AQAB"}]}""", null)]
+    [InlineData("""{"keys":[{"kty":"RSA","n":"AQAB","e":"AQAB","d":"AQAB"}]}""", null)]
+    public async Task A_key_set_that_cannot_be_fetched_or_holds_no_usable_public_signing_key_rejects_the_client(string? body, string? error)
+    {
+        await using var rig = new Rig();
+        rig.Respond(SigningDoc());
+        rig.RespondAt(JwksUrl, body, error);
+
+        Assert.False((await rig.Ensure()).Ready);
+        Assert.Equal(0, rig.RowCount());
+    }
+
+    [Theory]
+    [InlineData("https://evil.test/jwks.json")]
+    [InlineData("https://sub.claude.ai/jwks.json")]
+    public async Task A_key_set_on_a_host_that_is_not_trusted_is_never_fetched(string jwksUri)
+    {
+        await using var rig = new Rig();
+        rig.Respond(SigningDoc(jwksUri));
+
+        Assert.False((await rig.Ensure()).Ready);
+        await rig.Fetcher.DidNotReceive().FetchAsync(new Uri(jwksUri), Arg.Any<CancellationToken>());
     }
 
     [Fact]

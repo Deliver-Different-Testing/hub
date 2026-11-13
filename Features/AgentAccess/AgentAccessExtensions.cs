@@ -180,6 +180,8 @@ public static class AgentAccessExtensions
 
                 server.AddEventHandler(AgentAccessClientMetadataHandler.Descriptor);
                 server.AddEventHandler(AgentAccessClientMetadataDiscoveryHandler.Descriptor);
+                server.AddEventHandler(AgentAccessClientAssertionCompatibility.AcceptRfc7523Shape.Descriptor);
+                server.AddEventHandler(AgentAccessClientAssertionCompatibility.RestoreClientAssertionType.Descriptor);
                 server.AddEventHandler(AgentAccessMcpAssertionHandler.Descriptor);
 
                 server.UseAspNetCore()
