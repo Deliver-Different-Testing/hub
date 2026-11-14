@@ -90,11 +90,18 @@ public class ClientMetadataDocumentTests
 
     [Theory]
     [InlineData(""","token_endpoint_auth_method":"client_secret_basic" """)]
+    [InlineData(""","token_endpoint_auth_method":"client_secret_jwt" """)]
     [InlineData(""","token_endpoint_auth_method":"private_key_jwt" """)]
     [InlineData(""","client_secret":"x" """)]
     [InlineData(""","client_secret_expires_at":0 """)]
     [InlineData(""","jwks_uri":"https://claude.ai/jwks" """)]
+    [InlineData(""","token_endpoint_auth_method":"none","jwks_uri":"https://claude.ai/jwks" """)]
     [InlineData(""","jwks":{"keys":[]} """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks":{"keys":[]} """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"http://claude.ai/jwks" """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"https://claude.ai/jwks#k" """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"/jwks" """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"https://claude.ai/jwks","token_endpoint_auth_signing_alg":"HS256" """)]
     [InlineData(""","grant_types":["client_credentials"] """)]
     [InlineData(""","grant_types":["authorization_code","password"] """)]
     [InlineData(""","response_types":["token"] """)]
@@ -110,6 +117,43 @@ public class ClientMetadataDocumentTests
     [InlineData(""","response_types":["code"] """)]
     [InlineData(""","logo_uri":"https://claude.ai/logo.png","unknown":1 """)]
     public void Public_code_flow_clients_and_unknown_fields_are_fine(string extra)
+    {
+        Assert.Null(ClientMetadataDocument.Parse(Doc(extra: extra), Url).Error);
+    }
+
+    [Fact]
+    public void A_public_client_has_no_key_set()
+    {
+        Assert.Null(ClientMetadataDocument.Parse(Doc(), Url).Document!.JwksUri);
+    }
+
+    // ChatGPT's live document (https://chatgpt.com/oauth/client.json, November 2026): it signs token requests with
+    // private_key_jwt and lists a jwt-bearer grant it never gets here.
+    [Fact]
+    public void ChatGPTs_document_is_accepted_as_a_private_key_jwt_client()
+    {
+        const string url = "https://chatgpt.com/oauth/client.json";
+        const string body = """
+            {"client_id":"https://chatgpt.com/oauth/client.json","client_uri":"https://chatgpt.com/",
+             "redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"],
+             "token_endpoint_auth_method":"private_key_jwt","token_endpoint_auth_methods_supported":["none","private_key_jwt"],
+             "grant_types":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:jwt-bearer"],
+             "response_types":["code"],"client_name":"ChatGPT","logo_uri":"https://persistent.oaistatic.com/sonic/misc/openai-logo.png",
+             "token_endpoint_auth_signing_alg":"RS256","jwks_uri":"https://chatgpt.com/oauth/jwks.json"}
+            """;
+
+        var result = ClientMetadataDocument.Parse(body, url);
+
+        Assert.Null(result.Error);
+        Assert.Equal("ChatGPT", result.Document!.ClientName);
+        Assert.Equal(new Uri("https://chatgpt.com/oauth/jwks.json"), result.Document.JwksUri);
+    }
+
+    [Theory]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"https://claude.ai/jwks" """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"https://claude.ai/jwks","token_endpoint_auth_signing_alg":"ES256" """)]
+    [InlineData(""","token_endpoint_auth_method":"private_key_jwt","jwks_uri":"https://claude.ai/jwks","grant_types":["authorization_code","urn:ietf:params:oauth:grant-type:jwt-bearer"] """)]
+    public void Private_key_jwt_clients_with_a_key_set_url_are_fine(string extra)
     {
         Assert.Null(ClientMetadataDocument.Parse(Doc(extra: extra), Url).Error);
     }
