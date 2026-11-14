@@ -8,7 +8,7 @@ using NSubstitute;
 namespace Hub.Tests.Features.AgentAccess.Grants;
 
 // The admin list: one row per live grant on the tenant, with who holds it and what it can do now.
-[Collection("PartnerDirectoryApiKey")]
+[Collection("EnvironmentVariables")]
 public class AgentConnectionDirectoryTests : IDisposable
 {
     private readonly string? _original = Environment.GetEnvironmentVariable("SQLCredentials");
