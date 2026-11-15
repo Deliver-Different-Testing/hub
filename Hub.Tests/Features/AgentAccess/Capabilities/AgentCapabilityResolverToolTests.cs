@@ -13,6 +13,9 @@ public partial class AgentCapabilityResolverTests
 
     private static string[] ToolVerbs => AgentToolCatalogue.Tools.Select(t => t.Verb).ToArray();
 
+    private static string[] VerbsOn(string tile) =>
+        AgentToolCatalogue.Tools.Where(t => t.HubTile == tile).Select(t => t.Verb).ToArray();
+
     private static void GrantTools(DynamicDespatchDbContext ctx, int roleId)
     {
         DenyAllVerbs(ctx, roleId);
@@ -44,8 +47,10 @@ public partial class AgentCapabilityResolverTests
 
         var result = await ResolveDetailed(ctx, enabledTiles: [IntegrationManager, Configurator]);
 
-        Assert.Equal([AgentCapabilities.Connect], result.Capabilities);
-        Assert.All(result.Tools.Values, t => Assert.Equal(new AgentToolDecision(true, false, "Despatch Web tile is off"), t));
+        Assert.Equal(VerbsOn(AgentToolCatalogue.ConfiguratorTile).Append(AgentCapabilities.Connect).Order(), result.Capabilities.Order());
+        Assert.All(
+            AgentToolCatalogue.Tools.Where(t => t.HubTile == AgentToolCatalogue.DespatchTile),
+            t => Assert.Equal(new AgentToolDecision(true, false, "Despatch Web tile is off"), result.Tools[t.Verb]));
     }
 
     [Fact]
@@ -75,7 +80,7 @@ public partial class AgentCapabilityResolverTests
         Set(ctx, RoleA, Configurator, 0);
         await ctx.SaveChangesAsync(Ct);
 
-        Assert.Equal(ToolVerbs.Append(AgentCapabilities.Connect).Order(), (await Resolve(ctx)).Order());
+        Assert.Equal(VerbsOn(AgentToolCatalogue.DespatchTile).Append(AgentCapabilities.Connect).Order(), (await Resolve(ctx)).Order());
     }
 
     [Fact]
@@ -110,6 +115,91 @@ public partial class AgentCapabilityResolverTests
 
         Assert.DoesNotContain("agent-tool-job-story", result.Capabilities);
         Assert.Equal(new AgentToolDecision(false, true, "agent-tool-job-story is off for this role"), result.Tools["agent-tool-job-story"]);
+    }
+
+    [Theory]
+    [InlineData("agent-tool-automation-census", "cfg-automations")]
+    [InlineData("agent-tool-fleet-compliance", "cfg-fleet")]
+    [InlineData("agent-tool-fleet-compliance", "courier-compliance-monitoring")]
+    public async Task A_configurator_tool_is_granted_when_the_verb_the_tile_and_every_screen_key_are_granted(string verb, string _)
+    {
+        await using var ctx = NewContext($"{nameof(A_configurator_tool_is_granted_when_the_verb_the_tile_and_every_screen_key_are_granted)}-{verb}-{_}");
+        Seed(ctx, roles: [RoleA]);
+        GrantTools(ctx, RoleA);
+        Set(ctx, RoleA, IntegrationManager, 1);
+        Set(ctx, RoleA, DespatchWeb, 1);
+        Set(ctx, RoleA, Configurator, 1);
+        foreach (var key in AgentToolCatalogue.Tools.Single(t => t.Verb == verb).ScreenKeys) Set(ctx, RoleA, key, 1);
+        await ctx.SaveChangesAsync(Ct);
+
+        var result = await ResolveDetailed(ctx);
+
+        Assert.Contains(verb, result.Capabilities);
+        Assert.Equal(new AgentToolDecision(true, true, null), result.Tools[verb]);
+    }
+
+    [Theory]
+    [InlineData("agent-tool-automation-census")]
+    [InlineData("agent-tool-fleet-compliance")]
+    public async Task A_configurator_tool_is_denied_when_the_configurator_tile_is_denied(string verb)
+    {
+        await using var ctx = NewContext($"{nameof(A_configurator_tool_is_denied_when_the_configurator_tile_is_denied)}-{verb}");
+        Seed(ctx, roles: [RoleA]);
+        GrantTools(ctx, RoleA);
+        Set(ctx, RoleA, IntegrationManager, 1);
+        Set(ctx, RoleA, DespatchWeb, 1);
+        Set(ctx, RoleA, Configurator, 0);
+        foreach (var key in AgentToolCatalogue.Tools.Single(t => t.Verb == verb).ScreenKeys) Set(ctx, RoleA, key, 1);
+        await ctx.SaveChangesAsync(Ct);
+
+        var result = await ResolveDetailed(ctx);
+
+        Assert.DoesNotContain(verb, result.Capabilities);
+        Assert.Equal(new AgentToolDecision(true, false, "Configurator tile is off"), result.Tools[verb]);
+        Assert.Contains("agent-tool-job-search", result.Capabilities);
+    }
+
+    [Theory]
+    [InlineData("agent-tool-automation-census", "cfg-automations")]
+    [InlineData("agent-tool-fleet-compliance", "cfg-fleet")]
+    [InlineData("agent-tool-fleet-compliance", "courier-compliance-monitoring")]
+    public async Task A_configurator_tool_is_denied_naming_the_key_when_a_screen_key_is_none(string verb, string blocked)
+    {
+        await using var ctx = NewContext($"{nameof(A_configurator_tool_is_denied_naming_the_key_when_a_screen_key_is_none)}-{verb}-{blocked}");
+        Seed(ctx, roles: [RoleA]);
+        GrantTools(ctx, RoleA);
+        foreach (var key in AgentToolCatalogue.Tools.Single(t => t.Verb == verb).ScreenKeys) Set(ctx, RoleA, key, 1);
+        Set(ctx, RoleA, blocked, 0);
+        await ctx.SaveChangesAsync(Ct);
+
+        var result = await ResolveDetailed(ctx);
+
+        Assert.DoesNotContain(verb, result.Capabilities);
+        Assert.Equal(new AgentToolDecision(true, false, $"{blocked} is off for this role"), result.Tools[verb]);
+    }
+
+    [Theory]
+    [InlineData("agent-tool-automation-census")]
+    [InlineData("agent-tool-fleet-compliance")]
+    public async Task A_configurator_tool_with_no_row_on_its_screen_keys_follows_the_tile_decision(string verb)
+    {
+        await using var ctx = NewContext($"{nameof(A_configurator_tool_with_no_row_on_its_screen_keys_follows_the_tile_decision)}-{verb}");
+        Seed(ctx, roles: [RoleA]);
+        GrantTools(ctx, RoleA);
+        await ctx.SaveChangesAsync(Ct);
+
+        var granted = await ResolveDetailed(ctx);
+        Assert.Contains(verb, granted.Capabilities);
+        Assert.Equal(new AgentToolDecision(true, true, null), granted.Tools[verb]);
+
+        Set(ctx, RoleA, IntegrationManager, 1);
+        Set(ctx, RoleA, DespatchWeb, 1);
+        Set(ctx, RoleA, Configurator, 0);
+        await ctx.SaveChangesAsync(Ct);
+
+        var denied = await ResolveDetailed(ctx);
+        Assert.DoesNotContain(verb, denied.Capabilities);
+        Assert.Equal(new AgentToolDecision(true, false, "Configurator tile is off"), denied.Tools[verb]);
     }
 
     [Fact]
