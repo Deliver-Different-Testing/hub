@@ -68,7 +68,9 @@ export default function AssistantWidget({ pageContext }: { pageContext?: string 
       abort.current?.abort();
     };
   }, []);
-  useEffect(() => bottom.current?.scrollIntoView({ block: 'end' }), [messages]);
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: 'end' });
+  }, [messages]);
   useEffect(() => {
     if (opened) input.current?.focus();
   }, [opened]);
