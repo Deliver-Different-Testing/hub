@@ -137,6 +137,18 @@ public class AgentAccessEnsureApiControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Keys_still_being_retried_say_so()
+    {
+        _keys = new AgentAccessKeyState(false, "reading or creating the keys in SSM timed out", null, Transient: true);
+        _gate.EvaluateAsync(Arg.Any<CancellationToken>()).Returns(new AgentAccessDecision(false, AgentAccessReason.KeysNotPersistent));
+
+        var result = await Ensure();
+
+        Assert.False(Check(result, "keys").Ok);
+        Assert.Equal("Sign-in keys could not be read yet. This server keeps trying, so check again in a few minutes.", Check(result, "keys").Detail);
+    }
+
+    [Fact]
     public async Task A_missing_issuer_fails_the_issuer_check()
     {
         _issuer = new AgentAccessIssuer(null);

@@ -5,7 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Hub.Features.AgentAccess.Keys;
 
-public sealed record AgentAccessKeyState(bool Persistent, string Reason, string? SigningKeyId, string? EncryptionKeyId = null)
+public sealed record AgentAccessKeyState(
+    bool Persistent, string Reason, string? SigningKeyId, string? EncryptionKeyId = null, bool Transient = false)
     : IAgentAccessKeyState;
 
 /// <summary>
@@ -126,9 +127,9 @@ public static partial class AgentAccessKeyLoader
 }
 
 // Whether the OAuth server runs on persistent keys from SSM and a configured issuer
-// (phase 1.3). Decided once at startup. When it is not persistent Hub still starts, on
-// per-pod ephemeral keys, but the agent access gate stays closed: tokens signed with a
-// key another pod cannot verify must never be issued.
+// (phase 1.3). Decided at startup, and again in the background when SSM failed there for a
+// passing reason. While it is not persistent Hub runs on per-pod ephemeral keys and the agent
+// access gate stays closed: tokens signed with a key another pod cannot verify must never be issued.
 public interface IAgentAccessKeyState
 {
     bool Persistent { get; }
@@ -141,4 +142,7 @@ public interface IAgentAccessKeyState
 
     /// <summary>Key id of the current encryption key when persistent; safe to log.</summary>
     string? EncryptionKeyId { get; }
+
+    /// <summary>Not persistent only because SSM failed for a passing reason; Hub keeps trying in the background.</summary>
+    bool Transient { get; }
 }
