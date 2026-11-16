@@ -5,7 +5,9 @@ using Hub.Features.AgentAccess.Keys;
 using Hub.Features.AgentAccess.Oauth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
+using OpenIddict.Server;
 using Serilog;
 
 namespace Hub.Features.AgentAccess;
@@ -21,7 +23,17 @@ public static class AgentAccessExtensions
         this IServiceCollection services, string masterConnectionString, AgentAccessOAuthSettings? settings = null)
     {
         var bootstrap = AgentAccessKeyBootstrap.Resolve(settings);
-        services.AddSingleton<IAgentAccessKeyState>(bootstrap.State);
+        var keyHolder = new AgentAccessKeyHolder(bootstrap);
+        services.AddSingleton(keyHolder);
+        services.AddSingleton<IAgentAccessKeyState>(keyHolder);
+        services.AddSingleton<IOptionsChangeTokenSource<OpenIddictServerOptions>>(keyHolder);
+        services.AddSingleton<IConfigureOptions<OpenIddictServerOptions>, AgentAccessServerCredentials>();
+        services.AddHealthChecks().AddCheck<AgentAccessKeyHealthCheck>(AgentAccessKeyHealthCheck.Name, tags: ["agent-access"]);
+        if (bootstrap.State.Transient && settings is not null)
+        {
+            services.AddHostedService(_ => new AgentAccessKeyRecoveryService(keyHolder, settings));
+        }
+
         services.AddSingleton(new AgentAccessIssuer(bootstrap.Issuer));
 
         var mcpResource = AgentAccessResource.Resolve(settings?.Issuer, settings?.McpResource);
@@ -99,6 +111,10 @@ public static class AgentAccessExtensions
                 "Agent access keys are persistent (signing kid {SigningKeyId}, encryption kid {EncryptionKeyId})",
                 bootstrap.State.SigningKeyId, bootstrap.State.EncryptionKeyId);
         }
+        else if (bootstrap.State.Transient)
+        {
+            Log.Warning("Agent access keys are not persistent yet, so the agent access gate stays closed while they are retried in the background: {Reason}", bootstrap.State.Reason);
+        }
         else
         {
             Log.Warning("Agent access keys are not persistent, so the agent access gate stays closed: {Reason}", bootstrap.State.Reason);
@@ -143,27 +159,8 @@ public static class AgentAccessExtensions
                 server.DisableResourceValidation()
                     .IgnoreResourcePermissions();
 
-                // Persistent RSA keys from SSM when configured (RS256). Otherwise per-pod
-                // ephemeral keys so the options validate; the gate stays closed in that case.
-                if (bootstrap.Keys is { } keys)
-                {
-                    // In loader order: OpenIddict signs and encrypts with the first credential; the rest are only
-                    // published (signing) or accepted (encryption).
-                    foreach (var signing in keys.SigningKeys)
-                    {
-                        server.AddSigningKey(signing);
-                    }
-
-                    foreach (var encryption in keys.EncryptionKeys)
-                    {
-                        server.AddEncryptionKey(encryption);
-                    }
-                }
-                else
-                {
-                    server.AddEphemeralEncryptionKey()
-                        .AddEphemeralSigningKey();
-                }
+                // The signing and encryption keys come from AgentAccessServerCredentials: persistent RSA keys from
+                // SSM (RS256), or per-pod ephemeral keys until those load, with the gate closed meanwhile.
 
                 if (bootstrap.Issuer is { } issuer)
                 {

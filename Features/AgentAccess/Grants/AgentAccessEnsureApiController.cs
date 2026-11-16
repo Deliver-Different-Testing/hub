@@ -47,9 +47,9 @@ public class AgentAccessEnsureApiController(
         var clientsSeeded = decision.Enabled && seeder.Seeded;
         var checks = new List<AgentAccessEnsureCheck>
         {
-            keys.Persistent
-                ? new("keys", true, "Sign-in keys are stored safely and shared across servers.")
-                : new("keys", false, "Sign-in keys are not set up on this server yet."),
+            keys.Persistent ? new("keys", true, "Sign-in keys are stored safely and shared across servers.")
+            : keys.Transient ? new("keys", false, "Sign-in keys could not be read yet. This server keeps trying, so check again in a few minutes.")
+            : new("keys", false, "Sign-in keys are not set up on this server yet."),
             issuer.Value is not null
                 ? new("issuer", true, "The sign-in address is set.")
                 : new("issuer", false, "The sign-in address is missing or not valid."),
