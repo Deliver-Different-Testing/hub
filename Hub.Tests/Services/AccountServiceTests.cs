@@ -11,6 +11,7 @@ using Hub.Tests.Helpers;
 using Hub.ViewModels;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace Hub.Tests.Services;
@@ -44,7 +45,7 @@ public class AccountServiceTests : IDisposable
         MasterContext MasterCtx,
         DynamicDespatchDbContext DespatchCtx);
 
-    private static Harness Create(ClaimsPrincipal? user = null, HttpClient? httpClient = null)
+    private static Harness Create(ClaimsPrincipal? user = null, HttpClient? httpClient = null, BranchClaimRefresher? branchRefresher = null)
     {
         var masterCtx = TestMasterContextFactory.CreateWithSeedData();
         var despatchCtx = TestDespatchContextFactory.CreateWithSeedData();
@@ -89,7 +90,7 @@ public class AccountServiceTests : IDisposable
 
         httpClient ??= MockHttpMessageHandler.CreateReCaptchaClient();
 
-        var service = new AccountService(connectionStringManager, despatchRepo, authRepo, httpClient);
+        var service = new AccountService(connectionStringManager, despatchRepo, authRepo, httpClient, branchRefresher);
         var http = ControllerTestBase.CreateHttpContext(user ?? ClaimsPrincipalFactory.CreateAnonymous());
 
         return new Harness(service, http, masterCtx, despatchCtx);
@@ -255,6 +256,190 @@ public class AccountServiceTests : IDisposable
                 // of the same value as NpRoleId (NpAdmin = 1 from the factory).
                 p.HasClaim("NpRoleId", "1") &&
                 p.HasClaim("RoleId", "1")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    // staff@test.com (contact 3) is moved onto a client of the given type and given branch rows.
+    private static async Task PutStaffContactOnClientTypeAsync(DynamicDespatchDbContext ctx, int clientTypeId, params int[] branchIds)
+    {
+        var clientId = 40 + clientTypeId;
+        ctx.TucClients.Add(new TucClient
+        {
+            UcclId = clientId, UcclName = $"Type {clientTypeId}", UcclLegalName = $"Type {clientTypeId} Ltd", UcclCode = $"T{clientTypeId}",
+            UcclInternal = false, UcclActive = true, UcclGroupId = 0, ClientTypeId = clientTypeId, Smsname = "SMS",
+            Created = DateTime.Now, CreatedBy = "test", LastModified = DateTime.Now, LastModifiedBy = "test"
+        });
+        await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await ctx.TucClientContacts.Where(c => c.UcctId == 3)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.UcctClientId, clientId), TestContext.Current.CancellationToken);
+        ctx.TblContactBranches.AddRange(branchIds.Select(b => new TblContactBranch { ClientContactId = 3, BranchId = b }));
+        await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Login_TenantStaffScopedToBranches_IssuesTheBranchIdsClaimAscending()
+    {
+        var h = Create();
+        await PutStaffContactOnClientTypeAsync(h.DespatchCtx, 4, 2, 1);   // seeded as 2 then 1
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("ClientTypeId", "4") && p.HasClaim("BranchIds", "1,2")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_NetworkPartnerWithBranchRows_IsNotLimited_EmptyClaim()
+    {
+        var h = Create();   // np@test.com has branch rows 1 and 2 in the seed data
+
+        var result = await h.Service.LoginAsync(h.Http, Login("np@test.com", "NpPass1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("IsNetworkPartner", "True") && p.HasClaim("BranchIds", "")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Theory]
+    [InlineData(2)]   // customer
+    [InlineData(5)]   // DF Admin
+    public async Task Login_CustomerOrDfAdminWithStrayBranchRows_IsNotLimited_EmptyClaim(int clientTypeId)
+    {
+        var h = Create();
+        await PutStaffContactOnClientTypeAsync(h.DespatchCtx, clientTypeId, 1, 2);
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("ClientTypeId", clientTypeId.ToString()) && p.HasClaim("BranchIds", "")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_StaffFlaggedNetworkPartnerAtMasterLevel_IsStillLimitedByTheirTenantClientType()
+    {
+        // IsNetworkPartner is one master-level flag across tenants; the tenant contact here is client type 4 staff.
+        var h = Create();
+        await PutStaffContactOnClientTypeAsync(h.DespatchCtx, 4, 2, 1);
+        h.MasterCtx.Users.Find(1)!.IsNetworkPartner = true;
+        await h.MasterCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("IsNetworkPartner", "True") && p.HasClaim("ClientTypeId", "4") && p.HasClaim("BranchIds", "1,2")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_NonStaff_StillSignsIn_WhenTheBranchTableCannotBeRead()
+    {
+        var h = Create();   // staff@test.com is on the Customer client (type 2): never limited
+        await h.DespatchCtx.Database.ExecuteSqlRawAsync("DROP TABLE tblContactBranch", TestContext.Current.CancellationToken);
+
+        var customer = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+        var partner = await h.Service.LoginAsync(h.Http, Login("np@test.com", "NpPass1!"), null);
+
+        Assert.True(customer.Succeeded);
+        Assert.True(partner.Succeeded);
+    }
+
+    private static ClaimsPrincipal LastSignedInPrincipal(HttpContext http) =>
+        AuthService(http).ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IAuthenticationService.SignInAsync))
+            .Select(c => (ClaimsPrincipal)c.GetArguments()[2]!)
+            .Last();
+
+    [Fact]
+    public async Task SigningInAgain_SeedsTheRefresherCache_SoAnOlderCachedReadCannotUndoTheFreshCookie()
+    {
+        // The regression the final review found: unrestricted person cached by a refresh, limited by an admin, signs in
+        // again -> next request must keep the new limit, not re-issue the cookie as unrestricted.
+        var reader = Substitute.For<IContactBranchReader>();
+        reader.ReadAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<int>());
+        var refresher = new BranchClaimRefresher(reader, new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), new BranchClaimRefreshOptions(TimeSpan.FromMinutes(5)));
+        var h = Create(branchRefresher: refresher);
+        await PutStaffContactOnClientTypeAsync(h.DespatchCtx, 4);   // staff, no rows yet
+
+        // Sign in #1 (unrestricted), then a refresh: the cache already holds "" from that sign-in.
+        Assert.True((await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null)).Succeeded);
+        var first = LastSignedInPrincipal(h.Http);
+        Assert.Equal(string.Empty, first.FindFirst("BranchIds")!.Value);
+        Assert.Null(await refresher.RefreshAsync(first, TestContext.Current.CancellationToken));
+
+        // An admin limits them to branch 1; they sign in again.
+        h.DespatchCtx.TblContactBranches.Add(new TblContactBranch { ClientContactId = 3, BranchId = 1 });
+        await h.DespatchCtx.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Assert.True((await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null)).Succeeded);
+        var second = LastSignedInPrincipal(h.Http);
+        Assert.Equal("1", second.FindFirst("BranchIds")!.Value);
+
+        // The next request must leave the limited cookie alone. (Each sign-in seeded the cache from its own live read, so
+        // the refresher never needs to read at all here; without the seeding the first refresh would cache "" from the
+        // reader and this request would re-issue the cookie as unrestricted.)
+        Assert.Null(await refresher.RefreshAsync(second, TestContext.Current.CancellationToken));
+        await reader.DidNotReceiveWithAnyArgs().ReadAsync(default!, default, default);
+    }
+
+    [Fact]
+    public async Task Login_NonStaff_DoesNotSeedTheRefresherCache()
+    {
+        var reader = Substitute.For<IContactBranchReader>();
+        reader.ReadAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new[] { 7 });
+        var refresher = new BranchClaimRefresher(reader, new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()), new BranchClaimRefreshOptions(TimeSpan.FromMinutes(5)));
+        var h = Create(branchRefresher: refresher);
+
+        // staff@test.com is on a Customer client (type 2): not limitable, so nothing is seeded and nothing is read.
+        Assert.True((await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null)).Succeeded);
+        var principal = LastSignedInPrincipal(h.Http);
+
+        Assert.Null(await refresher.RefreshAsync(principal, TestContext.Current.CancellationToken));
+        await reader.DidNotReceiveWithAnyArgs().ReadAsync(default!, default, default);
+    }
+
+    [Fact]
+    public async Task Login_TransitionalInternalClientType1WithBranchRows_IsLimited()
+    {
+        var h = Create();
+        await PutStaffContactOnClientTypeAsync(h.DespatchCtx, 1, 3);
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("ClientTypeId", "1") && p.HasClaim("BranchIds", "3")),
+            Arg.Any<AuthenticationProperties>());
+    }
+
+    [Fact]
+    public async Task Login_ContactWithNoBranches_IssuesAnEmptyBranchIdsClaim_MeaningEveryBranch()
+    {
+        var h = Create();
+
+        var result = await h.Service.LoginAsync(h.Http, Login("staff@test.com", "TestPassword1!"), null);
+
+        Assert.True(result.Succeeded);
+        await AuthService(h.Http).Received(1).SignInAsync(
+            Arg.Any<HttpContext>(),
+            Arg.Any<string>(),
+            Arg.Is<ClaimsPrincipal>(p => p.HasClaim("BranchIds", "")),
             Arg.Any<AuthenticationProperties>());
     }
 

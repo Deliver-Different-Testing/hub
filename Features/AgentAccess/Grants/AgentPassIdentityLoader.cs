@@ -1,3 +1,4 @@
+using Hub.Services;
 using Hub.Features.AgentAccess.Capabilities;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Interfaces;
@@ -101,7 +102,9 @@ public sealed class AgentPassIdentityLoader(
                 NpAgentId: client.NpAgentId,
                 FirstName: contact.UcctFirstname ?? string.Empty,
                 Surname: contact.UcctSurname ?? string.Empty,
-                AccountsMode: await tenant.GetAccountsModeAsync());
+                AccountsMode: await tenant.GetAccountsModeAsync(),
+                // Same rule as the cookie: only tenant staff are limited; DF Admin (5) is never given a restrictive claim.
+                BranchIds: BranchClaim.For(client.ClientTypeId, contact.BranchIds));
             return new AgentPassLoad(AgentGrantEligibility.Eligible, identity, allowed, decision.Tools);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

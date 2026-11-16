@@ -18,7 +18,8 @@ public class AccountService(
     IConnectionStringManager connectionStringManager,
     IDespatchRepository despatchRepository,
     IAuthenticationRepository authenticationRepository,
-    HttpClient httpClient) : IAccountService
+    HttpClient httpClient,
+    BranchClaimRefresher? branchClaimRefresher = null) : IAccountService
 {
     private const string HomeUrl = "/";
     private const string AsureEmail = "asure@urgent.co.nz";
@@ -386,7 +387,10 @@ public class AccountService(
         // Phase 5+ data-scope — tucClient.NpAgentId. The NP's Agent reference;
         // consuming apps filter scoped tables by it for NetworkPartner users.
         // Null for non-NP users / couriers.
-        int? NpAgentId = null);
+        int? NpAgentId = null,
+        // Branches programme (B1) — tblContactBranch for tenant staff, as a comma list ("1,2"). EMPTY = no scope,
+        // so the person sees every branch. See BranchClaim. Empty for couriers.
+        string BranchIds = "");
 
     private static List<Claim> GenerateClaims(ClaimsInput input) =>
     [
@@ -432,7 +436,9 @@ public class AccountService(
         new("ClientTypeId", input.ClientTypeId?.ToString() ?? string.Empty),
         // Phase 5+ data-scope — see ClaimsInput.NpAgentId. Lets NP-scoped apps
         // apply WHERE NpAgentId = <claim> without a per-request tucClient lookup.
-        new("NpAgentId", input.NpAgentId?.ToString() ?? string.Empty)
+        new("NpAgentId", input.NpAgentId?.ToString() ?? string.Empty),
+        // Branches programme (B1) — see ClaimsInput.BranchIds. Branch changes reach a signed-in person via BranchClaimRefresher (cookie) or at the next agent pass refresh.
+        new(BranchClaim.Type, input.BranchIds)
     ];
 
     // Single source of truth for STAFF (non-courier) login claims. Every staff
@@ -469,7 +475,9 @@ public class AccountService(
             IsNetworkPartner: masterUser.IsNetworkPartner ?? false,
             ContactRoleId: user.ContactRoleId,
             ClientTypeId: user.UcctClient.ClientTypeId,
-            NpAgentId: user.UcctClient.NpAgentId);
+            NpAgentId: user.UcctClient.NpAgentId,
+            // Only tenant staff are ever limited: a network partner, customer or DF Admin gets an empty claim whatever rows exist.
+            BranchIds: BranchClaim.For(user.UcctClient.ClientTypeId, user.BranchIds, masterUser.IsCourier ?? false));
 
     // Courier login claims, shared by the password login and AcceptCourierAppToken so the two
     // can't drift. Couriers have no tucClientContact / tucClient, hence the fixed defaults.
@@ -525,8 +533,10 @@ public class AccountService(
         await authenticationRepository.SaveAsync();
     }
 
-    private static async Task SignInUserAsync(HttpContext httpContext, List<Claim> claims, bool isPersistent)
+    private async Task SignInUserAsync(HttpContext httpContext, List<Claim> claims, bool isPersistent)
     {
+        SeedBranchScope(claims);
+
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
         var authProperties = new AuthenticationProperties
@@ -544,6 +554,25 @@ public class AccountService(
             "Identity.Application",
             new ClaimsPrincipal(claimsIdentity),
             authProperties);
+    }
+
+    // Every sign-in just read the person's branch scope live. Hand it to the refresher so its cache can never hold an older
+    // read that would overwrite this cookie on the next request (see BranchClaimRefresher.Seed).
+    private void SeedBranchScope(List<Claim> claims)
+    {
+        if (branchClaimRefresher is null) return;
+
+        string? Get(string type) => claims.FirstOrDefault(c => c.Type == type)?.Value;
+        var clientType = int.TryParse(Get("ClientTypeId"), out var type) ? type : (int?)null;
+        var isCourier = string.Equals(Get("IsCourier"), "True", StringComparison.OrdinalIgnoreCase);
+        if (!BranchClaim.IsLimitable(clientType, isCourier)
+            || !int.TryParse(Get("CurrentTenantID"), out var tenantId)
+            || !int.TryParse(Get("ContactID"), out var contactId) || contactId <= 0)
+        {
+            return;
+        }
+
+        branchClaimRefresher.Seed(tenantId, contactId, Get(BranchClaim.Type));
     }
 
     public async Task SignOutAsync(HttpContext httpContext)
