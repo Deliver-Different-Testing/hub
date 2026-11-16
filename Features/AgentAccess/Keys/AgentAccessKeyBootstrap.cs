@@ -4,13 +4,18 @@ using Amazon.Runtime;
 using Amazon.SimpleSystemsManagement.Model;
 using Hub.Features.AgentAccess.Oauth;
 using Hub.Services;
+using Serilog;
 
 namespace Hub.Features.AgentAccess.Keys;
 
 /// <param name="SsmPrefix">Per-tenant SSM path, from env AgentAccessSsmPrefix. Unset = /hub/&lt;env&gt;/&lt;tenant&gt;/agent-access, both taken from the issuer host.</param>
 /// <param name="Issuer">https origin of this tenant Hub, from env AgentAccessIssuer, else derived from TenantURL (see ResolveIssuer).</param>
 /// <param name="KeySource">Where the key parameters are read from and created in.</param>
-/// <param name="LoadTimeout">Upper bound on the startup SSM calls: read, any create and the re-read (default 10 s). Generating a missing key does not count.</param>
+/// <param name="LoadTimeout">Upper bound on one attempt's SSM calls: read, any create and the re-read (default 10 s). Generating a missing key does not count.</param>
+/// <param name="LoadAttempts">Attempts at startup before a passing SSM failure is left to the background recovery (default 4).</param>
+/// <param name="LoadRetryDelay">Base of the jittered exponential pause between startup attempts (default 1 s).</param>
+/// <param name="RecoveryDelay">First pause of the background recovery after a passing startup failure (default 5 s).</param>
+/// <param name="RecoveryMaxDelay">Longest pause of the background recovery (default 5 min).</param>
 /// <param name="Clients">Pre-registered OAuth clients (AgentAccess:Clients); seeded once agent access opens.</param>
 /// <param name="ClientMetadataHosts">Hosts whose client ID metadata documents may be fetched (AgentAccess:ClientMetadata:AllowedHosts). Empty = the feature is off.</param>
 /// <param name="McpClientSecret">Secret of the confidential token-exchange client dfrnt-mcp, one per tenant Hub, from env AgentAccessMcpClientSecret. Unset = the exchange is off.</param>
@@ -33,7 +38,11 @@ public sealed record AgentAccessOAuthSettings(
     string? ClusterIssuer = null,
     IReadOnlyList<string>? McpServiceAccounts = null,
     Func<string>? NewPrivateKeyPem = null,
-    IReadOnlyList<string>? AdminServiceAccounts = null);
+    IReadOnlyList<string>? AdminServiceAccounts = null,
+    int? LoadAttempts = null,
+    TimeSpan? LoadRetryDelay = null,
+    TimeSpan? RecoveryDelay = null,
+    TimeSpan? RecoveryMaxDelay = null);
 
 public enum AgentAccessIssuerSource { None, Configured, TenantUrl }
 
@@ -41,7 +50,8 @@ public sealed record AgentAccessBootstrapResult(AgentAccessKeys? Keys, Uri? Issu
 
 /// <summary>
 /// Startup decision: persistent keys from SSM plus a valid issuer, or not. A key missing from SSM is
-/// created there and read back, so every pod signs with keys the others can read. Never throws; any
+/// created there and read back, so every pod signs with keys the others can read. A transient SSM failure
+/// is tried again a few times, then left to <see cref="AgentAccessKeyRecoveryService"/>. Never throws; any
 /// problem yields "not persistent" with a reason that contains no key material or parameter path, and
 /// Hub carries on with ephemeral keys while the agent access gate stays closed.
 /// </summary>
@@ -49,10 +59,20 @@ public static class AgentAccessKeyBootstrap
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan DefaultWriteSettle = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromSeconds(1);
+    private const int DefaultLoadAttempts = 4;
     private const int MaxWriteAttempts = 3;
     private const int NewKeySize = 3072;
 
-    public static AgentAccessBootstrapResult Resolve(AgentAccessOAuthSettings? settings)
+    public static AgentAccessBootstrapResult Resolve(AgentAccessOAuthSettings? settings) =>
+        ResolveAsync(settings, settings?.LoadAttempts ?? DefaultLoadAttempts, CancellationToken.None).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Up to <paramref name="attempts"/> tries, each with its own <see cref="AgentAccessOAuthSettings.LoadTimeout"/>, with a
+    /// jittered exponential pause between them. Only a transient failure is tried again.
+    /// </summary>
+    public static async Task<AgentAccessBootstrapResult> ResolveAsync(
+        AgentAccessOAuthSettings? settings, int attempts, CancellationToken cancellationToken)
     {
         var issuer = ParseIssuer(settings?.Issuer, out var issuerFailure);
         var prefix = ResolvePrefix(settings?.SsmPrefix, issuer);
@@ -67,21 +87,45 @@ public static class AgentAccessKeyBootstrap
             return NotPersistent(null, issuer, "no SSM key source is configured; using ephemeral keys");
         }
 
+        for (var attempt = 1; ; attempt++)
+        {
+            var started = Stopwatch.GetTimestamp();
+            var result = await TryLoadAsync(settings, settings.KeySource, prefix, issuer, issuerFailure, cancellationToken);
+            if (!result.State.Transient || attempt >= attempts) return result;
+
+            Log.Warning("Agent access keys: attempt {Attempt} of {Attempts} failed after {ElapsedMs} ms: {Reason}",
+                attempt, attempts, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds, result.State.Reason);
+            await Task.Delay(Backoff(settings.LoadRetryDelay ?? DefaultRetryDelay, attempt, TimeSpan.MaxValue), cancellationToken);
+        }
+    }
+
+    /// <summary>Full jitter: a random pause up to base x 2^(attempt-1), capped at <paramref name="max"/>.</summary>
+    public static TimeSpan Backoff(TimeSpan baseDelay, int attempt, TimeSpan max)
+    {
+        var ceiling = Math.Min(baseDelay.TotalMilliseconds * Math.Pow(2, Math.Min(attempt - 1, 30)), max.TotalMilliseconds);
+        return TimeSpan.FromMilliseconds(Random.Shared.NextDouble() * ceiling);
+    }
+
+    private static async Task<AgentAccessBootstrapResult> TryLoadAsync(
+        AgentAccessOAuthSettings settings, IAgentAccessKeySource source, string prefix, Uri? issuer, string issuerFailure,
+        CancellationToken cancellationToken)
+    {
         (AgentAccessKeyLoadResult Load, bool Created) outcome;
         try
         {
-            outcome = LoadOrCreate(
-                settings.KeySource, prefix, settings.LoadTimeout ?? DefaultTimeout,
-                settings.KeyWriteSettle ?? DefaultWriteSettle, settings.NewPrivateKeyPem ?? NewRsaPem);
+            outcome = await LoadOrCreateAsync(
+                source, prefix, settings.LoadTimeout ?? DefaultTimeout,
+                settings.KeyWriteSettle ?? DefaultWriteSettle, settings.NewPrivateKeyPem ?? NewRsaPem, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return NotPersistent(null, issuer, "reading or creating the keys in SSM timed out; using ephemeral keys");
+            return NotPersistent(null, issuer, "reading or creating the keys in SSM timed out; using ephemeral keys", transient: true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Type only: the message can carry the parameter path or account details.
-            return NotPersistent(null, issuer, $"reading or creating the keys in SSM failed ({ex.GetType().Name}); using ephemeral keys");
+            return NotPersistent(null, issuer, $"reading or creating the keys in SSM failed ({ex.GetType().Name}); using ephemeral keys",
+                transient: IsTransient(ex));
         }
 
         var load = outcome.Load;
@@ -150,14 +194,16 @@ public static class AgentAccessKeyBootstrap
 
     // The timeout bounds the SSM calls only. Missing keys are generated between the first read and the writes, off
     // the clock: RSA generation is CPU work that a throttled pod at start can take seconds over.
-    private static (AgentAccessKeyLoadResult Load, bool Created) LoadOrCreate(
-        IAgentAccessKeySource source, string prefix, TimeSpan timeout, TimeSpan settle, Func<string> newPem)
+    private static async Task<(AgentAccessKeyLoadResult Load, bool Created)> LoadOrCreateAsync(
+        IAgentAccessKeySource source, string prefix, TimeSpan timeout, TimeSpan settle, Func<string> newPem,
+        CancellationToken cancellationToken)
     {
         var spent = Stopwatch.StartNew();
         AgentAccessKeyLoadResult load;
-        using (var read = new CancellationTokenSource(timeout))
+        using (var read = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
-            load = AgentAccessKeyLoader.Load(source.ReadAsync(prefix, read.Token).GetAwaiter().GetResult());
+            read.CancelAfter(timeout);
+            load = AgentAccessKeyLoader.Load(await source.ReadAsync(prefix, read.Token));
         }
 
         spent.Stop();
@@ -169,8 +215,9 @@ public static class AgentAccessKeyBootstrap
         var remaining = timeout - spent.Elapsed;
         if (remaining <= TimeSpan.Zero) throw new OperationCanceledException();
 
-        using var write = new CancellationTokenSource(remaining);
-        return CreateAsync(source, prefix, load, signing, encryption, settle, write.Token).GetAwaiter().GetResult();
+        using var write = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        write.CancelAfter(remaining);
+        return await CreateAsync(source, prefix, load, signing, encryption, settle, write.Token);
     }
 
     // Keys are only ever used as SSM gives them back, never from memory: a key no other pod can read must not sign.
@@ -216,13 +263,26 @@ public static class AgentAccessKeyBootstrap
         return rsa.ExportPkcs8PrivateKeyPem();
     }
 
+    // Worth another attempt later: the network, the credential fetch, or SSM being slow or busy. A refusal (access
+    // denied, a bad path) is configuration and would fail the same way every time.
+    private static bool IsTransient(Exception ex) => ex switch
+    {
+        AmazonServiceException service => (int)service.StatusCode >= 500 || IsContention(service) || TransientCodes.Contains(service.ErrorCode ?? ""),
+        AmazonClientException or HttpRequestException or IOException or TimeoutException => true,
+        _ => false
+    };
+
+    private static readonly HashSet<string> TransientCodes =
+        new(["ThrottlingException", "Throttling", "TooManyUpdates", "RequestLimitExceeded"], StringComparer.Ordinal);
+
     // Another pod writing at the same moment, or SSM pushing back; worth a re-read and another go.
     private static bool IsContention(Exception ex) =>
         ex is ParameterAlreadyExistsException or TooManyUpdatesException
         || ex is AmazonServiceException { ErrorCode: "ThrottlingException" };
 
-    private static AgentAccessBootstrapResult NotPersistent(AgentAccessKeys? keys, Uri? issuer, string reason) =>
-        new(keys, issuer, new AgentAccessKeyState(false, reason, null));
+    // Transient only with a valid issuer: without one, keys read later could still never open the gate.
+    private static AgentAccessBootstrapResult NotPersistent(AgentAccessKeys? keys, Uri? issuer, string reason, bool transient = false) =>
+        new(keys, issuer, new AgentAccessKeyState(false, reason, null, Transient: transient && issuer is not null));
 
     // An https origin with no path: the value tokens carry in iss and apps validate against.
     private static Uri? ParseIssuer(string? value, out string failure)

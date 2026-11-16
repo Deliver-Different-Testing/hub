@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Security.Cryptography;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
@@ -134,10 +135,102 @@ public class AgentAccessKeyBootstrapTests
             });
 
         var result = AgentAccessKeyBootstrap.Resolve(
-            new AgentAccessOAuthSettings(Prefix, Issuer, source, LoadTimeout: TimeSpan.FromMilliseconds(150)));
+            new AgentAccessOAuthSettings(Prefix, Issuer, source, LoadTimeout: TimeSpan.FromMilliseconds(150), LoadRetryDelay: TimeSpan.Zero));
 
         Assert.False(result.State.Persistent);
         Assert.Contains("timed out", result.State.Reason);
+    }
+
+    [Fact]
+    public void A_passing_ssm_failure_is_retried_and_the_keys_load()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        var reads = 0;
+        var source = Substitute.For<IAgentAccessKeySource>();
+        source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ => ++reads < 3
+                ? throw new HttpRequestException("ssm unreachable")
+                : (IReadOnlyDictionary<string, AgentAccessKeyParameter>)AgentAccessKeyLoaderTests.Stored(parameters));
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(source) with { LoadAttempts = 3 });
+
+        Assert.True(result.State.Persistent, result.State.Reason);
+        Assert.Equal(3, reads);
+    }
+
+    [Fact]
+    public void One_slow_attempt_does_not_use_up_the_others()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        var reads = 0;
+        var source = Substitute.For<IAgentAccessKeySource>();
+        source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                if (++reads == 1) await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
+                return (IReadOnlyDictionary<string, AgentAccessKeyParameter>)AgentAccessKeyLoaderTests.Stored(parameters);
+            });
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(source) with { LoadTimeout = TimeSpan.FromMilliseconds(150) });
+
+        Assert.True(result.State.Persistent, result.State.Reason);
+    }
+
+    [Fact]
+    public void Ssm_still_failing_after_every_attempt_is_transient()
+    {
+        var source = Substitute.For<IAgentAccessKeySource>();
+        source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyDictionary<string, AgentAccessKeyParameter>>(_ => throw new HttpRequestException("ssm unreachable"));
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(source) with { LoadAttempts = 4 });
+
+        Assert.False(result.State.Persistent);
+        Assert.True(result.State.Transient);
+        source.Received(4).ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("ThrottlingException", HttpStatusCode.BadRequest, true)]
+    [InlineData("InternalServerError", HttpStatusCode.InternalServerError, true)]
+    [InlineData("AccessDeniedException", HttpStatusCode.BadRequest, false)]
+    [InlineData("ParameterNotFound", HttpStatusCode.BadRequest, false)]
+    public void Only_passing_ssm_errors_are_transient(string errorCode, HttpStatusCode status, bool transient)
+    {
+        var source = Substitute.For<IAgentAccessKeySource>();
+        source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyDictionary<string, AgentAccessKeyParameter>>(_ =>
+                throw new AmazonSimpleSystemsManagementException("detail") { ErrorCode = errorCode, StatusCode = status });
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(source));
+
+        Assert.Equal(transient, result.State.Transient);
+        source.Received(transient ? 2 : 1).ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Unusable_keys_are_not_transient()
+    {
+        var parameters = AgentAccessKeyLoaderTests.Parameters(AgentAccessKeyLoaderTests.Pem(), AgentAccessKeyLoaderTests.Pem());
+        parameters[AgentAccessKeyLoader.SigningKeyName] = "not a pem";
+
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(Source(parameters)));
+
+        Assert.False(result.State.Persistent);
+        Assert.False(result.State.Transient);
+    }
+
+    [Fact]
+    public void A_timeout_with_no_valid_issuer_is_not_transient()
+    {
+        var source = Substitute.For<IAgentAccessKeySource>();
+        source.ReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<IReadOnlyDictionary<string, AgentAccessKeyParameter>>(_ => throw new HttpRequestException("ssm unreachable"));
+
+        // Recovered keys could never open the gate without an issuer, so there is nothing to retry for.
+        var result = AgentAccessKeyBootstrap.Resolve(Settings(source, issuer: "http://hub.urgent.example.test"));
+
+        Assert.False(result.State.Transient);
     }
 
     // Generating RSA keys is CPU work on a pod that may be throttled at start; it must not eat the SSM budget.
@@ -375,7 +468,7 @@ public class AgentAccessKeyBootstrapTests
     [Theory]
     [InlineData("TooManyUpdatesException")]
     [InlineData("ThrottlingException")]
-    public void A_write_that_keeps_being_throttled_is_not_persistent_and_does_not_throw(string error)
+    public void A_write_that_keeps_being_throttled_is_transient_and_does_not_throw(string error)
     {
         var source = Store(new Dictionary<string, string>());
         source.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -386,8 +479,10 @@ public class AgentAccessKeyBootstrapTests
         var result = AgentAccessKeyBootstrap.Resolve(Settings(source));
 
         Assert.False(result.State.Persistent);
+        Assert.True(result.State.Transient);
         Assert.Null(result.Keys);
-        source.Received(3).CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        // Three writes in each of the two attempts.
+        source.Received(6).CreateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -413,7 +508,7 @@ public class AgentAccessKeyBootstrapTests
             .Returns(call => Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>()));
 
         var result = AgentAccessKeyBootstrap.Resolve(
-            new AgentAccessOAuthSettings(Prefix, Issuer, source, LoadTimeout: TimeSpan.FromMilliseconds(300), KeyWriteSettle: TimeSpan.Zero));
+            new AgentAccessOAuthSettings(Prefix, Issuer, source, LoadTimeout: TimeSpan.FromMilliseconds(300), KeyWriteSettle: TimeSpan.Zero, LoadRetryDelay: TimeSpan.Zero));
 
         Assert.False(result.State.Persistent);
         Assert.Contains("timed out", result.State.Reason);
@@ -530,7 +625,7 @@ public class AgentAccessKeyBootstrapTests
     }
 
     private static AgentAccessOAuthSettings Settings(IAgentAccessKeySource source, string? prefix = Prefix, string? issuer = Issuer) =>
-        new(prefix, issuer, source, KeyWriteSettle: TimeSpan.Zero);
+        new(prefix, issuer, source, KeyWriteSettle: TimeSpan.Zero, LoadAttempts: 2, LoadRetryDelay: TimeSpan.Zero);
 
     private static IAgentAccessKeySource Source(Dictionary<string, string>? parameters = null)
     {
