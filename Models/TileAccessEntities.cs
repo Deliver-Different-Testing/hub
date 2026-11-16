@@ -52,3 +52,12 @@ public partial class TblContactContactRole
 
     public int ContactRoleId { get; set; }
 }
+
+// Branches programme (B1): a tenant staff contact's branch scope. No rows = sees every branch. Written by the
+// configurator's Team screen (tblContactBranch); Hub only reads it at login and puts it in the BranchIds claim.
+public partial class TblContactBranch
+{
+    public int ClientContactId { get; set; }
+
+    public int BranchId { get; set; }
+}

@@ -85,6 +85,70 @@ public class AgentPassIdentityLoaderTests : IDisposable
     }
 
     [Fact]
+    public async Task The_pass_carries_the_contacts_branch_scope_so_an_agent_sees_no_more_than_the_person()
+    {
+        var rig = Build();
+        rig.Master.GetUserByIdAsync(55).Returns(new User { UserId = 55, Email = "staff@urgent.test", IsNetworkPartner = false, IsCourier = false });
+        var scoped = Contact();   // ClientTypeId 4: tenant staff
+        scoped.BranchIds = [2, 1];
+        rig.Tenant.FetchAgentContactAsync(9).Returns(scoped);
+
+        var result = await Load(rig);
+
+        Assert.Equal("1,2", result.Identity!.BranchIds);
+    }
+
+    [Fact]
+    public async Task A_df_admin_with_stray_branch_rows_gets_no_restrictive_claim_on_the_pass()
+    {
+        var rig = Build();
+        rig.Master.GetUserByIdAsync(55).Returns(new User { UserId = 55, Email = "admin@urgent.test", IsNetworkPartner = false, IsCourier = false });
+        var admin = Contact(clientType: 5);
+        admin.BranchIds = [1, 2];
+        rig.Tenant.FetchAgentContactAsync(9).Returns(admin);
+
+        var result = await Load(rig);
+
+        Assert.Equal(AgentGrantEligibility.Eligible, result.Eligibility);
+        Assert.Equal(string.Empty, result.Identity!.BranchIds);
+    }
+
+    [Fact]
+    public async Task A_contact_on_a_network_partner_client_with_stray_branch_rows_gets_no_restrictive_claim_on_the_pass()
+    {
+        var rig = Build();
+        var partner = Contact(clientType: 3);   // the tenant contact sits on a network partner client
+        partner.BranchIds = [1, 2];
+        rig.Tenant.FetchAgentContactAsync(9).Returns(partner);
+
+        var load = await Load(rig);
+
+        // Client type 3 is not an agent-eligible type at all, so there is no identity to carry a claim.
+        Assert.Null(load.Identity);
+    }
+
+    [Fact]
+    public async Task The_master_level_network_partner_flag_does_not_strip_the_branch_limit_from_a_staff_contact()
+    {
+        var rig = Build();   // the master user in this rig is flagged IsNetworkPartner = true
+        var staff = Contact();   // ClientTypeId 4: tenant staff in THIS tenant
+        staff.BranchIds = [1, 2];
+        rig.Tenant.FetchAgentContactAsync(9).Returns(staff);
+
+        var result = await Load(rig);
+
+        Assert.Equal("1,2", result.Identity!.BranchIds);
+    }
+
+    [Fact]
+    public async Task A_contact_with_no_branches_gets_an_empty_scope_meaning_every_branch()
+    {
+        var result = await Load(Build());
+
+        Assert.Equal(string.Empty, result.Identity!.BranchIds);
+    }
+
+    [Fact]
     public async Task An_eligible_user_is_described_from_the_master_user_the_tenant_and_the_contact()
     {
         var rig = Build();

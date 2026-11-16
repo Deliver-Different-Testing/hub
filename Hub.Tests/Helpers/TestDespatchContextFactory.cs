@@ -1,19 +1,20 @@
 using Hub.Models;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Hub.Tests.Helpers;
 
 public static class TestDespatchContextFactory
 {
-    public static DynamicDespatchDbContext Create(string? dbName = null)
+    public static DynamicDespatchDbContext Create(string? dbName = null, IInterceptor? interceptor = null)
     {
         var connection = new SqliteConnection("DataSource=:memory:");
         connection.Open();
 
-        var options = new DbContextOptionsBuilder<DespatchContext>()
-            .UseSqlite(connection)
-            .Options;
+        var builder = new DbContextOptionsBuilder<DespatchContext>().UseSqlite(connection);
+        if (interceptor is not null) builder.AddInterceptors(interceptor);
+        var options = builder.Options;
 
         var connectionStringManager = new ConnectionStringManager();
         connectionStringManager.SetConnectionString("Server=fake;Database=fake;");
@@ -23,9 +24,9 @@ public static class TestDespatchContextFactory
         return context;
     }
 
-    public static DynamicDespatchDbContext CreateWithSeedData(string? dbName = null)
+    public static DynamicDespatchDbContext CreateWithSeedData(string? dbName = null, IInterceptor? interceptor = null)
     {
-        var context = Create(dbName);
+        var context = Create(dbName, interceptor);
         SeedData(context);
         return context;
     }
@@ -195,6 +196,11 @@ public static class TestDespatchContextFactory
         };
 
         context.TucClientContacts.AddRange(activeContact, inactiveContact, staffContact, legacyContact, npContact);
+
+        // Branches programme (B1): the NP contact is scoped to two branches; every other contact has no rows (no scope).
+        context.TblContactBranches.AddRange(
+            new TblContactBranch { ClientContactId = 5, BranchId = 2 },
+            new TblContactBranch { ClientContactId = 5, BranchId = 1 });
 
         var activeCourier = new TucCourier
         {

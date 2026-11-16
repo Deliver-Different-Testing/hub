@@ -17,6 +17,8 @@ public partial class DespatchContext
 
     public virtual DbSet<TblContactContactRole> TblContactContactRoles { get; set; }
 
+    public virtual DbSet<TblContactBranch> TblContactBranches { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<RolePermission>(entity =>
@@ -40,6 +42,12 @@ public partial class DespatchContext
         {
             entity.HasKey(e => new { e.ClientContactId, e.ContactRoleId });
             entity.ToTable("tblContactContactRole");
+        });
+
+        modelBuilder.Entity<TblContactBranch>(entity =>
+        {
+            entity.HasKey(e => new { e.ClientContactId, e.BranchId });
+            entity.ToTable("tblContactBranch");
         });
     }
 }

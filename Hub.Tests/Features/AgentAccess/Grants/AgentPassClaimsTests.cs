@@ -27,7 +27,7 @@ public class AgentPassClaimsTests
             {
                 ClaimTypes.Name, "UserID", "CurrentTenantID", "StaffID", "ContactID", "ClientID", "ClientTypeId", "TenantCode",
                 "CountryCode", "TimeZone", "Internal", "IsCourier", "IsNetworkPartner", "NpRoleId", "RoleId", "NpAgentId",
-                "FirstName", "Surname", "AccountsMode"
+                "FirstName", "Surname", "AccountsMode", "BranchIds"
             }.OrderBy(x => x),
             claims.Keys.OrderBy(x => x));
     }
@@ -75,6 +75,13 @@ public class AgentPassClaimsTests
         var without = Build(Identity(roleId: null));
         Assert.Equal(string.Empty, without["RoleId"]);
         Assert.Equal(string.Empty, without["NpRoleId"]);
+    }
+
+    [Fact]
+    public void The_branch_scope_is_carried_as_a_comma_list_and_empty_means_no_scope()
+    {
+        Assert.Equal(string.Empty, Build(Identity())["BranchIds"]);
+        Assert.Equal("1,2", Build(Identity() with { BranchIds = "1,2" })["BranchIds"]);
     }
 
     [Fact]
