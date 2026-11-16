@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { antiforgeryHandler } from '../test/handlers';
 import { server } from '../test/server';
 import { renderWithProviders } from '../test/utils';
@@ -150,5 +150,20 @@ describe('AssistantWidget', () => {
     await ask('Hello');
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The assistant is busy right now.');
+  });
+
+  it('keeps the chat on screen when scrollIntoView returns a promise, as newer Chrome does', async () => {
+    const scroll = vi.spyOn(window.HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => Promise.resolve());
+    try {
+      server.use(enabled, antiforgeryHandler(), http.post('/api/assistant/messages', () => sse({ type: 'text_delta', text: 'First answer.' }, { type: 'done' })));
+      renderWithProviders(<AssistantWidget />);
+
+      await ask('Hello');
+
+      expect(await screen.findByText('First answer.')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Auto-mate assistant' })).toBeInTheDocument();
+    } finally {
+      scroll.mockRestore();
+    }
   });
 });
