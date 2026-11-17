@@ -1,3 +1,4 @@
+using Hub.Features.ApiKeys;
 using Hub.Features.AgentAccess.Capabilities;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.Branding;
@@ -26,6 +27,7 @@ public static class AppServiceExtensions
         services.AddScoped<ITileAccessResolver, TileAccessResolver>();
         services.AddScoped<IAgentCapabilityResolver, AgentCapabilityResolver>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IApiKeyAccessResolver, ApiKeyAccessResolver>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IHomeService, HomeService>();
         services.AddScoped<IFuelSurchargeService, FuelSurchargeService>();

@@ -10,6 +10,8 @@ export const ME_NZ: Me = {
     { id: 1, name: 'Urgent', code: 'urgent', countryCode: 'NZ' },
     { id: 2, name: 'Acme Delivery', code: 'acme', countryCode: 'US' },
   ],
+  canSeeSettings: true,
+  canGenerateApiKey: true,
 };
 
 export const ME_US: Me = {

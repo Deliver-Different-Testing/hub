@@ -17,7 +17,9 @@ public sealed record MeResponse(
     string? DisplayName,
     bool IsCourier,
     MeTenant? CurrentTenant,
-    IReadOnlyList<MeTenant> Tenants);
+    IReadOnlyList<MeTenant> Tenants,
+    bool CanSeeSettings = false,
+    bool CanGenerateApiKey = false);
 
 public sealed record HomeTileResponse(string Key, string Title, string Icon, string Href, bool IsDisabled);
 

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Hub.Features.ApiKeys;
 using Hub.Interfaces;
 using Hub.Models.Master;
 using Hub.Services;
@@ -13,7 +14,9 @@ public class CurrentUserServiceTests
     {
         var tenantService = Substitute.For<ITenantService>();
         tenantService.GetTenantsForUserAsync(Arg.Any<int>()).Returns(tenants);
-        return new CurrentUserService(tenantService);
+        var access = Substitute.For<IApiKeyAccessResolver>();
+        access.ResolveAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<CancellationToken>()).Returns(new ApiKeyAccess(true, false));
+        return new CurrentUserService(tenantService, access);
     }
 
     private static Tenant T(int id, string name, string code, string? country) =>
@@ -105,10 +108,21 @@ public class CurrentUserServiceTests
     {
         var tenantService = Substitute.For<ITenantService>();
         tenantService.GetTenantsForUserAsync(Arg.Any<int>()).Returns([]);
-        var service = new CurrentUserService(tenantService);
+        var access = Substitute.For<IApiKeyAccessResolver>();
+        access.ResolveAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<CancellationToken>()).Returns(ApiKeyAccess.None);
+        var service = new CurrentUserService(tenantService, access);
 
         await service.GetMeAsync(ClaimsPrincipalFactory.Create(userId: 9));
 
         await tenantService.Received(1).GetTenantsForUserAsync(9);
+    }
+
+    [Fact]
+    public async Task GetMe_CarriesTheSettingsAndApiKeyFlagsFromTheResolver()
+    {
+        var me = await Create().GetMeAsync(ClaimsPrincipalFactory.Create());
+
+        Assert.True(me.CanSeeSettings);
+        Assert.False(me.CanGenerateApiKey);
     }
 }

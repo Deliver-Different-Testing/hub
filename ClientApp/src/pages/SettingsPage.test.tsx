@@ -1,11 +1,11 @@
 import { http, HttpResponse } from 'msw';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
-import { antiforgeryHandler } from '../test/handlers';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ME_NZ, antiforgeryHandler, meHandler } from '../test/handlers';
 import { server } from '../test/server';
 import { renderWithProviders } from '../test/utils';
-import SettingsPage, { COPIED_RESET_DELAY_MS } from './SettingsPage';
+import SettingsPage, { COPIED_RESET_DELAY_MS, SETTINGS_MANAGED_BY_ADMIN } from './SettingsPage';
 
 const settings = (apiKey: string | null = null) => [
   { id: 1, name: 'APIKey', value: apiKey },
@@ -23,6 +23,8 @@ async function generateKeyViaDialog() {
 }
 
 describe('SettingsPage', () => {
+  beforeEach(() => server.use(meHandler()));
+
   it('lists the other settings, excluding the API key row', async () => {
     serve();
     renderWithProviders(<SettingsPage />);
@@ -127,6 +129,47 @@ describe('SettingsPage', () => {
 
   it('shows an error when the settings cannot be loaded', async () => {
     server.use(http.get('/api/me/settings', () => new HttpResponse(null, { status: 500 })));
+    renderWithProviders(<SettingsPage />);
+    expect(await screen.findByText("Couldn't load your settings. Try again.")).toBeInTheDocument();
+  });
+
+  it('tells staff without the admin role that Settings are managed for them, and never reads the settings', async () => {
+    const read = vi.fn();
+    server.use(
+      meHandler({ ...ME_NZ, canSeeSettings: false, canGenerateApiKey: false }),
+      http.get('/api/me/settings', () => {
+        read();
+        return HttpResponse.json(settings());
+      }),
+    );
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByText(SETTINGS_MANAGED_BY_ADMIN)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'API key' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Other settings' })).not.toBeInTheDocument();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('hides Generate API key when the user may see Settings but not create a key', async () => {
+    server.use(meHandler({ ...ME_NZ, canGenerateApiKey: false }));
+    serve();
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByText("Only your organisation's administrator can create an API key.")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generate API key' })).not.toBeInTheDocument();
+  });
+
+  it('still lets them copy a key they already have', async () => {
+    server.use(meHandler({ ...ME_NZ, canGenerateApiKey: false }));
+    serve('existing-key');
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByRole('button', { name: /Copy/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('API key')).toHaveValue('existing-key');
+  });
+
+  it('shows an error when the user cannot be loaded', async () => {
+    server.use(http.get('/api/me', () => new HttpResponse(null, { status: 500 })));
     renderWithProviders(<SettingsPage />);
     expect(await screen.findByText("Couldn't load your settings. Try again.")).toBeInTheDocument();
   });
