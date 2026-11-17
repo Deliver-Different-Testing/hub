@@ -50,10 +50,14 @@ export default function ProfileMenu({ me }: { me: Me }) {
           </Group>
         </Menu.Label>
         <Menu.Divider />
-        <Menu.Item component={Link} to="/Account/Settings" leftSection={<Icon icon={Settings} size={16} />}>
-          Settings
-        </Menu.Item>
-        <Menu.Divider />
+        {me.canSeeSettings && (
+          <>
+            <Menu.Item component={Link} to="/Account/Settings" leftSection={<Icon icon={Settings} size={16} />}>
+              Settings
+            </Menu.Item>
+            <Menu.Divider />
+          </>
+        )}
         <Menu.Item
           leftSection={<Icon icon={LogOut} size={16} />}
           disabled={signOut.isPending}

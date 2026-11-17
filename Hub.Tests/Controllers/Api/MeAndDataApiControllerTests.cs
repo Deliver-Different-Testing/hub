@@ -1,4 +1,5 @@
 using Hub.Controllers.Api;
+using Hub.Features.ApiKeys;
 using Hub.Interfaces;
 using Hub.Tests.Helpers;
 using Hub.ViewModels;
@@ -18,11 +19,13 @@ public class MeAndDataApiControllerTests
 
     // ---- me ----
 
-    private static (MeApiController Controller, ICurrentUserService Users, IAccountService Accounts) CreateMe()
+    private static (MeApiController Controller, ICurrentUserService Users, IAccountService Accounts) CreateMe(ApiKeyAccess? access = null)
     {
         var users = Substitute.For<ICurrentUserService>();
         var accounts = Substitute.For<IAccountService>();
-        var controller = new MeApiController(users, accounts);
+        var resolver = Substitute.For<IApiKeyAccessResolver>();
+        resolver.ResolveAsync(Arg.Any<System.Security.Claims.ClaimsPrincipal>(), Arg.Any<CancellationToken>()).Returns(access ?? ApiKeyAccess.Full);
+        var controller = new MeApiController(users, accounts, resolver);
         ControllerTestBase.SetupHttpContext(controller, ClaimsPrincipalFactory.Create());
         return (controller, users, accounts);
     }
@@ -100,6 +103,24 @@ public class MeAndDataApiControllerTests
         accounts.GenerateApiKeyAsync(controller.User).Returns(new GenerateApiKeyResult(null));
 
         Assert.Equal("Couldn't generate an API key. Try again.", Body<ApiError>(await controller.GenerateApiKey(), 400).Error);
+    }
+
+    [Fact]
+    public async Task Me_ApiKey_NotAllowed_Returns403_AndNeverGeneratesAKey()
+    {
+        var (controller, _, accounts) = CreateMe(ApiKeyAccess.None);
+
+        Assert.Equal(MeApiController.ApiKeyForbidden, Body<ApiError>(await controller.GenerateApiKey(), 403).Error);
+        await accounts.DidNotReceive().GenerateApiKeyAsync(Arg.Any<System.Security.Claims.ClaimsPrincipal>());
+    }
+
+    [Fact]
+    public async Task Me_Settings_NotAllowed_Returns403_AndReadsNothing()
+    {
+        var (controller, _, accounts) = CreateMe(ApiKeyAccess.None);
+
+        Assert.Equal(MeApiController.SettingsForbidden, Body<ApiError>(await controller.GetSettings(), 403).Error);
+        await accounts.DidNotReceive().GetSettingsAsync(Arg.Any<System.Security.Claims.ClaimsPrincipal>());
     }
 
     // ---- home ----

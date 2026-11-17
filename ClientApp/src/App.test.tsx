@@ -472,6 +472,17 @@ describe('AppShell profile menu', () => {
     expect(menu.querySelector('.mantine-Menu-divider:last-of-type + button')).toHaveTextContent('Log out');
   });
 
+  it('hides Settings from staff who cannot see it, leaving only Log out', async () => {
+    serveAuthed({ ...ME_NZ, canSeeSettings: false, canGenerateApiKey: false });
+    const user = userEvent.setup();
+    renderApp('/');
+    await user.click(await screen.findByRole('button', { name: 'Jane Doe, account menu' }));
+    const menu = await screen.findByRole('menu');
+
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Log out']);
+    expect(menu.querySelectorAll('.mantine-Menu-divider')).toHaveLength(1);
+  });
+
   it('derives a name from the email when the account has no display name', async () => {
     serveAuthed({ ...ME_NZ, displayName: null });
     renderApp('/');
