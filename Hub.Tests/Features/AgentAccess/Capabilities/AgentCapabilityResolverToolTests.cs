@@ -121,6 +121,7 @@ public partial class AgentCapabilityResolverTests
     [InlineData("agent-tool-automation-census", "cfg-automations")]
     [InlineData("agent-tool-fleet-compliance", "cfg-fleet")]
     [InlineData("agent-tool-fleet-compliance", "courier-compliance-monitoring")]
+    [InlineData("agent-tool-run-report", "reports")]
     public async Task A_configurator_tool_is_granted_when_the_verb_the_tile_and_every_screen_key_are_granted(string verb, string _)
     {
         await using var ctx = NewContext($"{nameof(A_configurator_tool_is_granted_when_the_verb_the_tile_and_every_screen_key_are_granted)}-{verb}-{_}");
@@ -141,6 +142,7 @@ public partial class AgentCapabilityResolverTests
     [Theory]
     [InlineData("agent-tool-automation-census")]
     [InlineData("agent-tool-fleet-compliance")]
+    [InlineData("agent-tool-run-report")]
     public async Task A_configurator_tool_is_denied_when_the_configurator_tile_is_denied(string verb)
     {
         await using var ctx = NewContext($"{nameof(A_configurator_tool_is_denied_when_the_configurator_tile_is_denied)}-{verb}");
@@ -163,6 +165,7 @@ public partial class AgentCapabilityResolverTests
     [InlineData("agent-tool-automation-census", "cfg-automations")]
     [InlineData("agent-tool-fleet-compliance", "cfg-fleet")]
     [InlineData("agent-tool-fleet-compliance", "courier-compliance-monitoring")]
+    [InlineData("agent-tool-run-report", "reports")]
     public async Task A_configurator_tool_is_denied_naming_the_key_when_a_screen_key_is_none(string verb, string blocked)
     {
         await using var ctx = NewContext($"{nameof(A_configurator_tool_is_denied_naming_the_key_when_a_screen_key_is_none)}-{verb}-{blocked}");
@@ -181,6 +184,7 @@ public partial class AgentCapabilityResolverTests
     [Theory]
     [InlineData("agent-tool-automation-census")]
     [InlineData("agent-tool-fleet-compliance")]
+    [InlineData("agent-tool-run-report")]
     public async Task A_configurator_tool_with_no_row_on_its_screen_keys_follows_the_tile_decision(string verb)
     {
         await using var ctx = NewContext($"{nameof(A_configurator_tool_with_no_row_on_its_screen_keys_follows_the_tile_decision)}-{verb}");
