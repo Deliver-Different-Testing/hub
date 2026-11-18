@@ -21,6 +21,9 @@ public class AgentToolCatalogueTests
         ("rule_readback", "agent-tool-rule-readback", "cfg-automations", "hub-tile-configurator"),
         ("client_month_report", "agent-tool-client-month-report", "reports", "hub-tile-configurator"),
         ("courier_day_report", "agent-tool-courier-day-report", "reports", "hub-tile-configurator"),
+        ("list_entities", "agent-tool-list-entities", "reports", "hub-tile-configurator"),
+        ("describe_entity", "agent-tool-describe-entity", "reports", "hub-tile-configurator"),
+        ("run_report", "agent-tool-run-report", "reports", "hub-tile-configurator"),
         ("fleet_compliance", "agent-tool-fleet-compliance", "cfg-fleet,courier-compliance-monitoring", "hub-tile-configurator"),
         ("compliance_chase_history", "agent-tool-compliance-chase-history", "cfg-fleet,courier-compliance-monitoring", "hub-tile-configurator"),
         ("agent_onboarding_status", "agent-tool-agent-onboarding-status", "multi-client,courier-compliance-monitoring", "hub-tile-configurator"),
@@ -44,7 +47,7 @@ public class AgentToolCatalogueTests
             "agent-connect", "agent-export-jobs", "agent-export-pricing", "agent-see-costs",
             "agent-tool-job-search", "agent-tool-job-story", "agent-tool-job-evidence", "agent-tool-recurring-check",
             "agent-tool-partner-inbox", "agent-tool-dispatch-board", "agent-tool-driver-day",
-            "agent-tool-automation-pulse", "agent-tool-automation-census", "agent-tool-automation-job-trail", "agent-tool-rule-readback", "agent-tool-client-month-report", "agent-tool-courier-day-report", "agent-tool-fleet-compliance", "agent-tool-compliance-chase-history", "agent-tool-agent-onboarding-status", "agent-tool-access-explain", "agent-tool-rate-change-history",
+            "agent-tool-automation-pulse", "agent-tool-automation-census", "agent-tool-automation-job-trail", "agent-tool-rule-readback", "agent-tool-client-month-report", "agent-tool-courier-day-report", "agent-tool-list-entities", "agent-tool-describe-entity", "agent-tool-run-report", "agent-tool-fleet-compliance", "agent-tool-compliance-chase-history", "agent-tool-agent-onboarding-status", "agent-tool-access-explain", "agent-tool-rate-change-history",
             "agent-see-pod", "agent-see-contact-details", "agent-see-notes", "agent-manage-connections"
         ];
 

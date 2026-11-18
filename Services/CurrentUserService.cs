@@ -1,10 +1,11 @@
 using System.Security.Claims;
+using Hub.Features.ApiKeys;
 using Hub.Interfaces;
 using Hub.ViewModels;
 
 namespace Hub.Services;
 
-public class CurrentUserService(ITenantService tenantService) : ICurrentUserService
+public class CurrentUserService(ITenantService tenantService, IApiKeyAccessResolver apiKeyAccess) : ICurrentUserService
 {
     public async Task<MeResponse> GetMeAsync(ClaimsPrincipal user)
     {
@@ -53,12 +54,15 @@ public class CurrentUserService(ITenantService tenantService) : ICurrentUserServ
         }
 
         var isCourier = string.Equals(user.FindFirst("IsCourier")?.Value, "True", StringComparison.OrdinalIgnoreCase);
+        var access = await apiKeyAccess.ResolveAsync(user);
 
         return new MeResponse(
             userEmail,
             string.IsNullOrEmpty(displayName) ? null : displayName,
             isCourier,
             currentTenant,
-            tenants);
+            tenants,
+            access.CanSeeSettings,
+            access.CanGenerateApiKey);
     }
 }
