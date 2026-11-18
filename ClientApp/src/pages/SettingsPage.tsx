@@ -8,14 +8,43 @@ import { DialogFooter } from '../components/dialog/DialogFooter';
 import { DialogHeader } from '../components/dialog/DialogHeader';
 import { DialogShell } from '../components/dialog/DialogShell';
 import Icon from '../components/Icon';
+import { useMe } from '../hooks/useMe';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 export const COPIED_RESET_DELAY_MS = 2000;
 const API_KEY_ERROR = "Couldn't generate an API key. Try again.";
 const API_KEY_SETTING = 'APIKey';
 
+export const SETTINGS_MANAGED_BY_ADMIN = "Settings are managed by your organisation's administrator.";
+
+// Staff without the admin role, Network Partners and couriers get no Settings (the server refuses them too).
 export default function SettingsPage() {
   usePageTitle('Settings');
+  const me = useMe();
+
+  if (me.isPending) {
+    return (
+      <Center py="xl">
+        <Loader aria-label="Loading settings" />
+      </Center>
+    );
+  }
+  if (me.isError) return <Alert color="red">Couldn't load your settings. Try again.</Alert>;
+  if (!me.data.canSeeSettings) {
+    return (
+      <div>
+        <Title order={2} mb="md">
+          Settings
+        </Title>
+        <Alert color="gray">{SETTINGS_MANAGED_BY_ADMIN}</Alert>
+      </div>
+    );
+  }
+
+  return <SettingsContent canGenerateApiKey={me.data.canGenerateApiKey} />;
+}
+
+function SettingsContent({ canGenerateApiKey }: { canGenerateApiKey: boolean }) {
   const queryClient = useQueryClient();
   const { data, isPending, isError } = useQuery({ queryKey: ['settings'], queryFn: getSettings, retry: false });
   const [confirming, setConfirming] = useState(false);
@@ -79,6 +108,9 @@ export default function SettingsPage() {
             label="API key"
             readOnly
             value={apiKey}
+            description={
+              !apiKey && !canGenerateApiKey ? "Only your organisation's administrator can create an API key." : undefined
+            }
             error={error || undefined}
             style={{ flex: 1 }}
           />
@@ -91,11 +123,11 @@ export default function SettingsPage() {
             >
               {copied ? 'Copied' : 'Copy'}
             </Button>
-          ) : (
+          ) : canGenerateApiKey ? (
             <Button variant="default" onClick={() => setConfirming(true)}>
               Generate API key
             </Button>
-          )}
+          ) : null}
         </Group>
       </Card>
 

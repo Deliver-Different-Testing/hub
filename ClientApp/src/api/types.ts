@@ -11,6 +11,9 @@ export interface Me {
   isCourier: boolean;
   currentTenant: Tenant | null;
   tenants: Tenant[];
+  /** Server-decided: tenant staff without manage-api-keys, Network Partners and couriers get no Settings. */
+  canSeeSettings: boolean;
+  canGenerateApiKey: boolean;
 }
 
 export interface LoginRequest {

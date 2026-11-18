@@ -1,5 +1,6 @@
 ﻿using Hub.Interfaces;
 using Hub.Models;
+using Hub.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -15,11 +16,13 @@ public sealed class Repository(
         {
             Log.Debug("Attempting to fetch user with email: {Email}", email);
 
-            return await context.TucClientContacts
+            var contact = await context.TucClientContacts
                 .AsNoTracking()
                 .Include(c => c.UcctClient)
                 .Where(x => x.Active && x.UserName == email)
                 .FirstOrDefaultAsync();
+
+            return await WithBranchesAsync(contact);
         }
         catch (Exception ex)
         {
@@ -29,10 +32,55 @@ public sealed class Repository(
     }
 
     public async Task<TucClientContact?> FetchAgentContactAsync(int contactId) =>
-        await context.TucClientContacts
+        await WithBranchesAsync(await context.TucClientContacts
             .AsNoTracking()
             .Include(c => c.UcctClient)
-            .FirstOrDefaultAsync(c => c.UcctId == contactId);
+            .FirstOrDefaultAsync(c => c.UcctId == contactId));
+
+    // Branches programme (B1): the contact's branch scope (tblContactBranch) for the BranchIds claim. No rows = no scope =
+    // sees every branch. A tenant that has not had the branch migration yet has no such table (SQL error 208), which
+    // also means nobody there is scoped, so login carries on with an empty list. Any other failure is thrown: guessing
+    // "no scope" on an error would quietly widen what someone can see.
+    // Only tenant staff are ever limited, so the table is not read at all for anyone else (customers, network partners,
+    // DF Admin): their claim is empty whatever rows exist, and their sign-in must not depend on that table being readable.
+    // Staff still fail closed: any error other than a missing table is thrown.
+    private async Task<TucClientContact?> WithBranchesAsync(TucClientContact? contact)
+    {
+        if (contact is null) return null;
+
+        if (BranchClaim.IsLimitable(contact.UcctClient?.ClientTypeId))
+        {
+            contact.BranchIds = await ReadBranchIdsAsync(contact.UcctId);
+        }
+
+        return contact;
+    }
+
+    private async Task<List<int>> ReadBranchIdsAsync(int contactId)
+    {
+        try
+        {
+            return await context.TblContactBranches
+                .AsNoTracking()
+                .Where(b => b.ClientContactId == contactId)
+                .Select(b => b.BranchId)
+                .OrderBy(b => b)
+                .ToListAsync();
+        }
+        catch (Exception ex) when (TenantSqlErrors.IsMissingTable(ex))
+        {
+            Log.Debug("tblContactBranch does not exist in this tenant yet; no branch scope for contact {ContactId}", contactId);
+            return [];
+        }
+    }
+
+    // The refresh path for an already signed-in person: just their current branch scope. Null when the contact is gone or
+    // inactive, so a removed person is never turned into "no scope" (every branch) by their rows disappearing.
+    public async Task<IReadOnlyList<int>?> GetContactBranchIdsAsync(int contactId)
+    {
+        var active = await context.TucClientContacts.AsNoTracking().AnyAsync(c => c.UcctId == contactId && c.Active);
+        return active ? await ReadBranchIdsAsync(contactId) : null;
+    }
 
     public async Task<string> FetchSubAccountsAsync(int clientId)
     {

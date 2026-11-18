@@ -1,3 +1,4 @@
+using Hub.Services;
 using System.Security.Claims;
 
 namespace Hub.Features.AgentAccess.Grants;
@@ -20,7 +21,8 @@ public sealed record AgentPassIdentity(
     int? NpAgentId,
     string FirstName,
     string Surname,
-    int? AccountsMode);
+    int? AccountsMode,
+    string BranchIds = "");
 
 // The app pass claims (phase 1.9): exactly the cookie's claim types, so apps that read User.FindFirst("StaffID")
 // keep working. Never Connection, RememberMe or CourierID. The cookie list lives in AccountController.GenerateClaims.
@@ -49,7 +51,8 @@ public static class AgentPassClaims
             new("NpRoleId", role),
             new("RoleId", role),
             new("ClientTypeId", i.ClientTypeId?.ToString() ?? string.Empty),
-            new("NpAgentId", i.NpAgentId?.ToString() ?? string.Empty)
+            new("NpAgentId", i.NpAgentId?.ToString() ?? string.Empty),
+            new(BranchClaim.Type, i.BranchIds ?? string.Empty)
         ];
     }
 }

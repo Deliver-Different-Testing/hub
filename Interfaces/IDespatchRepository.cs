@@ -13,4 +13,5 @@ public interface IDespatchRepository
     Task<int?> GetAccountsModeAsync();
     Task<bool> IsAfterHoursAuthorizedAsync(int courierId);
     Task<TucClientContact?> FetchAgentContactAsync(int contactId);
+    Task<IReadOnlyList<int>?> GetContactBranchIdsAsync(int contactId);
 }

@@ -151,6 +151,10 @@ builder.Services.AddAuthentication("Identity.Application")
         options.Cookie.HttpOnly = true;
         options.Cookie.Domain = domain;
 
+        // Re-read a signed-in staff member's branch scope now and then, so a change an admin makes reaches people who are
+        // already signed in (and cookies issued before the claim existed). Never throws and never widens on failure.
+        options.Events.OnValidatePrincipal = BranchClaimCookie.ValidateAsync;
+
         // The SPA calls /api/* with fetch, which cannot follow a login redirect: answer 401/403 there
         // and keep the redirect for everything else (the /connect/authorize flow still relies on it).
         options.Events.OnRedirectToLogin = context =>
