@@ -341,6 +341,7 @@ public class AgentAccessConnectionsApiControllerTests : IDisposable
         Bearer(Mint(key: new RsaSecurityKey(RSA.Create(2048)) { KeyId = "k1" })),
         Bearer(Mint(subject: "system:serviceaccount:other-ns:configurator")),
         Bearer(Mint(subject: "system:serviceaccount:dfrnt-automate-mcp-87595416-staging:mcp")),
+        Bearer(Mint(audience: AgentAccessCapabilitiesTokenValidator.Audience)),
     };
 
     [Theory]
