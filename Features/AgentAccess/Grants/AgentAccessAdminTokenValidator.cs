@@ -15,31 +15,42 @@ public interface IAgentAccessAdminTokenValidator
     Task<string?> AuthenticateAsync(string? authorization, CancellationToken cancellationToken = default);
 }
 
-public sealed class AgentAccessAdminTokenValidator : IAgentAccessAdminTokenValidator
+public sealed class AgentAccessAdminTokenValidator(AgentAccessAdminTokenOptions options, IAgentAccessClusterJwks jwks)
+    : IAgentAccessAdminTokenValidator
 {
     /// <summary>Fixed, because configurator's deploy values are shared across tenants and cannot name each tenant's Hub URL.</summary>
     public const string Audience = "dfrnt-hub-admin";
 
-    private const string Scheme = "Bearer ";
-    private readonly AgentAccessMcpAssertionValidator _validator;
+    private readonly AgentAccessServiceTokenValidator _validator = new(options.Options, jwks, Audience, "Agent admin API");
 
-    public AgentAccessAdminTokenValidator(AgentAccessAdminTokenOptions options, IAgentAccessClusterJwks jwks) =>
-        _validator = new AgentAccessMcpAssertionValidator(options.Options, jwks);
+    public Task<string?> AuthenticateAsync(string? authorization, CancellationToken cancellationToken = default) =>
+        _validator.AuthenticateAsync(authorization, cancellationToken);
+}
+
+/// <summary>
+/// A bearer Kubernetes projected service-account token for one audience, from a subject on one allow-list. Each Hub
+/// server-to-server API has its own audience, so a token minted for one cannot be replayed to another.
+/// </summary>
+internal sealed class AgentAccessServiceTokenValidator(
+    AgentAccessMcpAssertionOptions options, IAgentAccessClusterJwks jwks, string audience, string logLabel)
+{
+    private const string Scheme = "Bearer ";
+    private readonly AgentAccessMcpAssertionValidator _validator = new(options, jwks);
 
     public async Task<string?> AuthenticateAsync(string? authorization, CancellationToken cancellationToken = default)
     {
         if (authorization is null || !authorization.StartsWith(Scheme, StringComparison.OrdinalIgnoreCase)
             || authorization[Scheme.Length..].Trim() is not { Length: > 0 } token)
         {
-            Log.Warning("Agent admin API request rejected: no bearer token");
+            Log.Warning("{Label} request rejected: no bearer token", logLabel);
             return null;
         }
 
-        var result = await _validator.ValidateAsync(token, [Audience], cancellationToken);
+        var result = await _validator.ValidateAsync(token, [audience], cancellationToken);
         if (result.Accepted) return result.ServiceAccount;
 
-        Log.Warning("Agent admin API request rejected: {Reason} (unverified token subject {Subject})",
-            result.Failure, UnverifiedSubject(token));
+        Log.Warning("{Label} request rejected: {Reason} (unverified token subject {Subject})",
+            logLabel, result.Failure, UnverifiedSubject(token));
         return null;
     }
 

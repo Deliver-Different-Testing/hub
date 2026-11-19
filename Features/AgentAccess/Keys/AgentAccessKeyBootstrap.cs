@@ -24,6 +24,7 @@ namespace Hub.Features.AgentAccess.Keys;
 /// <param name="ClusterIssuer">OIDC issuer of the Kubernetes cluster whose projected service-account tokens the MCP server presents (AgentAccess:ClusterIssuer). Unset = assertion auth is off.</param>
 /// <param name="McpServiceAccounts">Service-account subjects (system:serviceaccount:ns:sa, or a prefix of one ending in *) allowed to authenticate as dfrnt-mcp (AgentAccess:McpServiceAccounts). Empty = assertion auth is off.</param>
 /// <param name="AdminServiceAccounts">Service-account subjects allowed to call the admin connections APIs with their token (AgentAccess:AdminServiceAccounts). Empty = those APIs refuse everything.</param>
+/// <param name="CapabilityServiceAccounts">Service-account subjects allowed to ask for a user's agent capabilities with their token (AgentAccess:CapabilityServiceAccounts). Empty = only the API key is accepted there.</param>
 /// <param name="NewPrivateKeyPem">Makes the PKCS#8 PEM of a new key (default RSA 3072).</param>
 public sealed record AgentAccessOAuthSettings(
     string? SsmPrefix = null,
@@ -42,7 +43,8 @@ public sealed record AgentAccessOAuthSettings(
     int? LoadAttempts = null,
     TimeSpan? LoadRetryDelay = null,
     TimeSpan? RecoveryDelay = null,
-    TimeSpan? RecoveryMaxDelay = null);
+    TimeSpan? RecoveryMaxDelay = null,
+    IReadOnlyList<string>? CapabilityServiceAccounts = null);
 
 public enum AgentAccessIssuerSource { None, Configured, TenantUrl }
 
