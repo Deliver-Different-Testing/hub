@@ -163,7 +163,7 @@ public sealed class AgentAccessMcpAssertionValidator(AgentAccessMcpAssertionOpti
         // A key fetch that times out surfaces as a cancellation too; only the caller's own cancellation propagates.
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            Log.Warning(ex, "Agent access could not validate the MCP server's service-account token");
+            Log.Warning(ex, "Agent access could not validate a service-account token");
             return AgentAccessMcpAssertionResult.Refused("validation_error");
         }
     }
