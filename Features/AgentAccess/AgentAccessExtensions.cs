@@ -91,6 +91,20 @@ public static class AgentAccessExtensions
             Log.Warning("AgentAccess:AdminServiceAccounts or ClusterIssuer is not set, so the agent access admin APIs refuse every request");
         }
 
+        var capabilityTokens = AgentAccessMcpAssertionOptions.Resolve(
+            settings?.ClusterIssuer, settings?.CapabilityServiceAccounts, "AgentAccess:CapabilityServiceAccounts");
+        services.AddSingleton(new AgentAccessCapabilitiesTokenOptions(capabilityTokens));
+        services.TryAddSingleton<IAgentAccessCapabilitiesTokenValidator, AgentAccessCapabilitiesTokenValidator>();
+        if (capabilityTokens.Enabled)
+        {
+            Log.Information("Agent capabilities API accepts service-account tokens from {ClusterIssuer} for {ServiceAccounts}",
+                capabilityTokens.ClusterIssuer, string.Join(", ", capabilityTokens.ServiceAccounts));
+        }
+        else
+        {
+            Log.Warning("AgentAccess:CapabilityServiceAccounts or ClusterIssuer is not set, so the agent capabilities API accepts only the API key");
+        }
+
         services.AddHttpClient(AgentAccessClusterJwks.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
         if (mcpAssertion.Enabled)
         {
