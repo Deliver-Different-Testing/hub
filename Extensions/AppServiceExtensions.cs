@@ -2,6 +2,7 @@ using Hub.Features.ApiKeys;
 using Hub.Features.AgentAccess.Capabilities;
 using Hub.Features.AgentAccess.Gate;
 using Hub.Features.Branding;
+using Hub.Features.Outbox;
 using Hub.Interfaces;
 using Hub.Repositories;
 using Hub.Services;
@@ -28,6 +29,8 @@ public static class AppServiceExtensions
         services.AddScoped<IAgentCapabilityResolver, AgentCapabilityResolver>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IApiKeyAccessResolver, ApiKeyAccessResolver>();
+        services.AddScoped<IOutboxResetRegenerator, OutboxResetRegenerator>();
+        services.AddScoped<IOutboxRegenerationSource, SqlOutboxRegenerationSource>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IHomeService, HomeService>();
         services.AddScoped<IFuelSurchargeService, FuelSurchargeService>();
