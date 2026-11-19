@@ -86,6 +86,15 @@ public class AgentAccessCapabilitiesApiControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task An_authorization_header_that_is_not_a_bearer_token_leaves_the_key_to_decide()
+    {
+        Eligible();
+
+        Assert.IsType<OkObjectResult>(await _sut.Get(12, "55", 9, Key, "Basic dXNlcjpwYXNz", Ct));
+        Assert.IsType<UnauthorizedResult>(await _sut.Get(12, "55", 9, "wrong", "Basic dXNlcjpwYXNz", Ct));
+    }
+
+    [Fact]
     public async Task A_refused_token_is_not_rescued_by_a_valid_key()
     {
         Assert.IsType<UnauthorizedResult>(await _sut.Get(12, "55", 9, Key, Bearer(audience: AgentAccessAdminTokenValidator.Audience), Ct));

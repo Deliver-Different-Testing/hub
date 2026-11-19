@@ -75,7 +75,6 @@ public static class AgentAccessExtensions
         services.AddSingleton(mcpAssertion);
         services.AddSingleton(new AgentAccessMcpExchange(
             SecretConfigured: !string.IsNullOrEmpty(settings?.McpClientSecret), AssertionConfigured: mcpAssertion.Enabled));
-        services.AddSingleton<IAgentAccessClusterJwks, AgentAccessClusterJwks>();
         services.TryAddSingleton<IAgentAccessMcpAssertionValidator, AgentAccessMcpAssertionValidator>();
         var adminTokens = AgentAccessMcpAssertionOptions.Resolve(
             settings?.ClusterIssuer, settings?.AdminServiceAccounts, "AgentAccess:AdminServiceAccounts");
@@ -105,6 +104,10 @@ public static class AgentAccessExtensions
             Log.Warning("AgentAccess:CapabilityServiceAccounts or ClusterIssuer is not set, so the agent capabilities API accepts only the API key");
         }
 
+        // One cluster issuer behind every allow-list: its keys are needed when any of them is on, not only the MCP one.
+        var jwksOptions = new[] { mcpAssertion, adminTokens, capabilityTokens }.FirstOrDefault(o => o.Enabled) ?? mcpAssertion;
+        services.AddSingleton<IAgentAccessClusterJwks>(provider =>
+            new AgentAccessClusterJwks(jwksOptions, provider.GetRequiredService<IHttpClientFactory>()));
         services.AddHttpClient(AgentAccessClusterJwks.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
         if (mcpAssertion.Enabled)
         {

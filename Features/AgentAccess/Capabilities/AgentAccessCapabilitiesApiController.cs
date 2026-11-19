@@ -33,7 +33,8 @@ public class AgentAccessCapabilitiesApiController(IAgentPassIdentityLoader ident
         [FromHeader(Name = "Authorization")] string? authorization,
         CancellationToken cancellationToken)
     {
-        if (authorization is not null)
+        // Only a bearer token is an attempt at the token path; any other Authorization header leaves the key to decide.
+        if (authorization?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
         {
             if (await tokens.AuthenticateAsync(authorization, cancellationToken) is not { } caller) return Unauthorized();
             Log.Information("Agent capabilities request for tenant {TenantId} by {AuthScheme} {Caller}", tenantId, "sa-token", caller);
