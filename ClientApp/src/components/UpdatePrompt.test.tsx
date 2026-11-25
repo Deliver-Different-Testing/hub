@@ -38,20 +38,33 @@ describe('UpdatePrompt', () => {
     expect(screen.queryByText('Update available')).not.toBeInTheDocument();
   });
 
-  it('shows a notification with a Reload button when a new version is waiting', async () => {
+  it('shows a notification with an Update now button when a new version is waiting', async () => {
     sw.needRefresh = true;
     renderWithProviders(<UpdatePrompt />);
     expect(await screen.findByText('Update available')).toBeInTheDocument();
-    expect(screen.getByText('A new version of the App Hub is ready. Reload to update.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
+    expect(
+      screen.getByText('A new version of the App Hub is ready. Updating reloads the page, so save any changes first.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeInTheDocument();
   });
 
-  it('activates the waiting service worker and reloads when Reload is pressed', async () => {
+  it('activates the waiting service worker and shows it is updating when Update now is pressed', async () => {
     sw.needRefresh = true;
     const user = userEvent.setup();
     renderWithProviders(<UpdatePrompt />);
-    await user.click(await screen.findByRole('button', { name: 'Reload' }));
+    await user.click(await screen.findByRole('button', { name: 'Update now' }));
     expect(sw.updateServiceWorker).toHaveBeenCalledWith(true);
+    expect(await screen.findByText('Updating…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument();
+  });
+
+  it('says so when the update fails, so the toast is not stuck spinning', async () => {
+    sw.needRefresh = true;
+    sw.updateServiceWorker.mockRejectedValueOnce(new Error('no waiting worker'));
+    const user = userEvent.setup();
+    renderWithProviders(<UpdatePrompt />);
+    await user.click(await screen.findByRole('button', { name: 'Update now' }));
+    expect(await screen.findByText("Couldn't update. Reload the page to try again.")).toBeInTheDocument();
   });
 
   it('clears the needRefresh flag when the notification is dismissed', async () => {
