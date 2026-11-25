@@ -86,6 +86,28 @@ public class FeatureResolverInternalLaneTests
         Assert.Contains(TenantTile, keys);
     }
 
+    // ---- agent-scoped accounts (Client Driver M3, 2026-11-25) ---------------
+
+    private const string AgentTile = "hub-tile-agent-only";
+
+    [Theory]
+    [InlineData(3)]   // Network Partner
+    [InlineData(7)]   // Client Driver - a customer dispatching its own fleet
+    public async Task An_agent_scoped_account_is_never_remapped_to_tenant(int clientTypeId)
+    {
+        await using var ctx = NewContext($"{nameof(An_agent_scoped_account_is_never_remapped_to_tenant)}-{clientTypeId}");
+        Seed(ctx, clientId: 1, clientTypeId: clientTypeId);
+        Add(ctx, AgentTile, clientTypeId);
+        await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // ucclInternal is a billing flag. Ticking it on an agent-scoped account
+        // must not hand it the tenant's tiles.
+        var keys = await new FeatureResolver(ctx).ResolveForClientAsync(clientId: 1, isInternal: true);
+
+        Assert.Contains(AgentTile, keys);
+        Assert.DoesNotContain(TenantTile, keys);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     // One tile visible only to Customer, one only to Tenant, so which lane was
