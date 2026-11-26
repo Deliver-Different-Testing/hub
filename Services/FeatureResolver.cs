@@ -12,6 +12,8 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
     // ClientType 4 = Tenant, 5 = DFRNTAdmin.
     private const int TenantClientType = 4;
     private const int DfAdminClientType = 5;
+    private const int NetworkPartnerClientType = 3;
+    private const int ClientDriverClientType = 7;
 
     // A feature reaches a tenant only when ClientVisible AND ReleaseStatus ==
     // Live, so unfinished work cannot surface just because its parent tile is
@@ -81,7 +83,14 @@ public sealed class FeatureResolver(DynamicDespatchDbContext context) : IFeature
         //
         // NOT applied to a DF Admin: ClientType 5 has its own bypass below and
         // must keep it.
-        if (isInternal && clientTypeId != DfAdminClientType)
+        //
+        // NOR to an agent-scoped account (Client Driver M3, 2026-11-25): a
+        // Network Partner (3) or a Client Driver (7, a customer dispatching its
+        // own fleet) is fenced to its own agent and must never resolve as
+        // Tenant, even if someone ticks ucclInternal on it - ucclInternal is a
+        // billing flag ("do not invoice"), and a tick would otherwise hand that
+        // account every tenant tile.
+        if (isInternal && clientTypeId is not (DfAdminClientType or NetworkPartnerClientType or ClientDriverClientType))
         {
             clientTypeId = TenantClientType;
         }
